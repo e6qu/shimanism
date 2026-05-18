@@ -4,6 +4,71 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 
 > Reverse chronological. One section per phase. The *why*, the surprises, the root causes — not per-PR detail. For commit-level history, `git log`. For per-bug detail, [BUGS.md](BUGS.md).
 
+## Phases 1.5 – 1.7 — Cross-shape backends (still on PR #6)
+
+After the Phase 1.4 harness stabilised, user defined the cross-cloud routing architecture (option B): a single neutral `domain.Storage` interface with **frontends** (per source cloud) translating into it and **backends** (per destination cloud) translating out of it. Per service: one domain.Storage interface (+ types + errors), one or more frontends, one or more backends. For storage that's 3 + 1 + 4 ≈ 8 files of meaningful code per service.
+
+The hard requirements: **no fakes, no fallbacks, no deferrals**, **minimal-to-zero overhead in translation**, and **streaming throughout** — `io.Reader` for `httpPayload` blob inputs, `io.ReadCloser` for outputs. No buffering of object bodies.
+
+### 1.5.0 — Domain refactor (commit `829d360`)
+
+- `internal/storage/domain/`: neutral `Storage` interface (16 methods), neutral types (`Bucket`, `Object`, `ObjectMetadata`, `MultipartUpload`, `Part`, option structs), neutral `Error` with `Kind` discriminator and sentinel constructors (`NoSuchBucket`, `NoSuchKey`, `NoSuchUpload`, `BucketAlreadyExists`, `BucketNotEmpty`, `InvalidArgument`).
+- `internal/storage/frontends/aws_s3/`: implements `gen.AmazonS3Backend` by translating to `domain.Storage`. The 18 bucket-config probes live in a separate `probes.go` since they share a uniform "canonical not-configured response" shape.
+- `services/storage/backends/inmem/` rewritten to implement `domain.Storage` directly — drops every `gen.*` type from the in-mem backend.
+- **Codegen streaming**: detected `httpPayload`+blob members via `isBlobTarget()`, emit `io.ReadCloser` (both for input — set from `r.Body` — and output — `io.Copy` then Close). All operations regenerated with this shape.
+- Domain error → S3 status code mapping in the frontend adapter via `errors.As(*domain.Error)`.
+
+### 1.5.1 — MinIO backend (commit `e9ca37a`)
+
+S3-compatible control case. Uses `minio-go` plus `minio.Core` to expose explicit multipart (NewMultipartUpload / PutObjectPart / CompleteMultipartUpload / AbortMultipartUpload / ListMultipartUploads / ListObjectParts). Cached the `core` field on the Backend struct since `minio.Core` is constructed once per Backend instance, not per call.
+
+### 1.5.2 — AWS S3 passthrough backend (commit `c584b7e`)
+
+Real AWS S3 via `aws-sdk-go-v2/service/s3`. Same shape on both sides — primary use case is auth interception, observability injection, cross-region routing. `translateErr` maps `smithy.APIError` codes to domain errors.
+
+`DeleteBucket` SDK gotcha: returns `(struct{}, error)` not `(*Output, error)`, broke the obvious copy-paste from neighbouring operations.
+
+### 1.6 — GCS backend (this commit)
+
+First cross-shape backend. AWS frontend → `domain.Storage` → `cloud.google.com/go/storage` → real GCS.
+
+The interesting translation: GCS has **no native S3-style multipart** with explicit upload IDs and part numbers. We map S3 multipart onto GCS as temp-objects-and-compose:
+
+- CreateMultipartUpload: generate a random uploadID; write a marker object at `<key>.uploads/<uploadID>/.init` holding the user-supplied content-type and metadata for the eventual finalisation step.
+- UploadPart: write each part as a discrete GCS object at `<key>.uploads/<uploadID>/part-<N>`.
+- CompleteMultipartUpload: GCS Compose joins up to 32 objects in one call; for N>32 we recursively compose. The composed object replaces the final key. Part objects are then deleted.
+- AbortMultipartUpload: delete the marker + every part object.
+- ListMultipartUploads / ListParts: list objects under the `.uploads/` prefix to reconstruct session state.
+
+State lives in GCS itself — no separate database, no in-memory upload registry. The backend is horizontally stateless.
+
+`translateErr` consults both `googleapi.Error` codes and the `gcsstorage.ErrBucketNotExist` / `gcsstorage.ErrObjectNotExist` sentinels.
+
+### 1.7 — Azure Blob backend (this commit)
+
+`azure-sdk-for-go/sdk/storage/azblob`. Azure's native block-blob model maps cleanly onto S3 multipart:
+
+- CreateMultipartUpload: generate a random uploadID; write a marker blob at `<key>.uploads/<uploadID>/.init` holding metadata.
+- UploadPart: `StageBlock` with a base64 block ID derived from `(uploadID, partNumber)` — block IDs must be uniform length, so we base64-encode a fixed-width `shim-<uploadID>-NNNNN` template.
+- CompleteMultipartUpload: gather block IDs in part-number order, call `CommitBlockList` with the user metadata.
+- AbortMultipartUpload: delete the marker; uncommitted blocks auto-expire after 7 days per Azure policy.
+- ListMultipartUploads / ListParts: marker listing + `GetBlockList(uncommitted)`.
+
+**Streaming gotcha on StageBlock.** The Azure SDK's `StageBlock` takes `io.ReadSeekCloser` (it may retry on transient failures, so it needs seek). Our domain interface gives `io.Reader`. We buffer **per part** via `bytes.Reader` + `streaming.NopCloser`. That's per-part memory, not per-object — typical S3 multipart parts are 5–64 MiB, which is bounded and acceptable. Object bodies in single-shot `PutObject` still stream because the SDK's `UploadStream` handles chunking internally without requiring seek.
+
+`translateErr` reads `azcore.ResponseError.ErrorCode` (`ContainerNotFound`, `BlobNotFound`, `ContainerAlreadyExists`, …) with an HTTP-status fallback for unmapped codes.
+
+### Conformance factories
+
+`services/storage/conformance/backends.go` now lists five factories — `inmem` (always on), `minio`, `aws`, `gcs`, `azureblob`. Each non-inmem factory skips the test cleanly when its env var is unset:
+
+- `MINIO_ENDPOINT`
+- `AWS_S3_CONFORMANCE_ENDPOINT` *or* `AWS_S3_CONFORMANCE=1`
+- `STORAGE_EMULATOR_HOST` *or* `GCS_CONFORMANCE=1`
+- `AZURE_STORAGE_CONNECTION_STRING` *or* `AZURE_BLOB_CONFORMANCE=1`
+
+This lets a per-PR conformance lane light up one backend at a time in its own job without modifying the test source — each CI job sets the env vars its docker container exposes.
+
 ## Phase 1.4 — Conformance harness + TF resource-lifecycle (in flight)
 
 Phase 1.4 has three layers of progression, all on the single open PR (`phase-1.4-conformance-harness`, PR #6):

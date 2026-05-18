@@ -9,7 +9,7 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 | | |
 |---|---|
 | Active branch | `phase-1.4-conformance-harness` — PR open. Intersection scoping correction + conformance harness skeleton. |
-| In-flight | **Phase 1.4: Intersection scoping + full conformance harness.** Manifest-driven codegen of the 16-op intersection. Real in-mem backend covering all 16 (no fakes). Method/URI/header/query-disambiguating router. SDK + CLI + Terraform conformance tests all green locally — CI installs aws CLI + terraform so they run on every PR. |
+| In-flight | **Phase 1.4 → 1.7 stacked on PR #6.** 1.4: intersection scoping + full conformance harness (SDK + CLI + Terraform). 1.5.0: neutral `domain.Storage` interface + AWS frontend adapter + streaming codegen (`io.Reader` in / `io.ReadCloser` out for `httpPayload` blobs). 1.5.1: MinIO backend. 1.5.2: AWS passthrough backend. 1.6: GCS backend (cross-shape; multipart via temp-objects + compose). 1.7: Azure Blob backend (native block list via base64 block IDs). Five conformance factories in place (inmem always-on; minio / aws / gcs / azureblob env-gated). |
 | Last merged | PR #5 — Phase 1.3 (codegen, originally all 107 ops) (`03b0ebb`, 2026-05-18). |
 | Standing merge auth | **None.** User merges every PR. |
 | CI | Five required checks: `branch rebased on origin/main`, `tracked symlinks resolve`, `continuity docs present`, `go vet + test + build`, `dependency licenses AGPL-compatible`. |
@@ -48,7 +48,7 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 
 Phase 1 carries the foundation work alongside its first real consumer. The codegen pipeline, conformance harness, and Go CI matrix are built inside Phase 1 sub-phases rather than as standalone infrastructure.
 
-Sub-phase table is in [DO_NEXT.md](DO_NEXT.md) and [PLAN.md § Phase 1](PLAN.md#phase-1--object-storage-s3-source). Currently at 1.1.
+Sub-phase table is in [DO_NEXT.md](DO_NEXT.md) and [PLAN.md § Phase 1](PLAN.md#phase-1--object-storage-s3-source). PR #6 piles sub-phases 1.4 through 1.7.
 
 ## Recently closed phases (last 5)
 
