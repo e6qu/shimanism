@@ -4,6 +4,61 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 
 > Reverse chronological. One section per phase. The *why*, the surprises, the root causes — not per-PR detail. For commit-level history, `git log`. For per-bug detail, [BUGS.md](BUGS.md).
 
+## Phases 1.14 – 1.16 — Cross-frontend coverage (still on PR #6)
+
+After the user reset scope ("every phase ships every frontend × every backend") the remaining work was to land **GCS** and **Azure Blob** as full frontends matching the AWS frontend's depth.
+
+### 1.14 — GCS frontend
+
+Wire types come from `google.golang.org/api/storage/v1` (the raw types generated from the GCS Discovery doc — same source the official SDK uses, per the new "Reuse over reinvention" rule). The shim only owns the routing + dispatch + error-envelope layer.
+
+Routes accept both URL shapes that real clients use:
+
+- `/storage/v1/b/...` — the JSON API path. `gcloud storage` and `hashicorp/google` use this.
+- `/b/...` — the same path without the version prefix. `cloud.google.com/go/storage` constructs URLs this way when an endpoint override is set.
+
+A trailing fallback at `/{bucket}/{object}` serves the XML-API-style media download the Go SDK uses for `Object.NewReader`.
+
+Multipart uploads (`?uploadType=multipart`) parse the GCS "multipart-related" format: JSON metadata part + raw media part. `gcloud storage cp` emits the boundary parameter with **single quotes** (`boundary='==='`), which `mime.ParseMediaType` rejects as invalid quoting — so we wrote `parseMultipartContentType` as a tolerant fallback that strips surrounding quotes.
+
+Object metadata responses include `md5Hash`, `size`, `generation`, `metageneration`, `storageClass`, `timeCreated`, `timeStorageClassUpdated`. Md5Hash is computed via an `io.TeeReader` on the upload body so the stream stays unbuffered. Media-download responses also set the `x-goog-hash` header (`md5=<base64>`) so SDK clients can verify what they downloaded.
+
+The `storageLayout` endpoint (`GET /storage/v1/b/{bucket}/storageLayout`) had to be added because `gcloud storage cp` calls it on every copy. Returning a 404 trips an unrelated Python `TypeError` inside gcloud — return the canonical default layout (`location: US`, `locationType: multi-region`, empty `customPlacementConfig`, `hierarchicalNamespace.enabled: false`) and the CLI proceeds.
+
+#### gcloud TypeError on object download — upstream bug
+
+After the storageLayout fix, `gcloud storage cp gs://bucket/obj /local` still aborts before issuing the media download:
+
+```
+ERROR: Task '...' failed: TypeError('endswith first arg must be bytes or a tuple of bytes, not str')
+```
+
+The same shim handles the GCS Go SDK round-trip correctly. We confirmed via `CLOUDSDK_CORE_LOG_HTTP=true` that the metadata + storageLayout responses are well-formed; gcloud's failure happens in its own Python parsing code. `TestGCS_CLI_ObjectRoundTrip` is `t.Skip`'d with a clear reason and a pointer to `TestGCS_SDK_ObjectRoundTrip` which covers the cell.
+
+### 1.15 — Azure Blob frontend
+
+Azure routes by `?restype=` + `?comp=` query params plus per-method dispatch. No required-headers matrix needed because the URL grammar disambiguates explicitly.
+
+The Azure SDK's `azblob.NewClientWithNoCredential(endpoint, ...)` constructs URLs with the storage account name as the first path segment (`/devstoreaccount1/container/blob`). The shim strips this leading "account" segment when present (matched by `isAccountSegment` — lowercase alphanumeric, 3-24 chars) so the same routes work with or without the account prefix.
+
+Operations cover container lifecycle (Create / GetProperties / Delete / ListContainers), blob lifecycle (Put / Get / Head / Delete / ListBlobs), and blob copy via the `x-ms-copy-source` header. Metadata round-trips through `x-ms-meta-*` headers (Azure's convention). Error envelope is the XML `<Error><Code/><Message/></Error>` shape with a `x-ms-error-code` response header for SDK matching.
+
+SharedKey/SAS signature **verification** is deferred (the shim accepts unsigned requests at this phase). Signature *construction* on the client side works because the SDK signs requests with our synthetic well-known Azurite-style account key (`Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==`); the shim doesn't validate them.
+
+#### Terraform constraint
+
+`hashicorp/azurerm 4.x` reads the blob endpoint for `azurerm_storage_blob` (and friends) from the ARM-side `azurerm_storage_account.primary_blob_endpoint` attribute, which the provider discovers from the Azure Resource Manager control plane. There is no provider-level option to override the blob endpoint independently.
+
+We do not shim ARM (storage is the data plane; account provisioning is a separate control-plane shim, future phase). So `TestTerraform_AzureBlob_ResourceLifecycle` is `t.Skip`'d with the upstream-constraint reason. SDK + CLI cover the cell.
+
+### 1.16 — Matrix closer
+
+`TestConformanceMatrix_AWSFrontend`, `TestConformanceMatrix_GCSFrontend`, `TestConformanceMatrix_AzureBlobFrontend` each iterate every registered backend factory and drive the matching cloud's Go SDK end-to-end. With env vars set in CI, each lane lights up 3 frontends × 1 backend = 3 driver-backend cells. Across the four configured CI lanes (`go` / `conformance-minio` / `conformance-gcs` / `conformance-azureblob`), the matrix covers 3 × 4 = 12 cells via the SDK row.
+
+Test infra: `t.Parallel()` on the two real-provider TF tests + a shared `TF_PLUGIN_CACHE_DIR` cuts the second `terraform init` from ~10s to ~1s. With both running concurrently the conformance suite stays under the 2-minute go-test budget.
+
+Package layout was tidied in this batch: `services/storage/conformance/backends.go` lives in `package conformance` (regular, exported `BackendFactory`, `ActiveBackends`, …) and the test files in the same directory use `package conformance_test` and import the helpers. Previously `backends.go` was a non-test file declaring the external-test package — legal only as long as no other regular-package files existed alongside, which Go's strict layout rules eventually surfaced as a "found packages X and Y" error.
+
 ## Phases 1.8 – 1.13 — Closing out Phase 1 (still on PR #6)
 
 ### 1.8 — K8s peer (deployment-side)
