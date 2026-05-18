@@ -14,6 +14,8 @@ import (
 	"testing"
 
 	"github.com/e6qu/shimanism/internal/restxml"
+	"github.com/e6qu/shimanism/internal/storage/domain"
+	awsfront "github.com/e6qu/shimanism/internal/storage/frontends/aws_s3"
 	storagegen "github.com/e6qu/shimanism/services/storage/gen"
 )
 
@@ -28,13 +30,18 @@ type StorageServer struct {
 }
 
 // StartStorageServer starts a shim instance backed by the given
-// implementation of the storage intersection. Registers cleanup on t.
+// implementation of the neutral storage domain. The AWS S3 frontend
+// adapter wraps the backend so AWS-shaped clients (boto3, aws CLI,
+// hashicorp/aws Terraform provider) can drive it via the standard
+// endpoint-override path.
+//
 // Every request is logged to t.Log so conformance failures show the
 // exact sequence of operations the client drove.
-func StartStorageServer(t *testing.T, backend storagegen.AmazonS3Backend) *StorageServer {
+func StartStorageServer(t *testing.T, backend domain.Storage) *StorageServer {
 	t.Helper()
+	adapter := awsfront.New(backend)
 	router := &restxml.Router{}
-	storagegen.RegisterAmazonS3Routes(router, backend)
+	storagegen.RegisterAmazonS3Routes(router, adapter)
 	ts := httptest.NewServer(&logRoundTrip{t: t, mux: router})
 	t.Cleanup(ts.Close)
 	return &StorageServer{URL: ts.URL, Close: ts.Close}

@@ -147,6 +147,12 @@ func {{ .GoName }}Handler(b {{ .GoName }}Backend) http.Handler {
 		}
 {{ end }}{{ end }}
 {{- if .InputPayload }}
+{{- if eq .InputPayload.GoType "io.ReadCloser" }}
+		// Streaming payload: hand the request body to the backend
+		// directly. The handler does not buffer; the backend owns
+		// closing r.Body via in.{{ .InputPayload.GoName }}.
+		in.{{ .InputPayload.GoName }} = r.Body
+{{- else }}
 		_payload, _ := io.ReadAll(r.Body)
 {{- if eq .InputPayload.GoType "[]byte" }}
 		in.{{ .InputPayload.GoName }} = _payload
@@ -160,6 +166,7 @@ func {{ .GoName }}Handler(b {{ .GoName }}Backend) http.Handler {
 				in.{{ .InputPayload.GoName }} = _val
 			}
 		}
+{{- end }}
 {{- end }}
 {{- else if .InputHasBodyFields }}
 		if r.ContentLength != 0 {
@@ -180,7 +187,15 @@ func {{ .GoName }}Handler(b {{ .GoName }}Backend) http.Handler {
 		}
 {{ end }}
 {{- if .OutputPayload }}
-{{- if eq .OutputPayload.GoType "[]byte" }}
+{{- if eq .OutputPayload.GoType "io.ReadCloser" }}
+		// Streaming payload: stream the backend's body straight
+		// through to the response writer. No buffering.
+		w.WriteHeader({{ .HTTPStatus }})
+		if out.{{ .OutputPayload.GoName }} != nil {
+			_, _ = io.Copy(w, out.{{ .OutputPayload.GoName }})
+			_ = out.{{ .OutputPayload.GoName }}.Close()
+		}
+{{- else if eq .OutputPayload.GoType "[]byte" }}
 		w.Header().Set("Content-Length", strconv.Itoa(len(out.{{ .OutputPayload.GoName }})))
 		w.WriteHeader({{ .HTTPStatus }})
 		_, _ = w.Write(out.{{ .OutputPayload.GoName }})

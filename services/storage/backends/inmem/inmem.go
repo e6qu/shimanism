@@ -1,42 +1,34 @@
-// Package inmem is a real, in-memory implementation of the storage
-// shim's intersection-operation surface. It is intended for the
-// conformance harness and for short-lived local development — it does
-// not persist across restarts. The package is not a fake: every method
-// performs real storage logic on an in-process map.
+// Package inmem is a real, in-memory implementation of shimanism's
+// neutral storage domain. It is intended for the conformance harness
+// and for short-lived local development — it does not persist across
+// restarts. Not a fake: every method performs real storage logic on
+// an in-process map.
 //
-// Production deployments use one of the real backends:
-//   - services/storage/backends/aws       (passthrough)
-//   - services/storage/backends/gcs       (S3 -> GCS translation)
-//   - services/storage/backends/azureblob (S3 -> Azure Blob)
-//   - services/storage/backends/minio     (S3-compatible passthrough)
+// Production deployments use a cloud-talking backend
+// (services/storage/backends/aws, /gcs, /azureblob, /minio, /k8s).
 package inmem
 
 import (
+	"bytes"
 	"context"
 	"crypto/md5"
-	"encoding/base64"
 	"encoding/hex"
 	"fmt"
-	"net/url"
+	"io"
 	"sort"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/e6qu/shimanism/internal/restxml"
-	gen "github.com/e6qu/shimanism/services/storage/gen"
+	"github.com/e6qu/shimanism/internal/storage/domain"
 )
 
-// Backend is an in-memory implementation of every operation in
-// services/storage/codegen.json — i.e., the intersection surface.
-// Zero value is ready to use; call New for a documented constructor.
+// Backend implements domain.Storage with an in-process map. Zero
+// value is ready to use; call New for clarity.
 type Backend struct {
 	mu      sync.Mutex
 	buckets map[string]*bucketState
-	// uploads is global (not per-bucket) because S3 upload IDs are
-	// account-wide unique. The bucket field on each upload records
-	// which bucket the parts belong to.
-	uploads map[string]*uploadState
+	uploads map[string]*uploadState // upload IDs are account-wide
 }
 
 // New returns a fresh Backend.
@@ -58,15 +50,17 @@ type objectState struct {
 	contentType  string
 	metadata     map[string]string
 	lastModified time.Time
-	etag         string // canonical S3 "..." quoted form
+	etag         string
 }
 
 type uploadState struct {
-	bucket    string
-	key       string
-	created   time.Time
-	parts     map[int32]*partState
-	completed bool
+	bucket      string
+	key         string
+	created     time.Time
+	parts       map[int32]*partState
+	completed   bool
+	contentType string
+	metadata    map[string]string
 }
 
 type partState struct {
@@ -75,394 +69,11 @@ type partState struct {
 	uploadedAt time.Time
 }
 
-// ---- small helpers ----
-
-func ptr[T any](v T) *T { return &v }
-
-func deref[T any](p *T, def T) T {
-	if p == nil {
-		return def
-	}
-	return *p
-}
+// ---- helpers ----
 
 func etagOf(data []byte) string {
 	sum := md5.Sum(data)
 	return fmt.Sprintf("%q", hex.EncodeToString(sum[:]))
-}
-
-// ----------------------------------------------------------------------
-// Bucket-level operations
-// ----------------------------------------------------------------------
-
-// ListBuckets returns every bucket in lexicographic order, optionally
-// filtered by Prefix / BucketRegion and paginated by ContinuationToken
-// + MaxBuckets.
-func (b *Backend) ListBuckets(ctx context.Context, in *gen.ListBucketsRequest) (*gen.ListBucketsOutput, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	names := make([]string, 0, len(b.buckets))
-	for n, st := range b.buckets {
-		if in != nil {
-			if p := deref(in.Prefix, ""); p != "" && !strings.HasPrefix(n, p) {
-				continue
-			}
-			if r := deref(in.BucketRegion, ""); r != "" && st.region != r {
-				continue
-			}
-		}
-		names = append(names, n)
-	}
-	sort.Strings(names)
-
-	// Continuation: skip up to (and including) the named token.
-	start := 0
-	if in != nil {
-		if tok := deref(in.ContinuationToken, ""); tok != "" {
-			for i, n := range names {
-				if n > tok {
-					start = i
-					break
-				}
-				start = i + 1
-			}
-		}
-	}
-	names = names[start:]
-
-	var nextToken *string
-	if in != nil {
-		if max := deref(in.MaxBuckets, 0); max > 0 && int(max) < len(names) {
-			cut := names[max-1]
-			names = names[:max]
-			nextToken = ptr(cut)
-		}
-	}
-
-	out := &gen.ListBucketsOutput{
-		Buckets: gen.Buckets{},
-		Owner:   &gen.Owner{ID: ptr("shimanism-inmem"), DisplayName: ptr("inmem")},
-	}
-	if nextToken != nil {
-		out.ContinuationToken = nextToken
-	}
-	if in != nil {
-		out.Prefix = in.Prefix
-	}
-	for _, n := range names {
-		st := b.buckets[n]
-		out.Buckets.Items = append(out.Buckets.Items, gen.Bucket{
-			Name:         ptr(n),
-			CreationDate: ptr(st.created),
-			BucketRegion: ptr(st.region),
-		})
-	}
-	return out, nil
-}
-
-// CreateBucket creates a new bucket. Idempotent: re-creating an
-// existing bucket succeeds (matches MinIO; real AWS returns 409, but
-// the harness backend does not enforce that here — backends that need
-// 409 layer it on).
-func (b *Backend) CreateBucket(ctx context.Context, in *gen.CreateBucketRequest) (*gen.CreateBucketOutput, error) {
-	if in == nil {
-		return nil, fmt.Errorf("CreateBucket: missing input")
-	}
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if _, ok := b.buckets[in.Bucket]; !ok {
-		region := "us-east-1"
-		if in.CreateBucketConfiguration != nil && in.CreateBucketConfiguration.LocationConstraint != nil {
-			region = string(*in.CreateBucketConfiguration.LocationConstraint)
-		}
-		b.buckets[in.Bucket] = &bucketState{
-			created: time.Now().UTC(),
-			region:  region,
-			objects: map[string]*objectState{},
-		}
-	}
-	return &gen.CreateBucketOutput{Location: ptr("/" + in.Bucket)}, nil
-}
-
-// DeleteBucket deletes a bucket; fails if not empty.
-// DeleteBucket has no output type in the spec (returns 204).
-func (b *Backend) DeleteBucket(ctx context.Context, in *gen.DeleteBucketRequest) (struct{}, error) {
-	if in == nil {
-		return struct{}{}, fmt.Errorf("DeleteBucket: missing input")
-	}
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	st, ok := b.buckets[in.Bucket]
-	if !ok {
-		return struct{}{}, restxml.NoSuchBucket(in.Bucket)
-	}
-	if len(st.objects) > 0 {
-		return struct{}{}, restxml.BucketNotEmpty(in.Bucket)
-	}
-	delete(b.buckets, in.Bucket)
-	return struct{}{}, nil
-}
-
-// HeadBucket reports whether the bucket exists.
-func (b *Backend) HeadBucket(ctx context.Context, in *gen.HeadBucketRequest) (*gen.HeadBucketOutput, error) {
-	if in == nil {
-		return nil, fmt.Errorf("HeadBucket: missing input")
-	}
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	st, ok := b.buckets[in.Bucket]
-	if !ok {
-		return nil, restxml.NoSuchBucket(in.Bucket)
-	}
-	return &gen.HeadBucketOutput{BucketRegion: ptr(st.region)}, nil
-}
-
-// ----------------------------------------------------------------------
-// Object-level operations
-// ----------------------------------------------------------------------
-
-// ListObjectsV2 returns objects in a bucket with optional prefix /
-// delimiter handling and pagination.
-func (b *Backend) ListObjectsV2(ctx context.Context, in *gen.ListObjectsV2Request) (*gen.ListObjectsV2Output, error) {
-	if in == nil {
-		return nil, fmt.Errorf("ListObjectsV2: missing input")
-	}
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	st, ok := b.buckets[in.Bucket]
-	if !ok {
-		return nil, restxml.NoSuchBucket(in.Bucket)
-	}
-	prefix := deref(in.Prefix, "")
-	delimiter := deref(in.Delimiter, "")
-	maxKeys := int(deref(in.MaxKeys, 1000))
-	if maxKeys <= 0 {
-		maxKeys = 1000
-	}
-	startAfter := deref(in.StartAfter, "")
-	contTok := deref(in.ContinuationToken, "")
-	if contTok != "" {
-		startAfter = contTok
-	}
-
-	keys := make([]string, 0, len(st.objects))
-	for k := range st.objects {
-		if !strings.HasPrefix(k, prefix) {
-			continue
-		}
-		if startAfter != "" && k <= startAfter {
-			continue
-		}
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-
-	commonPrefixes := map[string]bool{}
-	contents := make([]gen.Object, 0, len(keys))
-	for _, k := range keys {
-		if delimiter != "" {
-			rem := k[len(prefix):]
-			if idx := strings.Index(rem, delimiter); idx >= 0 {
-				commonPrefixes[prefix+rem[:idx+len(delimiter)]] = true
-				continue
-			}
-		}
-		obj := st.objects[k]
-		contents = append(contents, gen.Object{
-			Key:          ptr(k),
-			LastModified: ptr(obj.lastModified),
-			ETag:         ptr(obj.etag),
-			Size:         ptr(int64(len(obj.data))),
-		})
-		if len(contents) >= maxKeys {
-			break
-		}
-	}
-
-	var next *string
-	if len(contents) >= maxKeys && len(keys) > maxKeys {
-		next = ptr(*contents[len(contents)-1].Key)
-	}
-
-	cpList := make([]gen.CommonPrefix, 0, len(commonPrefixes))
-	for cp := range commonPrefixes {
-		cp := cp
-		cpList = append(cpList, gen.CommonPrefix{Prefix: &cp})
-	}
-	sort.Slice(cpList, func(i, j int) bool { return *cpList[i].Prefix < *cpList[j].Prefix })
-
-	out := &gen.ListObjectsV2Output{
-		Name:                  ptr(in.Bucket),
-		Prefix:                in.Prefix,
-		Delimiter:             in.Delimiter,
-		MaxKeys:               ptr(int32(maxKeys)),
-		KeyCount:              ptr(int32(len(contents))),
-		IsTruncated:           ptr(next != nil),
-		Contents:              contents,
-		CommonPrefixes:        cpList,
-		ContinuationToken:     in.ContinuationToken,
-		NextContinuationToken: next,
-		StartAfter:            in.StartAfter,
-	}
-	return out, nil
-}
-
-// PutObject writes an object's bytes and metadata.
-func (b *Backend) PutObject(ctx context.Context, in *gen.PutObjectRequest) (*gen.PutObjectOutput, error) {
-	if in == nil {
-		return nil, fmt.Errorf("PutObject: missing input")
-	}
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	st, ok := b.buckets[in.Bucket]
-	if !ok {
-		return nil, restxml.NoSuchBucket(in.Bucket)
-	}
-	data := []byte{}
-	if in.Body != nil {
-		data = in.Body
-	}
-	obj := &objectState{
-		data:         data,
-		contentType:  deref(in.ContentType, "application/octet-stream"),
-		metadata:     map[string]string(in.Metadata),
-		lastModified: time.Now().UTC(),
-		etag:         etagOf(data),
-	}
-	st.objects[in.Key] = obj
-	return &gen.PutObjectOutput{ETag: ptr(obj.etag)}, nil
-}
-
-// GetObject returns an object's bytes + metadata.
-func (b *Backend) GetObject(ctx context.Context, in *gen.GetObjectRequest) (*gen.GetObjectOutput, error) {
-	if in == nil {
-		return nil, fmt.Errorf("GetObject: missing input")
-	}
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	st, ok := b.buckets[in.Bucket]
-	if !ok {
-		return nil, restxml.NoSuchBucket(in.Bucket)
-	}
-	obj, ok := st.objects[in.Key]
-	if !ok {
-		return nil, restxml.NoSuchKey(in.Bucket, in.Key)
-	}
-	body := make([]byte, len(obj.data))
-	copy(body, obj.data)
-	return &gen.GetObjectOutput{
-		Body:          body,
-		ContentType:   ptr(obj.contentType),
-		ContentLength: ptr(int64(len(obj.data))),
-		ETag:          ptr(obj.etag),
-		LastModified:  ptr(obj.lastModified),
-		Metadata:      gen.Metadata(obj.metadata),
-	}, nil
-}
-
-// DeleteObject removes an object. Idempotent.
-func (b *Backend) DeleteObject(ctx context.Context, in *gen.DeleteObjectRequest) (*gen.DeleteObjectOutput, error) {
-	if in == nil {
-		return nil, fmt.Errorf("DeleteObject: missing input")
-	}
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	st, ok := b.buckets[in.Bucket]
-	if !ok {
-		return nil, restxml.NoSuchBucket(in.Bucket)
-	}
-	delete(st.objects, in.Key)
-	return &gen.DeleteObjectOutput{}, nil
-}
-
-// HeadObject returns object metadata only.
-func (b *Backend) HeadObject(ctx context.Context, in *gen.HeadObjectRequest) (*gen.HeadObjectOutput, error) {
-	if in == nil {
-		return nil, fmt.Errorf("HeadObject: missing input")
-	}
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	st, ok := b.buckets[in.Bucket]
-	if !ok {
-		return nil, restxml.NoSuchBucket(in.Bucket)
-	}
-	obj, ok := st.objects[in.Key]
-	if !ok {
-		return nil, restxml.NoSuchKey(in.Bucket, in.Key)
-	}
-	return &gen.HeadObjectOutput{
-		ContentType:   ptr(obj.contentType),
-		ContentLength: ptr(int64(len(obj.data))),
-		ETag:          ptr(obj.etag),
-		LastModified:  ptr(obj.lastModified),
-		Metadata:      gen.Metadata(obj.metadata),
-	}, nil
-}
-
-// CopyObject copies an existing object to a new location. The source
-// is encoded in the CopySource header as "<bucket>/<key>" or
-// "/<bucket>/<key>".
-func (b *Backend) CopyObject(ctx context.Context, in *gen.CopyObjectRequest) (*gen.CopyObjectOutput, error) {
-	if in == nil {
-		return nil, fmt.Errorf("CopyObject: missing input")
-	}
-	src := in.CopySource
-	if src == "" {
-		return nil, restxml.InvalidArgument("CopySource is required")
-	}
-	srcBucket, srcKey, err := parseCopySource(src)
-	if err != nil {
-		return nil, err
-	}
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	srcState, ok := b.buckets[srcBucket]
-	if !ok {
-		return nil, restxml.NoSuchBucket(srcBucket)
-	}
-	srcObj, ok := srcState.objects[srcKey]
-	if !ok {
-		return nil, restxml.NoSuchKey(srcBucket, srcKey)
-	}
-	dstState, ok := b.buckets[in.Bucket]
-	if !ok {
-		return nil, restxml.NoSuchBucket(in.Bucket)
-	}
-	body := make([]byte, len(srcObj.data))
-	copy(body, srcObj.data)
-	now := time.Now().UTC()
-	dst := &objectState{
-		data:         body,
-		contentType:  srcObj.contentType,
-		metadata:     copyMeta(srcObj.metadata),
-		lastModified: now,
-		etag:         srcObj.etag,
-	}
-	dstState.objects[in.Key] = dst
-	return &gen.CopyObjectOutput{
-		CopyObjectResult: &gen.CopyObjectResult{
-			ETag:         ptr(dst.etag),
-			LastModified: ptr(now),
-		},
-	}, nil
-}
-
-func parseCopySource(s string) (string, string, error) {
-	s = strings.TrimPrefix(s, "/")
-	if i := strings.IndexByte(s, '?'); i >= 0 {
-		s = s[:i] // strip versionId etc.
-	}
-	idx := strings.IndexByte(s, '/')
-	if idx <= 0 || idx == len(s)-1 {
-		return "", "", restxml.InvalidArgument("CopySource does not parse: " + s)
-	}
-	bucket := s[:idx]
-	key, err := url.QueryUnescape(s[idx+1:])
-	if err != nil {
-		return "", "", restxml.InvalidArgument("CopySource key unescape: " + err.Error())
-	}
-	return bucket, key, nil
 }
 
 func copyMeta(in map[string]string) map[string]string {
@@ -476,93 +87,365 @@ func copyMeta(in map[string]string) map[string]string {
 	return out
 }
 
+// Compile-time check.
+var _ domain.Storage = (*Backend)(nil)
+
 // ----------------------------------------------------------------------
-// Multipart upload operations
+// Bucket lifecycle
 // ----------------------------------------------------------------------
 
-// CreateMultipartUpload starts a new multipart upload session.
-func (b *Backend) CreateMultipartUpload(ctx context.Context, in *gen.CreateMultipartUploadRequest) (*gen.CreateMultipartUploadOutput, error) {
-	if in == nil {
-		return nil, fmt.Errorf("CreateMultipartUpload: missing input")
-	}
+func (b *Backend) ListBuckets(ctx context.Context, opt domain.ListBucketsOptions) (domain.ListBucketsResult, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	if _, ok := b.buckets[in.Bucket]; !ok {
-		return nil, restxml.NoSuchBucket(in.Bucket)
+
+	names := make([]string, 0, len(b.buckets))
+	for n, st := range b.buckets {
+		if opt.Prefix != "" && !strings.HasPrefix(n, opt.Prefix) {
+			continue
+		}
+		if opt.Region != "" && st.region != opt.Region {
+			continue
+		}
+		names = append(names, n)
 	}
-	id := newUploadID(in.Bucket, in.Key, time.Now())
-	b.uploads[id] = &uploadState{
-		bucket:  in.Bucket,
-		key:     in.Key,
+	sort.Strings(names)
+
+	start := 0
+	if opt.NextToken != "" {
+		for i, n := range names {
+			if n > opt.NextToken {
+				start = i
+				break
+			}
+			start = i + 1
+		}
+	}
+	names = names[start:]
+
+	var nextToken string
+	if opt.MaxResults > 0 && opt.MaxResults < len(names) {
+		cut := names[opt.MaxResults-1]
+		names = names[:opt.MaxResults]
+		nextToken = cut
+	}
+
+	res := domain.ListBucketsResult{
+		Owner:     domain.Owner{ID: "shimanism-inmem", DisplayName: "inmem"},
+		Prefix:    opt.Prefix,
+		NextToken: nextToken,
+	}
+	for _, n := range names {
+		st := b.buckets[n]
+		res.Buckets = append(res.Buckets, domain.Bucket{
+			Name: n, CreatedAt: st.created, Region: st.region,
+		})
+	}
+	return res, nil
+}
+
+func (b *Backend) CreateBucket(ctx context.Context, name, region string) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if _, ok := b.buckets[name]; ok {
+		// Idempotent here matches MinIO; AWS-specific 409 is layered
+		// by the AWS passthrough backend.
+		return nil
+	}
+	if region == "" {
+		region = "us-east-1"
+	}
+	b.buckets[name] = &bucketState{
 		created: time.Now().UTC(),
-		parts:   map[int32]*partState{},
+		region:  region,
+		objects: map[string]*objectState{},
 	}
-	return &gen.CreateMultipartUploadOutput{
-		Bucket:   ptr(in.Bucket),
-		Key:      ptr(in.Key),
-		UploadId: ptr(id),
+	return nil
+}
+
+func (b *Backend) DeleteBucket(ctx context.Context, name string) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	st, ok := b.buckets[name]
+	if !ok {
+		return domain.NoSuchBucket(name)
+	}
+	if len(st.objects) > 0 {
+		return domain.BucketNotEmpty(name)
+	}
+	delete(b.buckets, name)
+	return nil
+}
+
+func (b *Backend) HeadBucket(ctx context.Context, name string) (domain.Bucket, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	st, ok := b.buckets[name]
+	if !ok {
+		return domain.Bucket{}, domain.NoSuchBucket(name)
+	}
+	return domain.Bucket{Name: name, CreatedAt: st.created, Region: st.region}, nil
+}
+
+// ----------------------------------------------------------------------
+// Object lifecycle
+// ----------------------------------------------------------------------
+
+func (b *Backend) ListObjects(ctx context.Context, opt domain.ListObjectsOptions) (domain.ListObjectsResult, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	st, ok := b.buckets[opt.Bucket]
+	if !ok {
+		return domain.ListObjectsResult{}, domain.NoSuchBucket(opt.Bucket)
+	}
+
+	startAfter := opt.StartAfter
+	if opt.NextToken != "" {
+		startAfter = opt.NextToken
+	}
+	maxKeys := opt.MaxResults
+	if maxKeys <= 0 {
+		maxKeys = 1000
+	}
+
+	keys := make([]string, 0, len(st.objects))
+	for k := range st.objects {
+		if !strings.HasPrefix(k, opt.Prefix) {
+			continue
+		}
+		if startAfter != "" && k <= startAfter {
+			continue
+		}
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	commonPrefixes := map[string]bool{}
+	var objects []domain.ObjectMetadata
+	for _, k := range keys {
+		if opt.Delimiter != "" {
+			rem := k[len(opt.Prefix):]
+			if idx := strings.Index(rem, opt.Delimiter); idx >= 0 {
+				commonPrefixes[opt.Prefix+rem[:idx+len(opt.Delimiter)]] = true
+				continue
+			}
+		}
+		obj := st.objects[k]
+		objects = append(objects, domain.ObjectMetadata{
+			Key:          k,
+			Size:         int64(len(obj.data)),
+			ETag:         obj.etag,
+			LastModified: obj.lastModified,
+		})
+		if len(objects) >= maxKeys {
+			break
+		}
+	}
+
+	res := domain.ListObjectsResult{
+		Bucket:      opt.Bucket,
+		Prefix:      opt.Prefix,
+		Delimiter:   opt.Delimiter,
+		Objects:     objects,
+		KeyCount:    len(objects),
+		IsTruncated: len(objects) >= maxKeys && len(keys) > maxKeys,
+	}
+	if res.IsTruncated && len(objects) > 0 {
+		res.NextToken = objects[len(objects)-1].Key
+	}
+	for cp := range commonPrefixes {
+		res.CommonPrefixes = append(res.CommonPrefixes, cp)
+	}
+	sort.Strings(res.CommonPrefixes)
+	return res, nil
+}
+
+func (b *Backend) GetObject(ctx context.Context, bucket, key string) (domain.Object, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	st, ok := b.buckets[bucket]
+	if !ok {
+		return domain.Object{}, domain.NoSuchBucket(bucket)
+	}
+	obj, ok := st.objects[key]
+	if !ok {
+		return domain.Object{}, domain.NoSuchKey(bucket, key)
+	}
+	body := make([]byte, len(obj.data))
+	copy(body, obj.data)
+	return domain.Object{
+		Bucket:       bucket,
+		Key:          key,
+		Size:         int64(len(obj.data)),
+		ETag:         obj.etag,
+		LastModified: obj.lastModified,
+		ContentType:  obj.contentType,
+		Metadata:     copyMeta(obj.metadata),
+		Body:         io.NopCloser(bytes.NewReader(body)),
 	}, nil
 }
 
-func newUploadID(bucket, key string, now time.Time) string {
-	src := fmt.Sprintf("%s|%s|%d", bucket, key, now.UnixNano())
-	sum := md5.Sum([]byte(src))
-	return base64.RawURLEncoding.EncodeToString(sum[:])
-}
-
-// UploadPart stores a single part of an in-progress upload.
-func (b *Backend) UploadPart(ctx context.Context, in *gen.UploadPartRequest) (*gen.UploadPartOutput, error) {
-	if in == nil {
-		return nil, fmt.Errorf("UploadPart: missing input")
+func (b *Backend) PutObject(ctx context.Context, opt domain.PutObjectOptions) (domain.PutObjectResult, error) {
+	var data []byte
+	if opt.Body != nil {
+		var err error
+		data, err = io.ReadAll(opt.Body)
+		if err != nil {
+			return domain.PutObjectResult{}, fmt.Errorf("inmem PutObject read body: %w", err)
+		}
 	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	up, ok := b.uploads[in.UploadId]
+	st, ok := b.buckets[opt.Bucket]
 	if !ok {
-		return nil, restxml.NoSuchUpload(in.UploadId)
+		return domain.PutObjectResult{}, domain.NoSuchBucket(opt.Bucket)
 	}
-	if up.bucket != in.Bucket || up.key != in.Key {
-		return nil, restxml.InvalidArgument("upload key/bucket mismatch")
+	obj := &objectState{
+		data:         data,
+		contentType:  opt.ContentType,
+		metadata:     copyMeta(opt.Metadata),
+		lastModified: time.Now().UTC(),
+		etag:         etagOf(data),
 	}
-	partNo := in.PartNumber
-	if partNo < 1 || partNo > 10000 {
-		return nil, restxml.InvalidArgument("PartNumber out of range")
+	if obj.contentType == "" {
+		obj.contentType = "application/octet-stream"
 	}
-	data := []byte{}
-	if in.Body != nil {
-		data = in.Body
+	st.objects[opt.Key] = obj
+	return domain.PutObjectResult{ETag: obj.etag}, nil
+}
+
+func (b *Backend) DeleteObject(ctx context.Context, bucket, key string) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	st, ok := b.buckets[bucket]
+	if !ok {
+		return domain.NoSuchBucket(bucket)
+	}
+	delete(st.objects, key)
+	return nil
+}
+
+func (b *Backend) HeadObject(ctx context.Context, bucket, key string) (domain.Object, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	st, ok := b.buckets[bucket]
+	if !ok {
+		return domain.Object{}, domain.NoSuchBucket(bucket)
+	}
+	obj, ok := st.objects[key]
+	if !ok {
+		return domain.Object{}, domain.NoSuchKey(bucket, key)
+	}
+	return domain.Object{
+		Bucket:       bucket,
+		Key:          key,
+		Size:         int64(len(obj.data)),
+		ETag:         obj.etag,
+		LastModified: obj.lastModified,
+		ContentType:  obj.contentType,
+		Metadata:     copyMeta(obj.metadata),
+		// Body intentionally nil for HEAD.
+	}, nil
+}
+
+func (b *Backend) CopyObject(ctx context.Context, opt domain.CopyObjectOptions) (domain.CopyObjectResult, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	srcSt, ok := b.buckets[opt.SrcBucket]
+	if !ok {
+		return domain.CopyObjectResult{}, domain.NoSuchBucket(opt.SrcBucket)
+	}
+	srcObj, ok := srcSt.objects[opt.SrcKey]
+	if !ok {
+		return domain.CopyObjectResult{}, domain.NoSuchKey(opt.SrcBucket, opt.SrcKey)
+	}
+	dstSt, ok := b.buckets[opt.DstBucket]
+	if !ok {
+		return domain.CopyObjectResult{}, domain.NoSuchBucket(opt.DstBucket)
+	}
+	body := make([]byte, len(srcObj.data))
+	copy(body, srcObj.data)
+	now := time.Now().UTC()
+	dst := &objectState{
+		data:         body,
+		contentType:  srcObj.contentType,
+		metadata:     copyMeta(srcObj.metadata),
+		lastModified: now,
+		etag:         srcObj.etag,
+	}
+	if opt.ContentType != "" {
+		dst.contentType = opt.ContentType
+	}
+	if opt.MetadataDirective == "REPLACE" {
+		dst.metadata = copyMeta(opt.Metadata)
+	}
+	dstSt.objects[opt.DstKey] = dst
+	return domain.CopyObjectResult{ETag: dst.etag, LastModified: now}, nil
+}
+
+// ----------------------------------------------------------------------
+// Multipart
+// ----------------------------------------------------------------------
+
+func (b *Backend) CreateMultipartUpload(ctx context.Context, bucket, key, contentType string, metadata map[string]string) (string, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if _, ok := b.buckets[bucket]; !ok {
+		return "", domain.NoSuchBucket(bucket)
+	}
+	src := fmt.Sprintf("%s|%s|%d", bucket, key, time.Now().UnixNano())
+	sum := md5.Sum([]byte(src))
+	id := hex.EncodeToString(sum[:])
+	b.uploads[id] = &uploadState{
+		bucket:      bucket,
+		key:         key,
+		created:     time.Now().UTC(),
+		parts:       map[int32]*partState{},
+		contentType: contentType,
+		metadata:    copyMeta(metadata),
+	}
+	return id, nil
+}
+
+func (b *Backend) UploadPart(ctx context.Context, bucket, key, uploadID string, partNumber int32, body io.Reader) (string, error) {
+	if partNumber < 1 || partNumber > 10000 {
+		return "", domain.InvalidArgument("PartNumber out of range")
+	}
+	data, err := io.ReadAll(body)
+	if err != nil {
+		return "", fmt.Errorf("inmem UploadPart read body: %w", err)
+	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	up, ok := b.uploads[uploadID]
+	if !ok {
+		return "", domain.NoSuchUpload(uploadID)
+	}
+	if up.bucket != bucket || up.key != key {
+		return "", domain.InvalidArgument("upload key/bucket mismatch")
 	}
 	part := &partState{
 		data:       data,
 		etag:       etagOf(data),
 		uploadedAt: time.Now().UTC(),
 	}
-	up.parts[partNo] = part
-	return &gen.UploadPartOutput{ETag: ptr(part.etag)}, nil
+	up.parts[partNumber] = part
+	return part.etag, nil
 }
 
-// CompleteMultipartUpload concatenates parts in part-number order and
-// writes the resulting object.
-func (b *Backend) CompleteMultipartUpload(ctx context.Context, in *gen.CompleteMultipartUploadRequest) (*gen.CompleteMultipartUploadOutput, error) {
-	if in == nil {
-		return nil, fmt.Errorf("CompleteMultipartUpload: missing input")
-	}
+func (b *Backend) CompleteMultipartUpload(ctx context.Context, bucket, key, uploadID string, _ []domain.CompletePartRef) (string, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	upID := in.UploadId
-	up, ok := b.uploads[upID]
+	up, ok := b.uploads[uploadID]
 	if !ok {
-		return nil, restxml.NoSuchUpload(upID)
+		return "", domain.NoSuchUpload(uploadID)
 	}
-	if up.bucket != in.Bucket || up.key != in.Key {
-		return nil, restxml.InvalidArgument("upload key/bucket mismatch")
+	if up.bucket != bucket || up.key != key {
+		return "", domain.InvalidArgument("upload key/bucket mismatch")
 	}
-	bucket, ok := b.buckets[in.Bucket]
+	bs, ok := b.buckets[bucket]
 	if !ok {
-		return nil, restxml.NoSuchBucket(in.Bucket)
+		return "", domain.NoSuchBucket(bucket)
 	}
-	// Order parts by number; client supplies the list, but in-mem
-	// concatenates in numeric order regardless.
 	nums := make([]int32, 0, len(up.parts))
 	for n := range up.parts {
 		nums = append(nums, n)
@@ -575,43 +458,34 @@ func (b *Backend) CompleteMultipartUpload(ctx context.Context, in *gen.CompleteM
 	now := time.Now().UTC()
 	obj := &objectState{
 		data:         assembled,
-		contentType:  "application/octet-stream",
+		contentType:  up.contentType,
+		metadata:     copyMeta(up.metadata),
 		lastModified: now,
 		etag:         etagOf(assembled),
 	}
-	bucket.objects[in.Key] = obj
-	delete(b.uploads, upID)
-	return &gen.CompleteMultipartUploadOutput{
-		Bucket: ptr(in.Bucket),
-		Key:    ptr(in.Key),
-		ETag:   ptr(obj.etag),
-	}, nil
+	if obj.contentType == "" {
+		obj.contentType = "application/octet-stream"
+	}
+	bs.objects[key] = obj
+	delete(b.uploads, uploadID)
+	return obj.etag, nil
 }
 
-// AbortMultipartUpload discards a partial upload's accumulated parts.
-func (b *Backend) AbortMultipartUpload(ctx context.Context, in *gen.AbortMultipartUploadRequest) (*gen.AbortMultipartUploadOutput, error) {
-	if in == nil {
-		return nil, fmt.Errorf("AbortMultipartUpload: missing input")
-	}
+func (b *Backend) AbortMultipartUpload(ctx context.Context, bucket, key, uploadID string) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	upID := in.UploadId
-	if _, ok := b.uploads[upID]; !ok {
-		return nil, restxml.NoSuchUpload(upID)
+	if _, ok := b.uploads[uploadID]; !ok {
+		return domain.NoSuchUpload(uploadID)
 	}
-	delete(b.uploads, upID)
-	return &gen.AbortMultipartUploadOutput{}, nil
+	delete(b.uploads, uploadID)
+	return nil
 }
 
-// ListMultipartUploads enumerates in-progress uploads for a bucket.
-func (b *Backend) ListMultipartUploads(ctx context.Context, in *gen.ListMultipartUploadsRequest) (*gen.ListMultipartUploadsOutput, error) {
-	if in == nil {
-		return nil, fmt.Errorf("ListMultipartUploads: missing input")
-	}
+func (b *Backend) ListMultipartUploads(ctx context.Context, bucket, prefix string) ([]domain.MultipartUpload, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	if _, ok := b.buckets[in.Bucket]; !ok {
-		return nil, restxml.NoSuchBucket(in.Bucket)
+	if _, ok := b.buckets[bucket]; !ok {
+		return nil, domain.NoSuchBucket(bucket)
 	}
 	type entry struct {
 		id, key string
@@ -619,10 +493,10 @@ func (b *Backend) ListMultipartUploads(ctx context.Context, in *gen.ListMultipar
 	}
 	var matched []entry
 	for id, up := range b.uploads {
-		if up.bucket != in.Bucket {
+		if up.bucket != bucket {
 			continue
 		}
-		if p := deref(in.Prefix, ""); p != "" && !strings.HasPrefix(up.key, p) {
+		if prefix != "" && !strings.HasPrefix(up.key, prefix) {
 			continue
 		}
 		matched = append(matched, entry{id: id, key: up.key, created: up.created})
@@ -633,198 +507,39 @@ func (b *Backend) ListMultipartUploads(ctx context.Context, in *gen.ListMultipar
 		}
 		return matched[i].id < matched[j].id
 	})
-	out := &gen.ListMultipartUploadsOutput{Bucket: ptr(in.Bucket), Prefix: in.Prefix}
+	out := make([]domain.MultipartUpload, 0, len(matched))
 	for _, m := range matched {
-		m := m
-		out.Uploads = append(out.Uploads, gen.MultipartUpload{
-			UploadId:  ptr(m.id),
-			Key:       ptr(m.key),
-			Initiated: ptr(m.created),
+		out = append(out, domain.MultipartUpload{
+			UploadID: m.id, Bucket: bucket, Key: m.key, Initiated: m.created,
 		})
 	}
 	return out, nil
 }
 
-// ListParts returns the parts already uploaded for an in-progress upload.
-func (b *Backend) ListParts(ctx context.Context, in *gen.ListPartsRequest) (*gen.ListPartsOutput, error) {
-	if in == nil {
-		return nil, fmt.Errorf("ListParts: missing input")
-	}
+func (b *Backend) ListParts(ctx context.Context, bucket, key, uploadID string) ([]domain.Part, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	upID := in.UploadId
-	up, ok := b.uploads[upID]
+	up, ok := b.uploads[uploadID]
 	if !ok {
-		return nil, restxml.NoSuchUpload(upID)
+		return nil, domain.NoSuchUpload(uploadID)
 	}
-	if up.bucket != in.Bucket || up.key != in.Key {
-		return nil, restxml.InvalidArgument("upload key/bucket mismatch")
+	if up.bucket != bucket || up.key != key {
+		return nil, domain.InvalidArgument("upload key/bucket mismatch")
 	}
 	nums := make([]int32, 0, len(up.parts))
 	for n := range up.parts {
 		nums = append(nums, n)
 	}
 	sort.Slice(nums, func(i, j int) bool { return nums[i] < nums[j] })
-	out := &gen.ListPartsOutput{
-		Bucket:   ptr(in.Bucket),
-		Key:      ptr(in.Key),
-		UploadId: ptr(upID),
-	}
+	out := make([]domain.Part, 0, len(nums))
 	for _, n := range nums {
 		p := up.parts[n]
-		out.Parts = append(out.Parts, gen.Part{
-			PartNumber:   ptr(n),
-			ETag:         ptr(p.etag),
-			LastModified: ptr(p.uploadedAt),
-			Size:         ptr(int64(len(p.data))),
+		out = append(out, domain.Part{
+			Number:       n,
+			ETag:         p.etag,
+			Size:         int64(len(p.data)),
+			LastModified: p.uploadedAt,
 		})
 	}
 	return out, nil
-}
-
-// Ensure the implementation satisfies the union interface at build time.
-var _ gen.AmazonS3Backend = (*Backend)(nil)
-
-// ----------------------------------------------------------------------
-// Bucket-config probes (Terraform AWS provider's Read calls these on
-// every aws_s3_bucket apply). Each returns either the "feature not
-// configured" 404 in S3's vocabulary, or a default-state 200 — both of
-// which translate universally across S3 / GCS / Azure Blob / MinIO.
-// ----------------------------------------------------------------------
-
-func (b *Backend) GetBucketLocation(ctx context.Context, in *gen.GetBucketLocationRequest) (*gen.GetBucketLocationOutput, error) {
-	if in == nil {
-		return nil, restxml.InvalidArgument("GetBucketLocation: missing input")
-	}
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	st, ok := b.buckets[in.Bucket]
-	if !ok {
-		return nil, restxml.NoSuchBucket(in.Bucket)
-	}
-	loc := gen.BucketLocationConstraint(st.region)
-	return &gen.GetBucketLocationOutput{LocationConstraint: &loc}, nil
-}
-
-func (b *Backend) GetBucketPolicy(ctx context.Context, in *gen.GetBucketPolicyRequest) (*gen.GetBucketPolicyOutput, error) {
-	if in == nil { return nil, restxml.InvalidArgument("GetBucketPolicy: missing input") }
-	b.mu.Lock(); defer b.mu.Unlock()
-	if _, ok := b.buckets[in.Bucket]; !ok { return nil, restxml.NoSuchBucket(in.Bucket) }
-	return nil, restxml.NoSuchBucketPolicy(in.Bucket)
-}
-
-func (b *Backend) GetBucketAcl(ctx context.Context, in *gen.GetBucketAclRequest) (*gen.GetBucketAclOutput, error) {
-	if in == nil { return nil, restxml.InvalidArgument("GetBucketAcl: missing input") }
-	b.mu.Lock(); defer b.mu.Unlock()
-	if _, ok := b.buckets[in.Bucket]; !ok { return nil, restxml.NoSuchBucket(in.Bucket) }
-	return &gen.GetBucketAclOutput{
-		Owner: &gen.Owner{ID: ptr("shimanism-inmem"), DisplayName: ptr("inmem")},
-	}, nil
-}
-
-func (b *Backend) GetBucketVersioning(ctx context.Context, in *gen.GetBucketVersioningRequest) (*gen.GetBucketVersioningOutput, error) {
-	if in == nil { return nil, restxml.InvalidArgument("GetBucketVersioning: missing input") }
-	b.mu.Lock(); defer b.mu.Unlock()
-	if _, ok := b.buckets[in.Bucket]; !ok { return nil, restxml.NoSuchBucket(in.Bucket) }
-	return &gen.GetBucketVersioningOutput{}, nil // empty = unversioned default
-}
-
-func (b *Backend) GetBucketLogging(ctx context.Context, in *gen.GetBucketLoggingRequest) (*gen.GetBucketLoggingOutput, error) {
-	if in == nil { return nil, restxml.InvalidArgument("GetBucketLogging: missing input") }
-	b.mu.Lock(); defer b.mu.Unlock()
-	if _, ok := b.buckets[in.Bucket]; !ok { return nil, restxml.NoSuchBucket(in.Bucket) }
-	return &gen.GetBucketLoggingOutput{}, nil // empty = logging disabled
-}
-
-func (b *Backend) GetBucketCors(ctx context.Context, in *gen.GetBucketCorsRequest) (*gen.GetBucketCorsOutput, error) {
-	if in == nil { return nil, restxml.InvalidArgument("GetBucketCors: missing input") }
-	b.mu.Lock(); defer b.mu.Unlock()
-	if _, ok := b.buckets[in.Bucket]; !ok { return nil, restxml.NoSuchBucket(in.Bucket) }
-	return nil, restxml.NoSuchCORSConfiguration(in.Bucket)
-}
-
-func (b *Backend) GetBucketLifecycleConfiguration(ctx context.Context, in *gen.GetBucketLifecycleConfigurationRequest) (*gen.GetBucketLifecycleConfigurationOutput, error) {
-	if in == nil { return nil, restxml.InvalidArgument("GetBucketLifecycleConfiguration: missing input") }
-	b.mu.Lock(); defer b.mu.Unlock()
-	if _, ok := b.buckets[in.Bucket]; !ok { return nil, restxml.NoSuchBucket(in.Bucket) }
-	return nil, restxml.NoSuchLifecycleConfiguration(in.Bucket)
-}
-
-func (b *Backend) GetBucketReplication(ctx context.Context, in *gen.GetBucketReplicationRequest) (*gen.GetBucketReplicationOutput, error) {
-	if in == nil { return nil, restxml.InvalidArgument("GetBucketReplication: missing input") }
-	b.mu.Lock(); defer b.mu.Unlock()
-	if _, ok := b.buckets[in.Bucket]; !ok { return nil, restxml.NoSuchBucket(in.Bucket) }
-	return nil, restxml.ReplicationConfigurationNotFound(in.Bucket)
-}
-
-func (b *Backend) GetBucketRequestPayment(ctx context.Context, in *gen.GetBucketRequestPaymentRequest) (*gen.GetBucketRequestPaymentOutput, error) {
-	if in == nil { return nil, restxml.InvalidArgument("GetBucketRequestPayment: missing input") }
-	b.mu.Lock(); defer b.mu.Unlock()
-	if _, ok := b.buckets[in.Bucket]; !ok { return nil, restxml.NoSuchBucket(in.Bucket) }
-	p := gen.PayerBucketOwner
-	return &gen.GetBucketRequestPaymentOutput{Payer: &p}, nil
-}
-
-func (b *Backend) GetBucketTagging(ctx context.Context, in *gen.GetBucketTaggingRequest) (*gen.GetBucketTaggingOutput, error) {
-	if in == nil { return nil, restxml.InvalidArgument("GetBucketTagging: missing input") }
-	b.mu.Lock(); defer b.mu.Unlock()
-	if _, ok := b.buckets[in.Bucket]; !ok { return nil, restxml.NoSuchBucket(in.Bucket) }
-	return nil, restxml.NoSuchTagSet(in.Bucket)
-}
-
-func (b *Backend) GetBucketWebsite(ctx context.Context, in *gen.GetBucketWebsiteRequest) (*gen.GetBucketWebsiteOutput, error) {
-	if in == nil { return nil, restxml.InvalidArgument("GetBucketWebsite: missing input") }
-	b.mu.Lock(); defer b.mu.Unlock()
-	if _, ok := b.buckets[in.Bucket]; !ok { return nil, restxml.NoSuchBucket(in.Bucket) }
-	return nil, restxml.NoSuchWebsiteConfiguration(in.Bucket)
-}
-
-func (b *Backend) GetBucketEncryption(ctx context.Context, in *gen.GetBucketEncryptionRequest) (*gen.GetBucketEncryptionOutput, error) {
-	if in == nil { return nil, restxml.InvalidArgument("GetBucketEncryption: missing input") }
-	b.mu.Lock(); defer b.mu.Unlock()
-	if _, ok := b.buckets[in.Bucket]; !ok { return nil, restxml.NoSuchBucket(in.Bucket) }
-	return nil, restxml.ServerSideEncryptionConfigurationNotFound(in.Bucket)
-}
-
-func (b *Backend) GetBucketAccelerateConfiguration(ctx context.Context, in *gen.GetBucketAccelerateConfigurationRequest) (*gen.GetBucketAccelerateConfigurationOutput, error) {
-	if in == nil { return nil, restxml.InvalidArgument("GetBucketAccelerateConfiguration: missing input") }
-	b.mu.Lock(); defer b.mu.Unlock()
-	if _, ok := b.buckets[in.Bucket]; !ok { return nil, restxml.NoSuchBucket(in.Bucket) }
-	return &gen.GetBucketAccelerateConfigurationOutput{}, nil // default = Suspended/absent
-}
-
-func (b *Backend) GetObjectLockConfiguration(ctx context.Context, in *gen.GetObjectLockConfigurationRequest) (*gen.GetObjectLockConfigurationOutput, error) {
-	if in == nil { return nil, restxml.InvalidArgument("GetObjectLockConfiguration: missing input") }
-	b.mu.Lock(); defer b.mu.Unlock()
-	if _, ok := b.buckets[in.Bucket]; !ok { return nil, restxml.NoSuchBucket(in.Bucket) }
-	return nil, restxml.ObjectLockConfigurationNotFound(in.Bucket)
-}
-
-func (b *Backend) GetBucketNotificationConfiguration(ctx context.Context, in *gen.GetBucketNotificationConfigurationRequest) (*gen.NotificationConfiguration, error) {
-	if in == nil { return nil, restxml.InvalidArgument("GetBucketNotificationConfiguration: missing input") }
-	b.mu.Lock(); defer b.mu.Unlock()
-	if _, ok := b.buckets[in.Bucket]; !ok { return nil, restxml.NoSuchBucket(in.Bucket) }
-	return &gen.NotificationConfiguration{}, nil // empty = no notifications
-}
-
-func (b *Backend) GetBucketOwnershipControls(ctx context.Context, in *gen.GetBucketOwnershipControlsRequest) (*gen.GetBucketOwnershipControlsOutput, error) {
-	if in == nil { return nil, restxml.InvalidArgument("GetBucketOwnershipControls: missing input") }
-	b.mu.Lock(); defer b.mu.Unlock()
-	if _, ok := b.buckets[in.Bucket]; !ok { return nil, restxml.NoSuchBucket(in.Bucket) }
-	return nil, restxml.OwnershipControlsNotFound(in.Bucket)
-}
-
-func (b *Backend) GetBucketPolicyStatus(ctx context.Context, in *gen.GetBucketPolicyStatusRequest) (*gen.GetBucketPolicyStatusOutput, error) {
-	if in == nil { return nil, restxml.InvalidArgument("GetBucketPolicyStatus: missing input") }
-	b.mu.Lock(); defer b.mu.Unlock()
-	if _, ok := b.buckets[in.Bucket]; !ok { return nil, restxml.NoSuchBucket(in.Bucket) }
-	// No policy means status is empty/private; AWS returns 404 NoSuchBucketPolicy
-	return nil, restxml.NoSuchBucketPolicy(in.Bucket)
-}
-
-func (b *Backend) GetPublicAccessBlock(ctx context.Context, in *gen.GetPublicAccessBlockRequest) (*gen.GetPublicAccessBlockOutput, error) {
-	if in == nil { return nil, restxml.InvalidArgument("GetPublicAccessBlock: missing input") }
-	b.mu.Lock(); defer b.mu.Unlock()
-	if _, ok := b.buckets[in.Bucket]; !ok { return nil, restxml.NoSuchBucket(in.Bucket) }
-	return nil, restxml.NoSuchPublicAccessBlockConfiguration(in.Bucket)
 }

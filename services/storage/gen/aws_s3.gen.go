@@ -913,7 +913,7 @@ type GetObjectRequest struct {
 // GetObjectOutput is a generated Smithy structure.
 type GetObjectOutput struct {
 	AcceptRanges              *string                    // bound to header=accept-ranges
-	Body                      []byte                     // bound to payload=
+	Body                      io.ReadCloser              // bound to payload=
 	BucketKeyEnabled          *bool                      // bound to header=x-amz-server-side-encryption-bucket-key-enabled
 	CacheControl              *string                    // bound to header=Cache-Control
 	ChecksumCRC32             *string                    // bound to header=x-amz-checksum-crc32
@@ -970,7 +970,7 @@ type NoSuchKey struct {
 // PutObjectRequest is a generated Smithy structure.
 type PutObjectRequest struct {
 	ACL                       *ObjectCannedACL           // bound to header=x-amz-acl
-	Body                      []byte                     // bound to payload=
+	Body                      io.ReadCloser              // bound to payload=
 	Bucket                    string                     // bound to label=Bucket
 	BucketKeyEnabled          *bool                      // bound to header=x-amz-server-side-encryption-bucket-key-enabled
 	CacheControl              *string                    // bound to header=Cache-Control
@@ -1291,7 +1291,7 @@ type CreateMultipartUploadOutput struct {
 
 // UploadPartRequest is a generated Smithy structure.
 type UploadPartRequest struct {
-	Body                 []byte             // bound to payload=
+	Body                 io.ReadCloser      // bound to payload=
 	Bucket               string             // bound to label=Bucket
 	ChecksumAlgorithm    *ChecksumAlgorithm // bound to header=x-amz-sdk-checksum-algorithm
 	ChecksumCRC32        *string            // bound to header=x-amz-checksum-crc32
@@ -3001,9 +3001,13 @@ func GetObjectHandler(b GetObjectBackend) http.Handler {
 			w.Header().Set("x-amz-meta-"+_k, _v)
 		}
 
-		w.Header().Set("Content-Length", strconv.Itoa(len(out.Body)))
+		// Streaming payload: stream the backend's body straight
+		// through to the response writer. No buffering.
 		w.WriteHeader(200)
-		_, _ = w.Write(out.Body)
+		if out.Body != nil {
+			_, _ = io.Copy(w, out.Body)
+			_ = out.Body.Close()
+		}
 	})
 }
 
@@ -3219,8 +3223,10 @@ func PutObjectHandler(b PutObjectBackend) http.Handler {
 			}
 		}
 
-		_payload, _ := io.ReadAll(r.Body)
-		in.Body = _payload
+		// Streaming payload: hand the request body to the backend
+		// directly. The handler does not buffer; the backend owns
+		// closing r.Body via in.Body.
+		in.Body = r.Body
 		out, err := b.PutObject(ctx, in)
 		if err != nil {
 			restxml.WriteBackendError(w, err)
@@ -4302,8 +4308,10 @@ func UploadPartHandler(b UploadPartBackend) http.Handler {
 			in.UploadId = v
 		}
 
-		_payload, _ := io.ReadAll(r.Body)
-		in.Body = _payload
+		// Streaming payload: hand the request body to the backend
+		// directly. The handler does not buffer; the backend owns
+		// closing r.Body via in.Body.
+		in.Body = r.Body
 		out, err := b.UploadPart(ctx, in)
 		if err != nil {
 			restxml.WriteBackendError(w, err)

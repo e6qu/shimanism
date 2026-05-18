@@ -507,6 +507,14 @@ func (g *gen) fieldView(name string, m smithy.Member) (fieldView, error) {
 		fv.XMLTag = xml + ",omitempty"
 	}
 
+	// Streaming for httpPayload + blob: the handler should not
+	// buffer the body. Generate `io.ReadCloser` for both input (set
+	// to r.Body) and output (the caller streams + closes).
+	if fv.Binding == "payload" && g.isBlobTarget(m.Target) {
+		fv.GoType = "io.ReadCloser"
+		return fv, nil
+	}
+
 	// Compute the Go type. For body fields targeting a flattened list,
 	// expose it as []Element directly (no wrapper).
 	if fv.Binding == "body" && m.XMLFlattened() {
@@ -691,6 +699,19 @@ func (g *gen) goTypeForRef(id string, required bool) (string, error) {
 }
 
 func isReferenceType(t string) bool { return t == "[]byte" }
+
+// isBlobTarget reports whether the given shape ID resolves to a blob
+// (either smithy.api#Blob directly or a user-defined alias of blob).
+func (g *gen) isBlobTarget(id string) bool {
+	if id == "smithy.api#Blob" {
+		return true
+	}
+	sh, err := g.model.LookupShape(id)
+	if err != nil {
+		return false
+	}
+	return sh.Type == "blob"
+}
 
 func isPrimitiveID(id string) bool { return strings.HasPrefix(id, "smithy.api#") }
 
