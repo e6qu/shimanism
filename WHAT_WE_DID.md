@@ -4,7 +4,60 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 
 > Reverse chronological. One section per phase. The *why*, the surprises, the root causes — not per-PR detail. For commit-level history, `git log`. For per-bug detail, [BUGS.md](BUGS.md).
 
-## Phase 1.4 — Intersection scoping + conformance harness (in flight)
+## Phase 1.4 — Conformance harness + TF resource-lifecycle (in flight)
+
+Phase 1.4 has three layers of progression, all on the single open PR (`phase-1.4-conformance-harness`, PR #6):
+
+1. **Scope correction** — Phase 1.3 had generated all 107 S3 operations; user pushed back: shimanism's job is cross-cloud translation, so the codegen should cover only operations that exist semantically across all four backends. Manifest at `services/storage/codegen.json` pins this set.
+2. **Conformance harness** — real `aws-sdk-go-v2`, `aws` CLI, and `hashicorp/aws` Terraform provider pointed at the shim via endpoint override. Real in-mem backend behind the shim. SDK + CLI tests pass; the first cut of the Terraform test only used a `data "aws_s3_object"` block, deliberately avoiding `resource "aws_s3_bucket"` because the provider's resource Read step probes many AWS-specific bucket-config GETs.
+3. **Terraform resource-lifecycle path** — user pushed back again: "we won't fully know how to test" without the resource path. Right call. Section below.
+
+### The resource-lifecycle hookup
+
+The TF AWS provider's `aws_s3_bucket` resource Read step calls **18 GetBucket\*** operations to populate state: GetBucketLocation, Policy, Acl, Versioning, Logging, Cors, LifecycleConfiguration, Replication, RequestPayment, Tagging, Website, Encryption, AccelerateConfiguration, GetObjectLockConfiguration, NotificationConfiguration, OwnershipControls, PolicyStatus, GetPublicAccessBlock. Without them, terraform apply hangs on retry loops because the shim returns 404 InvalidRequest and TF interprets each as a real provider error.
+
+We added them to the codegen manifest (now 34 ops total) and implemented them on the in-mem backend with the canonical "feature not configured" response — either an S3-vocabulary 404 (`NoSuchBucketPolicy`, `NoSuchCORSConfiguration`, `NoSuchTagSet`, `ServerSideEncryptionConfigurationNotFoundError`, etc.) or a default-state 200 (`<VersioningConfiguration/>` empty for versioning; `Payer=BucketOwner` for request-payment). This is universally meaningful: every freshly-created bucket on every cloud has these features in their default-empty state, so each backend can answer the probe correctly without translating any AWS-specific feature semantics.
+
+The PutBucket\* setters for these features are deliberately **not** in the manifest. We accept the "default state" reads to let TF refresh state; we don't translate AWS-specific feature configs to other clouds because doing so faithfully requires deep cross-cloud semantic mapping that's beyond the shim's purpose.
+
+### Typed errors: `restxml.ShimError`
+
+Before this layer, backend errors were unstyped `fmt.Errorf` strings and the generated handler always emitted HTTP 500 InternalError. That broke TF: it expected 404 NoSuchBucketPolicy from `GET /bucket?policy` on a fresh bucket, got 500, retried forever. Fixed by:
+
+- Defining `restxml.ShimError` with `HTTPStatus`, `Code`, `Message`, `Resource`, `RequestID` fields.
+- Constructor helpers per S3 error vocabulary (`NoSuchBucket`, `NoSuchKey`, `NoSuchBucketPolicy`, `BucketAlreadyOwnedByYou`, `BucketNotEmpty`, `NoSuchUpload`, `InvalidArgument`, and the 10 feature-not-configured shapes).
+- `restxml.WriteBackendError(w, err)` centralises the mapping; uses `errors.As` to detect `*ShimError` and writes the right status + envelope.
+- Generated handler error path: all handlers now funnel backend errors through `WriteBackendError`.
+- In-mem backend: every `fmt.Errorf` rewritten to a `ShimError` constructor.
+
+### The router
+
+`internal/restxml/router.go` disambiguates operations that share a URI path:
+
+- Method + path-template matching (URI labels resolved via `MatchURI`).
+- Fixed query-param matching from the URI template's `?…` suffix, *minus* the SDK-added `x-id` operation marker so the AWS CLI's `s3 cp` (which omits `x-id`) and the SDK (which includes it) share routes.
+- Required-headers presence — disambiguates CopyObject (`x-amz-copy-source`) from PutObject.
+- Required-queries presence — disambiguates UploadPart (`partNumber`, `uploadId`) from PutObject.
+
+Routes sort by descending specificity; the most-constrained match wins.
+
+### Known gap: BUG-1
+
+The x-id stripping shadows sibling-op disambiguation on object paths. A request to `GET /{Bucket}/{Key+}?tagging=` (TF's GetObjectTagging probe) matches GetObject's route because GetObject's template, after x-id stripping, has no constraint on `tagging`. Currently shadowed because (a) the SDK always sends `x-id`, and (b) TF's tagging probe ignores the response body, so the wrong content is harmless in practice. The fix is auto-derived "forbidden queries" per route: queries that appear as required on some routes within a (method, path) group become forbidden on routes that don't declare them. Tracked for Phase 1.5+ where a real backend's failure mode might surface this.
+
+### Codegen extensions
+
+- **Payload binding**: handlers now read the request body and assign it to a member tagged `httpPayload`; if the member is a struct type, the body is XML-decoded.
+- **Header binding (output)**: header-bound output members are emitted to response headers per type (`*string`, `*int64`, `*time.Time`, `*int32`, `*bool`, named-enum types).
+- **PrefixHeaders output**: map members are emitted as one response header per key, prefixed.
+- **Body encoding**: when there is no payload but there are XML-body fields, the whole struct is XML-encoded; when there is a payload, only the payload bytes/XML are written.
+- **REST-XML timestamp default**: header-bound timestamps default to `http-date` (RFC 7231 IMF-fixdate); body-bound timestamps default to `date-time` (RFC 3339).
+- **Register&lt;Service&gt;Routes** helper emitted alongside the union `&lt;Service&gt;Backend` interface.
+- **Typed enum constants** (Foo Type = "x" instead of Foo = "x").
+
+### CI
+
+`.github/workflows/checks.yml`'s `go vet + test + build` job installs `terraform 1.13.0` via `hashicorp/setup-terraform@v3` and asserts `aws --version` succeeds. The conformance suite — SDK + CLI + Terraform `resource "aws_s3_bucket"` lifecycle — runs on every PR. Current CI time: **1m9s** for the full job (tight against the user's 1m `go test` cap, but the inner `go test -timeout 1m` finishes in time; the 9s margin is setup + build).
 
 ### Course correction on Phase 1.3 scope
 
