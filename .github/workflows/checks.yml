@@ -109,7 +109,7 @@ jobs:
           MINIO_ENDPOINT: localhost:9000
           MINIO_ACCESS_KEY: minioadmin
           MINIO_SECRET_KEY: minioadmin
-        run: go test -timeout 2m -run TestConformance_AllBackends ./services/storage/conformance/...
+        run: go test -timeout 2m -run TestConformanceMatrix ./services/storage/conformance/...
 
   conformance-gcs:
     name: conformance gcs
@@ -131,7 +131,7 @@ jobs:
         env:
           STORAGE_EMULATOR_HOST: localhost:4443
           GCS_PROJECT_ID: shim-conformance
-        run: go test -timeout 2m -run TestConformance_AllBackends ./services/storage/conformance/...
+        run: go test -timeout 2m -run TestConformanceMatrix ./services/storage/conformance/...
 
   conformance-azureblob:
     name: conformance azureblob
@@ -152,7 +152,7 @@ jobs:
       - name: Run azureblob conformance
         env:
           AZURE_STORAGE_CONNECTION_STRING: "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://localhost:10000/devstoreaccount1;"
-        run: go test -timeout 2m -run TestConformance_AllBackends ./services/storage/conformance/...
+        run: go test -timeout 2m -run TestConformanceMatrix ./services/storage/conformance/...
 
   licenses:
     name: dependency licenses AGPL-compatible

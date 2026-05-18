@@ -1,18 +1,21 @@
 // Command shim is the entry point for the shimanism protocol-translation
-// proxy. It runs the shim as a network service: a chosen backend
-// implementation of domain.Storage sits behind an AWS S3-shaped HTTP
-// frontend, so any S3-speaking client (SDK / CLI / Terraform provider)
-// can drive it via the standard endpoint-override path.
+// proxy. It runs the shim as a network service: a chosen wire-protocol
+// frontend (AWS S3, GCS, or Azure Blob) sits in front of a chosen
+// backend implementation of domain.Storage, so any cloud's official
+// SDK / CLI / Terraform provider can drive it via the standard
+// endpoint-override path.
 //
 // Subcommands:
 //
 //	shim version           — print version and exit.
 //	shim storage [flags]   — run the storage service.
 //
-// The storage subcommand selects a backend via -backend=<name>; each
-// backend reads its own connection config from flags or environment
-// variables. Backends currently implemented: inmem, minio, aws, gcs,
-// azureblob. The K8s peer (deploy/k8s/peer/) uses minio.
+// The storage subcommand selects a backend via -backend=<name> and a
+// frontend via -frontend=<name>; each backend reads its connection
+// config from flags or environment variables. Backends currently
+// implemented: inmem, minio, aws, gcs, azureblob. Frontends:
+// aws_s3, gcs, azure_blob. The K8s peer (deploy/k8s/peer/) uses
+// frontend=aws_s3 + backend=minio by default.
 package main
 
 import (
@@ -31,6 +34,8 @@ import (
 	"github.com/e6qu/shimanism/internal/restxml"
 	"github.com/e6qu/shimanism/internal/storage/domain"
 	awsfront "github.com/e6qu/shimanism/internal/storage/frontends/aws_s3"
+	azurefront "github.com/e6qu/shimanism/internal/storage/frontends/azure_blob"
+	gcsfront "github.com/e6qu/shimanism/internal/storage/frontends/gcs"
 	awsbackend "github.com/e6qu/shimanism/services/storage/backends/aws"
 	azureblobbackend "github.com/e6qu/shimanism/services/storage/backends/azureblob"
 	gcsbackend "github.com/e6qu/shimanism/services/storage/backends/gcs"
@@ -39,7 +44,7 @@ import (
 	storagegen "github.com/e6qu/shimanism/services/storage/gen"
 )
 
-const version = "0.1.0-phase-1.7"
+const version = "0.2.0-phase-1.15"
 
 func main() {
 	if len(os.Args) < 2 {
@@ -76,6 +81,7 @@ func usage() {
 func runStorage(args []string) error {
 	fs := flag.NewFlagSet("storage", flag.ContinueOnError)
 	addr := fs.String("addr", ":9000", "address to listen on")
+	frontendName := fs.String("frontend", "aws_s3", "frontend wire protocol: aws_s3, gcs, azure_blob")
 	backendName := fs.String("backend", "inmem", "backend: inmem, minio, aws, gcs, azureblob")
 	minioEndpoint := fs.String("minio-endpoint", envOr("MINIO_ENDPOINT", ""), "MinIO endpoint host:port")
 	minioAccess := fs.String("minio-access-key", envOr("MINIO_ACCESS_KEY", "minioadmin"), "MinIO access key")
@@ -101,12 +107,33 @@ func runStorage(args []string) error {
 		return err
 	}
 
-	adapter := awsfront.New(backend)
-	router := &restxml.Router{}
-	storagegen.RegisterAmazonS3Routes(router, adapter)
+	handler, err := buildFrontend(*frontendName, backend)
+	if err != nil {
+		return err
+	}
 
-	fmt.Fprintf(os.Stderr, "shim storage: backend=%s addr=%s\n", *backendName, *addr)
-	return http.ListenAndServe(*addr, router)
+	fmt.Fprintf(os.Stderr, "shim storage: frontend=%s backend=%s addr=%s\n", *frontendName, *backendName, *addr)
+	return http.ListenAndServe(*addr, handler)
+}
+
+// buildFrontend wires the chosen wire-protocol frontend to a backend
+// implementation. The frontend translates the cloud's published API
+// into calls on the neutral domain.Storage interface; the backend
+// translates that interface into the destination cloud's native API.
+func buildFrontend(name string, backend domain.Storage) (http.Handler, error) {
+	switch name {
+	case "aws_s3":
+		adapter := awsfront.New(backend)
+		router := &restxml.Router{}
+		storagegen.RegisterAmazonS3Routes(router, adapter)
+		return router, nil
+	case "gcs":
+		return gcsfront.New(backend), nil
+	case "azure_blob":
+		return azurefront.New(backend), nil
+	default:
+		return nil, fmt.Errorf("unknown frontend %q (valid: aws_s3, gcs, azure_blob)", name)
+	}
 }
 
 type backendConfig struct {
