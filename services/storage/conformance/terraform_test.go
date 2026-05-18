@@ -75,12 +75,28 @@ func runTerraform(t *testing.T, dir, bin string, args ...string) ([]byte, []byte
 		"TF_IN_AUTOMATION=1",
 		"TF_INPUT=0",
 		"CHECKPOINT_DISABLE=1",
+		// Share a per-run provider cache so the GCS / AWS / azurerm
+		// providers only download once. Without this every TF test
+		// pays a ~10s init for its provider; with caching, only the
+		// first test does.
+		"TF_PLUGIN_CACHE_DIR="+terraformPluginCacheDir(),
 	)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	err := cmd.Run()
 	return stdout.Bytes(), stderr.Bytes(), err
+}
+
+// terraformPluginCacheDir returns a shared directory for terraform
+// provider binaries across test invocations in this go-test run.
+// The OS-level temp dir is fine — each `go test` invocation gets a
+// fresh one (which we don't deliberately reuse across runs), so we
+// pay one download per provider per test binary.
+func terraformPluginCacheDir() string {
+	d := filepath.Join(os.TempDir(), "shim-tf-plugin-cache")
+	_ = os.MkdirAll(d, 0o755)
+	return d
 }
 
 // TestTerraform_ResourceLifecycle runs `terraform init / apply / destroy`
@@ -95,6 +111,7 @@ func runTerraform(t *testing.T, dir, bin string, args ...string) ([]byte, []byte
 // This is the load-bearing test: real customer Terraform workflows
 // use resources, not data sources.
 func TestTerraform_ResourceLifecycle(t *testing.T) {
+	t.Parallel()
 	bin := requireTerraform(t)
 	srv := harness.StartStorageServer(t, inmem.New())
 	_ = context.Background

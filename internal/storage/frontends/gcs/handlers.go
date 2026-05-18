@@ -1,9 +1,13 @@
 package gcs
 
 import (
+	"crypto/md5"
+	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"hash"
 	"io"
 	"mime"
 	"mime/multipart"
@@ -101,6 +105,31 @@ func (srv *Server) deleteBucket(w http.ResponseWriter, r *http.Request, bucket s
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// getBucketStorageLayout returns a default storage layout for a
+// bucket. `gcloud storage cp` queries this endpoint on every copy;
+// a 404 here triggers a Python bug in gcloud (a TypeError on
+// endswith) that aborts the transfer. Returning the canonical
+// "default-state" payload lets the copy proceed.
+func (srv *Server) getBucketStorageLayout(w http.ResponseWriter, r *http.Request, bucket string) {
+	if _, err := srv.s.HeadBucket(r.Context(), bucket); err != nil {
+		mapDomainError(w, err)
+		return
+	}
+	resp := map[string]interface{}{
+		"kind":         "storage#storageLayout",
+		"bucket":       bucket,
+		"location":     "US",
+		"locationType": "multi-region",
+		"customPlacementConfig": map[string]interface{}{
+			"dataLocations": []string{},
+		},
+		"hierarchicalNamespace": map[string]interface{}{
+			"enabled": false,
+		},
+	}
+	writeJSON(w, http.StatusOK, &resp)
+}
+
 // ----------------------------------------------------------------------
 // Objects
 // ----------------------------------------------------------------------
@@ -168,6 +197,17 @@ func (srv *Server) getObjectMedia(w http.ResponseWriter, r *http.Request, bucket
 		w.Header().Set("Content-Length", strconv.FormatInt(obj.Size, 10))
 	}
 	w.Header().Set("ETag", quote(obj.ETag))
+	// gcloud / GCS SDK verify the download against the
+	// `x-goog-hash` response header. The header is a comma-separated
+	// list of `<algo>=<value>` pairs; `md5=<base64>` is the one
+	// every SDK consumes. Surface it whenever the backend's ETag is
+	// a hex-MD5 (the convention for our streaming-md5 helper).
+	if md5Bytes, err := hex.DecodeString(strings.Trim(obj.ETag, "\"")); err == nil && len(md5Bytes) == 16 {
+		w.Header().Set("x-goog-hash", "md5="+base64.StdEncoding.EncodeToString(md5Bytes))
+	}
+	w.Header().Set("x-goog-storage-class", "STANDARD")
+	w.Header().Set("x-goog-generation", "1")
+	w.Header().Set("x-goog-metageneration", "1")
 	w.WriteHeader(http.StatusOK)
 	_, _ = io.Copy(w, obj.Body)
 }
@@ -207,47 +247,46 @@ func (srv *Server) uploadMedia(w http.ResponseWriter, r *http.Request, bucket, n
 		writeError(w, http.StatusBadRequest, "required", "name query parameter is required for uploadType=media")
 		return
 	}
-	body, n, err := readWithLength(r)
-	if err != nil {
-		writeError(w, http.StatusBadRequest, "parseError", err.Error())
-		return
-	}
+	hasher := md5.New()
+	counted := &countingReader{R: io.TeeReader(r.Body, hasher), H: hasher}
 	opt := domain.PutObjectOptions{
 		Bucket:      bucket,
 		Key:         name,
-		Body:        body,
+		Body:        counted,
 		ContentType: r.Header.Get("Content-Type"),
 	}
-	_ = n
 	res, err := srv.s.PutObject(r.Context(), opt)
 	if err != nil {
 		mapDomainError(w, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, &raw.Object{
-		Kind:    "storage#object",
-		Bucket:  bucket,
-		Name:    name,
-		Etag:    strings.Trim(res.ETag, "\""),
-		Updated: time.Now().UTC().Format(time.RFC3339),
-		Size:    uint64(n), //nolint:gosec
+		Kind:     "storage#object",
+		Bucket:   bucket,
+		Name:     name,
+		Etag:     strings.Trim(res.ETag, "\""),
+		Md5Hash:  base64.StdEncoding.EncodeToString(hasher.Sum(nil)),
+		Updated:  time.Now().UTC().Format(time.RFC3339),
+		Size:     uint64(counted.N), //nolint:gosec
 	})
 }
 
 // uploadMultipart parses the GCS multipart-related upload format:
-// two MIME parts — JSON metadata then opaque media bytes.
+// two MIME parts — JSON metadata then opaque media bytes. The
+// object name can come from the JSON metadata or from the `name`
+// query parameter (gcloud sometimes uses the query form).
 func (srv *Server) uploadMultipart(w http.ResponseWriter, r *http.Request, bucket string) {
 	ct := r.Header.Get("Content-Type")
-	mediaType, params, err := mime.ParseMediaType(ct)
-	if err != nil || !strings.HasPrefix(mediaType, "multipart/") {
+	mediaType, boundary, ok := parseMultipartContentType(ct)
+	if !ok || !strings.HasPrefix(mediaType, "multipart/") {
 		writeError(w, http.StatusBadRequest, "parseError", "expected multipart Content-Type, got "+ct)
 		return
 	}
-	mr := multipart.NewReader(r.Body, params["boundary"])
+	mr := multipart.NewReader(r.Body, boundary)
 	// Part 1: JSON metadata.
 	metaPart, err := mr.NextPart()
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "parseError", "missing metadata part: "+err.Error())
+		writeError(w, http.StatusBadRequest, "parseError", "missing metadata part (boundary="+boundary+"): "+err.Error())
 		return
 	}
 	var meta raw.Object
@@ -257,6 +296,16 @@ func (srv *Server) uploadMultipart(w http.ResponseWriter, r *http.Request, bucke
 		return
 	}
 	_ = metaPart.Close()
+	// Object name: prefer the metadata, fall back to ?name= query
+	// (gcloud uploads use the query form).
+	name := meta.Name
+	if name == "" {
+		name = r.URL.Query().Get("name")
+	}
+	if name == "" {
+		writeError(w, http.StatusBadRequest, "required", "object name must be provided in metadata or via ?name=")
+		return
+	}
 	// Part 2: media bytes.
 	mediaPart, err := mr.NextPart()
 	if err != nil {
@@ -267,10 +316,12 @@ func (srv *Server) uploadMultipart(w http.ResponseWriter, r *http.Request, bucke
 	if contentType == "" {
 		contentType = meta.ContentType
 	}
+	hasher := md5.New()
+	counted := &countingReader{R: io.TeeReader(mediaPart, hasher), H: hasher}
 	opt := domain.PutObjectOptions{
 		Bucket:      bucket,
-		Key:         meta.Name,
-		Body:        mediaPart,
+		Key:         name,
+		Body:        counted,
 		ContentType: contentType,
 		Metadata:    meta.Metadata,
 	}
@@ -283,8 +334,10 @@ func (srv *Server) uploadMultipart(w http.ResponseWriter, r *http.Request, bucke
 	writeJSON(w, http.StatusOK, &raw.Object{
 		Kind:        "storage#object",
 		Bucket:      bucket,
-		Name:        meta.Name,
+		Name:        name,
 		Etag:        strings.Trim(res.ETag, "\""),
+		Md5Hash:     base64.StdEncoding.EncodeToString(hasher.Sum(nil)),
+		Size:        uint64(counted.N), //nolint:gosec
 		Updated:     time.Now().UTC().Format(time.RFC3339),
 		ContentType: contentType,
 		Metadata:    meta.Metadata,
@@ -379,18 +432,78 @@ func quote(s string) string {
 
 func objectMetadataResponse(bucket, object string, obj domain.Object) *raw.Object {
 	r := &raw.Object{
-		Kind:        "storage#object",
-		Bucket:      bucket,
-		Name:        object,
-		Etag:        strings.Trim(obj.ETag, "\""),
-		ContentType: obj.ContentType,
-		Size:        uint64(obj.Size),
-		Metadata:    obj.Metadata,
+		Kind:           "storage#object",
+		Bucket:         bucket,
+		Name:           object,
+		Etag:           strings.Trim(obj.ETag, "\""),
+		ContentType:    obj.ContentType,
+		Size:           uint64(obj.Size),
+		Metadata:       obj.Metadata,
+		Generation:     1,
+		Metageneration: 1,
+		StorageClass:   "STANDARD",
+	}
+	if r.ContentType == "" {
+		r.ContentType = "application/octet-stream"
+	}
+	// If the ETag is a hex-encoded MD5 (16 bytes after hex-decoding),
+	// expose it as md5Hash too — the GCS SDK + gcloud verify this
+	// against the bytes they downloaded.
+	if md5Bytes, err := hex.DecodeString(strings.Trim(obj.ETag, "\"")); err == nil && len(md5Bytes) == 16 {
+		r.Md5Hash = base64.StdEncoding.EncodeToString(md5Bytes)
 	}
 	if !obj.LastModified.IsZero() {
 		r.Updated = obj.LastModified.UTC().Format(time.RFC3339)
+		r.TimeCreated = r.Updated
+		r.TimeStorageClassUpdated = r.Updated
 	}
 	return r
+}
+
+// parseMultipartContentType parses a multipart Content-Type header
+// and returns the media type and boundary. It tolerates the
+// gcloud-style single-quoted boundary value
+// ("multipart/related; boundary='==='") that mime.ParseMediaType
+// rejects as an invalid quoted-string.
+func parseMultipartContentType(ct string) (mediaType, boundary string, ok bool) {
+	if mt, params, err := mime.ParseMediaType(ct); err == nil {
+		return mt, params["boundary"], true
+	}
+	// Fallback: scan for `boundary=` manually. Strip quotes (single
+	// or double) around the value. The media-type prefix is
+	// everything before the first ';' or before whitespace.
+	semi := strings.IndexByte(ct, ';')
+	if semi < 0 {
+		return strings.TrimSpace(ct), "", false
+	}
+	mediaType = strings.TrimSpace(ct[:semi])
+	rest := ct[semi+1:]
+	for _, kv := range strings.Split(rest, ";") {
+		kv = strings.TrimSpace(kv)
+		if !strings.HasPrefix(kv, "boundary=") {
+			continue
+		}
+		val := strings.TrimPrefix(kv, "boundary=")
+		val = strings.Trim(val, "'\"")
+		return mediaType, val, val != ""
+	}
+	return mediaType, "", false
+}
+
+// countingReader wraps an io.Reader so the caller can read the
+// total bytes seen after the consumer has drained it. Used to
+// report Size + Md5Hash in the upload response without pre-reading
+// the body.
+type countingReader struct {
+	R io.Reader
+	H hash.Hash
+	N int64
+}
+
+func (c *countingReader) Read(p []byte) (int, error) {
+	n, err := c.R.Read(p)
+	c.N += int64(n)
+	return n, err
 }
 
 // readWithLength returns the request body and the declared length.

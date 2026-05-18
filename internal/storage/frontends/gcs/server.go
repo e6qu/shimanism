@@ -34,6 +34,8 @@ var (
 	reBucketObject = regexp.MustCompile(`^(?:/storage/v1)?/b/([^/]+)/o/(.+)$`)
 	// .../b/{bucket}/o
 	reBucketObjects = regexp.MustCompile(`^(?:/storage/v1)?/b/([^/]+)/o/?$`)
+	// .../b/{bucket}/storageLayout
+	reBucketStorageLayout = regexp.MustCompile(`^(?:/storage/v1)?/b/([^/]+)/storageLayout/?$`)
 	// .../b/{bucket}
 	reBucket = regexp.MustCompile(`^(?:/storage/v1)?/b/([^/]+)/?$`)
 	// .../b
@@ -91,6 +93,14 @@ func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		default:
 			writeError(w, http.StatusMethodNotAllowed, "methodNotAllowed", method+" not allowed on objects")
 		}
+		return
+	}
+	if m := reBucketStorageLayout.FindStringSubmatch(path); m != nil {
+		if method == http.MethodGet {
+			srv.getBucketStorageLayout(w, r, m[1])
+			return
+		}
+		writeError(w, http.StatusMethodNotAllowed, "methodNotAllowed", method+" not allowed on storageLayout")
 		return
 	}
 	if m := reBucket.FindStringSubmatch(path); m != nil {
