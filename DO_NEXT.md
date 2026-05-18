@@ -26,9 +26,9 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 | **1.8** | ✅ | **K8s peer backend** — `cmd/shim` rewritten as a runnable service with subcommands (`shim storage -backend=<...>`); `deploy/k8s/peer/` ships a kustomization with a MinIO StatefulSet + Service and a shim Deployment + Service; `Dockerfile` builds a distroless static image consumed by the Deployment. The "leave the cloud entirely" path is now operational. Piled on PR #6. |
 | **1.9** | ◻ | `CopyObject` cross-cloud nuances. Azure block-blob block-ID translation; GCS rewrite semantics. |
 | **1.10** | ◻ | Multipart upload cross-cloud nuances. GCS resumable session translation; Azure block-list translation. |
-| **1.11** | ◻ | Presigned URLs. |
+| **1.11** | ✅ | Presigned URLs: `TestSDK_PresignedURL` exercises the SDK's PresignClient against the shim. The router's ForbiddenQueries does not block SigV4 query params (X-Amz-*), and the shim accepts SigV4-bearing requests without validation at this phase (validation is a future hardening step — for now the shim is a passthrough). Piled on PR #6. |
 | **1.12** | ✅ | Fix [BUG-1](BUGS.md): `restxml.RouteOptions.ForbiddenQueries` + codegen emits the S3 feature-query list for the base ops + GetObjectTagging / GetObjectAcl added as object-level probes. Piled on PR #6. |
-| **1.13** | ◻ | Phase 1 closer: full conformance lane green across all five backends; Terraform `aws_s3_bucket` + `aws_s3_object` apply against MinIO / AWS / GCS / Azure Blob / K8s peer via `endpoints { s3 = ... }`. |
+| **1.13** | ◐ | Phase 1 closer: CI conformance matrix lights up minio (MinIO container), gcs (fake-gcs-server), azureblob (Azurite). Each lane runs `TestConformance_AllBackends` with the env var its docker container exposes; the factory's other-backend skips keep each lane focused. Remaining: AWS lane (needs real AWS creds; deferred to Track A), Terraform-against-real-backend lane (deferred), K8s peer end-to-end (manifests ship; cluster CI deferred). Piled on PR #6. |
 
 Status legend: ✅ done · ◐ in progress · ◻ pending · ⏸ paused.
 

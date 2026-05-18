@@ -12,6 +12,7 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"net/http"
 	"strings"
 	"testing"
 	"time"
@@ -275,6 +276,68 @@ func TestSDK_Multipart(t *testing.T) {
 	expected := int64(len(parts[0]) + len(parts[1]) + len(parts[2]))
 	if got := aws.ToInt64(head.ContentLength); got != expected {
 		t.Errorf("HeadObject ContentLength = %d, want %d", got, expected)
+	}
+}
+
+// TestSDK_PresignedURL exercises Phase 1.11. The SDK's PresignClient
+// generates a URL pointing at the shim's endpoint, carrying SigV4
+// query parameters (X-Amz-Algorithm, X-Amz-Signature, ...). The shim
+// must accept the request: it must not reject the extra query
+// params, and the router's forbidden-queries protection added in
+// 1.12 must not block SigV4 params from reaching the GetObject /
+// PutObject base routes.
+//
+// The shim does not validate signatures at this phase — clients
+// generate presigned URLs against the shim's endpoint and the shim
+// proxies the bytes. Signature enforcement is a future hardening
+// step.
+func TestSDK_PresignedURL(t *testing.T) {
+	srv := harness.StartStorageServer(t, inmem.New())
+	cli := newS3Client(t, srv.URL)
+	ctx := context.Background()
+
+	if _, err := cli.CreateBucket(ctx, &s3.CreateBucketInput{Bucket: aws.String("p")}); err != nil {
+		t.Fatalf("CreateBucket: %v", err)
+	}
+	body := []byte("presigned payload")
+	if _, err := cli.PutObject(ctx, &s3.PutObjectInput{
+		Bucket: aws.String("p"), Key: aws.String("obj"),
+		Body: bytes.NewReader(body),
+	}); err != nil {
+		t.Fatalf("PutObject: %v", err)
+	}
+
+	// Generate a presigned GET URL pointing at the shim.
+	presign := s3.NewPresignClient(cli)
+	out, err := presign.PresignGetObject(ctx, &s3.GetObjectInput{
+		Bucket: aws.String("p"), Key: aws.String("obj"),
+	})
+	if err != nil {
+		t.Fatalf("PresignGetObject: %v", err)
+	}
+	if !strings.HasPrefix(out.URL, srv.URL) {
+		t.Fatalf("presigned URL %q does not begin with shim endpoint %q", out.URL, srv.URL)
+	}
+	if !strings.Contains(out.URL, "X-Amz-Signature=") {
+		t.Errorf("presigned URL missing X-Amz-Signature: %q", out.URL)
+	}
+
+	// Fetch via the URL — the shim must accept the SigV4 query params
+	// without rejecting and serve the object body.
+	resp, err := http.Get(out.URL)
+	if err != nil {
+		t.Fatalf("GET presigned URL: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("GET presigned URL status = %d, want 200", resp.StatusCode)
+	}
+	got, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("read body: %v", err)
+	}
+	if !bytes.Equal(got, body) {
+		t.Errorf("presigned body = %q, want %q", got, body)
 	}
 }
 

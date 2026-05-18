@@ -79,6 +79,81 @@ jobs:
       - name: go build
         run: go build ./...
 
+  # Conformance lanes per backend. Each starts the matching docker
+  # container in a step (services: doesn't take a command override,
+  # which most of these images need), exports the env var the backend
+  # factory recognises, and runs the cross-backend conformance sweep.
+  # The factory skips other backends so each lane only exercises its
+  # own. Test timeout is 2m here (vs 1m for the main go lane) to give
+  # the docker-pull + container-ready wait some headroom.
+  conformance-minio:
+    name: conformance minio
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.26'
+          cache: true
+      - name: Start MinIO
+        run: |
+          docker run -d --name minio \
+            -p 9000:9000 \
+            -e MINIO_ROOT_USER=minioadmin \
+            -e MINIO_ROOT_PASSWORD=minioadmin \
+            quay.io/minio/minio:RELEASE.2026-04-30T00-00-00Z \
+            server /data
+          timeout 30 bash -c 'until curl -sf http://localhost:9000/minio/health/live; do sleep 1; done'
+      - name: Run minio conformance
+        env:
+          MINIO_ENDPOINT: localhost:9000
+          MINIO_ACCESS_KEY: minioadmin
+          MINIO_SECRET_KEY: minioadmin
+        run: go test -timeout 2m -run TestConformance_AllBackends ./services/storage/conformance/...
+
+  conformance-gcs:
+    name: conformance gcs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.26'
+          cache: true
+      - name: Start fake-gcs-server
+        run: |
+          docker run -d --name fakegcs \
+            -p 4443:4443 \
+            fsouza/fake-gcs-server:1.50 \
+            -scheme http -port 4443 -public-host localhost:4443
+          timeout 30 bash -c 'until curl -sf http://localhost:4443/storage/v1/b; do sleep 1; done'
+      - name: Run gcs conformance
+        env:
+          STORAGE_EMULATOR_HOST: localhost:4443
+          GCS_PROJECT_ID: shim-conformance
+        run: go test -timeout 2m -run TestConformance_AllBackends ./services/storage/conformance/...
+
+  conformance-azureblob:
+    name: conformance azureblob
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.26'
+          cache: true
+      - name: Start Azurite
+        run: |
+          docker run -d --name azurite \
+            -p 10000:10000 \
+            mcr.microsoft.com/azure-storage/azurite:3.34.0 \
+            azurite-blob --blobHost 0.0.0.0 --skipApiVersionCheck
+          timeout 30 bash -c 'until curl -sf http://localhost:10000/devstoreaccount1\?comp=list\&maxresults=1 > /dev/null 2>&1; do sleep 1; done' || true
+      - name: Run azureblob conformance
+        env:
+          AZURE_STORAGE_CONNECTION_STRING: "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://localhost:10000/devstoreaccount1;"
+        run: go test -timeout 2m -run TestConformance_AllBackends ./services/storage/conformance/...
+
   licenses:
     name: dependency licenses AGPL-compatible
     runs-on: ubuntu-latest
