@@ -10,7 +10,9 @@ services/storage/
 ├── spec/                           # vendored API specs
 │   ├── aws-s3.smithy.json          # AWS S3 Smithy 2.0 model (vendored from aws/aws-sdk-go-v2)
 │   └── SOURCES.md                  # upstream URL + pinned commit SHA per spec
-├── gen/                            # generated server stubs (Phase 1.3+)
+├── gen/                            # generated server stubs (regenerate with `make codegen`)
+│   ├── aws_s3.gen.go               # generated; DO NOT EDIT — types + HTTP handler per operation
+│   └── runtime.go                  # hand-written runtime helpers the generated code calls into
 ├── translate/                      # hand-written per-backend translation tables (Phase 1.5+)
 └── conformance/                    # SDK / CLI / Terraform driver tests (Phase 1.4+)
 ```
