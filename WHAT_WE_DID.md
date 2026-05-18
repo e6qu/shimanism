@@ -4,7 +4,25 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 
 > Reverse chronological. One section per phase. The *why*, the surprises, the root causes — not per-PR detail. For commit-level history, `git log`. For per-bug detail, [BUGS.md](BUGS.md).
 
-## Phase 1.3 — Codegen for the full AWS S3 surface (in flight)
+## Phase 1.4 — Intersection scoping + conformance harness (in flight)
+
+### Course correction on Phase 1.3 scope
+
+Phase 1.3 generated all 107 S3 operations. Going wider was the wrong direction. shimanism's job is to convert one cloud's API call into another for the **same operation** in **similar services** — that is, the intersection of operations that exist semantically across AWS S3 + GCS + Azure Blob + MinIO. AWS-only operations (`SelectObjectContent`, `RestoreObject`, `PutBucketIntelligentTieringConfiguration`, S3 Outposts management, S3 Object Lambda, Storage Lens, etc.) have nowhere to translate *to*. Generating handlers for them creates a surface with no corresponding implementation across the other backends — exactly what `PHILOSOPHY.md § The Circle` argues against.
+
+The fix:
+
+- **`services/storage/codegen.json`** — a manifest listing the 16 intersection operations (ListBuckets, CreateBucket, DeleteBucket, HeadBucket, ListObjectsV2, GetObject, PutObject, DeleteObject, HeadObject, CopyObject, CreateMultipartUpload, UploadPart, CompleteMultipartUpload, AbortMultipartUpload, ListMultipartUploads, ListParts).
+- **`services/storage/OPERATIONS.md`** — per-cloud equivalence table + fidelity notes (e.g., GCS uses resumable upload sessions where S3 uses independent parts; the shim's S3→GCS adapter maps part numbers to byte offsets within the session).
+- **Makefile `codegen` target** now reads the manifest with `jq` instead of using `-all`.
+- **Determinism test** reads the same manifest, so Makefile and test stay in sync.
+- **`services/storage/gen/aws_s3.gen.go` shrunk 423 KB → 120 KB** (72% reduction). The codegen pipeline is unchanged; only the operation list is.
+
+### What the harness will exercise (continuing)
+
+The conformance harness drives `aws-sdk-go-v2`, `aws-cli`, and the Terraform AWS provider against an in-memory implementation of the 16-op surface. Establishes the test contract Phase 1.5+ uses when wiring real backends (MinIO first, then GCS, then Azure Blob).
+
+## Phase 1.3 — Codegen pipeline (PR #5, merged 2026-05-18)
 
 The phase originally landed as a narrow "ListBuckets pilot" plus a list of deferred features. User pushed back on the deferrals; the right scope is **codegen for all 107 S3 operations, with no fallbacks and no fakes**. That meant supporting every shape kind, HTTP binding, XML trait, and operation-level trait that the S3 spec actually uses.
 

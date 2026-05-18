@@ -48,19 +48,22 @@ fetch-specs:
 	bash scripts/fetch-aws-spec.sh s3 services/storage
 
 # Regenerate every services/<svc>/gen/*.gen.go from the vendored specs.
-# Output is deterministic: same spec + -all = byte-identical output.
-# CI's codegen-determinism test guards against drift.
+# Output is deterministic: same spec + same manifest = byte-identical
+# output. CI's codegen-determinism test guards against drift.
 #
-# -all emits every operation declared in the spec (sorted by short
-# name). Adding a new operation to S3 = spec refresh, then `make
-# codegen`, then commit the diff.
+# Operation list comes from services/<svc>/codegen.json (the manifest
+# the determinism test also reads). The codegen tool emits only the
+# operations listed there — the intersection of what exists across
+# AWS / GCP / Azure / Kubernetes peer for this service. See
+# services/storage/OPERATIONS.md for the rationale.
 codegen:
 	@SOURCE_COMMIT=$$(grep -oE '`[0-9a-f]{40}`' services/storage/spec/SOURCES.md | head -1 | tr -d '`'); \
+	OPS=$$(jq -r '.operations | join(",")' services/storage/codegen.json); \
 	go run ./cmd/codegen \
 		-spec=services/storage/spec/aws-s3.smithy.json \
 		-out=services/storage/gen/aws_s3.gen.go \
 		-pkg=gen \
-		-all \
+		-ops="$$OPS" \
 		-commit="$$SOURCE_COMMIT"
 
 # Verify every linked Go dependency carries a license on the allowlist in

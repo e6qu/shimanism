@@ -8,9 +8,9 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 
 | | |
 |---|---|
-| Active branch | `phase-1.3-codegen-pilot` — PR open. Codegen tool emits Go server stub for `ListBuckets` from the vendored Smithy JSON. |
-| In-flight | **Phase 1.3: Codegen for the full S3 surface.** `internal/codegen/{smithy,emit}` + `cmd/codegen` handle every shape kind, HTTP binding, and XML trait S3 uses. `internal/restxml` provides URI / scalar / time / error runtime helpers. `make codegen -all` emits all 107 operations; determinism test asserts the committed file matches re-emit byte-for-byte. |
-| Last merged | PR #4 — Phase 1.2 (spec + license + Renovate + dep policy + bumps) (`98e6ce9`, 2026-05-18). |
+| Active branch | `phase-1.4-conformance-harness` — PR open. Intersection scoping correction + conformance harness skeleton. |
+| In-flight | **Phase 1.4: Intersection scoping + conformance harness.** Codegen now reads the operation manifest at `services/storage/codegen.json` (16 ops — the AWS S3 ↔ GCS ↔ Azure Blob ↔ MinIO intersection); `services/storage/OPERATIONS.md` documents per-cloud equivalences. Generated `aws_s3.gen.go` shrunk 423 KB → 120 KB. Harness + SDK / CLI / TF conformance tests next. |
+| Last merged | PR #5 — Phase 1.3 (codegen, originally all 107 ops) (`03b0ebb`, 2026-05-18). |
 | Standing merge auth | **None.** User merges every PR. |
 | CI | Five required checks: `branch rebased on origin/main`, `tracked symlinks resolve`, `continuity docs present`, `go vet + test + build`, `dependency licenses AGPL-compatible`. |
 | Renovate | Config committed (48h minimum release age, weekly batches, pinned GitHub Actions SHAs); **user must install the Renovate GitHub App** at https://github.com/apps/renovate. |

@@ -6,9 +6,9 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 
 ## Where we are
 
-- **Last merged:** PR #4 (Phase 1.2 — vendor S3 spec + license policy + Renovate + dep policy + version bumps) at `98e6ce9` on `origin/main`, 2026-05-18.
-- **Active branch:** `phase-1.3-codegen-pilot` — PR open. Codegen tool at `cmd/codegen` reads the vendored Smithy JSON and emits Go server stubs; first operation generated is `ListBuckets`.
-- **Project phase:** **Phase 1 — Object storage (S3-source).** Phase 1 absorbs foundation work (codegen, harness, CI) alongside its first user.
+- **Last merged:** PR #5 (Phase 1.3 — codegen, originally generated all 107 S3 ops) at `03b0ebb` on `origin/main`, 2026-05-18.
+- **Active branch:** `phase-1.4-conformance-harness` — PR open. **Course correction:** scoping codegen back to the operation intersection (16 ops), not all 107. AWS-only operations (SelectObjectContent, Storage Lens, Object Lambda, Outposts management, etc.) have nowhere to translate *to* — they don't belong in shimanism per the PHILOSOPHY.md `Circle` koan. Then: SDK + CLI + TF conformance harness for those 16.
+- **Project phase:** **Phase 1 — Object storage (S3-source).** Phase 1 absorbs foundation work alongside its first user.
 
 ## Phase 1 sub-task table
 
@@ -16,7 +16,8 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 |---|---|---|
 | **1.1** | ✅ | Repo skeleton: Go module at `github.com/e6qu/shimanism`, Makefile (lint/test/build/vet), Go CI lane, placeholder `cmd/shim/main.go`. PR #3, merged at `48c0edf`. |
 | **1.2** | ✅ | Spec ingestion + engineering hygiene: S3 Smithy JSON vendored + license policy + Renovate + supply-chain hardening + version bumps. PR #4, merged at `98e6ce9`. |
-| **1.3** | ◐ | Codegen for the full AWS S3 surface (all **107 operations**, no deferrals). Handles every shape kind S3 uses (structure, list, map, union, enum, intEnum, all primitives, the `smithy.api#Unit` sentinel), every HTTP binding (httpQuery, httpHeader, httpLabel, httpPayload, httpPrefixHeaders), every XML trait (xmlName, xmlFlattened, xmlAttribute, xmlNamespace), required, timestampFormat, and error responses. `internal/restxml` provides hand-written runtime helpers (URI template match, scalar/time parsing, error envelope) the generated code calls into. `make codegen` regenerates from spec; determinism test asserts the committed `aws_s3.gen.go` matches re-emit byte-for-byte. PR open. |
+| **1.3** | ✅ | Codegen pipeline. Originally generated all 107 S3 ops; **Phase 1.4 narrowed this** to the operation intersection (16 ops). Pipeline itself (smithy parser, emit, restxml runtime) is unchanged. PR #5, merged at `03b0ebb`. |
+| **1.4** | ◐ | Intersection scoping + conformance harness. `services/storage/codegen.json` manifest defines the 16-op intersection (ListBuckets, CreateBucket, DeleteBucket, HeadBucket, ListObjectsV2, GetObject, PutObject, DeleteObject, HeadObject, CopyObject, plus 6 multipart). `services/storage/OPERATIONS.md` documents per-cloud equivalences. Generated file shrunk 423 KB → 120 KB. Then: in-mem backend + SDK / CLI / Terraform conformance tests. PR open. |
 | **1.4** | ◻ | Conformance harness skeleton in `internal/harness/`: SDK + CLI + Terraform drivers all hit an `EchoService` that returns canonical AWS S3 shape. Establishes the test contract. |
 | **1.5** | ◻ | First real backend: `ListBuckets` → **MinIO**. Same protocol as S3 — control case for the plumbing. |
 | **1.6** | ◻ | `ListBuckets` → **GCS**. First real cross-cloud translation. |
