@@ -25,6 +25,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 
 	"github.com/e6qu/shimanism/internal/harness"
+	"github.com/e6qu/shimanism/services/storage/conformance"
 )
 
 // TestConformance_AllBackends sweeps every registered backend
@@ -32,10 +33,10 @@ import (
 // space is randomised per run so concurrent CI lanes don't trample
 // each other against a shared real-cloud backend.
 func TestConformance_AllBackends(t *testing.T) {
-	for _, bf := range activeBackends() {
+	for _, bf := range conformance.ActiveBackends() {
 		bf := bf
-		t.Run(bf.name, func(t *testing.T) {
-			backend := bf.fn(t) // may t.Skip if its env-var is unset
+		t.Run(bf.Name, func(t *testing.T) {
+			backend := bf.Fn(t) // may t.Skip if its env-var is unset
 			srv := harness.StartStorageServer(t, backend)
 			cli := newS3Client(t, srv.URL)
 			ctx := context.Background()
@@ -44,7 +45,7 @@ func TestConformance_AllBackends(t *testing.T) {
 			// a shared real-cloud backend stay isolated.
 			bucket := randomNamespace("shim-conform")
 			key := "rt/" + randomNamespace("obj") + ".bin"
-			body := []byte("conformance payload — " + bf.name)
+			body := []byte("conformance payload — " + bf.Name)
 
 			t.Cleanup(func() {
 				_, _ = cli.DeleteObject(ctx, &s3.DeleteObjectInput{

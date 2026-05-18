@@ -1,9 +1,11 @@
-// Package conformance_test (non-test file): backend factories used
-// by parameterised conformance tests. Each factory is named the same
+// Package conformance hosts the backend factories used by the
+// parameterised conformance tests in this directory. Tests live in
+// `package conformance_test` (external tests) and import the
+// exported factory set from here. Each factory is named the same
 // as the backend it produces; a per-PR conformance lane picks one
 // factory at a time (controlled via env vars so CI can light up
 // each backend in its own job without modifying the test source).
-package conformance_test
+package conformance
 
 import (
 	"context"
@@ -24,48 +26,45 @@ import (
 	miniobackend "github.com/e6qu/shimanism/services/storage/backends/minio"
 )
 
-// backendFactory returns a Storage backend ready for use. Each
+// BackendFactory returns a Storage backend ready for use. Each
 // factory may call t.Skip if its required infrastructure
 // (Docker container, env var, …) isn't available.
-type backendFactory struct {
-	name string
-	fn   func(t *testing.T) domain.Storage
+type BackendFactory struct {
+	Name string
+	Fn   func(t *testing.T) domain.Storage
 }
 
-// activeBackends returns the set of backend factories to drive the
+// ActiveBackends returns the set of backend factories to drive the
 // conformance suite against. Lists every backend; each factory
 // internally decides whether to skip.
-func activeBackends() []backendFactory {
-	return []backendFactory{
-		{name: "inmem", fn: newInmem},
-		{name: "minio", fn: newMinIO},
-		{name: "aws", fn: newAWS},
-		{name: "gcs", fn: newGCS},
-		{name: "azureblob", fn: newAzureBlob},
+func ActiveBackends() []BackendFactory {
+	return []BackendFactory{
+		{Name: "inmem", Fn: NewInmem},
+		{Name: "minio", Fn: NewMinIO},
+		{Name: "aws", Fn: NewAWS},
+		{Name: "gcs", Fn: NewGCS},
+		{Name: "azureblob", Fn: NewAzureBlob},
 	}
 }
 
-// newInmem is always available — no external dependencies.
-func newInmem(t *testing.T) domain.Storage {
+// NewInmem is always available — no external dependencies.
+func NewInmem(t *testing.T) domain.Storage {
 	t.Helper()
 	return inmem.New()
 }
 
-// newAWS connects to real AWS S3 (or an S3-compatible endpoint) when
+// NewAWS connects to real AWS S3 (or an S3-compatible endpoint) when
 // AWS_S3_CONFORMANCE_ENDPOINT is set. The endpoint may be the empty
 // string "default" to use the SDK's normal regional endpoint; in that
 // case credentials come from the standard AWS env chain. When neither
 // AWS_S3_CONFORMANCE_ENDPOINT nor AWS_S3_CONFORMANCE=1 is set, the
 // factory skips.
-func newAWS(t *testing.T) domain.Storage {
+func NewAWS(t *testing.T) domain.Storage {
 	t.Helper()
 	endpoint := os.Getenv("AWS_S3_CONFORMANCE_ENDPOINT")
 	if endpoint == "" && os.Getenv("AWS_S3_CONFORMANCE") != "1" {
 		t.Skip("AWS_S3_CONFORMANCE_ENDPOINT not set and AWS_S3_CONFORMANCE!=1 (AWS backend conformance disabled)")
 	}
-	// We import the AWS SDK config lazily here to keep this file
-	// tolerant of go-tooling minimisation; the import is at the
-	// package level via awsbackend's transitive deps.
 	client, err := buildAWSS3Client(t, endpoint)
 	if err != nil {
 		t.Fatalf("build AWS S3 client (endpoint=%q): %v", endpoint, err)
@@ -73,12 +72,12 @@ func newAWS(t *testing.T) domain.Storage {
 	return awsbackend.New(client)
 }
 
-// newGCS connects to GCS via cloud.google.com/go/storage. The standard
+// NewGCS connects to GCS via cloud.google.com/go/storage. The standard
 // STORAGE_EMULATOR_HOST env var is honoured by the GCS Go SDK to redirect
 // at a fake-gcs-server instance. GCS_PROJECT_ID is required (the GCS API
 // requires it for CreateBucket / ListBuckets). Skipped if neither
 // STORAGE_EMULATOR_HOST nor GCS_CONFORMANCE=1 is set.
-func newGCS(t *testing.T) domain.Storage {
+func NewGCS(t *testing.T) domain.Storage {
 	t.Helper()
 	if os.Getenv("STORAGE_EMULATOR_HOST") == "" && os.Getenv("GCS_CONFORMANCE") != "1" {
 		t.Skip("STORAGE_EMULATOR_HOST not set and GCS_CONFORMANCE!=1 (GCS backend conformance disabled)")
@@ -94,11 +93,11 @@ func newGCS(t *testing.T) domain.Storage {
 	return gcsbackend.New(client, gcsbackend.Config{ProjectID: project})
 }
 
-// newAzureBlob connects to Azure Blob Storage. With Azurite (the local
+// NewAzureBlob connects to Azure Blob Storage. With Azurite (the local
 // emulator), AZURE_STORAGE_CONNECTION_STRING is the standard env var
 // the Azure SDK consumes. Skipped if neither AZURE_STORAGE_CONNECTION_STRING
 // nor AZURE_BLOB_CONFORMANCE=1 is set.
-func newAzureBlob(t *testing.T) domain.Storage {
+func NewAzureBlob(t *testing.T) domain.Storage {
 	t.Helper()
 	conn := os.Getenv("AZURE_STORAGE_CONNECTION_STRING")
 	if conn == "" && os.Getenv("AZURE_BLOB_CONFORMANCE") != "1" {
@@ -111,11 +110,11 @@ func newAzureBlob(t *testing.T) domain.Storage {
 	return azureblobbackend.New(client, os.Getenv("AZURE_BLOB_REGION"))
 }
 
-// newMinIO connects to a MinIO server using MINIO_ENDPOINT /
+// NewMinIO connects to a MinIO server using MINIO_ENDPOINT /
 // MINIO_ACCESS_KEY / MINIO_SECRET_KEY env vars. Skipped if
 // MINIO_ENDPOINT is not set. CI starts a MinIO container in a
 // pre-step and sets the env vars.
-func newMinIO(t *testing.T) domain.Storage {
+func NewMinIO(t *testing.T) domain.Storage {
 	t.Helper()
 	endpoint := os.Getenv("MINIO_ENDPOINT")
 	if endpoint == "" {
