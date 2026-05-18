@@ -1,0 +1,20 @@
+# Vendored specs
+
+These specs are fetched verbatim from upstream and committed to this
+repo so the codegen + build are reproducible without network access.
+
+Refresh with `scripts/fetch-aws-spec.sh` (or `make fetch-specs`)
+and commit the resulting diff in a normal PR.
+
+| Local file | Upstream repo | Upstream path | Upstream license | Pinned at | Fetched (UTC) |
+|---|---|---|---|---|---|
+| `aws-s3.smithy.json` | `aws/aws-sdk-go-v2` | `codegen/sdk-codegen/aws-models/s3.json` | Apache-2.0 | `71f1511b45ced10d1e68f9e631dcb37019759e34` | 2026-05-18T17:38:39Z |
+
+## License of vendored files
+
+Each vendored spec retains the license of its upstream. AWS Smithy models from
+`aws/aws-sdk-go-v2` are Apache 2.0; the upstream `LICENSE` file applies. Generated
+code derived from these specs is permitted under Apache 2.0's derivative-work
+clause and is licensed AGPL-3.0 alongside the rest of shimanism (see
+[`doc/COMPATIBLE_LICENSES.md`](../../../doc/COMPATIBLE_LICENSES.md) for the
+overall policy).

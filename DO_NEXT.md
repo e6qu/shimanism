@@ -6,16 +6,16 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 
 ## Where we are
 
-- **Last merged:** PR #2 (continuity docs + Phase-0 CI checks) at `4549a90` on `origin/main`, 2026-05-18.
-- **Active branch:** `phase-1.1-repo-skeleton` — PR open. PLAN.md restructured to one-service-per-phase; Phase 1.1 starts.
+- **Last merged:** PR #3 (Phase 1.1 — repo skeleton + PLAN restructure) at `48c0edf` on `origin/main`, 2026-05-18.
+- **Active branch:** `phase-1.2-s3-spec-ingest` — PR open. AWS S3 Smithy JSON vendored under `services/storage/spec/`; refresh script + Makefile target wired.
 - **Project phase:** **Phase 1 — Object storage (S3-source).** Phase 1 absorbs foundation work (codegen, harness, CI) alongside its first user.
 
 ## Phase 1 sub-task table
 
 | Sub | Status | Headline |
 |---|---|---|
-| **1.1** | ◐ | Repo skeleton: Go module at `github.com/e6qu/shimanism`, Makefile (lint/test/build/vet), Go CI lane, placeholder `cmd/shim/main.go`. |
-| **1.2** | ◻ | Spec ingestion: fetch + cache AWS Smithy JSON for S3 from `aws/aws-sdk-go-v2`. Tooling lives in `internal/specfetch/`. |
+| **1.1** | ✅ | Repo skeleton: Go module at `github.com/e6qu/shimanism`, Makefile (lint/test/build/vet), Go CI lane, placeholder `cmd/shim/main.go`. PR #3, merged at `48c0edf`. |
+| **1.2** | ◐ | Spec ingestion + engineering hygiene: AWS S3 Smithy JSON vendored under `services/storage/spec/` via `scripts/fetch-aws-spec.sh` + `make fetch-specs`, pinned to a concrete `aws/aws-sdk-go-v2` commit SHA. Plus `doc/COMPATIBLE_LICENSES.md` with the AGPL-compatible allowlist, `make license-check` + CI lane enforcing it, Renovate config at `.github/renovate.json5`, bumped to Go 1.26 + actions/checkout@v6 + actions/setup-go@v6. PR open. |
 | **1.3** | ◻ | Codegen pilot: Smithy → Go server stub for `ListBuckets`. Output goes to `services/storage/gen/`. |
 | **1.4** | ◻ | Conformance harness skeleton in `internal/harness/`: SDK + CLI + Terraform drivers all hit an `EchoService` that returns canonical AWS S3 shape. Establishes the test contract. |
 | **1.5** | ◻ | First real backend: `ListBuckets` → **MinIO**. Same protocol as S3 — control case for the plumbing. |

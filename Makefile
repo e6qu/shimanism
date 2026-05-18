@@ -4,7 +4,7 @@
 # enough to run on every PR. Phase-specific targets (codegen, conformance)
 # get added as their sub-phases land.
 
-.PHONY: all build test vet lint fmt check clean
+.PHONY: all build test vet lint fmt check clean fetch-specs license-check
 
 # Default: the full local pre-push lane.
 all: vet test build
@@ -39,3 +39,35 @@ check:
 
 clean:
 	rm -rf bin/
+
+# Re-fetch every vendored spec from its upstream, updating the pinned SHA
+# in each services/<svc>/spec/SOURCES.md. Review the diff before
+# committing. Per-service refresh: call scripts/fetch-aws-spec.sh
+# directly.
+fetch-specs:
+	bash scripts/fetch-aws-spec.sh s3 services/storage
+
+# Verify every linked Go dependency carries a license on the allowlist in
+# doc/COMPATIBLE_LICENSES.md. Uses Google's go-licenses tool. Installed on
+# demand if not present.
+#
+# Allowlist must stay in sync with doc/COMPATIBLE_LICENSES.md by hand —
+# this list is what tooling reads; the doc is what humans read.
+LICENSE_ALLOWLIST := Apache-2.0,BSD-2-Clause,BSD-3-Clause,0BSD,ISC,MIT,MIT-0,MPL-2.0,LGPL-2.1-or-later,LGPL-3.0-or-later,GPL-2.0-or-later,GPL-3.0-or-later,GPL-3.0-only,GPL-3.0,AGPL-3.0-only,AGPL-3.0-or-later,AGPL-3.0,LGPL-2.1,LGPL-3.0,Unlicense,CC0-1.0,Zlib
+
+# Deprecated-form SPDX IDs included above (GPL-3.0, AGPL-3.0, LGPL-2.1,
+# LGPL-3.0): some tools emit these unsuffixed forms even though the
+# current SPDX list canonicalises them as "*-only". They map unambiguously
+# to compatible licenses. GPL-2.0 (without -only / -or-later suffix) is
+# deliberately NOT allowlisted because it is ambiguous between the
+# compatible "-or-later" form and the incompatible "-only" form.
+
+license-check:
+	@if ! command -v go-licenses >/dev/null 2>&1 && [ ! -x "$$(go env GOPATH)/bin/go-licenses" ]; then \
+		echo "Installing go-licenses..."; \
+		go install github.com/google/go-licenses@latest; \
+	fi
+	@echo "Allowed licenses: $(LICENSE_ALLOWLIST)"
+	@PATH="$$(go env GOPATH)/bin:$$PATH" \
+		go-licenses check --include_tests --allowed_licenses="$(LICENSE_ALLOWLIST)" ./...
+	@echo "OK: all dependencies carry allowlisted licenses."

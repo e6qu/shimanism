@@ -13,7 +13,7 @@ jobs:
     name: branch rebased on origin/main
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - name: Verify branch is rebased on origin/main with linear history
@@ -23,7 +23,7 @@ jobs:
     name: tracked symlinks resolve
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Verify CLAUDE.md -> AGENTS.md
         run: bash scripts/check-symlinks.sh
 
@@ -31,7 +31,7 @@ jobs:
     name: continuity docs present
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Verify the load-bearing continuity files exist
         # If a PR ever deletes one of these by accident, fail loud.
         # When a doc is intentionally retired, the workflow gets updated
@@ -50,10 +50,10 @@ jobs:
     name: go vet + test + build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
         with:
-          go-version: '1.25'
+          go-version: '1.26'
           cache: true
       - name: go vet
         run: go vet ./...
@@ -61,3 +61,22 @@ jobs:
         run: go test ./...
       - name: go build
         run: go build ./...
+
+  licenses:
+    name: dependency licenses AGPL-compatible
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.26'
+          cache: true
+      - name: Install go-licenses
+        run: go install github.com/google/go-licenses@latest
+      - name: Verify every dependency carries an allowlisted license
+        # Allowlist mirrors doc/COMPATIBLE_LICENSES.md and Makefile's
+        # LICENSE_ALLOWLIST. Update all three together.
+        run: |
+          go-licenses check --include_tests \
+            --allowed_licenses="Apache-2.0,BSD-2-Clause,BSD-3-Clause,0BSD,ISC,MIT,MIT-0,MPL-2.0,LGPL-2.1-or-later,LGPL-3.0-or-later,GPL-2.0-or-later,GPL-3.0-or-later,GPL-3.0-only,GPL-3.0,AGPL-3.0-only,AGPL-3.0-or-later,AGPL-3.0,LGPL-2.1,LGPL-3.0,Unlicense,CC0-1.0,Zlib" \
+            ./...

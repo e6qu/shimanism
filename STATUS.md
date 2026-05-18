@@ -8,11 +8,13 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 
 | | |
 |---|---|
-| Active branch | `phase-1.1-repo-skeleton` — PR open. PLAN.md restructured to one-service-per-phase; Phase 1.1 (Go module skeleton) added. |
-| In-flight | **Phase 1.1: Repo skeleton.** Go module at `github.com/e6qu/shimanism`, Makefile, Go CI lane. No service code yet beyond a placeholder `cmd/shim/main.go`. |
-| Last merged | PR #2 — Continuity docs + Phase-0 CI checks (`4549a90`, 2026-05-18). |
+| Active branch | `phase-1.2-s3-spec-ingest` — PR open. AWS S3 Smithy JSON vendored under `services/storage/spec/`; refresh tooling wired. |
+| In-flight | **Phase 1.2: Spec ingestion + engineering hygiene.** S3 Smithy JSON pinned via `make fetch-specs`. License policy in `doc/COMPATIBLE_LICENSES.md`; `make license-check` + CI lane enforce it. Renovate config (`.github/renovate.json5`) wired. Bumped to Go 1.26 + actions/checkout@v6 + actions/setup-go@v6. |
+| Last merged | PR #3 — Phase 1.1 repo skeleton + PLAN restructure (`48c0edf`, 2026-05-18). |
 | Standing merge auth | **None.** User merges every PR. |
-| CI | Three required checks: `branch rebased on origin/main`, `tracked symlinks resolve`, `continuity docs present`. Go lane added in Phase 1.1 (not yet required by ruleset — will be after first green run). |
+| CI | Five checks: `branch rebased on origin/main`, `tracked symlinks resolve`, `continuity docs present`, `go vet + test + build`, `dependency licenses AGPL-compatible`. First four required by ruleset; license check added in Phase 1.2 — wires to ruleset after first green run. |
+| Renovate | Config committed (48h minimum release age for supply-chain mitigation, weekly batches, pinned GitHub Actions SHAs); **user must install the Renovate GitHub App** at https://github.com/apps/renovate for it to take effect. |
+| Dep policy | [`doc/DEPENDENCY_POLICY.md`](doc/DEPENDENCY_POLICY.md): min release age 48h, prefer pure-Go over cgo, pnpm + no lifecycle scripts when JS lands. |
 | Bugs | 0 filed · 0 fixed · 0 open. |
 | Live infra | None. |
 
@@ -52,5 +54,6 @@ Sub-phase table is in [DO_NEXT.md](DO_NEXT.md) and [PLAN.md § Phase 1](PLAN.md#
 
 | PR | Phase | Headline |
 |---|---|---|
+| #3 | 1.1 | Repo skeleton: Go module (1.25), Makefile, Go CI lane. PLAN.md restructured to one-service-per-phase. Merged 2026-05-18 at `48c0edf`. |
 | #2 | (bootstrap) | Continuity docs + Phase-0 CI checks (branch rebased on origin/main, symlinks resolve, continuity docs present) wired into the main-branch ruleset. Merged 2026-05-18 at `4549a90`. |
 | #1 | (bootstrap) | Repo created. Branch ruleset (linear history, PR-only, squash + rebase merge). PHILOSOPHY.md as koans + Bierce terminology. README.md with goals / non-goals / MVP service matrix. Merged 2026-05-18 at `e5cc262`. |

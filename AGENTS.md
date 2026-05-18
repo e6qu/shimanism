@@ -95,6 +95,33 @@ Once a bug is fixed, the fix speaks for itself. Code comments document *what* an
 > Good: `// S3 requires the bucket name in the path, not the host, for non-virtual-hosted requests.`
 > Bad: `// BUG-42: S3 requires the bucket name in the path, not the host.`
 
+## Dependency updates are handled by Renovate
+
+Renovate (config in `.github/renovate.json5`) opens weekly batched PRs for Go module and GitHub Actions updates. Major-version bumps get their own PR; security advisories surface immediately regardless of schedule. The Renovate GitHub App must be installed on the repo for this to take effect.
+
+Renovate **never auto-merges** — same rule as everything else (user merges every PR). Review Renovate PRs like any other: run conformance locally, check the changelogs of bumped deps, then merge.
+
+When Renovate proposes a new transitive dep, the `licenses` CI job verifies it's on the allowlist *before* merge. A Renovate PR that fails license-check is a signal that an upstream relicensed; file a BUG in [BUGS.md](BUGS.md) and decide whether to pin to the last compatible version or replace the dep.
+
+## Dependency licenses must be AGPL-compatible
+
+shimanism is AGPL-3.0-only. Every Go module we *link* (anything in `go.mod` / `go.sum`) must carry a license on the allowlist in [`doc/COMPATIBLE_LICENSES.md`](doc/COMPATIBLE_LICENSES.md). CI enforces this; `make license-check` runs the same check locally.
+
+Services we *connect to over the wire* (Vault, MinIO, Postgres, Terraform CLI, etc.) carry no copyleft obligation and may use any license, including BUSL or proprietary. See the doc for the linked-vs-connected distinction.
+
+When in doubt about a new dependency, **check first, add second.** A failed `license-check` is a bug to file in [BUGS.md](BUGS.md), not a CI hurdle to work around.
+
+## Dependency policy (beyond licenses)
+
+[`doc/DEPENDENCY_POLICY.md`](doc/DEPENDENCY_POLICY.md) covers what we accept beyond legal compatibility:
+
+- **Minimum release age: 48 hours.** Renovate enforces; manual additions should too. Mitigates supply-chain attacks where malicious releases get yanked within ~1 day.
+- **Pin GitHub Actions to immutable SHAs.** Tags are mutable; SHAs are not. Renovate keeps both fresh.
+- **Go: prefer pure-Go deps over cgo.** Cross-compilation, smaller binaries, no system-library dependency. cgo only when there's no equivalent pure-Go alternative; justification in the PR.
+- **npm (when we eventually need it): pnpm only, lifecycle scripts disabled.** Deps that require pre-install/post-install scripts get patched, replaced, or rejected.
+
+When a needed dep doesn't fit, file a BUG with the rationale before proposing an exception.
+
 ## Branch hygiene
 
 - One branch per phase / sub-phase. Many commits, one PR.
