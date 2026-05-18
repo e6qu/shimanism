@@ -4,7 +4,77 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 
 > Reverse chronological. One section per phase. The *why*, the surprises, the root causes — not per-PR detail. For commit-level history, `git log`. For per-bug detail, [BUGS.md](BUGS.md).
 
-## Phase 1.2 — S3 Smithy spec vendored + engineering hygiene (in flight)
+## Phase 1.3 — Codegen for the full AWS S3 surface (in flight)
+
+The phase originally landed as a narrow "ListBuckets pilot" plus a list of deferred features. User pushed back on the deferrals; the right scope is **codegen for all 107 S3 operations, with no fallbacks and no fakes**. That meant supporting every shape kind, HTTP binding, XML trait, and operation-level trait that the S3 spec actually uses.
+
+### What the codegen now covers
+
+Survey of S3.json told us exactly what surface to support:
+
+- **Shape kinds**: structure (344), string (143), operation (107), enum (73), list (43), integer (20), timestamp (18), boolean (18), long (13), union (4), blob (2), service (1), map (1), plus the `smithy.api#Unit` sentinel used by no-input/no-output operations.
+- **HTTP bindings**: `httpHeader` (657), `httpLabel` (130), `http` (107), `httpQuery` (84), `httpPayload` (58), `httpPrefixHeaders` (6).
+- **XML traits**: `xmlName` (139), `xmlFlattened` (48), `xmlNamespace` (3), `xmlAttribute` (1).
+- **Operation traits**: `required` (287), `error` (15), `httpError` (14), `timestampFormat` (8).
+
+Codegen now handles all of these. Features not in this list (validation traits `length`/`range`/`pattern`, AWS endpoint-rules `contextParam`/`staticContextParams`, the protocol extensions `httpChecksum`/`eventPayload`) are deliberately no-ops for *code generation*: they don't affect Go type signatures or the dispatch surface, and the backend is free to use them at runtime. That is not a deferral — it is "the codegen has nothing to translate."
+
+### Runtime support: `internal/restxml`
+
+A small hand-written package that generated handlers call into:
+
+- `MatchURI(path, template)` — URI template matching with `{name}` and `{name+}` (greedy) labels.
+- `ParseString`, `ParseInt32`, `ParseInt64`, `ParseBool`, `ParseTime` — header / query / label decoders, with timestampFormat support.
+- `FormatTime` — symmetric encoder.
+- `WriteError` — canonical AWS REST-XML error envelope.
+
+### Generated file shape
+
+- Enum types: Go string types with `const` values.
+- List types: wrapper struct with `Items []Element`; flattened lists land as inline slices on the parent struct instead of using the wrapper.
+- Map types: Go `map[Key]Value`.
+- Structure types: Go struct with XML tags on body fields, no XML tags on bound fields (label / query / header / payload / prefix-headers / attribute). Error structures carry the `httpError` code in their comment.
+- Union types: Go struct with mutually-exclusive optional fields.
+- Per-operation: `<Op>Backend` interface, `<Op>URITemplate` and `<Op>Method` consts, `<Op>Handler` that decodes labels + query + headers + prefix-headers + payload, dispatches to backend, and encodes the response with status + XML body.
+
+### Determinism
+
+`make codegen` always emits in sorted-by-short-name order; `internal/codegen/codegen_test.go` re-emits from the vendored spec and asserts byte-for-byte equality with the committed `services/storage/gen/aws_s3.gen.go`. Drift = bug.
+
+### Result
+
+423 KB of generated Go covers all 107 S3 operations. The full file compiles, vets clean, and the determinism test passes locally. Phase 1.4 (conformance harness) is where the handlers are first exercised by `aws-sdk-go-v2`, `aws-cli`, and Terraform; bugs discovered there will surface as BUG entries against specific operations, not as deferred features.
+
+### What the pipeline looks like
+
+```
+spec (vendored)                  emit (Go text/template)            output
+  Smithy JSON           parse           walk operation                 gen.go
+aws-s3.smithy.json  ─────────►  Model  ──────────────►   text  ──►   services/storage/gen/
+                  smithy.Parse        op + transitive shapes  format    aws_s3.gen.go
+```
+
+- **`internal/codegen/smithy`** — parser. AST types map cleanly to Smithy's JSON: a `Shape` has `Type` ("operation" / "structure" / "list" / "string" / etc.), `Input` / `Output` for operations, `Members` for structures, `Member` for lists. `Traits` are kept as `json.RawMessage` and extracted lazily (only the ones we care about — `smithy.api#http`, `smithy.api#httpQuery`, `smithy.api#xmlName`, `smithy.api#input/output`).
+- **`internal/codegen/emit`** — walks the operation's transitive shape closure (Smithy IDs uniquely identify shapes; emission is deduplicated by ID, ordered topologically). One `text/template` produces the entire file; `go/format.Source` formats the result so `gofmt` drift is impossible.
+- **`cmd/codegen`** — thin CLI: `-spec`, `-out`, `-pkg`, `-ops=ListBuckets`, `-commit` (pinned upstream SHA included in the no-edit header).
+- **`Makefile codegen`** target shells out to `go run ./cmd/codegen` with the right args; CI's regular `go test` lane runs a determinism test that re-emits from spec and compares bytes to the committed `.gen.go`.
+
+### Deliberate Phase-1.3 limits
+
+The pilot covers what `ListBuckets` needs and nothing more. Out of scope (will land in their first user's phase):
+
+- **Union shapes / mixins / recursive types** — none in `ListBuckets`.
+- **xmlFlattened lists** — `Buckets` is a wrapping list (`<Buckets><Bucket>...</Bucket></Buckets>`); flattened lists arrive with `GetObject` or paginated APIs.
+- **Header / payload bindings** — `ListBuckets` only has query bindings.
+- **Error responses** — only the catch-all `InvalidArgument` / `InternalError` path is generated; per-operation error types come with the next operation.
+- **Timestamp format traits** — AWS uses several encodings (RFC3339, epoch-seconds, ISO 8601 with milliseconds); the pilot defaults to `time.Time`'s standard XML marshaling and corrects in Phase 1.4 when the conformance harness reveals the divergence.
+- **Operation-specific paths** — `ListBuckets` is `GET /?x-id=ListBuckets`; the generated handler is mounted in Phase 1.4 when there's a place to mount it.
+
+### Pinned bytes guard against drift
+
+The determinism test reads the upstream commit SHA from `services/storage/spec/SOURCES.md` (regex-grepping the first 40-char hex between backticks) and asserts the emit output matches the committed `.gen.go` byte-for-byte. Drift means either (a) someone edited the generated file by hand, or (b) someone bumped the spec without re-running `make codegen`. Both are bugs.
+
+## Phase 1.2 — S3 Smithy spec vendored + engineering hygiene (PR #4, merged 2026-05-18)
 
 Phase 1.2 makes the contract a committed artifact and surrounds it with the hygiene that every later phase will rely on: dependency-license policy enforced in CI, Renovate for automated dependency PRs, version bumps to current Go and GitHub Actions.
 

@@ -4,7 +4,7 @@
 # enough to run on every PR. Phase-specific targets (codegen, conformance)
 # get added as their sub-phases land.
 
-.PHONY: all build test vet lint fmt check clean fetch-specs license-check
+.PHONY: all build test vet lint fmt check clean fetch-specs license-check codegen
 
 # Default: the full local pre-push lane.
 all: vet test build
@@ -46,6 +46,22 @@ clean:
 # directly.
 fetch-specs:
 	bash scripts/fetch-aws-spec.sh s3 services/storage
+
+# Regenerate every services/<svc>/gen/*.gen.go from the vendored specs.
+# Output is deterministic: same spec + -all = byte-identical output.
+# CI's codegen-determinism test guards against drift.
+#
+# -all emits every operation declared in the spec (sorted by short
+# name). Adding a new operation to S3 = spec refresh, then `make
+# codegen`, then commit the diff.
+codegen:
+	@SOURCE_COMMIT=$$(grep -oE '`[0-9a-f]{40}`' services/storage/spec/SOURCES.md | head -1 | tr -d '`'); \
+	go run ./cmd/codegen \
+		-spec=services/storage/spec/aws-s3.smithy.json \
+		-out=services/storage/gen/aws_s3.gen.go \
+		-pkg=gen \
+		-all \
+		-commit="$$SOURCE_COMMIT"
 
 # Verify every linked Go dependency carries a license on the allowlist in
 # doc/COMPATIBLE_LICENSES.md. Uses Google's go-licenses tool. Installed on

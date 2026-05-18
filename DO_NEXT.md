@@ -6,8 +6,8 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 
 ## Where we are
 
-- **Last merged:** PR #3 (Phase 1.1 — repo skeleton + PLAN restructure) at `48c0edf` on `origin/main`, 2026-05-18.
-- **Active branch:** `phase-1.2-s3-spec-ingest` — PR open. AWS S3 Smithy JSON vendored under `services/storage/spec/`; refresh script + Makefile target wired.
+- **Last merged:** PR #4 (Phase 1.2 — vendor S3 spec + license policy + Renovate + dep policy + version bumps) at `98e6ce9` on `origin/main`, 2026-05-18.
+- **Active branch:** `phase-1.3-codegen-pilot` — PR open. Codegen tool at `cmd/codegen` reads the vendored Smithy JSON and emits Go server stubs; first operation generated is `ListBuckets`.
 - **Project phase:** **Phase 1 — Object storage (S3-source).** Phase 1 absorbs foundation work (codegen, harness, CI) alongside its first user.
 
 ## Phase 1 sub-task table
@@ -15,8 +15,8 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 | Sub | Status | Headline |
 |---|---|---|
 | **1.1** | ✅ | Repo skeleton: Go module at `github.com/e6qu/shimanism`, Makefile (lint/test/build/vet), Go CI lane, placeholder `cmd/shim/main.go`. PR #3, merged at `48c0edf`. |
-| **1.2** | ◐ | Spec ingestion + engineering hygiene: AWS S3 Smithy JSON vendored under `services/storage/spec/` via `scripts/fetch-aws-spec.sh` + `make fetch-specs`, pinned to a concrete `aws/aws-sdk-go-v2` commit SHA. Plus `doc/COMPATIBLE_LICENSES.md` with the AGPL-compatible allowlist, `make license-check` + CI lane enforcing it, Renovate config at `.github/renovate.json5`, bumped to Go 1.26 + actions/checkout@v6 + actions/setup-go@v6. PR open. |
-| **1.3** | ◻ | Codegen pilot: Smithy → Go server stub for `ListBuckets`. Output goes to `services/storage/gen/`. |
+| **1.2** | ✅ | Spec ingestion + engineering hygiene: S3 Smithy JSON vendored + license policy + Renovate + supply-chain hardening + version bumps. PR #4, merged at `98e6ce9`. |
+| **1.3** | ◐ | Codegen for the full AWS S3 surface (all **107 operations**, no deferrals). Handles every shape kind S3 uses (structure, list, map, union, enum, intEnum, all primitives, the `smithy.api#Unit` sentinel), every HTTP binding (httpQuery, httpHeader, httpLabel, httpPayload, httpPrefixHeaders), every XML trait (xmlName, xmlFlattened, xmlAttribute, xmlNamespace), required, timestampFormat, and error responses. `internal/restxml` provides hand-written runtime helpers (URI template match, scalar/time parsing, error envelope) the generated code calls into. `make codegen` regenerates from spec; determinism test asserts the committed `aws_s3.gen.go` matches re-emit byte-for-byte. PR open. |
 | **1.4** | ◻ | Conformance harness skeleton in `internal/harness/`: SDK + CLI + Terraform drivers all hit an `EchoService` that returns canonical AWS S3 shape. Establishes the test contract. |
 | **1.5** | ◻ | First real backend: `ListBuckets` → **MinIO**. Same protocol as S3 — control case for the plumbing. |
 | **1.6** | ◻ | `ListBuckets` → **GCS**. First real cross-cloud translation. |
