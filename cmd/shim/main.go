@@ -1,21 +1,176 @@
 // Command shim is the entry point for the shimanism protocol-translation
-// proxy. At Phase 1.1 this is a placeholder that prints version and exits;
-// Phase 1.5+ wires up actual handlers per service.
+// proxy. It runs the shim as a network service: a chosen backend
+// implementation of domain.Storage sits behind an AWS S3-shaped HTTP
+// frontend, so any S3-speaking client (SDK / CLI / Terraform provider)
+// can drive it via the standard endpoint-override path.
+//
+// Subcommands:
+//
+//	shim version           — print version and exit.
+//	shim storage [flags]   — run the storage service.
+//
+// The storage subcommand selects a backend via -backend=<name>; each
+// backend reads its own connection config from flags or environment
+// variables. Backends currently implemented: inmem, minio, aws, gcs,
+// azureblob. The K8s peer (deploy/k8s/peer/) uses minio.
 package main
 
 import (
+	"context"
+	"flag"
 	"fmt"
+	"net/http"
 	"os"
+
+	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	awss3 "github.com/aws/aws-sdk-go-v2/service/s3"
+	gcsstorage "cloud.google.com/go/storage"
+
+	"github.com/e6qu/shimanism/internal/restxml"
+	"github.com/e6qu/shimanism/internal/storage/domain"
+	awsfront "github.com/e6qu/shimanism/internal/storage/frontends/aws_s3"
+	awsbackend "github.com/e6qu/shimanism/services/storage/backends/aws"
+	azureblobbackend "github.com/e6qu/shimanism/services/storage/backends/azureblob"
+	gcsbackend "github.com/e6qu/shimanism/services/storage/backends/gcs"
+	"github.com/e6qu/shimanism/services/storage/backends/inmem"
+	miniobackend "github.com/e6qu/shimanism/services/storage/backends/minio"
+	storagegen "github.com/e6qu/shimanism/services/storage/gen"
 )
 
-const version = "0.0.0-phase-1.1"
+const version = "0.1.0-phase-1.7"
 
 func main() {
-	if len(os.Args) > 1 && (os.Args[1] == "version" || os.Args[1] == "--version" || os.Args[1] == "-v") {
-		fmt.Println(version)
-		return
+	if len(os.Args) < 2 {
+		usage()
+		os.Exit(2)
 	}
-	fmt.Fprintf(os.Stderr, "shim %s — no service handlers registered yet (Phase 1.1 placeholder)\n", version)
-	fmt.Fprintf(os.Stderr, "See PLAN.md for the roadmap.\n")
-	os.Exit(2)
+	switch os.Args[1] {
+	case "version", "--version", "-v":
+		fmt.Println(version)
+	case "storage":
+		if err := runStorage(os.Args[2:]); err != nil {
+			fmt.Fprintln(os.Stderr, "shim storage:", err)
+			os.Exit(1)
+		}
+	case "help", "-h", "--help":
+		usage()
+	default:
+		fmt.Fprintln(os.Stderr, "shim: unknown subcommand:", os.Args[1])
+		usage()
+		os.Exit(2)
+	}
+}
+
+func usage() {
+	fmt.Fprintln(os.Stderr, "usage: shim <subcommand> [flags]")
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, "Subcommands:")
+	fmt.Fprintln(os.Stderr, "  version            Print the shim version and exit.")
+	fmt.Fprintln(os.Stderr, "  storage [flags]    Run the storage service (S3-shaped frontend).")
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, "Run `shim storage -h` for storage-service flags.")
+}
+
+func runStorage(args []string) error {
+	fs := flag.NewFlagSet("storage", flag.ContinueOnError)
+	addr := fs.String("addr", ":9000", "address to listen on")
+	backendName := fs.String("backend", "inmem", "backend: inmem, minio, aws, gcs, azureblob")
+	minioEndpoint := fs.String("minio-endpoint", envOr("MINIO_ENDPOINT", ""), "MinIO endpoint host:port")
+	minioAccess := fs.String("minio-access-key", envOr("MINIO_ACCESS_KEY", "minioadmin"), "MinIO access key")
+	minioSecret := fs.String("minio-secret-key", envOr("MINIO_SECRET_KEY", "minioadmin"), "MinIO secret key")
+	awsEndpoint := fs.String("aws-endpoint", envOr("AWS_S3_ENDPOINT", ""), "AWS S3 endpoint override (empty = default)")
+	gcsProject := fs.String("gcs-project", envOr("GCS_PROJECT_ID", ""), "GCS project ID")
+	azureConn := fs.String("azure-connection-string", envOr("AZURE_STORAGE_CONNECTION_STRING", ""), "Azure storage account connection string")
+	azureRegion := fs.String("azure-region", envOr("AZURE_BLOB_REGION", "us-east-1"), "Azure storage account region")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	backend, err := buildBackend(*backendName, backendConfig{
+		minioEndpoint: *minioEndpoint,
+		minioAccess:   *minioAccess,
+		minioSecret:   *minioSecret,
+		awsEndpoint:   *awsEndpoint,
+		gcsProject:    *gcsProject,
+		azureConn:     *azureConn,
+		azureRegion:   *azureRegion,
+	})
+	if err != nil {
+		return err
+	}
+
+	adapter := awsfront.New(backend)
+	router := &restxml.Router{}
+	storagegen.RegisterAmazonS3Routes(router, adapter)
+
+	fmt.Fprintf(os.Stderr, "shim storage: backend=%s addr=%s\n", *backendName, *addr)
+	return http.ListenAndServe(*addr, router)
+}
+
+type backendConfig struct {
+	minioEndpoint string
+	minioAccess   string
+	minioSecret   string
+	awsEndpoint   string
+	gcsProject    string
+	azureConn     string
+	azureRegion   string
+}
+
+func buildBackend(name string, cfg backendConfig) (domain.Storage, error) {
+	switch name {
+	case "inmem":
+		return inmem.New(), nil
+	case "minio":
+		if cfg.minioEndpoint == "" {
+			return nil, fmt.Errorf("minio backend requires -minio-endpoint (or MINIO_ENDPOINT)")
+		}
+		return miniobackend.New(miniobackend.Config{
+			Endpoint:  cfg.minioEndpoint,
+			AccessKey: cfg.minioAccess,
+			SecretKey: cfg.minioSecret,
+		})
+	case "aws":
+		awsCfg, err := config.LoadDefaultConfig(context.Background())
+		if err != nil {
+			return nil, fmt.Errorf("load AWS config: %w", err)
+		}
+		opts := []func(*awss3.Options){}
+		if cfg.awsEndpoint != "" {
+			opts = append(opts, func(o *awss3.Options) {
+				o.BaseEndpoint = aws.String(cfg.awsEndpoint)
+				o.UsePathStyle = true
+			})
+		}
+		return awsbackend.New(awss3.NewFromConfig(awsCfg, opts...)), nil
+	case "gcs":
+		if cfg.gcsProject == "" {
+			return nil, fmt.Errorf("gcs backend requires -gcs-project (or GCS_PROJECT_ID)")
+		}
+		client, err := gcsstorage.NewClient(context.Background())
+		if err != nil {
+			return nil, fmt.Errorf("connect to GCS: %w", err)
+		}
+		return gcsbackend.New(client, gcsbackend.Config{ProjectID: cfg.gcsProject}), nil
+	case "azureblob":
+		if cfg.azureConn == "" {
+			return nil, fmt.Errorf("azureblob backend requires -azure-connection-string (or AZURE_STORAGE_CONNECTION_STRING)")
+		}
+		client, err := azblob.NewClientFromConnectionString(cfg.azureConn, nil)
+		if err != nil {
+			return nil, fmt.Errorf("connect to Azure Blob: %w", err)
+		}
+		return azureblobbackend.New(client, cfg.azureRegion), nil
+	default:
+		return nil, fmt.Errorf("unknown backend %q (valid: inmem, minio, aws, gcs, azureblob)", name)
+	}
+}
+
+func envOr(name, fallback string) string {
+	if v := os.Getenv(name); v != "" {
+		return v
+	}
+	return fallback
 }

@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: shim
+  labels:
+    app.kubernetes.io/name: shim
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: shim
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: shim
+    spec:
+      containers:
+        - name: shim
+          # In-tree build: this image must be produced by the CI image
+          # job from cmd/shim and pushed to a registry the cluster can
+          # pull from. The tag matches the `version` constant in
+          # cmd/shim/main.go.
+          image: ghcr.io/e6qu/shimanism:0.1.0-phase-1.7
+          imagePullPolicy: IfNotPresent
+          args:
+            - storage
+            - -addr=:9000
+            - -backend=minio
+            - -minio-endpoint=minio:9000
+          env:
+            - name: MINIO_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: shim-credentials
+                  key: access-key
+            - name: MINIO_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: shim-credentials
+                  key: secret-key
+          ports:
+            - name: s3
+              containerPort: 9000
+          readinessProbe:
+            tcpSocket:
+              port: s3
+            initialDelaySeconds: 2
+            periodSeconds: 5
+          livenessProbe:
+            tcpSocket:
+              port: s3
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              memory: "256Mi"
