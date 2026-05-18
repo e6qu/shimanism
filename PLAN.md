@@ -71,6 +71,19 @@ Backends: S3 passthrough · MinIO · GCS · Azure Blob.
 
 **Exit criteria:** Terraform HCL written for AWS S3 provisions and exercises a GCS-backed bucket end-to-end via `endpoints { s3 = "..." }`, with no resource churn or fabricated responses. Equivalents for MinIO and Blob.
 
+### Architecture: cross-cloud routing
+
+Routing between cloud A's frontend and cloud B's backend uses a **neutral domain interface** between the wire-protocol codec and the cloud-specific backend. See [`doc/CROSS_CLOUD_ROUTING.md`](doc/CROSS_CLOUD_ROUTING.md) for the architecture, terminology (frontend / backend / opposite-shape), the 3 × 4 matrix, the per-cloud library list (each backend imports the destination cloud's official Go SDK), and the streaming-throughout performance contract.
+
+The implementation order is:
+
+- **1.5.0** (domain refactor): introduce `internal/storage/domain/` interface; refactor `internal/storage/frontends/aws_s3/` as the wire→domain adapter; refactor `services/storage/backends/inmem/` to implement `domain.Storage` directly. Streaming-friendly: `httpPayload` blob members become `io.Reader` (in) / `io.ReadCloser` (out); object bodies never buffer.
+- **1.5.1** (MinIO): first real backend on the domain interface. S3-compatible passthrough.
+- **1.5.2** (AWS passthrough): `backends/aws/` for completeness.
+- **1.6** (GCS): first cross-cloud translation backend.
+- **1.7** (Azure Blob): same.
+- **1.8** (K8s peer): MinIO-in-cluster via operator (or equivalent).
+
 ## Phase 2 — Secrets (Secrets Manager-source)
 
 Source: AWS Secrets Manager.

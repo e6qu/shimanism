@@ -18,14 +18,17 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 | **1.2** | ✅ | Spec ingestion + engineering hygiene: S3 Smithy JSON vendored + license policy + Renovate + supply-chain hardening + version bumps. PR #4, merged at `98e6ce9`. |
 | **1.3** | ✅ | Codegen pipeline. PR #5, merged at `03b0ebb`. |
 | **1.4** | ◐ | Conformance harness + Terraform resource-lifecycle path. Manifest holds 34 ops (16 core + 18 bucket-config probes). `internal/restxml` ships URI / scalar / time / typed-error / router runtime. Generated handlers funnel backend errors through `WriteBackendError`. `services/storage/backends/inmem/` is a real in-memory backend covering all 34. Three conformance drivers (SDK / CLI / TF) run against it in CI. Open bug: [BUG-1](BUGS.md) (router x-id stripping shadows sibling-op disambiguation on object paths — shadowed for now, tracked). PR #6 open. |
-| **1.5** | ◻ | First real backend: **MinIO**. S3-protocol passthrough — the "control case" that proves the shim's wire layer is faithful before we attempt translation. Phase 1.5 wires a `services/storage/backends/minio/` package, runs the same conformance suite against MinIO instead of the in-mem backend, and asserts the diff is zero. |
-| **1.6** | ◻ | `ListBuckets` / `ListObjectsV2` / `GetObject` / `PutObject` → **GCS**. First real cross-cloud translation. The 18 bucket-config probes return their default-state response uniformly. |
-| **1.7** | ◻ | Same surface → **Azure Blob**. |
-| **1.8** | ◻ | `CopyObject` against all four backends. Azure block-blob block-ID translation; GCS rewrite semantics. |
-| **1.9** | ◻ | Multipart upload against all four backends. GCS resumable session translation; Azure block-list translation. |
-| **1.10** | ◻ | Presigned URLs. |
-| **1.11** | ◻ | Fix BUG-1 (router x-id stripping) — likely as part of Phase 1.5+ once a real backend reveals where the leak matters in practice. |
-| **1.12** | ◻ | Phase 1 closer: full conformance lane green across all four backends; Terraform `aws_s3_bucket` + `aws_s3_object` apply against MinIO / GCS / Azure Blob via `endpoints { s3 = ... }`. |
+| **1.5.0** | ◻ | Domain refactor. `internal/storage/domain/` introduces the neutral `Storage` interface (streaming-friendly: `io.Reader` for `httpPayload` blob inputs, `io.ReadCloser` for outputs). `internal/storage/frontends/aws_s3/` wraps `gen.AmazonS3Backend` and translates to `domain.Storage`. `services/storage/backends/inmem/` implements `domain.Storage` directly, drops the `gen.*` types. Codegen streaming changes for `httpPayload`+blob members. Conformance suite unchanged (still hits AWS frontend, in-mem backend). See [`doc/CROSS_CLOUD_ROUTING.md`](doc/CROSS_CLOUD_ROUTING.md). |
+| **1.5.1** | ◻ | **MinIO backend** — `services/storage/backends/minio/` implements `domain.Storage` via `minio-go`. The S3-compatible "control case": same wire on both sides, proves the routing layer is faithful before we try a cross-shape translation. Docker-based MinIO in CI. |
+| **1.5.2** | ◻ | **AWS passthrough backend** — `services/storage/backends/aws/` via `aws-sdk-go-v2/service/s3`. Useful for auth interception, observability injection, cross-region routing. |
+| **1.6** | ◻ | **GCS backend** — first real cross-cloud (opposite-shape) translation. AWS-shaped frontend → `domain.Storage` → `cloud.google.com/go/storage` → real GCS. |
+| **1.7** | ◻ | **Azure Blob backend** — same shape via `azure-sdk-for-go/sdk/storage/azblob`. |
+| **1.8** | ◻ | **K8s peer backend** — MinIO-in-cluster via operator (or similar). Makes the "leave the cloud entirely" path real. |
+| **1.9** | ◻ | `CopyObject` cross-cloud nuances. Azure block-blob block-ID translation; GCS rewrite semantics. |
+| **1.10** | ◻ | Multipart upload cross-cloud nuances. GCS resumable session translation; Azure block-list translation. |
+| **1.11** | ◻ | Presigned URLs. |
+| **1.12** | ◻ | Fix [BUG-1](BUGS.md) (router x-id stripping) once a real backend reveals where the leak matters in practice. |
+| **1.13** | ◻ | Phase 1 closer: full conformance lane green across all five backends; Terraform `aws_s3_bucket` + `aws_s3_object` apply against MinIO / AWS / GCS / Azure Blob / K8s peer via `endpoints { s3 = ... }`. |
 
 Status legend: ✅ done · ◐ in progress · ◻ pending · ⏸ paused.
 
