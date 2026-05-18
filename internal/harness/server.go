@@ -16,6 +16,7 @@ import (
 	"github.com/e6qu/shimanism/internal/restxml"
 	"github.com/e6qu/shimanism/internal/storage/domain"
 	awsfront "github.com/e6qu/shimanism/internal/storage/frontends/aws_s3"
+	gcsfront "github.com/e6qu/shimanism/internal/storage/frontends/gcs"
 	storagegen "github.com/e6qu/shimanism/services/storage/gen"
 )
 
@@ -29,11 +30,10 @@ type StorageServer struct {
 	Close func()
 }
 
-// StartStorageServer starts a shim instance backed by the given
-// implementation of the neutral storage domain. The AWS S3 frontend
-// adapter wraps the backend so AWS-shaped clients (boto3, aws CLI,
-// hashicorp/aws Terraform provider) can drive it via the standard
-// endpoint-override path.
+// StartStorageServer starts a shim instance with the AWS S3 frontend
+// backed by the given storage implementation. AWS-shaped clients
+// (boto3, aws CLI, hashicorp/aws Terraform provider) can drive it
+// via the standard endpoint-override path.
 //
 // Every request is logged to t.Log so conformance failures show the
 // exact sequence of operations the client drove.
@@ -43,6 +43,19 @@ func StartStorageServer(t *testing.T, backend domain.Storage) *StorageServer {
 	router := &restxml.Router{}
 	storagegen.RegisterAmazonS3Routes(router, adapter)
 	ts := httptest.NewServer(&logRoundTrip{t: t, mux: router})
+	t.Cleanup(ts.Close)
+	return &StorageServer{URL: ts.URL, Close: ts.Close}
+}
+
+// StartStorageServerGCS starts a shim instance with the GCS REST API
+// frontend backed by the given storage implementation. GCP-shaped
+// clients (cloud.google.com/go/storage, gcloud, hashicorp/google
+// Terraform provider) drive it through the same endpoint-override
+// path.
+func StartStorageServerGCS(t *testing.T, backend domain.Storage) *StorageServer {
+	t.Helper()
+	srv := gcsfront.New(backend)
+	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
 	t.Cleanup(ts.Close)
 	return &StorageServer{URL: ts.URL, Close: ts.Close}
 }
