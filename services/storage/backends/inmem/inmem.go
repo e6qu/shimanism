@@ -23,6 +23,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/e6qu/shimanism/internal/restxml"
 	gen "github.com/e6qu/shimanism/services/storage/gen"
 )
 
@@ -194,10 +195,10 @@ func (b *Backend) DeleteBucket(ctx context.Context, in *gen.DeleteBucketRequest)
 	defer b.mu.Unlock()
 	st, ok := b.buckets[in.Bucket]
 	if !ok {
-		return struct{}{}, fmt.Errorf("NoSuchBucket: %s", in.Bucket)
+		return struct{}{}, restxml.NoSuchBucket(in.Bucket)
 	}
 	if len(st.objects) > 0 {
-		return struct{}{}, fmt.Errorf("BucketNotEmpty: %s", in.Bucket)
+		return struct{}{}, restxml.BucketNotEmpty(in.Bucket)
 	}
 	delete(b.buckets, in.Bucket)
 	return struct{}{}, nil
@@ -212,7 +213,7 @@ func (b *Backend) HeadBucket(ctx context.Context, in *gen.HeadBucketRequest) (*g
 	defer b.mu.Unlock()
 	st, ok := b.buckets[in.Bucket]
 	if !ok {
-		return nil, fmt.Errorf("NoSuchBucket: %s", in.Bucket)
+		return nil, restxml.NoSuchBucket(in.Bucket)
 	}
 	return &gen.HeadBucketOutput{BucketRegion: ptr(st.region)}, nil
 }
@@ -231,7 +232,7 @@ func (b *Backend) ListObjectsV2(ctx context.Context, in *gen.ListObjectsV2Reques
 	defer b.mu.Unlock()
 	st, ok := b.buckets[in.Bucket]
 	if !ok {
-		return nil, fmt.Errorf("NoSuchBucket: %s", in.Bucket)
+		return nil, restxml.NoSuchBucket(in.Bucket)
 	}
 	prefix := deref(in.Prefix, "")
 	delimiter := deref(in.Delimiter, "")
@@ -316,7 +317,7 @@ func (b *Backend) PutObject(ctx context.Context, in *gen.PutObjectRequest) (*gen
 	defer b.mu.Unlock()
 	st, ok := b.buckets[in.Bucket]
 	if !ok {
-		return nil, fmt.Errorf("NoSuchBucket: %s", in.Bucket)
+		return nil, restxml.NoSuchBucket(in.Bucket)
 	}
 	data := []byte{}
 	if in.Body != nil {
@@ -342,11 +343,11 @@ func (b *Backend) GetObject(ctx context.Context, in *gen.GetObjectRequest) (*gen
 	defer b.mu.Unlock()
 	st, ok := b.buckets[in.Bucket]
 	if !ok {
-		return nil, fmt.Errorf("NoSuchBucket: %s", in.Bucket)
+		return nil, restxml.NoSuchBucket(in.Bucket)
 	}
 	obj, ok := st.objects[in.Key]
 	if !ok {
-		return nil, fmt.Errorf("NoSuchKey: %s/%s", in.Bucket, in.Key)
+		return nil, restxml.NoSuchKey(in.Bucket, in.Key)
 	}
 	body := make([]byte, len(obj.data))
 	copy(body, obj.data)
@@ -369,7 +370,7 @@ func (b *Backend) DeleteObject(ctx context.Context, in *gen.DeleteObjectRequest)
 	defer b.mu.Unlock()
 	st, ok := b.buckets[in.Bucket]
 	if !ok {
-		return nil, fmt.Errorf("NoSuchBucket: %s", in.Bucket)
+		return nil, restxml.NoSuchBucket(in.Bucket)
 	}
 	delete(st.objects, in.Key)
 	return &gen.DeleteObjectOutput{}, nil
@@ -384,11 +385,11 @@ func (b *Backend) HeadObject(ctx context.Context, in *gen.HeadObjectRequest) (*g
 	defer b.mu.Unlock()
 	st, ok := b.buckets[in.Bucket]
 	if !ok {
-		return nil, fmt.Errorf("NoSuchBucket: %s", in.Bucket)
+		return nil, restxml.NoSuchBucket(in.Bucket)
 	}
 	obj, ok := st.objects[in.Key]
 	if !ok {
-		return nil, fmt.Errorf("NoSuchKey: %s/%s", in.Bucket, in.Key)
+		return nil, restxml.NoSuchKey(in.Bucket, in.Key)
 	}
 	return &gen.HeadObjectOutput{
 		ContentType:   ptr(obj.contentType),
@@ -408,7 +409,7 @@ func (b *Backend) CopyObject(ctx context.Context, in *gen.CopyObjectRequest) (*g
 	}
 	src := in.CopySource
 	if src == "" {
-		return nil, fmt.Errorf("InvalidRequest: CopySource is required")
+		return nil, restxml.InvalidArgument("CopySource is required")
 	}
 	srcBucket, srcKey, err := parseCopySource(src)
 	if err != nil {
@@ -418,15 +419,15 @@ func (b *Backend) CopyObject(ctx context.Context, in *gen.CopyObjectRequest) (*g
 	defer b.mu.Unlock()
 	srcState, ok := b.buckets[srcBucket]
 	if !ok {
-		return nil, fmt.Errorf("NoSuchBucket: %s", srcBucket)
+		return nil, restxml.NoSuchBucket(srcBucket)
 	}
 	srcObj, ok := srcState.objects[srcKey]
 	if !ok {
-		return nil, fmt.Errorf("NoSuchKey: %s/%s", srcBucket, srcKey)
+		return nil, restxml.NoSuchKey(srcBucket, srcKey)
 	}
 	dstState, ok := b.buckets[in.Bucket]
 	if !ok {
-		return nil, fmt.Errorf("NoSuchBucket: %s", in.Bucket)
+		return nil, restxml.NoSuchBucket(in.Bucket)
 	}
 	body := make([]byte, len(srcObj.data))
 	copy(body, srcObj.data)
@@ -454,12 +455,12 @@ func parseCopySource(s string) (string, string, error) {
 	}
 	idx := strings.IndexByte(s, '/')
 	if idx <= 0 || idx == len(s)-1 {
-		return "", "", fmt.Errorf("InvalidArgument: CopySource %q does not parse", s)
+		return "", "", restxml.InvalidArgument("CopySource does not parse: " + s)
 	}
 	bucket := s[:idx]
 	key, err := url.QueryUnescape(s[idx+1:])
 	if err != nil {
-		return "", "", fmt.Errorf("InvalidArgument: CopySource key unescape: %w", err)
+		return "", "", restxml.InvalidArgument("CopySource key unescape: " + err.Error())
 	}
 	return bucket, key, nil
 }
@@ -487,7 +488,7 @@ func (b *Backend) CreateMultipartUpload(ctx context.Context, in *gen.CreateMulti
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	if _, ok := b.buckets[in.Bucket]; !ok {
-		return nil, fmt.Errorf("NoSuchBucket: %s", in.Bucket)
+		return nil, restxml.NoSuchBucket(in.Bucket)
 	}
 	id := newUploadID(in.Bucket, in.Key, time.Now())
 	b.uploads[id] = &uploadState{
@@ -518,14 +519,14 @@ func (b *Backend) UploadPart(ctx context.Context, in *gen.UploadPartRequest) (*g
 	defer b.mu.Unlock()
 	up, ok := b.uploads[in.UploadId]
 	if !ok {
-		return nil, fmt.Errorf("NoSuchUpload: %s", in.UploadId)
+		return nil, restxml.NoSuchUpload(in.UploadId)
 	}
 	if up.bucket != in.Bucket || up.key != in.Key {
-		return nil, fmt.Errorf("InvalidArgument: upload key/bucket mismatch")
+		return nil, restxml.InvalidArgument("upload key/bucket mismatch")
 	}
 	partNo := in.PartNumber
 	if partNo < 1 || partNo > 10000 {
-		return nil, fmt.Errorf("InvalidArgument: PartNumber out of range")
+		return nil, restxml.InvalidArgument("PartNumber out of range")
 	}
 	data := []byte{}
 	if in.Body != nil {
@@ -551,14 +552,14 @@ func (b *Backend) CompleteMultipartUpload(ctx context.Context, in *gen.CompleteM
 	upID := in.UploadId
 	up, ok := b.uploads[upID]
 	if !ok {
-		return nil, fmt.Errorf("NoSuchUpload: %s", upID)
+		return nil, restxml.NoSuchUpload(upID)
 	}
 	if up.bucket != in.Bucket || up.key != in.Key {
-		return nil, fmt.Errorf("InvalidArgument: upload key/bucket mismatch")
+		return nil, restxml.InvalidArgument("upload key/bucket mismatch")
 	}
 	bucket, ok := b.buckets[in.Bucket]
 	if !ok {
-		return nil, fmt.Errorf("NoSuchBucket: %s", in.Bucket)
+		return nil, restxml.NoSuchBucket(in.Bucket)
 	}
 	// Order parts by number; client supplies the list, but in-mem
 	// concatenates in numeric order regardless.
@@ -596,7 +597,7 @@ func (b *Backend) AbortMultipartUpload(ctx context.Context, in *gen.AbortMultipa
 	defer b.mu.Unlock()
 	upID := in.UploadId
 	if _, ok := b.uploads[upID]; !ok {
-		return nil, fmt.Errorf("NoSuchUpload: %s", upID)
+		return nil, restxml.NoSuchUpload(upID)
 	}
 	delete(b.uploads, upID)
 	return &gen.AbortMultipartUploadOutput{}, nil
@@ -610,7 +611,7 @@ func (b *Backend) ListMultipartUploads(ctx context.Context, in *gen.ListMultipar
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	if _, ok := b.buckets[in.Bucket]; !ok {
-		return nil, fmt.Errorf("NoSuchBucket: %s", in.Bucket)
+		return nil, restxml.NoSuchBucket(in.Bucket)
 	}
 	type entry struct {
 		id, key string
@@ -654,10 +655,10 @@ func (b *Backend) ListParts(ctx context.Context, in *gen.ListPartsRequest) (*gen
 	upID := in.UploadId
 	up, ok := b.uploads[upID]
 	if !ok {
-		return nil, fmt.Errorf("NoSuchUpload: %s", upID)
+		return nil, restxml.NoSuchUpload(upID)
 	}
 	if up.bucket != in.Bucket || up.key != in.Key {
-		return nil, fmt.Errorf("InvalidArgument: upload key/bucket mismatch")
+		return nil, restxml.InvalidArgument("upload key/bucket mismatch")
 	}
 	nums := make([]int32, 0, len(up.parts))
 	for n := range up.parts {
@@ -683,3 +684,147 @@ func (b *Backend) ListParts(ctx context.Context, in *gen.ListPartsRequest) (*gen
 
 // Ensure the implementation satisfies the union interface at build time.
 var _ gen.AmazonS3Backend = (*Backend)(nil)
+
+// ----------------------------------------------------------------------
+// Bucket-config probes (Terraform AWS provider's Read calls these on
+// every aws_s3_bucket apply). Each returns either the "feature not
+// configured" 404 in S3's vocabulary, or a default-state 200 — both of
+// which translate universally across S3 / GCS / Azure Blob / MinIO.
+// ----------------------------------------------------------------------
+
+func (b *Backend) GetBucketLocation(ctx context.Context, in *gen.GetBucketLocationRequest) (*gen.GetBucketLocationOutput, error) {
+	if in == nil {
+		return nil, restxml.InvalidArgument("GetBucketLocation: missing input")
+	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	st, ok := b.buckets[in.Bucket]
+	if !ok {
+		return nil, restxml.NoSuchBucket(in.Bucket)
+	}
+	loc := gen.BucketLocationConstraint(st.region)
+	return &gen.GetBucketLocationOutput{LocationConstraint: &loc}, nil
+}
+
+func (b *Backend) GetBucketPolicy(ctx context.Context, in *gen.GetBucketPolicyRequest) (*gen.GetBucketPolicyOutput, error) {
+	if in == nil { return nil, restxml.InvalidArgument("GetBucketPolicy: missing input") }
+	b.mu.Lock(); defer b.mu.Unlock()
+	if _, ok := b.buckets[in.Bucket]; !ok { return nil, restxml.NoSuchBucket(in.Bucket) }
+	return nil, restxml.NoSuchBucketPolicy(in.Bucket)
+}
+
+func (b *Backend) GetBucketAcl(ctx context.Context, in *gen.GetBucketAclRequest) (*gen.GetBucketAclOutput, error) {
+	if in == nil { return nil, restxml.InvalidArgument("GetBucketAcl: missing input") }
+	b.mu.Lock(); defer b.mu.Unlock()
+	if _, ok := b.buckets[in.Bucket]; !ok { return nil, restxml.NoSuchBucket(in.Bucket) }
+	return &gen.GetBucketAclOutput{
+		Owner: &gen.Owner{ID: ptr("shimanism-inmem"), DisplayName: ptr("inmem")},
+	}, nil
+}
+
+func (b *Backend) GetBucketVersioning(ctx context.Context, in *gen.GetBucketVersioningRequest) (*gen.GetBucketVersioningOutput, error) {
+	if in == nil { return nil, restxml.InvalidArgument("GetBucketVersioning: missing input") }
+	b.mu.Lock(); defer b.mu.Unlock()
+	if _, ok := b.buckets[in.Bucket]; !ok { return nil, restxml.NoSuchBucket(in.Bucket) }
+	return &gen.GetBucketVersioningOutput{}, nil // empty = unversioned default
+}
+
+func (b *Backend) GetBucketLogging(ctx context.Context, in *gen.GetBucketLoggingRequest) (*gen.GetBucketLoggingOutput, error) {
+	if in == nil { return nil, restxml.InvalidArgument("GetBucketLogging: missing input") }
+	b.mu.Lock(); defer b.mu.Unlock()
+	if _, ok := b.buckets[in.Bucket]; !ok { return nil, restxml.NoSuchBucket(in.Bucket) }
+	return &gen.GetBucketLoggingOutput{}, nil // empty = logging disabled
+}
+
+func (b *Backend) GetBucketCors(ctx context.Context, in *gen.GetBucketCorsRequest) (*gen.GetBucketCorsOutput, error) {
+	if in == nil { return nil, restxml.InvalidArgument("GetBucketCors: missing input") }
+	b.mu.Lock(); defer b.mu.Unlock()
+	if _, ok := b.buckets[in.Bucket]; !ok { return nil, restxml.NoSuchBucket(in.Bucket) }
+	return nil, restxml.NoSuchCORSConfiguration(in.Bucket)
+}
+
+func (b *Backend) GetBucketLifecycleConfiguration(ctx context.Context, in *gen.GetBucketLifecycleConfigurationRequest) (*gen.GetBucketLifecycleConfigurationOutput, error) {
+	if in == nil { return nil, restxml.InvalidArgument("GetBucketLifecycleConfiguration: missing input") }
+	b.mu.Lock(); defer b.mu.Unlock()
+	if _, ok := b.buckets[in.Bucket]; !ok { return nil, restxml.NoSuchBucket(in.Bucket) }
+	return nil, restxml.NoSuchLifecycleConfiguration(in.Bucket)
+}
+
+func (b *Backend) GetBucketReplication(ctx context.Context, in *gen.GetBucketReplicationRequest) (*gen.GetBucketReplicationOutput, error) {
+	if in == nil { return nil, restxml.InvalidArgument("GetBucketReplication: missing input") }
+	b.mu.Lock(); defer b.mu.Unlock()
+	if _, ok := b.buckets[in.Bucket]; !ok { return nil, restxml.NoSuchBucket(in.Bucket) }
+	return nil, restxml.ReplicationConfigurationNotFound(in.Bucket)
+}
+
+func (b *Backend) GetBucketRequestPayment(ctx context.Context, in *gen.GetBucketRequestPaymentRequest) (*gen.GetBucketRequestPaymentOutput, error) {
+	if in == nil { return nil, restxml.InvalidArgument("GetBucketRequestPayment: missing input") }
+	b.mu.Lock(); defer b.mu.Unlock()
+	if _, ok := b.buckets[in.Bucket]; !ok { return nil, restxml.NoSuchBucket(in.Bucket) }
+	p := gen.PayerBucketOwner
+	return &gen.GetBucketRequestPaymentOutput{Payer: &p}, nil
+}
+
+func (b *Backend) GetBucketTagging(ctx context.Context, in *gen.GetBucketTaggingRequest) (*gen.GetBucketTaggingOutput, error) {
+	if in == nil { return nil, restxml.InvalidArgument("GetBucketTagging: missing input") }
+	b.mu.Lock(); defer b.mu.Unlock()
+	if _, ok := b.buckets[in.Bucket]; !ok { return nil, restxml.NoSuchBucket(in.Bucket) }
+	return nil, restxml.NoSuchTagSet(in.Bucket)
+}
+
+func (b *Backend) GetBucketWebsite(ctx context.Context, in *gen.GetBucketWebsiteRequest) (*gen.GetBucketWebsiteOutput, error) {
+	if in == nil { return nil, restxml.InvalidArgument("GetBucketWebsite: missing input") }
+	b.mu.Lock(); defer b.mu.Unlock()
+	if _, ok := b.buckets[in.Bucket]; !ok { return nil, restxml.NoSuchBucket(in.Bucket) }
+	return nil, restxml.NoSuchWebsiteConfiguration(in.Bucket)
+}
+
+func (b *Backend) GetBucketEncryption(ctx context.Context, in *gen.GetBucketEncryptionRequest) (*gen.GetBucketEncryptionOutput, error) {
+	if in == nil { return nil, restxml.InvalidArgument("GetBucketEncryption: missing input") }
+	b.mu.Lock(); defer b.mu.Unlock()
+	if _, ok := b.buckets[in.Bucket]; !ok { return nil, restxml.NoSuchBucket(in.Bucket) }
+	return nil, restxml.ServerSideEncryptionConfigurationNotFound(in.Bucket)
+}
+
+func (b *Backend) GetBucketAccelerateConfiguration(ctx context.Context, in *gen.GetBucketAccelerateConfigurationRequest) (*gen.GetBucketAccelerateConfigurationOutput, error) {
+	if in == nil { return nil, restxml.InvalidArgument("GetBucketAccelerateConfiguration: missing input") }
+	b.mu.Lock(); defer b.mu.Unlock()
+	if _, ok := b.buckets[in.Bucket]; !ok { return nil, restxml.NoSuchBucket(in.Bucket) }
+	return &gen.GetBucketAccelerateConfigurationOutput{}, nil // default = Suspended/absent
+}
+
+func (b *Backend) GetObjectLockConfiguration(ctx context.Context, in *gen.GetObjectLockConfigurationRequest) (*gen.GetObjectLockConfigurationOutput, error) {
+	if in == nil { return nil, restxml.InvalidArgument("GetObjectLockConfiguration: missing input") }
+	b.mu.Lock(); defer b.mu.Unlock()
+	if _, ok := b.buckets[in.Bucket]; !ok { return nil, restxml.NoSuchBucket(in.Bucket) }
+	return nil, restxml.ObjectLockConfigurationNotFound(in.Bucket)
+}
+
+func (b *Backend) GetBucketNotificationConfiguration(ctx context.Context, in *gen.GetBucketNotificationConfigurationRequest) (*gen.NotificationConfiguration, error) {
+	if in == nil { return nil, restxml.InvalidArgument("GetBucketNotificationConfiguration: missing input") }
+	b.mu.Lock(); defer b.mu.Unlock()
+	if _, ok := b.buckets[in.Bucket]; !ok { return nil, restxml.NoSuchBucket(in.Bucket) }
+	return &gen.NotificationConfiguration{}, nil // empty = no notifications
+}
+
+func (b *Backend) GetBucketOwnershipControls(ctx context.Context, in *gen.GetBucketOwnershipControlsRequest) (*gen.GetBucketOwnershipControlsOutput, error) {
+	if in == nil { return nil, restxml.InvalidArgument("GetBucketOwnershipControls: missing input") }
+	b.mu.Lock(); defer b.mu.Unlock()
+	if _, ok := b.buckets[in.Bucket]; !ok { return nil, restxml.NoSuchBucket(in.Bucket) }
+	return nil, restxml.OwnershipControlsNotFound(in.Bucket)
+}
+
+func (b *Backend) GetBucketPolicyStatus(ctx context.Context, in *gen.GetBucketPolicyStatusRequest) (*gen.GetBucketPolicyStatusOutput, error) {
+	if in == nil { return nil, restxml.InvalidArgument("GetBucketPolicyStatus: missing input") }
+	b.mu.Lock(); defer b.mu.Unlock()
+	if _, ok := b.buckets[in.Bucket]; !ok { return nil, restxml.NoSuchBucket(in.Bucket) }
+	// No policy means status is empty/private; AWS returns 404 NoSuchBucketPolicy
+	return nil, restxml.NoSuchBucketPolicy(in.Bucket)
+}
+
+func (b *Backend) GetPublicAccessBlock(ctx context.Context, in *gen.GetPublicAccessBlockRequest) (*gen.GetPublicAccessBlockOutput, error) {
+	if in == nil { return nil, restxml.InvalidArgument("GetPublicAccessBlock: missing input") }
+	b.mu.Lock(); defer b.mu.Unlock()
+	if _, ok := b.buckets[in.Bucket]; !ok { return nil, restxml.NoSuchBucket(in.Bucket) }
+	return nil, restxml.NoSuchPublicAccessBlockConfiguration(in.Bucket)
+}

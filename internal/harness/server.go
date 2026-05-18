@@ -9,6 +9,7 @@
 package harness
 
 import (
+	"net/http"
 	"net/http/httptest"
 	"testing"
 
@@ -28,11 +29,40 @@ type StorageServer struct {
 
 // StartStorageServer starts a shim instance backed by the given
 // implementation of the storage intersection. Registers cleanup on t.
+// Every request is logged to t.Log so conformance failures show the
+// exact sequence of operations the client drove.
 func StartStorageServer(t *testing.T, backend storagegen.AmazonS3Backend) *StorageServer {
 	t.Helper()
 	router := &restxml.Router{}
 	storagegen.RegisterAmazonS3Routes(router, backend)
-	ts := httptest.NewServer(router)
+	ts := httptest.NewServer(&logRoundTrip{t: t, mux: router})
 	t.Cleanup(ts.Close)
 	return &StorageServer{URL: ts.URL, Close: ts.Close}
+}
+
+// logRoundTrip logs each request through the harness. Lightweight —
+// no body capture, just method + path + query + response status.
+type logRoundTrip struct {
+	t   *testing.T
+	mux http.Handler
+}
+
+func (l *logRoundTrip) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	sw := &statusWriter{ResponseWriter: w, status: 200}
+	l.mux.ServeHTTP(sw, r)
+	suffix := ""
+	if r.URL.RawQuery != "" {
+		suffix = "?" + r.URL.RawQuery
+	}
+	l.t.Logf("[harness] %s %s%s -> %d", r.Method, r.URL.Path, suffix, sw.status)
+}
+
+type statusWriter struct {
+	http.ResponseWriter
+	status int
+}
+
+func (s *statusWriter) WriteHeader(code int) {
+	s.status = code
+	s.ResponseWriter.WriteHeader(code)
 }

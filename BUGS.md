@@ -1,6 +1,6 @@
 # Known Bugs
 
-**0 filed · 0 fixed · 0 open · 0 false positives.**
+**1 filed · 0 fixed · 1 open · 0 false positives.**
 
 Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLAN.md](PLAN.md) · narrative [WHAT_WE_DID.md](WHAT_WE_DID.md) · rules [AGENTS.md](AGENTS.md).
 
@@ -12,8 +12,7 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 
 | ID | Sev | Area | Source-API | One-liner |
 |----|-----|------|------------|-----------|
-
-*(empty)*
+| 1 | P2 | restxml router | AWS S3 | After x-id stripping, `GET /{Bucket}/{Key+}?tagging=` routes to `GetObject` because GetObject's route templates to `/{Bucket}/{Key+}` and the router doesn't reject extra-query mismatches. Same risk for `?acl=`, `?versioning=` on objects. Fix: have routes also declare "forbidden" query params (or use stricter `=` matching with `x-id` retained when present). Triggered by Terraform AWS provider's bucket-resource read of object tagging. Currently shadowed because the SDK includes `x-id` and the tagging probe ignores the response body. |
 
 ## False positives
 

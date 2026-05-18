@@ -19,6 +19,24 @@
     "CompleteMultipartUpload",
     "AbortMultipartUpload",
     "ListMultipartUploads",
-    "ListParts"
+    "ListParts",
+    "GetBucketLocation",
+    "GetBucketPolicy",
+    "GetBucketAcl",
+    "GetBucketVersioning",
+    "GetBucketLogging",
+    "GetBucketCors",
+    "GetBucketLifecycleConfiguration",
+    "GetBucketReplication",
+    "GetBucketRequestPayment",
+    "GetBucketTagging",
+    "GetBucketWebsite",
+    "GetBucketEncryption",
+    "GetBucketAccelerateConfiguration",
+    "GetObjectLockConfiguration",
+    "GetBucketNotificationConfiguration",
+    "GetBucketOwnershipControls",
+    "GetBucketPolicyStatus",
+    "GetPublicAccessBlock"
   ]
 }

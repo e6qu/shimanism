@@ -169,7 +169,7 @@ func {{ .GoName }}Handler(b {{ .GoName }}Backend) http.Handler {
 {{- end }}
 		out, err := b.{{ .GoName }}(ctx{{ if .InputType }}, in{{ end }})
 		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
+			restxml.WriteBackendError(w, err)
 			return
 		}
 		_ = out

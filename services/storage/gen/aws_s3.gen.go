@@ -304,6 +304,238 @@ const (
 	TaggingDirectiveREPLACE TaggingDirective = "REPLACE"
 )
 
+// Type is a generated Smithy enum.
+type Type string
+
+const (
+	TypeAmazonCustomerByEmail Type = "AmazonCustomerByEmail"
+	TypeCanonicalUser         Type = "CanonicalUser"
+	TypeGroup                 Type = "Group"
+)
+
+// Permission is a generated Smithy enum.
+type Permission string
+
+const (
+	PermissionFULL_CONTROL Permission = "FULL_CONTROL"
+	PermissionREAD         Permission = "READ"
+	PermissionREAD_ACP     Permission = "READ_ACP"
+	PermissionWRITE        Permission = "WRITE"
+	PermissionWRITE_ACP    Permission = "WRITE_ACP"
+)
+
+// MFADeleteStatus is a generated Smithy enum.
+type MFADeleteStatus string
+
+const (
+	MFADeleteStatusDisabled MFADeleteStatus = "Disabled"
+	MFADeleteStatusEnabled  MFADeleteStatus = "Enabled"
+)
+
+// BucketVersioningStatus is a generated Smithy enum.
+type BucketVersioningStatus string
+
+const (
+	BucketVersioningStatusEnabled   BucketVersioningStatus = "Enabled"
+	BucketVersioningStatusSuspended BucketVersioningStatus = "Suspended"
+)
+
+// BucketLogsPermission is a generated Smithy enum.
+type BucketLogsPermission string
+
+const (
+	BucketLogsPermissionFULL_CONTROL BucketLogsPermission = "FULL_CONTROL"
+	BucketLogsPermissionREAD         BucketLogsPermission = "READ"
+	BucketLogsPermissionWRITE        BucketLogsPermission = "WRITE"
+)
+
+// PartitionDateSource is a generated Smithy enum.
+type PartitionDateSource string
+
+const (
+	PartitionDateSourceDeliveryTime PartitionDateSource = "DeliveryTime"
+	PartitionDateSourceEventTime    PartitionDateSource = "EventTime"
+)
+
+// TransitionStorageClass is a generated Smithy enum.
+type TransitionStorageClass string
+
+const (
+	TransitionStorageClassDEEP_ARCHIVE        TransitionStorageClass = "DEEP_ARCHIVE"
+	TransitionStorageClassGLACIER             TransitionStorageClass = "GLACIER"
+	TransitionStorageClassGLACIER_IR          TransitionStorageClass = "GLACIER_IR"
+	TransitionStorageClassINTELLIGENT_TIERING TransitionStorageClass = "INTELLIGENT_TIERING"
+	TransitionStorageClassONEZONE_IA          TransitionStorageClass = "ONEZONE_IA"
+	TransitionStorageClassSTANDARD_IA         TransitionStorageClass = "STANDARD_IA"
+)
+
+// ExpirationStatus is a generated Smithy enum.
+type ExpirationStatus string
+
+const (
+	ExpirationStatusDisabled ExpirationStatus = "Disabled"
+	ExpirationStatusEnabled  ExpirationStatus = "Enabled"
+)
+
+// TransitionDefaultMinimumObjectSize is a generated Smithy enum.
+type TransitionDefaultMinimumObjectSize string
+
+const (
+	TransitionDefaultMinimumObjectSizeAll_storage_classes_128K TransitionDefaultMinimumObjectSize = "all_storage_classes_128K"
+	TransitionDefaultMinimumObjectSizeVaries_by_storage_class  TransitionDefaultMinimumObjectSize = "varies_by_storage_class"
+)
+
+// DeleteMarkerReplicationStatus is a generated Smithy enum.
+type DeleteMarkerReplicationStatus string
+
+const (
+	DeleteMarkerReplicationStatusDisabled DeleteMarkerReplicationStatus = "Disabled"
+	DeleteMarkerReplicationStatusEnabled  DeleteMarkerReplicationStatus = "Enabled"
+)
+
+// OwnerOverride is a generated Smithy enum.
+type OwnerOverride string
+
+const (
+	OwnerOverrideDestination OwnerOverride = "Destination"
+)
+
+// MetricsStatus is a generated Smithy enum.
+type MetricsStatus string
+
+const (
+	MetricsStatusDisabled MetricsStatus = "Disabled"
+	MetricsStatusEnabled  MetricsStatus = "Enabled"
+)
+
+// ReplicationTimeStatus is a generated Smithy enum.
+type ReplicationTimeStatus string
+
+const (
+	ReplicationTimeStatusDisabled ReplicationTimeStatus = "Disabled"
+	ReplicationTimeStatusEnabled  ReplicationTimeStatus = "Enabled"
+)
+
+// ExistingObjectReplicationStatus is a generated Smithy enum.
+type ExistingObjectReplicationStatus string
+
+const (
+	ExistingObjectReplicationStatusDisabled ExistingObjectReplicationStatus = "Disabled"
+	ExistingObjectReplicationStatusEnabled  ExistingObjectReplicationStatus = "Enabled"
+)
+
+// ReplicaModificationsStatus is a generated Smithy enum.
+type ReplicaModificationsStatus string
+
+const (
+	ReplicaModificationsStatusDisabled ReplicaModificationsStatus = "Disabled"
+	ReplicaModificationsStatusEnabled  ReplicaModificationsStatus = "Enabled"
+)
+
+// SseKmsEncryptedObjectsStatus is a generated Smithy enum.
+type SseKmsEncryptedObjectsStatus string
+
+const (
+	SseKmsEncryptedObjectsStatusDisabled SseKmsEncryptedObjectsStatus = "Disabled"
+	SseKmsEncryptedObjectsStatusEnabled  SseKmsEncryptedObjectsStatus = "Enabled"
+)
+
+// ReplicationRuleStatus is a generated Smithy enum.
+type ReplicationRuleStatus string
+
+const (
+	ReplicationRuleStatusDisabled ReplicationRuleStatus = "Disabled"
+	ReplicationRuleStatusEnabled  ReplicationRuleStatus = "Enabled"
+)
+
+// Payer is a generated Smithy enum.
+type Payer string
+
+const (
+	PayerBucketOwner Payer = "BucketOwner"
+	PayerRequester   Payer = "Requester"
+)
+
+// Protocol is a generated Smithy enum.
+type Protocol string
+
+const (
+	ProtocolHttp  Protocol = "http"
+	ProtocolHttps Protocol = "https"
+)
+
+// EncryptionType is a generated Smithy enum.
+type EncryptionType string
+
+const (
+	EncryptionTypeNONE  EncryptionType = "NONE"
+	EncryptionTypeSSE_C EncryptionType = "SSE-C"
+)
+
+// BucketAccelerateStatus is a generated Smithy enum.
+type BucketAccelerateStatus string
+
+const (
+	BucketAccelerateStatusEnabled   BucketAccelerateStatus = "Enabled"
+	BucketAccelerateStatusSuspended BucketAccelerateStatus = "Suspended"
+)
+
+// ObjectLockEnabled is a generated Smithy enum.
+type ObjectLockEnabled string
+
+const (
+	ObjectLockEnabledEnabled ObjectLockEnabled = "Enabled"
+)
+
+// ObjectLockRetentionMode is a generated Smithy enum.
+type ObjectLockRetentionMode string
+
+const (
+	ObjectLockRetentionModeCOMPLIANCE ObjectLockRetentionMode = "COMPLIANCE"
+	ObjectLockRetentionModeGOVERNANCE ObjectLockRetentionMode = "GOVERNANCE"
+)
+
+// Event is a generated Smithy enum.
+type Event string
+
+const (
+	EventS3_IntelligentTiering                            Event = "s3:IntelligentTiering"
+	EventS3_LifecycleExpiration_                          Event = "s3:LifecycleExpiration:*"
+	EventS3_LifecycleExpiration_Delete                    Event = "s3:LifecycleExpiration:Delete"
+	EventS3_LifecycleExpiration_DeleteMarkerCreated       Event = "s3:LifecycleExpiration:DeleteMarkerCreated"
+	EventS3_LifecycleTransition                           Event = "s3:LifecycleTransition"
+	EventS3_ObjectAcl_Put                                 Event = "s3:ObjectAcl:Put"
+	EventS3_ObjectCreated_                                Event = "s3:ObjectCreated:*"
+	EventS3_ObjectCreated_CompleteMultipartUpload         Event = "s3:ObjectCreated:CompleteMultipartUpload"
+	EventS3_ObjectCreated_Copy                            Event = "s3:ObjectCreated:Copy"
+	EventS3_ObjectCreated_Post                            Event = "s3:ObjectCreated:Post"
+	EventS3_ObjectCreated_Put                             Event = "s3:ObjectCreated:Put"
+	EventS3_ObjectRemoved_                                Event = "s3:ObjectRemoved:*"
+	EventS3_ObjectRemoved_Delete                          Event = "s3:ObjectRemoved:Delete"
+	EventS3_ObjectRemoved_DeleteMarkerCreated             Event = "s3:ObjectRemoved:DeleteMarkerCreated"
+	EventS3_ObjectRestore_                                Event = "s3:ObjectRestore:*"
+	EventS3_ObjectRestore_Completed                       Event = "s3:ObjectRestore:Completed"
+	EventS3_ObjectRestore_Delete                          Event = "s3:ObjectRestore:Delete"
+	EventS3_ObjectRestore_Post                            Event = "s3:ObjectRestore:Post"
+	EventS3_ObjectTagging_                                Event = "s3:ObjectTagging:*"
+	EventS3_ObjectTagging_Delete                          Event = "s3:ObjectTagging:Delete"
+	EventS3_ObjectTagging_Put                             Event = "s3:ObjectTagging:Put"
+	EventS3_ReducedRedundancyLostObject                   Event = "s3:ReducedRedundancyLostObject"
+	EventS3_Replication_                                  Event = "s3:Replication:*"
+	EventS3_Replication_OperationFailedReplication        Event = "s3:Replication:OperationFailedReplication"
+	EventS3_Replication_OperationMissedThreshold          Event = "s3:Replication:OperationMissedThreshold"
+	EventS3_Replication_OperationNotTracked               Event = "s3:Replication:OperationNotTracked"
+	EventS3_Replication_OperationReplicatedAfterThreshold Event = "s3:Replication:OperationReplicatedAfterThreshold"
+)
+
+// FilterRuleName is a generated Smithy enum.
+type FilterRuleName string
+
+const (
+	FilterRuleNamePrefix FilterRuleName = "prefix"
+	FilterRuleNameSuffix FilterRuleName = "suffix"
+)
+
 // Buckets is a generated Smithy list (wrapper used for the
 // non-flattened XML form; flattened uses inline []Bucket).
 type Buckets struct {
@@ -356,6 +588,126 @@ type MultipartUploadList struct {
 // non-flattened XML form; flattened uses inline []Part).
 type Parts struct {
 	Items []Part `xml:"Part"`
+}
+
+// Grants is a generated Smithy list (wrapper used for the
+// non-flattened XML form; flattened uses inline []Grant).
+type Grants struct {
+	Items []Grant `xml:"Grant"`
+}
+
+// TargetGrants is a generated Smithy list (wrapper used for the
+// non-flattened XML form; flattened uses inline []TargetGrant).
+type TargetGrants struct {
+	Items []TargetGrant `xml:"Grant"`
+}
+
+// AllowedHeaders is a generated Smithy list (wrapper used for the
+// non-flattened XML form; flattened uses inline []string).
+type AllowedHeaders struct {
+	Items []string `xml:"AllowedHeader"`
+}
+
+// AllowedMethods is a generated Smithy list (wrapper used for the
+// non-flattened XML form; flattened uses inline []string).
+type AllowedMethods struct {
+	Items []string `xml:"AllowedMethod"`
+}
+
+// AllowedOrigins is a generated Smithy list (wrapper used for the
+// non-flattened XML form; flattened uses inline []string).
+type AllowedOrigins struct {
+	Items []string `xml:"AllowedOrigin"`
+}
+
+// ExposeHeaders is a generated Smithy list (wrapper used for the
+// non-flattened XML form; flattened uses inline []string).
+type ExposeHeaders struct {
+	Items []string `xml:"ExposeHeader"`
+}
+
+// CORSRules is a generated Smithy list (wrapper used for the
+// non-flattened XML form; flattened uses inline []CORSRule).
+type CORSRules struct {
+	Items []CORSRule `xml:"CORSRule"`
+}
+
+// NoncurrentVersionTransitionList is a generated Smithy list (wrapper used for the
+// non-flattened XML form; flattened uses inline []NoncurrentVersionTransition).
+type NoncurrentVersionTransitionList struct {
+	Items []NoncurrentVersionTransition `xml:"NoncurrentVersionTransition"`
+}
+
+// TransitionList is a generated Smithy list (wrapper used for the
+// non-flattened XML form; flattened uses inline []Transition).
+type TransitionList struct {
+	Items []Transition `xml:"Transition"`
+}
+
+// LifecycleRules is a generated Smithy list (wrapper used for the
+// non-flattened XML form; flattened uses inline []LifecycleRule).
+type LifecycleRules struct {
+	Items []LifecycleRule `xml:"LifecycleRule"`
+}
+
+// ReplicationRules is a generated Smithy list (wrapper used for the
+// non-flattened XML form; flattened uses inline []ReplicationRule).
+type ReplicationRules struct {
+	Items []ReplicationRule `xml:"ReplicationRule"`
+}
+
+// RoutingRules is a generated Smithy list (wrapper used for the
+// non-flattened XML form; flattened uses inline []RoutingRule).
+type RoutingRules struct {
+	Items []RoutingRule `xml:"RoutingRule"`
+}
+
+// EncryptionTypeList is a generated Smithy list (wrapper used for the
+// non-flattened XML form; flattened uses inline []EncryptionType).
+type EncryptionTypeList struct {
+	Items []EncryptionType `xml:"EncryptionType"`
+}
+
+// ServerSideEncryptionRules is a generated Smithy list (wrapper used for the
+// non-flattened XML form; flattened uses inline []ServerSideEncryptionRule).
+type ServerSideEncryptionRules struct {
+	Items []ServerSideEncryptionRule `xml:"ServerSideEncryptionRule"`
+}
+
+// EventList is a generated Smithy list (wrapper used for the
+// non-flattened XML form; flattened uses inline []Event).
+type EventList struct {
+	Items []Event `xml:"Event"`
+}
+
+// FilterRuleList is a generated Smithy list (wrapper used for the
+// non-flattened XML form; flattened uses inline []FilterRule).
+type FilterRuleList struct {
+	Items []FilterRule `xml:"FilterRule"`
+}
+
+// LambdaFunctionConfigurationList is a generated Smithy list (wrapper used for the
+// non-flattened XML form; flattened uses inline []LambdaFunctionConfiguration).
+type LambdaFunctionConfigurationList struct {
+	Items []LambdaFunctionConfiguration `xml:"LambdaFunctionConfiguration"`
+}
+
+// QueueConfigurationList is a generated Smithy list (wrapper used for the
+// non-flattened XML form; flattened uses inline []QueueConfiguration).
+type QueueConfigurationList struct {
+	Items []QueueConfiguration `xml:"QueueConfiguration"`
+}
+
+// TopicConfigurationList is a generated Smithy list (wrapper used for the
+// non-flattened XML form; flattened uses inline []TopicConfiguration).
+type TopicConfigurationList struct {
+	Items []TopicConfiguration `xml:"TopicConfiguration"`
+}
+
+// OwnershipControlsRules is a generated Smithy list (wrapper used for the
+// non-flattened XML form; flattened uses inline []OwnershipControlsRule).
+type OwnershipControlsRules struct {
+	Items []OwnershipControlsRule `xml:"OwnershipControlsRule"`
 }
 
 // Metadata is a generated Smithy map.
@@ -1180,6 +1532,584 @@ type ListPartsOutput struct {
 	UploadId             *string            `xml:"UploadId,omitempty"`
 }
 
+// GetBucketLocationRequest is a generated Smithy structure.
+type GetBucketLocationRequest struct {
+	Bucket              string  // bound to label=Bucket
+	ExpectedBucketOwner *string // bound to header=x-amz-expected-bucket-owner
+}
+
+// GetBucketLocationOutput is a generated Smithy structure.
+type GetBucketLocationOutput struct {
+	XMLName            xml.Name                  `xml:"LocationConstraint"`
+	LocationConstraint *BucketLocationConstraint `xml:"LocationConstraint,omitempty"`
+}
+
+// GetBucketPolicyRequest is a generated Smithy structure.
+type GetBucketPolicyRequest struct {
+	Bucket              string  // bound to label=Bucket
+	ExpectedBucketOwner *string // bound to header=x-amz-expected-bucket-owner
+}
+
+// GetBucketPolicyOutput is a generated Smithy structure.
+type GetBucketPolicyOutput struct {
+	Policy *string // bound to payload=
+}
+
+// GetBucketAclRequest is a generated Smithy structure.
+type GetBucketAclRequest struct {
+	Bucket              string  // bound to label=Bucket
+	ExpectedBucketOwner *string // bound to header=x-amz-expected-bucket-owner
+}
+
+// Grantee is a generated Smithy structure.
+type Grantee struct {
+	DisplayName  *string `xml:"DisplayName,omitempty"`
+	EmailAddress *string `xml:"EmailAddress,omitempty"`
+	ID           *string `xml:"ID,omitempty"`
+	Type         Type    `xml:"xsi:type,attr"`
+	URI          *string `xml:"URI,omitempty"`
+}
+
+// Grant is a generated Smithy structure.
+type Grant struct {
+	Grantee    *Grantee    `xml:"Grantee,omitempty"`
+	Permission *Permission `xml:"Permission,omitempty"`
+}
+
+// GetBucketAclOutput is a generated Smithy structure.
+type GetBucketAclOutput struct {
+	XMLName xml.Name `xml:"AccessControlPolicy"`
+	Grants  Grants   `xml:"AccessControlList,omitempty"`
+	Owner   *Owner   `xml:"Owner,omitempty"`
+}
+
+// GetBucketVersioningRequest is a generated Smithy structure.
+type GetBucketVersioningRequest struct {
+	Bucket              string  // bound to label=Bucket
+	ExpectedBucketOwner *string // bound to header=x-amz-expected-bucket-owner
+}
+
+// GetBucketVersioningOutput is a generated Smithy structure.
+type GetBucketVersioningOutput struct {
+	XMLName   xml.Name                `xml:"VersioningConfiguration"`
+	MFADelete *MFADeleteStatus        `xml:"MfaDelete,omitempty"`
+	Status    *BucketVersioningStatus `xml:"Status,omitempty"`
+}
+
+// GetBucketLoggingRequest is a generated Smithy structure.
+type GetBucketLoggingRequest struct {
+	Bucket              string  // bound to label=Bucket
+	ExpectedBucketOwner *string // bound to header=x-amz-expected-bucket-owner
+}
+
+// TargetGrant is a generated Smithy structure.
+type TargetGrant struct {
+	Grantee    *Grantee              `xml:"Grantee,omitempty"`
+	Permission *BucketLogsPermission `xml:"Permission,omitempty"`
+}
+
+// PartitionedPrefix is a generated Smithy structure.
+type PartitionedPrefix struct {
+	XMLName             xml.Name             `xml:"PartitionedPrefix"`
+	PartitionDateSource *PartitionDateSource `xml:"PartitionDateSource,omitempty"`
+}
+
+// SimplePrefix is a generated Smithy structure.
+type SimplePrefix struct {
+	XMLName xml.Name `xml:"SimplePrefix"`
+}
+
+// TargetObjectKeyFormat is a generated Smithy structure.
+type TargetObjectKeyFormat struct {
+	PartitionedPrefix *PartitionedPrefix `xml:"PartitionedPrefix,omitempty"`
+	SimplePrefix      *SimplePrefix      `xml:"SimplePrefix,omitempty"`
+}
+
+// LoggingEnabled is a generated Smithy structure.
+type LoggingEnabled struct {
+	TargetBucket          string                 `xml:"TargetBucket,omitempty"`
+	TargetGrants          TargetGrants           `xml:"TargetGrants,omitempty"`
+	TargetObjectKeyFormat *TargetObjectKeyFormat `xml:"TargetObjectKeyFormat,omitempty"`
+	TargetPrefix          string                 `xml:"TargetPrefix,omitempty"`
+}
+
+// GetBucketLoggingOutput is a generated Smithy structure.
+type GetBucketLoggingOutput struct {
+	XMLName        xml.Name        `xml:"BucketLoggingStatus"`
+	LoggingEnabled *LoggingEnabled `xml:"LoggingEnabled,omitempty"`
+}
+
+// GetBucketCorsRequest is a generated Smithy structure.
+type GetBucketCorsRequest struct {
+	Bucket              string  // bound to label=Bucket
+	ExpectedBucketOwner *string // bound to header=x-amz-expected-bucket-owner
+}
+
+// CORSRule is a generated Smithy structure.
+type CORSRule struct {
+	AllowedHeaders []string `xml:"AllowedHeader,omitempty"`
+	AllowedMethods []string `xml:"AllowedMethod,omitempty"`
+	AllowedOrigins []string `xml:"AllowedOrigin,omitempty"`
+	ExposeHeaders  []string `xml:"ExposeHeader,omitempty"`
+	ID             *string  `xml:"ID,omitempty"`
+	MaxAgeSeconds  *int32   `xml:"MaxAgeSeconds,omitempty"`
+}
+
+// GetBucketCorsOutput is a generated Smithy structure.
+type GetBucketCorsOutput struct {
+	XMLName   xml.Name   `xml:"CORSConfiguration"`
+	CORSRules []CORSRule `xml:"CORSRule,omitempty"`
+}
+
+// GetBucketLifecycleConfigurationRequest is a generated Smithy structure.
+type GetBucketLifecycleConfigurationRequest struct {
+	Bucket              string  // bound to label=Bucket
+	ExpectedBucketOwner *string // bound to header=x-amz-expected-bucket-owner
+}
+
+// AbortIncompleteMultipartUpload is a generated Smithy structure.
+type AbortIncompleteMultipartUpload struct {
+	DaysAfterInitiation *int32 `xml:"DaysAfterInitiation,omitempty"`
+}
+
+// LifecycleExpiration is a generated Smithy structure.
+type LifecycleExpiration struct {
+	Date                      *time.Time `xml:"Date,omitempty"`
+	Days                      *int32     `xml:"Days,omitempty"`
+	ExpiredObjectDeleteMarker *bool      `xml:"ExpiredObjectDeleteMarker,omitempty"`
+}
+
+// LifecycleRuleAndOperator is a generated Smithy structure.
+type LifecycleRuleAndOperator struct {
+	ObjectSizeGreaterThan *int64  `xml:"ObjectSizeGreaterThan,omitempty"`
+	ObjectSizeLessThan    *int64  `xml:"ObjectSizeLessThan,omitempty"`
+	Prefix                *string `xml:"Prefix,omitempty"`
+	Tags                  []Tag   `xml:"Tag,omitempty"`
+}
+
+// LifecycleRuleFilter is a generated Smithy structure.
+type LifecycleRuleFilter struct {
+	And                   *LifecycleRuleAndOperator `xml:"And,omitempty"`
+	ObjectSizeGreaterThan *int64                    `xml:"ObjectSizeGreaterThan,omitempty"`
+	ObjectSizeLessThan    *int64                    `xml:"ObjectSizeLessThan,omitempty"`
+	Prefix                *string                   `xml:"Prefix,omitempty"`
+	Tag                   *Tag                      `xml:"Tag,omitempty"`
+}
+
+// NoncurrentVersionExpiration is a generated Smithy structure.
+type NoncurrentVersionExpiration struct {
+	NewerNoncurrentVersions *int32 `xml:"NewerNoncurrentVersions,omitempty"`
+	NoncurrentDays          *int32 `xml:"NoncurrentDays,omitempty"`
+}
+
+// NoncurrentVersionTransition is a generated Smithy structure.
+type NoncurrentVersionTransition struct {
+	NewerNoncurrentVersions *int32                  `xml:"NewerNoncurrentVersions,omitempty"`
+	NoncurrentDays          *int32                  `xml:"NoncurrentDays,omitempty"`
+	StorageClass            *TransitionStorageClass `xml:"StorageClass,omitempty"`
+}
+
+// Transition is a generated Smithy structure.
+type Transition struct {
+	Date         *time.Time              `xml:"Date,omitempty"`
+	Days         *int32                  `xml:"Days,omitempty"`
+	StorageClass *TransitionStorageClass `xml:"StorageClass,omitempty"`
+}
+
+// LifecycleRule is a generated Smithy structure.
+type LifecycleRule struct {
+	AbortIncompleteMultipartUpload *AbortIncompleteMultipartUpload `xml:"AbortIncompleteMultipartUpload,omitempty"`
+	Expiration                     *LifecycleExpiration            `xml:"Expiration,omitempty"`
+	Filter                         *LifecycleRuleFilter            `xml:"Filter,omitempty"`
+	ID                             *string                         `xml:"ID,omitempty"`
+	NoncurrentVersionExpiration    *NoncurrentVersionExpiration    `xml:"NoncurrentVersionExpiration,omitempty"`
+	NoncurrentVersionTransitions   []NoncurrentVersionTransition   `xml:"NoncurrentVersionTransition,omitempty"`
+	Prefix                         *string                         `xml:"Prefix,omitempty"`
+	Status                         ExpirationStatus                `xml:"Status,omitempty"`
+	Transitions                    []Transition                    `xml:"Transition,omitempty"`
+}
+
+// GetBucketLifecycleConfigurationOutput is a generated Smithy structure.
+type GetBucketLifecycleConfigurationOutput struct {
+	XMLName                            xml.Name                            `xml:"LifecycleConfiguration"`
+	Rules                              []LifecycleRule                     `xml:"LifecycleRule,omitempty"`
+	TransitionDefaultMinimumObjectSize *TransitionDefaultMinimumObjectSize // bound to header=x-amz-transition-default-minimum-object-size
+}
+
+// GetBucketReplicationRequest is a generated Smithy structure.
+type GetBucketReplicationRequest struct {
+	Bucket              string  // bound to label=Bucket
+	ExpectedBucketOwner *string // bound to header=x-amz-expected-bucket-owner
+}
+
+// DeleteMarkerReplication is a generated Smithy structure.
+type DeleteMarkerReplication struct {
+	Status *DeleteMarkerReplicationStatus `xml:"Status,omitempty"`
+}
+
+// AccessControlTranslation is a generated Smithy structure.
+type AccessControlTranslation struct {
+	Owner OwnerOverride `xml:"Owner,omitempty"`
+}
+
+// EncryptionConfiguration is a generated Smithy structure.
+type EncryptionConfiguration struct {
+	ReplicaKmsKeyID *string `xml:"ReplicaKmsKeyID,omitempty"`
+}
+
+// ReplicationTimeValue is a generated Smithy structure.
+type ReplicationTimeValue struct {
+	Minutes *int32 `xml:"Minutes,omitempty"`
+}
+
+// Metrics is a generated Smithy structure.
+type Metrics struct {
+	EventThreshold *ReplicationTimeValue `xml:"EventThreshold,omitempty"`
+	Status         MetricsStatus         `xml:"Status,omitempty"`
+}
+
+// ReplicationTime is a generated Smithy structure.
+type ReplicationTime struct {
+	Status ReplicationTimeStatus `xml:"Status,omitempty"`
+	Time   *ReplicationTimeValue `xml:"Time,omitempty"`
+}
+
+// Destination is a generated Smithy structure.
+type Destination struct {
+	AccessControlTranslation *AccessControlTranslation `xml:"AccessControlTranslation,omitempty"`
+	Account                  *string                   `xml:"Account,omitempty"`
+	Bucket                   string                    `xml:"Bucket,omitempty"`
+	EncryptionConfiguration  *EncryptionConfiguration  `xml:"EncryptionConfiguration,omitempty"`
+	Metrics                  *Metrics                  `xml:"Metrics,omitempty"`
+	ReplicationTime          *ReplicationTime          `xml:"ReplicationTime,omitempty"`
+	StorageClass             *StorageClass             `xml:"StorageClass,omitempty"`
+}
+
+// ExistingObjectReplication is a generated Smithy structure.
+type ExistingObjectReplication struct {
+	Status ExistingObjectReplicationStatus `xml:"Status,omitempty"`
+}
+
+// ReplicationRuleAndOperator is a generated Smithy structure.
+type ReplicationRuleAndOperator struct {
+	Prefix *string `xml:"Prefix,omitempty"`
+	Tags   []Tag   `xml:"Tag,omitempty"`
+}
+
+// ReplicationRuleFilter is a generated Smithy structure.
+type ReplicationRuleFilter struct {
+	And    *ReplicationRuleAndOperator `xml:"And,omitempty"`
+	Prefix *string                     `xml:"Prefix,omitempty"`
+	Tag    *Tag                        `xml:"Tag,omitempty"`
+}
+
+// ReplicaModifications is a generated Smithy structure.
+type ReplicaModifications struct {
+	Status ReplicaModificationsStatus `xml:"Status,omitempty"`
+}
+
+// SseKmsEncryptedObjects is a generated Smithy structure.
+type SseKmsEncryptedObjects struct {
+	Status SseKmsEncryptedObjectsStatus `xml:"Status,omitempty"`
+}
+
+// SourceSelectionCriteria is a generated Smithy structure.
+type SourceSelectionCriteria struct {
+	ReplicaModifications   *ReplicaModifications   `xml:"ReplicaModifications,omitempty"`
+	SseKmsEncryptedObjects *SseKmsEncryptedObjects `xml:"SseKmsEncryptedObjects,omitempty"`
+}
+
+// ReplicationRule is a generated Smithy structure.
+type ReplicationRule struct {
+	DeleteMarkerReplication   *DeleteMarkerReplication   `xml:"DeleteMarkerReplication,omitempty"`
+	Destination               *Destination               `xml:"Destination,omitempty"`
+	ExistingObjectReplication *ExistingObjectReplication `xml:"ExistingObjectReplication,omitempty"`
+	Filter                    *ReplicationRuleFilter     `xml:"Filter,omitempty"`
+	ID                        *string                    `xml:"ID,omitempty"`
+	Prefix                    *string                    `xml:"Prefix,omitempty"`
+	Priority                  *int32                     `xml:"Priority,omitempty"`
+	SourceSelectionCriteria   *SourceSelectionCriteria   `xml:"SourceSelectionCriteria,omitempty"`
+	Status                    ReplicationRuleStatus      `xml:"Status,omitempty"`
+}
+
+// ReplicationConfiguration is a generated Smithy structure.
+type ReplicationConfiguration struct {
+	Role  string            `xml:"Role,omitempty"`
+	Rules []ReplicationRule `xml:"ReplicationRule,omitempty"`
+}
+
+// GetBucketReplicationOutput is a generated Smithy structure.
+type GetBucketReplicationOutput struct {
+	ReplicationConfiguration *ReplicationConfiguration // bound to payload=
+}
+
+// GetBucketRequestPaymentRequest is a generated Smithy structure.
+type GetBucketRequestPaymentRequest struct {
+	Bucket              string  // bound to label=Bucket
+	ExpectedBucketOwner *string // bound to header=x-amz-expected-bucket-owner
+}
+
+// GetBucketRequestPaymentOutput is a generated Smithy structure.
+type GetBucketRequestPaymentOutput struct {
+	XMLName xml.Name `xml:"RequestPaymentConfiguration"`
+	Payer   *Payer   `xml:"Payer,omitempty"`
+}
+
+// GetBucketTaggingRequest is a generated Smithy structure.
+type GetBucketTaggingRequest struct {
+	Bucket              string  // bound to label=Bucket
+	ExpectedBucketOwner *string // bound to header=x-amz-expected-bucket-owner
+}
+
+// GetBucketTaggingOutput is a generated Smithy structure.
+type GetBucketTaggingOutput struct {
+	XMLName xml.Name `xml:"Tagging"`
+	TagSet  TagSet   `xml:"TagSet,omitempty"`
+}
+
+// GetBucketWebsiteRequest is a generated Smithy structure.
+type GetBucketWebsiteRequest struct {
+	Bucket              string  // bound to label=Bucket
+	ExpectedBucketOwner *string // bound to header=x-amz-expected-bucket-owner
+}
+
+// ErrorDocument is a generated Smithy structure.
+type ErrorDocument struct {
+	Key string `xml:"Key,omitempty"`
+}
+
+// IndexDocument is a generated Smithy structure.
+type IndexDocument struct {
+	Suffix string `xml:"Suffix,omitempty"`
+}
+
+// RedirectAllRequestsTo is a generated Smithy structure.
+type RedirectAllRequestsTo struct {
+	HostName string    `xml:"HostName,omitempty"`
+	Protocol *Protocol `xml:"Protocol,omitempty"`
+}
+
+// Condition is a generated Smithy structure.
+type Condition struct {
+	HttpErrorCodeReturnedEquals *string `xml:"HttpErrorCodeReturnedEquals,omitempty"`
+	KeyPrefixEquals             *string `xml:"KeyPrefixEquals,omitempty"`
+}
+
+// Redirect is a generated Smithy structure.
+type Redirect struct {
+	HostName             *string   `xml:"HostName,omitempty"`
+	HttpRedirectCode     *string   `xml:"HttpRedirectCode,omitempty"`
+	Protocol             *Protocol `xml:"Protocol,omitempty"`
+	ReplaceKeyPrefixWith *string   `xml:"ReplaceKeyPrefixWith,omitempty"`
+	ReplaceKeyWith       *string   `xml:"ReplaceKeyWith,omitempty"`
+}
+
+// RoutingRule is a generated Smithy structure.
+type RoutingRule struct {
+	Condition *Condition `xml:"Condition,omitempty"`
+	Redirect  *Redirect  `xml:"Redirect,omitempty"`
+}
+
+// GetBucketWebsiteOutput is a generated Smithy structure.
+type GetBucketWebsiteOutput struct {
+	XMLName               xml.Name               `xml:"WebsiteConfiguration"`
+	ErrorDocument         *ErrorDocument         `xml:"ErrorDocument,omitempty"`
+	IndexDocument         *IndexDocument         `xml:"IndexDocument,omitempty"`
+	RedirectAllRequestsTo *RedirectAllRequestsTo `xml:"RedirectAllRequestsTo,omitempty"`
+	RoutingRules          RoutingRules           `xml:"RoutingRules,omitempty"`
+}
+
+// GetBucketEncryptionRequest is a generated Smithy structure.
+type GetBucketEncryptionRequest struct {
+	Bucket              string  // bound to label=Bucket
+	ExpectedBucketOwner *string // bound to header=x-amz-expected-bucket-owner
+}
+
+// ServerSideEncryptionByDefault is a generated Smithy structure.
+type ServerSideEncryptionByDefault struct {
+	KMSMasterKeyID *string              `xml:"KMSMasterKeyID,omitempty"`
+	SSEAlgorithm   ServerSideEncryption `xml:"SSEAlgorithm,omitempty"`
+}
+
+// BlockedEncryptionTypes is a generated Smithy structure.
+type BlockedEncryptionTypes struct {
+	EncryptionType []EncryptionType `xml:"EncryptionType,omitempty"`
+}
+
+// ServerSideEncryptionRule is a generated Smithy structure.
+type ServerSideEncryptionRule struct {
+	ApplyServerSideEncryptionByDefault *ServerSideEncryptionByDefault `xml:"ApplyServerSideEncryptionByDefault,omitempty"`
+	BlockedEncryptionTypes             *BlockedEncryptionTypes        `xml:"BlockedEncryptionTypes,omitempty"`
+	BucketKeyEnabled                   *bool                          `xml:"BucketKeyEnabled,omitempty"`
+}
+
+// ServerSideEncryptionConfiguration is a generated Smithy structure.
+type ServerSideEncryptionConfiguration struct {
+	Rules []ServerSideEncryptionRule `xml:"ServerSideEncryptionRule,omitempty"`
+}
+
+// GetBucketEncryptionOutput is a generated Smithy structure.
+type GetBucketEncryptionOutput struct {
+	ServerSideEncryptionConfiguration *ServerSideEncryptionConfiguration // bound to payload=
+}
+
+// GetBucketAccelerateConfigurationRequest is a generated Smithy structure.
+type GetBucketAccelerateConfigurationRequest struct {
+	Bucket              string        // bound to label=Bucket
+	ExpectedBucketOwner *string       // bound to header=x-amz-expected-bucket-owner
+	RequestPayer        *RequestPayer // bound to header=x-amz-request-payer
+}
+
+// GetBucketAccelerateConfigurationOutput is a generated Smithy structure.
+type GetBucketAccelerateConfigurationOutput struct {
+	XMLName        xml.Name                `xml:"AccelerateConfiguration"`
+	RequestCharged *RequestCharged         // bound to header=x-amz-request-charged
+	Status         *BucketAccelerateStatus `xml:"Status,omitempty"`
+}
+
+// GetObjectLockConfigurationRequest is a generated Smithy structure.
+type GetObjectLockConfigurationRequest struct {
+	Bucket              string  // bound to label=Bucket
+	ExpectedBucketOwner *string // bound to header=x-amz-expected-bucket-owner
+}
+
+// DefaultRetention is a generated Smithy structure.
+type DefaultRetention struct {
+	Days  *int32                   `xml:"Days,omitempty"`
+	Mode  *ObjectLockRetentionMode `xml:"Mode,omitempty"`
+	Years *int32                   `xml:"Years,omitempty"`
+}
+
+// ObjectLockRule is a generated Smithy structure.
+type ObjectLockRule struct {
+	DefaultRetention *DefaultRetention `xml:"DefaultRetention,omitempty"`
+}
+
+// ObjectLockConfiguration is a generated Smithy structure.
+type ObjectLockConfiguration struct {
+	ObjectLockEnabled *ObjectLockEnabled `xml:"ObjectLockEnabled,omitempty"`
+	Rule              *ObjectLockRule    `xml:"Rule,omitempty"`
+}
+
+// GetObjectLockConfigurationOutput is a generated Smithy structure.
+type GetObjectLockConfigurationOutput struct {
+	ObjectLockConfiguration *ObjectLockConfiguration // bound to payload=
+}
+
+// GetBucketNotificationConfigurationRequest is a generated Smithy structure.
+type GetBucketNotificationConfigurationRequest struct {
+	Bucket              string  // bound to label=Bucket
+	ExpectedBucketOwner *string // bound to header=x-amz-expected-bucket-owner
+}
+
+// EventBridgeConfiguration is a generated Smithy structure.
+type EventBridgeConfiguration struct {
+}
+
+// FilterRule is a generated Smithy structure.
+type FilterRule struct {
+	Name  *FilterRuleName `xml:"Name,omitempty"`
+	Value *string         `xml:"Value,omitempty"`
+}
+
+// S3KeyFilter is a generated Smithy structure.
+type S3KeyFilter struct {
+	FilterRules []FilterRule `xml:"FilterRule,omitempty"`
+}
+
+// NotificationConfigurationFilter is a generated Smithy structure.
+type NotificationConfigurationFilter struct {
+	Key *S3KeyFilter `xml:"S3Key,omitempty"`
+}
+
+// LambdaFunctionConfiguration is a generated Smithy structure.
+type LambdaFunctionConfiguration struct {
+	Events            []Event                          `xml:"Event,omitempty"`
+	Filter            *NotificationConfigurationFilter `xml:"Filter,omitempty"`
+	Id                *string                          `xml:"Id,omitempty"`
+	LambdaFunctionArn string                           `xml:"CloudFunction,omitempty"`
+}
+
+// QueueConfiguration is a generated Smithy structure.
+type QueueConfiguration struct {
+	Events   []Event                          `xml:"Event,omitempty"`
+	Filter   *NotificationConfigurationFilter `xml:"Filter,omitempty"`
+	Id       *string                          `xml:"Id,omitempty"`
+	QueueArn string                           `xml:"Queue,omitempty"`
+}
+
+// TopicConfiguration is a generated Smithy structure.
+type TopicConfiguration struct {
+	Events   []Event                          `xml:"Event,omitempty"`
+	Filter   *NotificationConfigurationFilter `xml:"Filter,omitempty"`
+	Id       *string                          `xml:"Id,omitempty"`
+	TopicArn string                           `xml:"Topic,omitempty"`
+}
+
+// NotificationConfiguration is a generated Smithy structure.
+type NotificationConfiguration struct {
+	EventBridgeConfiguration     *EventBridgeConfiguration     `xml:"EventBridgeConfiguration,omitempty"`
+	LambdaFunctionConfigurations []LambdaFunctionConfiguration `xml:"LambdaFunctionConfiguration,omitempty"`
+	QueueConfigurations          []QueueConfiguration          `xml:"QueueConfiguration,omitempty"`
+	TopicConfigurations          []TopicConfiguration          `xml:"TopicConfiguration,omitempty"`
+}
+
+// GetBucketOwnershipControlsRequest is a generated Smithy structure.
+type GetBucketOwnershipControlsRequest struct {
+	Bucket              string  // bound to label=Bucket
+	ExpectedBucketOwner *string // bound to header=x-amz-expected-bucket-owner
+}
+
+// OwnershipControlsRule is a generated Smithy structure.
+type OwnershipControlsRule struct {
+	ObjectOwnership ObjectOwnership `xml:"ObjectOwnership,omitempty"`
+}
+
+// OwnershipControls is a generated Smithy structure.
+type OwnershipControls struct {
+	Rules []OwnershipControlsRule `xml:"OwnershipControlsRule,omitempty"`
+}
+
+// GetBucketOwnershipControlsOutput is a generated Smithy structure.
+type GetBucketOwnershipControlsOutput struct {
+	OwnershipControls *OwnershipControls // bound to payload=
+}
+
+// GetBucketPolicyStatusRequest is a generated Smithy structure.
+type GetBucketPolicyStatusRequest struct {
+	Bucket              string  // bound to label=Bucket
+	ExpectedBucketOwner *string // bound to header=x-amz-expected-bucket-owner
+}
+
+// PolicyStatus is a generated Smithy structure.
+type PolicyStatus struct {
+	IsPublic *bool `xml:"IsPublic,omitempty"`
+}
+
+// GetBucketPolicyStatusOutput is a generated Smithy structure.
+type GetBucketPolicyStatusOutput struct {
+	PolicyStatus *PolicyStatus // bound to payload=
+}
+
+// GetPublicAccessBlockRequest is a generated Smithy structure.
+type GetPublicAccessBlockRequest struct {
+	Bucket              string  // bound to label=Bucket
+	ExpectedBucketOwner *string // bound to header=x-amz-expected-bucket-owner
+}
+
+// PublicAccessBlockConfiguration is a generated Smithy structure.
+type PublicAccessBlockConfiguration struct {
+	BlockPublicAcls       *bool `xml:"BlockPublicAcls,omitempty"`
+	BlockPublicPolicy     *bool `xml:"BlockPublicPolicy,omitempty"`
+	IgnorePublicAcls      *bool `xml:"IgnorePublicAcls,omitempty"`
+	RestrictPublicBuckets *bool `xml:"RestrictPublicBuckets,omitempty"`
+}
+
+// GetPublicAccessBlockOutput is a generated Smithy structure.
+type GetPublicAccessBlockOutput struct {
+	PublicAccessBlockConfiguration *PublicAccessBlockConfiguration // bound to payload=
+}
+
 // AmazonS3Backend is the union of every per-operation backend
 // interface emitted from the spec. A real backend implementation
 // satisfies this union; the harness's in-memory backend satisfies it
@@ -1202,6 +2132,24 @@ type AmazonS3Backend interface {
 	AbortMultipartUploadBackend
 	ListMultipartUploadsBackend
 	ListPartsBackend
+	GetBucketLocationBackend
+	GetBucketPolicyBackend
+	GetBucketAclBackend
+	GetBucketVersioningBackend
+	GetBucketLoggingBackend
+	GetBucketCorsBackend
+	GetBucketLifecycleConfigurationBackend
+	GetBucketReplicationBackend
+	GetBucketRequestPaymentBackend
+	GetBucketTaggingBackend
+	GetBucketWebsiteBackend
+	GetBucketEncryptionBackend
+	GetBucketAccelerateConfigurationBackend
+	GetObjectLockConfigurationBackend
+	GetBucketNotificationConfigurationBackend
+	GetBucketOwnershipControlsBackend
+	GetBucketPolicyStatusBackend
+	GetPublicAccessBlockBackend
 }
 
 // RegisterAmazonS3Routes mounts every shimmed operation handler
@@ -1305,6 +2253,114 @@ func RegisterAmazonS3Routes(router *restxml.Router, b AmazonS3Backend) {
 			RequiredQueries: []string{"uploadId"},
 		},
 	)
+	router.Register(GetBucketLocationMethod, GetBucketLocationURITemplate, "GetBucketLocation", GetBucketLocationHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders: []string{},
+			RequiredQueries: []string{},
+		},
+	)
+	router.Register(GetBucketPolicyMethod, GetBucketPolicyURITemplate, "GetBucketPolicy", GetBucketPolicyHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders: []string{},
+			RequiredQueries: []string{},
+		},
+	)
+	router.Register(GetBucketAclMethod, GetBucketAclURITemplate, "GetBucketAcl", GetBucketAclHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders: []string{},
+			RequiredQueries: []string{},
+		},
+	)
+	router.Register(GetBucketVersioningMethod, GetBucketVersioningURITemplate, "GetBucketVersioning", GetBucketVersioningHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders: []string{},
+			RequiredQueries: []string{},
+		},
+	)
+	router.Register(GetBucketLoggingMethod, GetBucketLoggingURITemplate, "GetBucketLogging", GetBucketLoggingHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders: []string{},
+			RequiredQueries: []string{},
+		},
+	)
+	router.Register(GetBucketCorsMethod, GetBucketCorsURITemplate, "GetBucketCors", GetBucketCorsHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders: []string{},
+			RequiredQueries: []string{},
+		},
+	)
+	router.Register(GetBucketLifecycleConfigurationMethod, GetBucketLifecycleConfigurationURITemplate, "GetBucketLifecycleConfiguration", GetBucketLifecycleConfigurationHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders: []string{},
+			RequiredQueries: []string{},
+		},
+	)
+	router.Register(GetBucketReplicationMethod, GetBucketReplicationURITemplate, "GetBucketReplication", GetBucketReplicationHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders: []string{},
+			RequiredQueries: []string{},
+		},
+	)
+	router.Register(GetBucketRequestPaymentMethod, GetBucketRequestPaymentURITemplate, "GetBucketRequestPayment", GetBucketRequestPaymentHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders: []string{},
+			RequiredQueries: []string{},
+		},
+	)
+	router.Register(GetBucketTaggingMethod, GetBucketTaggingURITemplate, "GetBucketTagging", GetBucketTaggingHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders: []string{},
+			RequiredQueries: []string{},
+		},
+	)
+	router.Register(GetBucketWebsiteMethod, GetBucketWebsiteURITemplate, "GetBucketWebsite", GetBucketWebsiteHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders: []string{},
+			RequiredQueries: []string{},
+		},
+	)
+	router.Register(GetBucketEncryptionMethod, GetBucketEncryptionURITemplate, "GetBucketEncryption", GetBucketEncryptionHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders: []string{},
+			RequiredQueries: []string{},
+		},
+	)
+	router.Register(GetBucketAccelerateConfigurationMethod, GetBucketAccelerateConfigurationURITemplate, "GetBucketAccelerateConfiguration", GetBucketAccelerateConfigurationHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders: []string{},
+			RequiredQueries: []string{},
+		},
+	)
+	router.Register(GetObjectLockConfigurationMethod, GetObjectLockConfigurationURITemplate, "GetObjectLockConfiguration", GetObjectLockConfigurationHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders: []string{},
+			RequiredQueries: []string{},
+		},
+	)
+	router.Register(GetBucketNotificationConfigurationMethod, GetBucketNotificationConfigurationURITemplate, "GetBucketNotificationConfiguration", GetBucketNotificationConfigurationHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders: []string{},
+			RequiredQueries: []string{},
+		},
+	)
+	router.Register(GetBucketOwnershipControlsMethod, GetBucketOwnershipControlsURITemplate, "GetBucketOwnershipControls", GetBucketOwnershipControlsHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders: []string{},
+			RequiredQueries: []string{},
+		},
+	)
+	router.Register(GetBucketPolicyStatusMethod, GetBucketPolicyStatusURITemplate, "GetBucketPolicyStatus", GetBucketPolicyStatusHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders: []string{},
+			RequiredQueries: []string{},
+		},
+	)
+	router.Register(GetPublicAccessBlockMethod, GetPublicAccessBlockURITemplate, "GetPublicAccessBlock", GetPublicAccessBlockHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders: []string{},
+			RequiredQueries: []string{},
+		},
+	)
 }
 
 // ListBucketsBackend serves the ListBuckets operation.
@@ -1352,7 +2408,7 @@ func ListBucketsHandler(b ListBucketsBackend) http.Handler {
 
 		out, err := b.ListBuckets(ctx, in)
 		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
+			restxml.WriteBackendError(w, err)
 			return
 		}
 		_ = out
@@ -1440,7 +2496,7 @@ func CreateBucketHandler(b CreateBucketBackend) http.Handler {
 		}
 		out, err := b.CreateBucket(ctx, in)
 		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
+			restxml.WriteBackendError(w, err)
 			return
 		}
 		_ = out
@@ -1491,7 +2547,7 @@ func DeleteBucketHandler(b DeleteBucketBackend) http.Handler {
 
 		out, err := b.DeleteBucket(ctx, in)
 		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
+			restxml.WriteBackendError(w, err)
 			return
 		}
 		_ = out
@@ -1534,7 +2590,7 @@ func HeadBucketHandler(b HeadBucketBackend) http.Handler {
 
 		out, err := b.HeadBucket(ctx, in)
 		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
+			restxml.WriteBackendError(w, err)
 			return
 		}
 		_ = out
@@ -1636,7 +2692,7 @@ func ListObjectsV2Handler(b ListObjectsV2Backend) http.Handler {
 
 		out, err := b.ListObjectsV2(ctx, in)
 		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
+			restxml.WriteBackendError(w, err)
 			return
 		}
 		_ = out
@@ -1766,7 +2822,7 @@ func GetObjectHandler(b GetObjectBackend) http.Handler {
 
 		out, err := b.GetObject(ctx, in)
 		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
+			restxml.WriteBackendError(w, err)
 			return
 		}
 		_ = out
@@ -2167,7 +3223,7 @@ func PutObjectHandler(b PutObjectBackend) http.Handler {
 		in.Body = _payload
 		out, err := b.PutObject(ctx, in)
 		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
+			restxml.WriteBackendError(w, err)
 			return
 		}
 		_ = out
@@ -2335,7 +3391,7 @@ func DeleteObjectHandler(b DeleteObjectBackend) http.Handler {
 
 		out, err := b.DeleteObject(ctx, in)
 		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
+			restxml.WriteBackendError(w, err)
 			return
 		}
 		_ = out
@@ -2470,7 +3526,7 @@ func HeadObjectHandler(b HeadObjectBackend) http.Handler {
 
 		out, err := b.HeadObject(ctx, in)
 		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
+			restxml.WriteBackendError(w, err)
 			return
 		}
 		_ = out
@@ -2863,7 +3919,7 @@ func CopyObjectHandler(b CopyObjectBackend) http.Handler {
 
 		out, err := b.CopyObject(ctx, in)
 		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
+			restxml.WriteBackendError(w, err)
 			return
 		}
 		_ = out
@@ -3074,7 +4130,7 @@ func CreateMultipartUploadHandler(b CreateMultipartUploadBackend) http.Handler {
 
 		out, err := b.CreateMultipartUpload(ctx, in)
 		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
+			restxml.WriteBackendError(w, err)
 			return
 		}
 		_ = out
@@ -3250,7 +4306,7 @@ func UploadPartHandler(b UploadPartBackend) http.Handler {
 		in.Body = _payload
 		out, err := b.UploadPart(ctx, in)
 		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
+			restxml.WriteBackendError(w, err)
 			return
 		}
 		_ = out
@@ -3450,7 +4506,7 @@ func CompleteMultipartUploadHandler(b CompleteMultipartUploadBackend) http.Handl
 		}
 		out, err := b.CompleteMultipartUpload(ctx, in)
 		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
+			restxml.WriteBackendError(w, err)
 			return
 		}
 		_ = out
@@ -3537,7 +4593,7 @@ func AbortMultipartUploadHandler(b AbortMultipartUploadBackend) http.Handler {
 
 		out, err := b.AbortMultipartUpload(ctx, in)
 		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
+			restxml.WriteBackendError(w, err)
 			return
 		}
 		_ = out
@@ -3614,7 +4670,7 @@ func ListMultipartUploadsHandler(b ListMultipartUploadsBackend) http.Handler {
 
 		out, err := b.ListMultipartUploads(ctx, in)
 		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
+			restxml.WriteBackendError(w, err)
 			return
 		}
 		_ = out
@@ -3696,7 +4752,7 @@ func ListPartsHandler(b ListPartsBackend) http.Handler {
 
 		out, err := b.ListParts(ctx, in)
 		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
+			restxml.WriteBackendError(w, err)
 			return
 		}
 		_ = out
@@ -3717,5 +4773,878 @@ func ListPartsHandler(b ListPartsBackend) http.Handler {
 		w.WriteHeader(200)
 		_, _ = w.Write([]byte(xml.Header))
 		_ = xml.NewEncoder(w).Encode(out)
+	})
+}
+
+// GetBucketLocationBackend serves the GetBucketLocation operation.
+type GetBucketLocationBackend interface {
+	GetBucketLocation(ctx context.Context, in *GetBucketLocationRequest) (*GetBucketLocationOutput, error)
+}
+
+// GetBucketLocationURITemplate is the Smithy URI template for the operation.
+const GetBucketLocationURITemplate = "/{Bucket}?location"
+
+// GetBucketLocationMethod is the HTTP method for the operation.
+const GetBucketLocationMethod = "GET"
+
+// GetBucketLocationHandler decodes a GetBucketLocation request, dispatches to
+// the backend, and encodes the response per AWS REST-XML semantics.
+func GetBucketLocationHandler(b GetBucketLocationBackend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		in := &GetBucketLocationRequest{}
+		labels, ok := restxml.MatchURI(r.URL.Path, GetBucketLocationURITemplate)
+		if !ok {
+			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
+			return
+		}
+		_ = labels
+		q := r.URL.Query()
+		_ = q
+		if v, ok := labels["Bucket"]; ok {
+			in.Bucket = v
+		}
+		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
+			s := v
+			in.ExpectedBucketOwner = &s
+		}
+
+		out, err := b.GetBucketLocation(ctx, in)
+		if err != nil {
+			restxml.WriteBackendError(w, err)
+			return
+		}
+		_ = out
+
+		w.Header().Set("Content-Type", "application/xml")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(xml.Header))
+		_ = xml.NewEncoder(w).Encode(out)
+	})
+}
+
+// GetBucketPolicyBackend serves the GetBucketPolicy operation.
+type GetBucketPolicyBackend interface {
+	GetBucketPolicy(ctx context.Context, in *GetBucketPolicyRequest) (*GetBucketPolicyOutput, error)
+}
+
+// GetBucketPolicyURITemplate is the Smithy URI template for the operation.
+const GetBucketPolicyURITemplate = "/{Bucket}?policy"
+
+// GetBucketPolicyMethod is the HTTP method for the operation.
+const GetBucketPolicyMethod = "GET"
+
+// GetBucketPolicyHandler decodes a GetBucketPolicy request, dispatches to
+// the backend, and encodes the response per AWS REST-XML semantics.
+func GetBucketPolicyHandler(b GetBucketPolicyBackend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		in := &GetBucketPolicyRequest{}
+		labels, ok := restxml.MatchURI(r.URL.Path, GetBucketPolicyURITemplate)
+		if !ok {
+			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
+			return
+		}
+		_ = labels
+		q := r.URL.Query()
+		_ = q
+		if v, ok := labels["Bucket"]; ok {
+			in.Bucket = v
+		}
+		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
+			s := v
+			in.ExpectedBucketOwner = &s
+		}
+
+		out, err := b.GetBucketPolicy(ctx, in)
+		if err != nil {
+			restxml.WriteBackendError(w, err)
+			return
+		}
+		_ = out
+
+		if out.Policy != nil {
+			w.Header().Set("Content-Length", strconv.Itoa(len(*out.Policy)))
+			w.WriteHeader(200)
+			_, _ = w.Write([]byte(*out.Policy))
+		} else {
+			w.WriteHeader(200)
+		}
+	})
+}
+
+// GetBucketAclBackend serves the GetBucketAcl operation.
+type GetBucketAclBackend interface {
+	GetBucketAcl(ctx context.Context, in *GetBucketAclRequest) (*GetBucketAclOutput, error)
+}
+
+// GetBucketAclURITemplate is the Smithy URI template for the operation.
+const GetBucketAclURITemplate = "/{Bucket}?acl"
+
+// GetBucketAclMethod is the HTTP method for the operation.
+const GetBucketAclMethod = "GET"
+
+// GetBucketAclHandler decodes a GetBucketAcl request, dispatches to
+// the backend, and encodes the response per AWS REST-XML semantics.
+func GetBucketAclHandler(b GetBucketAclBackend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		in := &GetBucketAclRequest{}
+		labels, ok := restxml.MatchURI(r.URL.Path, GetBucketAclURITemplate)
+		if !ok {
+			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
+			return
+		}
+		_ = labels
+		q := r.URL.Query()
+		_ = q
+		if v, ok := labels["Bucket"]; ok {
+			in.Bucket = v
+		}
+		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
+			s := v
+			in.ExpectedBucketOwner = &s
+		}
+
+		out, err := b.GetBucketAcl(ctx, in)
+		if err != nil {
+			restxml.WriteBackendError(w, err)
+			return
+		}
+		_ = out
+
+		w.Header().Set("Content-Type", "application/xml")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(xml.Header))
+		_ = xml.NewEncoder(w).Encode(out)
+	})
+}
+
+// GetBucketVersioningBackend serves the GetBucketVersioning operation.
+type GetBucketVersioningBackend interface {
+	GetBucketVersioning(ctx context.Context, in *GetBucketVersioningRequest) (*GetBucketVersioningOutput, error)
+}
+
+// GetBucketVersioningURITemplate is the Smithy URI template for the operation.
+const GetBucketVersioningURITemplate = "/{Bucket}?versioning"
+
+// GetBucketVersioningMethod is the HTTP method for the operation.
+const GetBucketVersioningMethod = "GET"
+
+// GetBucketVersioningHandler decodes a GetBucketVersioning request, dispatches to
+// the backend, and encodes the response per AWS REST-XML semantics.
+func GetBucketVersioningHandler(b GetBucketVersioningBackend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		in := &GetBucketVersioningRequest{}
+		labels, ok := restxml.MatchURI(r.URL.Path, GetBucketVersioningURITemplate)
+		if !ok {
+			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
+			return
+		}
+		_ = labels
+		q := r.URL.Query()
+		_ = q
+		if v, ok := labels["Bucket"]; ok {
+			in.Bucket = v
+		}
+		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
+			s := v
+			in.ExpectedBucketOwner = &s
+		}
+
+		out, err := b.GetBucketVersioning(ctx, in)
+		if err != nil {
+			restxml.WriteBackendError(w, err)
+			return
+		}
+		_ = out
+
+		w.Header().Set("Content-Type", "application/xml")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(xml.Header))
+		_ = xml.NewEncoder(w).Encode(out)
+	})
+}
+
+// GetBucketLoggingBackend serves the GetBucketLogging operation.
+type GetBucketLoggingBackend interface {
+	GetBucketLogging(ctx context.Context, in *GetBucketLoggingRequest) (*GetBucketLoggingOutput, error)
+}
+
+// GetBucketLoggingURITemplate is the Smithy URI template for the operation.
+const GetBucketLoggingURITemplate = "/{Bucket}?logging"
+
+// GetBucketLoggingMethod is the HTTP method for the operation.
+const GetBucketLoggingMethod = "GET"
+
+// GetBucketLoggingHandler decodes a GetBucketLogging request, dispatches to
+// the backend, and encodes the response per AWS REST-XML semantics.
+func GetBucketLoggingHandler(b GetBucketLoggingBackend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		in := &GetBucketLoggingRequest{}
+		labels, ok := restxml.MatchURI(r.URL.Path, GetBucketLoggingURITemplate)
+		if !ok {
+			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
+			return
+		}
+		_ = labels
+		q := r.URL.Query()
+		_ = q
+		if v, ok := labels["Bucket"]; ok {
+			in.Bucket = v
+		}
+		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
+			s := v
+			in.ExpectedBucketOwner = &s
+		}
+
+		out, err := b.GetBucketLogging(ctx, in)
+		if err != nil {
+			restxml.WriteBackendError(w, err)
+			return
+		}
+		_ = out
+
+		w.Header().Set("Content-Type", "application/xml")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(xml.Header))
+		_ = xml.NewEncoder(w).Encode(out)
+	})
+}
+
+// GetBucketCorsBackend serves the GetBucketCors operation.
+type GetBucketCorsBackend interface {
+	GetBucketCors(ctx context.Context, in *GetBucketCorsRequest) (*GetBucketCorsOutput, error)
+}
+
+// GetBucketCorsURITemplate is the Smithy URI template for the operation.
+const GetBucketCorsURITemplate = "/{Bucket}?cors"
+
+// GetBucketCorsMethod is the HTTP method for the operation.
+const GetBucketCorsMethod = "GET"
+
+// GetBucketCorsHandler decodes a GetBucketCors request, dispatches to
+// the backend, and encodes the response per AWS REST-XML semantics.
+func GetBucketCorsHandler(b GetBucketCorsBackend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		in := &GetBucketCorsRequest{}
+		labels, ok := restxml.MatchURI(r.URL.Path, GetBucketCorsURITemplate)
+		if !ok {
+			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
+			return
+		}
+		_ = labels
+		q := r.URL.Query()
+		_ = q
+		if v, ok := labels["Bucket"]; ok {
+			in.Bucket = v
+		}
+		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
+			s := v
+			in.ExpectedBucketOwner = &s
+		}
+
+		out, err := b.GetBucketCors(ctx, in)
+		if err != nil {
+			restxml.WriteBackendError(w, err)
+			return
+		}
+		_ = out
+
+		w.Header().Set("Content-Type", "application/xml")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(xml.Header))
+		_ = xml.NewEncoder(w).Encode(out)
+	})
+}
+
+// GetBucketLifecycleConfigurationBackend serves the GetBucketLifecycleConfiguration operation.
+type GetBucketLifecycleConfigurationBackend interface {
+	GetBucketLifecycleConfiguration(ctx context.Context, in *GetBucketLifecycleConfigurationRequest) (*GetBucketLifecycleConfigurationOutput, error)
+}
+
+// GetBucketLifecycleConfigurationURITemplate is the Smithy URI template for the operation.
+const GetBucketLifecycleConfigurationURITemplate = "/{Bucket}?lifecycle"
+
+// GetBucketLifecycleConfigurationMethod is the HTTP method for the operation.
+const GetBucketLifecycleConfigurationMethod = "GET"
+
+// GetBucketLifecycleConfigurationHandler decodes a GetBucketLifecycleConfiguration request, dispatches to
+// the backend, and encodes the response per AWS REST-XML semantics.
+func GetBucketLifecycleConfigurationHandler(b GetBucketLifecycleConfigurationBackend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		in := &GetBucketLifecycleConfigurationRequest{}
+		labels, ok := restxml.MatchURI(r.URL.Path, GetBucketLifecycleConfigurationURITemplate)
+		if !ok {
+			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
+			return
+		}
+		_ = labels
+		q := r.URL.Query()
+		_ = q
+		if v, ok := labels["Bucket"]; ok {
+			in.Bucket = v
+		}
+		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
+			s := v
+			in.ExpectedBucketOwner = &s
+		}
+
+		out, err := b.GetBucketLifecycleConfiguration(ctx, in)
+		if err != nil {
+			restxml.WriteBackendError(w, err)
+			return
+		}
+		_ = out
+		// codegen: header for *TransitionDefaultMinimumObjectSize (TransitionDefaultMinimumObjectSize -> x-amz-transition-default-minimum-object-size); falls back to string conversion if pointer to enum.
+		if out.TransitionDefaultMinimumObjectSize != nil {
+			w.Header().Set("x-amz-transition-default-minimum-object-size", string(*out.TransitionDefaultMinimumObjectSize))
+		}
+
+		w.Header().Set("Content-Type", "application/xml")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(xml.Header))
+		_ = xml.NewEncoder(w).Encode(out)
+	})
+}
+
+// GetBucketReplicationBackend serves the GetBucketReplication operation.
+type GetBucketReplicationBackend interface {
+	GetBucketReplication(ctx context.Context, in *GetBucketReplicationRequest) (*GetBucketReplicationOutput, error)
+}
+
+// GetBucketReplicationURITemplate is the Smithy URI template for the operation.
+const GetBucketReplicationURITemplate = "/{Bucket}?replication"
+
+// GetBucketReplicationMethod is the HTTP method for the operation.
+const GetBucketReplicationMethod = "GET"
+
+// GetBucketReplicationHandler decodes a GetBucketReplication request, dispatches to
+// the backend, and encodes the response per AWS REST-XML semantics.
+func GetBucketReplicationHandler(b GetBucketReplicationBackend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		in := &GetBucketReplicationRequest{}
+		labels, ok := restxml.MatchURI(r.URL.Path, GetBucketReplicationURITemplate)
+		if !ok {
+			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
+			return
+		}
+		_ = labels
+		q := r.URL.Query()
+		_ = q
+		if v, ok := labels["Bucket"]; ok {
+			in.Bucket = v
+		}
+		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
+			s := v
+			in.ExpectedBucketOwner = &s
+		}
+
+		out, err := b.GetBucketReplication(ctx, in)
+		if err != nil {
+			restxml.WriteBackendError(w, err)
+			return
+		}
+		_ = out
+
+		w.Header().Set("Content-Type", "application/xml")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(xml.Header))
+		if out.ReplicationConfiguration != nil {
+			_ = xml.NewEncoder(w).Encode(out.ReplicationConfiguration)
+		}
+	})
+}
+
+// GetBucketRequestPaymentBackend serves the GetBucketRequestPayment operation.
+type GetBucketRequestPaymentBackend interface {
+	GetBucketRequestPayment(ctx context.Context, in *GetBucketRequestPaymentRequest) (*GetBucketRequestPaymentOutput, error)
+}
+
+// GetBucketRequestPaymentURITemplate is the Smithy URI template for the operation.
+const GetBucketRequestPaymentURITemplate = "/{Bucket}?requestPayment"
+
+// GetBucketRequestPaymentMethod is the HTTP method for the operation.
+const GetBucketRequestPaymentMethod = "GET"
+
+// GetBucketRequestPaymentHandler decodes a GetBucketRequestPayment request, dispatches to
+// the backend, and encodes the response per AWS REST-XML semantics.
+func GetBucketRequestPaymentHandler(b GetBucketRequestPaymentBackend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		in := &GetBucketRequestPaymentRequest{}
+		labels, ok := restxml.MatchURI(r.URL.Path, GetBucketRequestPaymentURITemplate)
+		if !ok {
+			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
+			return
+		}
+		_ = labels
+		q := r.URL.Query()
+		_ = q
+		if v, ok := labels["Bucket"]; ok {
+			in.Bucket = v
+		}
+		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
+			s := v
+			in.ExpectedBucketOwner = &s
+		}
+
+		out, err := b.GetBucketRequestPayment(ctx, in)
+		if err != nil {
+			restxml.WriteBackendError(w, err)
+			return
+		}
+		_ = out
+
+		w.Header().Set("Content-Type", "application/xml")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(xml.Header))
+		_ = xml.NewEncoder(w).Encode(out)
+	})
+}
+
+// GetBucketTaggingBackend serves the GetBucketTagging operation.
+type GetBucketTaggingBackend interface {
+	GetBucketTagging(ctx context.Context, in *GetBucketTaggingRequest) (*GetBucketTaggingOutput, error)
+}
+
+// GetBucketTaggingURITemplate is the Smithy URI template for the operation.
+const GetBucketTaggingURITemplate = "/{Bucket}?tagging"
+
+// GetBucketTaggingMethod is the HTTP method for the operation.
+const GetBucketTaggingMethod = "GET"
+
+// GetBucketTaggingHandler decodes a GetBucketTagging request, dispatches to
+// the backend, and encodes the response per AWS REST-XML semantics.
+func GetBucketTaggingHandler(b GetBucketTaggingBackend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		in := &GetBucketTaggingRequest{}
+		labels, ok := restxml.MatchURI(r.URL.Path, GetBucketTaggingURITemplate)
+		if !ok {
+			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
+			return
+		}
+		_ = labels
+		q := r.URL.Query()
+		_ = q
+		if v, ok := labels["Bucket"]; ok {
+			in.Bucket = v
+		}
+		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
+			s := v
+			in.ExpectedBucketOwner = &s
+		}
+
+		out, err := b.GetBucketTagging(ctx, in)
+		if err != nil {
+			restxml.WriteBackendError(w, err)
+			return
+		}
+		_ = out
+
+		w.Header().Set("Content-Type", "application/xml")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(xml.Header))
+		_ = xml.NewEncoder(w).Encode(out)
+	})
+}
+
+// GetBucketWebsiteBackend serves the GetBucketWebsite operation.
+type GetBucketWebsiteBackend interface {
+	GetBucketWebsite(ctx context.Context, in *GetBucketWebsiteRequest) (*GetBucketWebsiteOutput, error)
+}
+
+// GetBucketWebsiteURITemplate is the Smithy URI template for the operation.
+const GetBucketWebsiteURITemplate = "/{Bucket}?website"
+
+// GetBucketWebsiteMethod is the HTTP method for the operation.
+const GetBucketWebsiteMethod = "GET"
+
+// GetBucketWebsiteHandler decodes a GetBucketWebsite request, dispatches to
+// the backend, and encodes the response per AWS REST-XML semantics.
+func GetBucketWebsiteHandler(b GetBucketWebsiteBackend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		in := &GetBucketWebsiteRequest{}
+		labels, ok := restxml.MatchURI(r.URL.Path, GetBucketWebsiteURITemplate)
+		if !ok {
+			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
+			return
+		}
+		_ = labels
+		q := r.URL.Query()
+		_ = q
+		if v, ok := labels["Bucket"]; ok {
+			in.Bucket = v
+		}
+		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
+			s := v
+			in.ExpectedBucketOwner = &s
+		}
+
+		out, err := b.GetBucketWebsite(ctx, in)
+		if err != nil {
+			restxml.WriteBackendError(w, err)
+			return
+		}
+		_ = out
+
+		w.Header().Set("Content-Type", "application/xml")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(xml.Header))
+		_ = xml.NewEncoder(w).Encode(out)
+	})
+}
+
+// GetBucketEncryptionBackend serves the GetBucketEncryption operation.
+type GetBucketEncryptionBackend interface {
+	GetBucketEncryption(ctx context.Context, in *GetBucketEncryptionRequest) (*GetBucketEncryptionOutput, error)
+}
+
+// GetBucketEncryptionURITemplate is the Smithy URI template for the operation.
+const GetBucketEncryptionURITemplate = "/{Bucket}?encryption"
+
+// GetBucketEncryptionMethod is the HTTP method for the operation.
+const GetBucketEncryptionMethod = "GET"
+
+// GetBucketEncryptionHandler decodes a GetBucketEncryption request, dispatches to
+// the backend, and encodes the response per AWS REST-XML semantics.
+func GetBucketEncryptionHandler(b GetBucketEncryptionBackend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		in := &GetBucketEncryptionRequest{}
+		labels, ok := restxml.MatchURI(r.URL.Path, GetBucketEncryptionURITemplate)
+		if !ok {
+			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
+			return
+		}
+		_ = labels
+		q := r.URL.Query()
+		_ = q
+		if v, ok := labels["Bucket"]; ok {
+			in.Bucket = v
+		}
+		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
+			s := v
+			in.ExpectedBucketOwner = &s
+		}
+
+		out, err := b.GetBucketEncryption(ctx, in)
+		if err != nil {
+			restxml.WriteBackendError(w, err)
+			return
+		}
+		_ = out
+
+		w.Header().Set("Content-Type", "application/xml")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(xml.Header))
+		if out.ServerSideEncryptionConfiguration != nil {
+			_ = xml.NewEncoder(w).Encode(out.ServerSideEncryptionConfiguration)
+		}
+	})
+}
+
+// GetBucketAccelerateConfigurationBackend serves the GetBucketAccelerateConfiguration operation.
+type GetBucketAccelerateConfigurationBackend interface {
+	GetBucketAccelerateConfiguration(ctx context.Context, in *GetBucketAccelerateConfigurationRequest) (*GetBucketAccelerateConfigurationOutput, error)
+}
+
+// GetBucketAccelerateConfigurationURITemplate is the Smithy URI template for the operation.
+const GetBucketAccelerateConfigurationURITemplate = "/{Bucket}?accelerate"
+
+// GetBucketAccelerateConfigurationMethod is the HTTP method for the operation.
+const GetBucketAccelerateConfigurationMethod = "GET"
+
+// GetBucketAccelerateConfigurationHandler decodes a GetBucketAccelerateConfiguration request, dispatches to
+// the backend, and encodes the response per AWS REST-XML semantics.
+func GetBucketAccelerateConfigurationHandler(b GetBucketAccelerateConfigurationBackend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		in := &GetBucketAccelerateConfigurationRequest{}
+		labels, ok := restxml.MatchURI(r.URL.Path, GetBucketAccelerateConfigurationURITemplate)
+		if !ok {
+			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
+			return
+		}
+		_ = labels
+		q := r.URL.Query()
+		_ = q
+		if v, ok := labels["Bucket"]; ok {
+			in.Bucket = v
+		}
+		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
+			s := v
+			in.ExpectedBucketOwner = &s
+		}
+		if v := r.Header.Get("x-amz-request-payer"); v != "" {
+			// codegen: treats value as string-backed (custom string or enum)
+			_ = v
+		}
+
+		out, err := b.GetBucketAccelerateConfiguration(ctx, in)
+		if err != nil {
+			restxml.WriteBackendError(w, err)
+			return
+		}
+		_ = out
+		// codegen: header for *RequestCharged (RequestCharged -> x-amz-request-charged); falls back to string conversion if pointer to enum.
+		if out.RequestCharged != nil {
+			w.Header().Set("x-amz-request-charged", string(*out.RequestCharged))
+		}
+
+		w.Header().Set("Content-Type", "application/xml")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(xml.Header))
+		_ = xml.NewEncoder(w).Encode(out)
+	})
+}
+
+// GetObjectLockConfigurationBackend serves the GetObjectLockConfiguration operation.
+type GetObjectLockConfigurationBackend interface {
+	GetObjectLockConfiguration(ctx context.Context, in *GetObjectLockConfigurationRequest) (*GetObjectLockConfigurationOutput, error)
+}
+
+// GetObjectLockConfigurationURITemplate is the Smithy URI template for the operation.
+const GetObjectLockConfigurationURITemplate = "/{Bucket}?object-lock"
+
+// GetObjectLockConfigurationMethod is the HTTP method for the operation.
+const GetObjectLockConfigurationMethod = "GET"
+
+// GetObjectLockConfigurationHandler decodes a GetObjectLockConfiguration request, dispatches to
+// the backend, and encodes the response per AWS REST-XML semantics.
+func GetObjectLockConfigurationHandler(b GetObjectLockConfigurationBackend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		in := &GetObjectLockConfigurationRequest{}
+		labels, ok := restxml.MatchURI(r.URL.Path, GetObjectLockConfigurationURITemplate)
+		if !ok {
+			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
+			return
+		}
+		_ = labels
+		q := r.URL.Query()
+		_ = q
+		if v, ok := labels["Bucket"]; ok {
+			in.Bucket = v
+		}
+		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
+			s := v
+			in.ExpectedBucketOwner = &s
+		}
+
+		out, err := b.GetObjectLockConfiguration(ctx, in)
+		if err != nil {
+			restxml.WriteBackendError(w, err)
+			return
+		}
+		_ = out
+
+		w.Header().Set("Content-Type", "application/xml")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(xml.Header))
+		if out.ObjectLockConfiguration != nil {
+			_ = xml.NewEncoder(w).Encode(out.ObjectLockConfiguration)
+		}
+	})
+}
+
+// GetBucketNotificationConfigurationBackend serves the GetBucketNotificationConfiguration operation.
+type GetBucketNotificationConfigurationBackend interface {
+	GetBucketNotificationConfiguration(ctx context.Context, in *GetBucketNotificationConfigurationRequest) (*NotificationConfiguration, error)
+}
+
+// GetBucketNotificationConfigurationURITemplate is the Smithy URI template for the operation.
+const GetBucketNotificationConfigurationURITemplate = "/{Bucket}?notification"
+
+// GetBucketNotificationConfigurationMethod is the HTTP method for the operation.
+const GetBucketNotificationConfigurationMethod = "GET"
+
+// GetBucketNotificationConfigurationHandler decodes a GetBucketNotificationConfiguration request, dispatches to
+// the backend, and encodes the response per AWS REST-XML semantics.
+func GetBucketNotificationConfigurationHandler(b GetBucketNotificationConfigurationBackend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		in := &GetBucketNotificationConfigurationRequest{}
+		labels, ok := restxml.MatchURI(r.URL.Path, GetBucketNotificationConfigurationURITemplate)
+		if !ok {
+			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
+			return
+		}
+		_ = labels
+		q := r.URL.Query()
+		_ = q
+		if v, ok := labels["Bucket"]; ok {
+			in.Bucket = v
+		}
+		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
+			s := v
+			in.ExpectedBucketOwner = &s
+		}
+
+		out, err := b.GetBucketNotificationConfiguration(ctx, in)
+		if err != nil {
+			restxml.WriteBackendError(w, err)
+			return
+		}
+		_ = out
+
+		w.Header().Set("Content-Type", "application/xml")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(xml.Header))
+		_ = xml.NewEncoder(w).Encode(out)
+	})
+}
+
+// GetBucketOwnershipControlsBackend serves the GetBucketOwnershipControls operation.
+type GetBucketOwnershipControlsBackend interface {
+	GetBucketOwnershipControls(ctx context.Context, in *GetBucketOwnershipControlsRequest) (*GetBucketOwnershipControlsOutput, error)
+}
+
+// GetBucketOwnershipControlsURITemplate is the Smithy URI template for the operation.
+const GetBucketOwnershipControlsURITemplate = "/{Bucket}?ownershipControls"
+
+// GetBucketOwnershipControlsMethod is the HTTP method for the operation.
+const GetBucketOwnershipControlsMethod = "GET"
+
+// GetBucketOwnershipControlsHandler decodes a GetBucketOwnershipControls request, dispatches to
+// the backend, and encodes the response per AWS REST-XML semantics.
+func GetBucketOwnershipControlsHandler(b GetBucketOwnershipControlsBackend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		in := &GetBucketOwnershipControlsRequest{}
+		labels, ok := restxml.MatchURI(r.URL.Path, GetBucketOwnershipControlsURITemplate)
+		if !ok {
+			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
+			return
+		}
+		_ = labels
+		q := r.URL.Query()
+		_ = q
+		if v, ok := labels["Bucket"]; ok {
+			in.Bucket = v
+		}
+		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
+			s := v
+			in.ExpectedBucketOwner = &s
+		}
+
+		out, err := b.GetBucketOwnershipControls(ctx, in)
+		if err != nil {
+			restxml.WriteBackendError(w, err)
+			return
+		}
+		_ = out
+
+		w.Header().Set("Content-Type", "application/xml")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(xml.Header))
+		if out.OwnershipControls != nil {
+			_ = xml.NewEncoder(w).Encode(out.OwnershipControls)
+		}
+	})
+}
+
+// GetBucketPolicyStatusBackend serves the GetBucketPolicyStatus operation.
+type GetBucketPolicyStatusBackend interface {
+	GetBucketPolicyStatus(ctx context.Context, in *GetBucketPolicyStatusRequest) (*GetBucketPolicyStatusOutput, error)
+}
+
+// GetBucketPolicyStatusURITemplate is the Smithy URI template for the operation.
+const GetBucketPolicyStatusURITemplate = "/{Bucket}?policyStatus"
+
+// GetBucketPolicyStatusMethod is the HTTP method for the operation.
+const GetBucketPolicyStatusMethod = "GET"
+
+// GetBucketPolicyStatusHandler decodes a GetBucketPolicyStatus request, dispatches to
+// the backend, and encodes the response per AWS REST-XML semantics.
+func GetBucketPolicyStatusHandler(b GetBucketPolicyStatusBackend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		in := &GetBucketPolicyStatusRequest{}
+		labels, ok := restxml.MatchURI(r.URL.Path, GetBucketPolicyStatusURITemplate)
+		if !ok {
+			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
+			return
+		}
+		_ = labels
+		q := r.URL.Query()
+		_ = q
+		if v, ok := labels["Bucket"]; ok {
+			in.Bucket = v
+		}
+		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
+			s := v
+			in.ExpectedBucketOwner = &s
+		}
+
+		out, err := b.GetBucketPolicyStatus(ctx, in)
+		if err != nil {
+			restxml.WriteBackendError(w, err)
+			return
+		}
+		_ = out
+
+		w.Header().Set("Content-Type", "application/xml")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(xml.Header))
+		if out.PolicyStatus != nil {
+			_ = xml.NewEncoder(w).Encode(out.PolicyStatus)
+		}
+	})
+}
+
+// GetPublicAccessBlockBackend serves the GetPublicAccessBlock operation.
+type GetPublicAccessBlockBackend interface {
+	GetPublicAccessBlock(ctx context.Context, in *GetPublicAccessBlockRequest) (*GetPublicAccessBlockOutput, error)
+}
+
+// GetPublicAccessBlockURITemplate is the Smithy URI template for the operation.
+const GetPublicAccessBlockURITemplate = "/{Bucket}?publicAccessBlock"
+
+// GetPublicAccessBlockMethod is the HTTP method for the operation.
+const GetPublicAccessBlockMethod = "GET"
+
+// GetPublicAccessBlockHandler decodes a GetPublicAccessBlock request, dispatches to
+// the backend, and encodes the response per AWS REST-XML semantics.
+func GetPublicAccessBlockHandler(b GetPublicAccessBlockBackend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		in := &GetPublicAccessBlockRequest{}
+		labels, ok := restxml.MatchURI(r.URL.Path, GetPublicAccessBlockURITemplate)
+		if !ok {
+			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
+			return
+		}
+		_ = labels
+		q := r.URL.Query()
+		_ = q
+		if v, ok := labels["Bucket"]; ok {
+			in.Bucket = v
+		}
+		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
+			s := v
+			in.ExpectedBucketOwner = &s
+		}
+
+		out, err := b.GetPublicAccessBlock(ctx, in)
+		if err != nil {
+			restxml.WriteBackendError(w, err)
+			return
+		}
+		_ = out
+
+		w.Header().Set("Content-Type", "application/xml")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(xml.Header))
+		if out.PublicAccessBlockConfiguration != nil {
+			_ = xml.NewEncoder(w).Encode(out.PublicAccessBlockConfiguration)
+		}
 	})
 }

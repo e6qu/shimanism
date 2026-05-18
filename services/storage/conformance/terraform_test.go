@@ -55,16 +55,15 @@ provider "aws" {
   }
 }
 
-# Read an object that was seeded into the shim's in-mem backend
-# before terraform ran. The data source exercises HeadObject and
-# GetObject through the shim — both intersection operations.
-data "aws_s3_object" "seeded" {
-  bucket = "tf-data"
-  key    = "hello.txt"
+resource "aws_s3_bucket" "tf" {
+  bucket        = "tf-driven"
+  force_destroy = true
 }
 
-output "body" {
-  value = data.aws_s3_object.seeded.body
+resource "aws_s3_object" "obj" {
+  bucket  = aws_s3_bucket.tf.id
+  key     = "from-terraform.txt"
+  content = "shimanism + terraform"
 }
 `
 
@@ -84,38 +83,23 @@ func runTerraform(t *testing.T, dir, bin string, args ...string) ([]byte, []byte
 	return stdout.Bytes(), stderr.Bytes(), err
 }
 
-// TestTerraform_DataSourceAgainstShim runs `terraform apply` against a
-// `data "aws_s3_object"` block. The shim's in-mem backend is pre-seeded
-// with a bucket + object before terraform runs, and the data source
-// reads it via HeadObject + GetObject — both intersection operations.
+// TestTerraform_ResourceLifecycle runs `terraform init / apply / destroy`
+// against the real `hashicorp/aws` provider with `aws_s3_bucket` +
+// `aws_s3_object` resources. The provider's Read step calls many
+// GetBucket* config operations; the shim's intersection manifest
+// includes the universally-defaulted ones (`GetBucketVersioning`,
+// `GetBucketTagging`, etc., each returning empty/disabled state) so
+// every cloud's "freshly-created bucket" reads the same way through
+// the shim.
 //
-// We deliberately do NOT exercise `resource "aws_s3_bucket"` here: the
-// TF AWS provider's post-create read step calls many bucket-config
-// operations (GetBucketLocation, GetBucketVersioning, GetBucketTagging,
-// …) that are not in shimanism's object-storage intersection. Provider
-// flows that require those land in their own follow-up phase once the
-// shim's resource backends are wired (Phase 1.5+).
-func TestTerraform_DataSourceAgainstShim(t *testing.T) {
+// This is the load-bearing test: real customer Terraform workflows
+// use resources, not data sources.
+func TestTerraform_ResourceLifecycle(t *testing.T) {
 	bin := requireTerraform(t)
-
-	backend := inmem.New()
-	// Seed via the backend interface directly — no need to drive a
-	// real PutObject through the shim because the goal of this test
-	// is the TF *read* path.
-	ctx := context.Background()
-	if _, err := backend.CreateBucket(ctx, &gen.CreateBucketRequest{Bucket: "tf-data"}); err != nil {
-		t.Fatalf("seed CreateBucket: %v", err)
-	}
-	if _, err := backend.PutObject(ctx, &gen.PutObjectRequest{
-		Bucket: "tf-data",
-		Key:    "hello.txt",
-		Body:   []byte("hello from shimanism"),
-	}); err != nil {
-		t.Fatalf("seed PutObject: %v", err)
-	}
-	_ = aws.String // keep imports used regardless of helper ordering
-
-	srv := harness.StartStorageServer(t, backend)
+	srv := harness.StartStorageServer(t, inmem.New())
+	_ = context.Background
+	_ = aws.String
+	_ = gen.CreateBucketRequest{}
 
 	dir := t.TempDir()
 	hcl := fmt.Sprintf(terraformAWSConfig, srv.URL)
@@ -126,6 +110,7 @@ func TestTerraform_DataSourceAgainstShim(t *testing.T) {
 	for _, step := range [][]string{
 		{"init", "-no-color"},
 		{"apply", "-auto-approve", "-no-color"},
+		{"destroy", "-auto-approve", "-no-color"},
 	} {
 		stdout, stderr, err := runTerraform(t, dir, bin, step...)
 		if err != nil {
