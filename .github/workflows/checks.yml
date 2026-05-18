@@ -1,0 +1,47 @@
+name: checks
+
+on:
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rebased:
+    name: branch rebased on origin/main
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify branch is rebased on origin/main with linear history
+        run: bash scripts/check-rebased.sh
+
+  symlinks:
+    name: tracked symlinks resolve
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify CLAUDE.md -> AGENTS.md
+        run: bash scripts/check-symlinks.sh
+
+  continuity-docs-present:
+    name: continuity docs present
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify the load-bearing continuity files exist
+        # If a PR ever deletes one of these by accident, fail loud.
+        # When a doc is intentionally retired, the workflow gets updated
+        # in the same PR — that's the signal it was deliberate.
+        run: |
+          set -e
+          for f in PLAN.md STATUS.md WHAT_WE_DID.md DO_NEXT.md BUGS.md AGENTS.md PHILOSOPHY.md README.md; do
+            if [ ! -f "$f" ]; then
+              echo "ERROR: required continuity doc missing: $f"
+              exit 1
+            fi
+          done
+          echo "OK: all continuity docs present."
