@@ -58,13 +58,19 @@ Where the chosen backend can't honor a call honestly, the shim returns the sourc
 
 ## The conformance contract
 
-Every shimmed operation must be exercisable, in the same commit that registers the handler, via all three official client surfaces against every backend in scope:
+Every shimmed operation must be exercisable, in the same commit that registers the handler, via the matching cloud's official client surfaces — **for every frontend × every backend in scope.** Per [PLAN.md principle 11](PLAN.md#guiding-principles) each phase carries the full 3 frontends × 3 driver types × 4 backends = 36 driver-backend matrix.
 
-1. **Cloud SDK** — `aws-sdk-go-v2/*`, `cloud.google.com/go/*`, `github.com/Azure/azure-sdk-for-go/*` (Go is canonical; Python + Node added per-service when relevant).
-2. **Cloud CLI** — `aws`, `gcloud`, `az` shelled out via the test harness.
-3. **Terraform provider** — the official `hashicorp/aws`, `hashicorp/google`, `hashicorp/azurerm` resource that wraps the operation, with `endpoints { ... }` override.
+A frontend's drivers are always the matching cloud's tooling — not a cross-cloud substitute. The AWS-shaped frontend is tested by AWS tools, the GCS-shaped frontend by GCP tools, the Azure-shaped frontend by Azure tools. Driving the AWS frontend with `gcloud` (or vice versa) isn't a meaningful conformance test — the wire protocols don't match.
 
-Tests live in `services/<svc>/conformance/<driver>-tests/`. A pre-commit / CI hook will (eventually) block any commit that registers a new operation without touching at least one test file for each driver. Operations that genuinely aren't exposed via SDK / CLI / Terraform (rare; e.g. internal control-plane probes) go on `services/<svc>/conformance/exempt.txt` with one operation per line.
+| Frontend | SDK | CLI | Terraform provider |
+|---|---|---|---|
+| AWS | `aws-sdk-go-v2/*` | `aws` | `hashicorp/aws` with `endpoints { ... }` |
+| GCP | `cloud.google.com/go/*` | `gcloud` with `--api-endpoint-overrides` | `hashicorp/google` with endpoint overrides |
+| Azure | `github.com/Azure/azure-sdk-for-go/*` | `az` | `hashicorp/azurerm` |
+
+Go is canonical for the SDK row; Python + Node added per-service when relevant.
+
+Tests live in `services/<svc>/conformance/<frontend>/<driver>-tests/` — one driver-test directory per (frontend, driver) pair. A pre-commit / CI hook will (eventually) block any commit that registers a new operation without touching at least one test file for each frontend × each driver. Operations that genuinely aren't exposed via SDK / CLI / Terraform (rare; e.g. internal control-plane probes) go on `services/<svc>/conformance/exempt.txt` with one operation per line.
 
 There is no "land it and add tests later." If you edit a service, the conformance tests ship with it.
 
