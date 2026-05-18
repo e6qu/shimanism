@@ -72,11 +72,10 @@ jobs:
       # Conformance tests use SDK + CLI + Terraform drivers. SDK is
       # always available; CLI and Terraform skip without binaries but
       # both are installed above, so all three drivers run in CI.
-      # Timeout sized to the slowest driver (Terraform: ~30s in CI
-      # for provider download + apply), plus headroom for cache-miss
-      # cold-starts.
+      # If this trips on slow CI, the right answer is to make a
+      # specific test faster — not to raise the cap.
       - name: go test
-        run: go test -timeout 2m ./...
+        run: go test -timeout 1m ./...
       - name: go build
         run: go build ./...
 
