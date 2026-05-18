@@ -16,7 +16,7 @@ State [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md
 8. **One source spec, multiple adapters.** Each service has one front-door spec per cloud-source-protocol; many backend adapters. Codegen regenerates from upstream specs; agents own translation tables.
 9. **Single-branch rule.** All in-flight work for one phase on one branch; many commits, one PR. User merges.
 10. **Continuity always.** STATUS / WHAT_WE_DID / DO_NEXT / BUGS update at every significant chunk.
-11. **One service per phase, every frontend × every backend.** Each phase ships one shimmed service end-to-end across **all three source-cloud frontends (AWS / GCP / Azure)** translating into **all four backends (AWS / GCP / Azure / K8s peer)** — the full 3 × 4 matrix, with conformance from each frontend's SDK + CLI + Terraform provider. No "AWS-source first, GCP-source row later." A service is not done until any cloud's tooling can drive it against any backend.
+11. **One service per phase, every frontend × every backend.** Each phase ships one shimmed service end-to-end across **all three source-cloud frontends (AWS / GCP / Azure)** translating into **all four backends (AWS / GCP / Azure / K8s peer)** — the full 3 × 4 matrix. **Each frontend is tested by its own cloud's official tooling** (the AWS frontend by `aws-sdk-go-v2` + `aws` CLI + `hashicorp/aws` Terraform provider; the GCS frontend by `cloud.google.com/go/storage` + `gcloud` CLI + `hashicorp/google` provider; the Azure frontend by `azure-sdk-for-go/sdk/storage/azblob` + `az` CLI + `hashicorp/azurerm` provider) **against every backend cloud's real service.** That's 3 frontends × 3 driver types × 4 backends = **36 driver-backend combinations** per service, all green before a phase closes. No "AWS-source first, GCP-source row later." A service is not done until any cloud's tooling can drive it against any backend.
 
 ## Locked-in decisions
 
@@ -82,7 +82,15 @@ Backends: AWS S3 · GCS · Azure Blob · K8s peer (MinIO-in-cluster).
 | **1.15** | ◻ | **Azure Blob frontend.** Spec ingest (Azure OpenAPI v3) → Azure-Blob-shaped server stubs (XML for blob list, REST + JSON for control) → adapter wrapping `domain.Storage` → conformance via `azure-sdk-for-go/sdk/storage/azblob` SDK + `az` CLI + `hashicorp/azurerm` Terraform provider against all four backends. |
 | **1.16** | ◻ | Phase 1 closer: full conformance lane green for **all 3 frontends × 4 backends × 3 driver types = 36 driver-backend combinations**. Terraform `aws_s3_bucket`, `google_storage_bucket`, `azurerm_storage_container` each provision against every backend through endpoint overrides. |
 
-**Exit criteria:** any one of `aws s3 cp` / `gcloud storage cp` / `az storage blob upload` (configured to hit the shim's endpoint) writes an object that round-trips correctly when the shim is backed by any of AWS S3 / GCS / Azure Blob / K8s peer. Symmetrically: the corresponding Terraform resource (`aws_s3_object` / `google_storage_bucket_object` / `azurerm_storage_blob`) provisions through every (frontend, backend) combination without resource churn or fabricated responses.
+**Exit criteria.** For every (frontend, backend) pair in the 3 × 4 matrix, all three driver types are green:
+
+| Frontend | SDK | CLI | Terraform provider |
+|---|---|---|---|
+| AWS S3 | `aws-sdk-go-v2/service/s3` | `aws` | `hashicorp/aws` (`aws_s3_bucket`, `aws_s3_object`) |
+| GCS | `cloud.google.com/go/storage` | `gcloud storage` | `hashicorp/google` (`google_storage_bucket`, `google_storage_bucket_object`) |
+| Azure Blob | `azure-sdk-for-go/sdk/storage/azblob` | `az storage blob` | `hashicorp/azurerm` (`azurerm_storage_container`, `azurerm_storage_blob`) |
+
+Each row's drivers are configured (endpoint override / `--api-endpoint-overrides` / Terraform `endpoints { ... }`) to hit the shim. The shim is configured (`shim storage -backend=<cloud>`) to translate to each of the four backends in turn. **36 driver-backend conformance lanes total**, every one of them green, before Phase 1 closes.
 
 ### Architecture: cross-cloud routing
 
