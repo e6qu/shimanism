@@ -4,9 +4,53 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 
 > Reverse chronological. One section per phase. The *why*, the surprises, the root causes — not per-PR detail. For commit-level history, `git log`. For per-bug detail, [BUGS.md](BUGS.md).
 
-## Phase 1.1 — Repo skeleton (in flight)
+## Phase 1.2 — S3 Smithy spec vendored + engineering hygiene (in flight)
 
-Phase 1 absorbs foundation work alongside its first user (S3) rather than building infrastructure standalone. Phase 1.1 establishes the Go module, Makefile, and Go CI lane. No translation code yet; the goal is to have `make test` / `make vet` / `make build` pass against a stub `cmd/shim/main.go`, with CI exercising the same.
+Phase 1.2 makes the contract a committed artifact and surrounds it with the hygiene that every later phase will rely on: dependency-license policy enforced in CI, Renovate for automated dependency PRs, version bumps to current Go and GitHub Actions.
+
+### Spec ingestion
+
+`scripts/fetch-aws-spec.sh` resolves an `aws/aws-sdk-go-v2` ref (default `main`) to a concrete commit SHA via the GitHub API, fetches the raw Smithy JSON from that SHA, and writes both the JSON and a sibling `SOURCES.md` row recording the upstream URL + pinned SHA + fetch timestamp.
+
+Why vendor instead of fetch-at-build: reproducible builds, no network dependency in CI, explicit-PR audit trail for spec updates. The alternative — fetch-on-demand — creates silent drift (upstream `main` changes, downstream build behaves differently with no commit).
+
+S3 spec: 3.7 MB of Smithy JSON; 44 867 lines; 107 operations across 787 shapes. Git handles a single large structured-text file fine; diffs during refresh stay readable.
+
+### License policy
+
+shimanism is AGPL-3.0-only. The `doc/COMPATIBLE_LICENSES.md` document is the source of truth for the dependency allowlist, with rationale per license family and the load-bearing **linked-vs-connected** distinction (linked = `go.mod`; connected = wire protocol; only linked carries the copyleft constraint).
+
+Allowlist + check is enforced two ways:
+- `make license-check` runs `go-licenses check --include_tests` with the allowlist.
+- CI job `dependency licenses AGPL-compatible` runs the same on every PR.
+
+The allowlist includes deprecated-form SPDX IDs (`AGPL-3.0`, `GPL-3.0`, `LGPL-2.1`, `LGPL-3.0`) alongside the current `*-only` forms, because some tools and LICENSE files report the older unsuffixed names. `GPL-2.0` (unsuffixed) is deliberately not allowlisted because it's ambiguous between compatible (`-or-later`) and incompatible (`-only`) interpretations.
+
+### Renovate
+
+`.github/renovate.json5` wires Renovate for automated dependency PRs. Weekly batched updates, immediate security alerts, never auto-merge (same as everything — user merges every PR). The Renovate GitHub App must be installed on the repo by the user.
+
+### Version bumps
+
+Go: 1.25 → 1.26 (current stable; matches local toolchain).
+GitHub Actions: `actions/checkout` v4 → v6, `actions/setup-go` v5 → v6 (current latest).
+
+### Supply-chain hardening
+
+`doc/DEPENDENCY_POLICY.md` covers the dimensions beyond legal compatibility:
+
+- **Minimum release age: 48 hours.** Renovate enforces via `minimumReleaseAge: "48 hours"`. Several real-world supply-chain attacks (`event-stream`, `ua-parser-js`, `colors`/`faker`, `coa`, `node-ipc`) were caught and yanked within 48h of publish. Waiting that window out costs one batched-PR cycle of latency and gives the ecosystem time to spot a malicious release.
+- **Pin GitHub Actions to immutable SHAs** (`pinDigests: true` in Renovate). Tags are mutable; SHAs are not.
+- **Go: prefer pure-Go over cgo** for new deps. Cross-compilation, smaller binaries, no system-libc dependency. cgo allowed only with justification in the adding PR.
+- **npm (when we eventually land JS conformance lanes): pnpm only, lifecycle scripts disabled.** Deps that require pre-install/post-install scripts get patched, replaced, or rejected.
+
+### Why all these landed together
+
+They all share the same theme — establishing the engineering-hygiene baseline that every subsequent phase reuses. Splitting into separate PRs would have added overhead without changing the reviewable surface. The CI lanes for the license check land alongside the policy doc so the doc isn't aspirational.
+
+## Phase 1.1 — Repo skeleton (PR #3, merged 2026-05-18)
+
+Phase 1 absorbs foundation work alongside its first user (S3) rather than building infrastructure standalone. Phase 1.1 established the Go module (`github.com/e6qu/shimanism`, `go 1.25` to match sockerless), Makefile (vet/test/build/lint/fmt/check/clean), Go CI lane (`go vet + test + build` on every PR), and a placeholder `cmd/shim/main.go` so the lane has something to exercise.
 
 ### Why repo skeleton + PLAN restructure landed together
 

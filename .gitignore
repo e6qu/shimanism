@@ -3,6 +3,10 @@
 /bin/
 *.test
 *.out
+# Bare `go build ./...` from repo root drops binaries here; we keep
+# everything under bin/.
+/shim
+/cmd/shim/shim
 
 # Go
 /vendor/

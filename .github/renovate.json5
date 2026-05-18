@@ -1,0 +1,79 @@
+{
+  // Renovate config — keeps Go modules, GitHub Actions, and Docker image
+  // references up to date. Self-host: install the Renovate GitHub App
+  // (https://github.com/apps/renovate) on this repo.
+  //
+  // Schema: https://docs.renovatebot.com/renovate-schema.json
+  $schema: "https://docs.renovatebot.com/renovate-schema.json",
+
+  // Sensible defaults + security alerts.
+  extends: [
+    "config:recommended",
+    ":semanticCommitTypeAll(chore)",
+  ],
+
+  // Keep PR noise low. We're a small project; one batched PR a week is plenty.
+  schedule: ["before 9am on monday"],
+  timezone: "UTC",
+  labels: ["dependencies"],
+
+  // Be polite to upstream and to ourselves.
+  prHourlyLimit: 4,
+  prConcurrentLimit: 8,
+
+  // We never auto-merge — see AGENTS.md. User merges every PR.
+  automerge: false,
+
+  // Supply-chain mitigation: a dep version must be at least 48 hours old
+  // before Renovate will propose bumping us to it. Several real-world
+  // supply-chain attacks (event-stream, ua-parser-js, colors / faker, …)
+  // were caught and yanked within 48h of publish. Waiting that window out
+  // means the ecosystem has had time to spot a malicious release before
+  // we land it. The doc/DEPENDENCY_POLICY.md file is authoritative.
+  minimumReleaseAge: "48 hours",
+
+  // Pin GitHub Actions to immutable SHAs (security best practice). Renovate
+  // updates the SHA + the comment tag together when a new release ships.
+  pinDigests: true,
+
+  packageRules: [
+    {
+      // Group minor + patch updates by ecosystem to keep PR count manageable.
+      matchUpdateTypes: ["minor", "patch", "digest"],
+      matchManagers: ["github-actions"],
+      groupName: "github actions (minor & patch)",
+    },
+    {
+      matchUpdateTypes: ["minor", "patch"],
+      matchManagers: ["gomod"],
+      groupName: "go modules (minor & patch)",
+    },
+    {
+      // Major version bumps always get their own PR — they often need code
+      // changes alongside the dependency bump.
+      matchUpdateTypes: ["major"],
+      labels: ["dependencies", "major-bump"],
+    },
+    {
+      // Don't try to bump go.mod's own `go` directive automatically; the Go
+      // language version is a deliberate choice we make in PLAN.md decisions.
+      matchPackageNames: ["go"],
+      enabled: false,
+    },
+  ],
+
+  // Surface security advisories immediately, regardless of schedule.
+  vulnerabilityAlerts: {
+    labels: ["dependencies", "security"],
+    schedule: ["at any time"],
+  },
+
+  // The vendored AWS Smithy spec is fetched via `make fetch-specs` and
+  // pinned in services/storage/spec/SOURCES.md. Renovate cannot track
+  // that pin (custom format); the maintainer refreshes by running the
+  // make target. Listing here keeps Renovate from trying to scan the
+  // file as JSON dependencies.
+  ignorePaths: [
+    "services/*/spec/**",
+  ],
+}

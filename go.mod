@@ -1,3 +1,3 @@
 module github.com/e6qu/shimanism
 
-go 1.25
+go 1.26

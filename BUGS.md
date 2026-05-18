@@ -34,6 +34,7 @@ These are the failure patterns that recur across services. When a new bug fits o
 - **Spec drift.** When the upstream cloud spec changes shape (new fields, renamed operations, deprecated paths), the codegen pipeline must regenerate and the translation table must be updated in the same PR. Stale generated code is a bug.
 - **Cross-backend sweep on every find.** When a translation gap or fidelity defect appears in one (source, backend) pair, the same code paths in the other backend pairs for that service get checked in the same commit.
 - **Recorded-interaction drift.** When a cassette / VCR recording silently masks a real-cloud behavior change, the test is a bug. Nightly live runs are the authoritative tier.
+- **Incompatible-license dependency.** Adding a Go module whose license is not on the [`doc/COMPATIBLE_LICENSES.md`](doc/COMPATIBLE_LICENSES.md) allowlist is a bug — it would silently break shimanism's AGPL-3.0 license. CI's `licenses` job blocks it. Connected services (not linked) are exempt; the distinction is in the doc.
 
 ## Resolved history (compressed)
 
