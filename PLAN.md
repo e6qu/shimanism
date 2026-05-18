@@ -16,7 +16,7 @@ State [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md
 8. **One source spec, multiple adapters.** Each service has one front-door spec per cloud-source-protocol; many backend adapters. Codegen regenerates from upstream specs; agents own translation tables.
 9. **Single-branch rule.** All in-flight work for one phase on one branch; many commits, one PR. User merges.
 10. **Continuity always.** STATUS / WHAT_WE_DID / DO_NEXT / BUGS update at every significant chunk.
-11. **One service per phase.** Each phase ships one shimmed service end-to-end against every backend in scope, with full conformance.
+11. **One service per phase, every frontend × every backend.** Each phase ships one shimmed service end-to-end across **all three source-cloud frontends (AWS / GCP / Azure)** translating into **all four backends (AWS / GCP / Azure / K8s peer)** — the full 3 × 4 matrix, with conformance from each frontend's SDK + CLI + Terraform provider. No "AWS-source first, GCP-source row later." A service is not done until any cloud's tooling can drive it against any backend.
 
 ## Locked-in decisions
 
@@ -35,41 +35,54 @@ State [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md
 
 ## Phase structure
 
-Each shimmed service is its own phase. Foundation work (codegen pipeline, conformance harness, CI matrix) is absorbed into **Phase 1** — built alongside its first real user (S3) rather than as standalone infrastructure with no immediate consumer.
+Each shimmed service is its own phase. Foundation work (codegen pipeline, conformance harness, CI matrix) is absorbed into **Phase 1** — built alongside its first real user (object storage) rather than as standalone infrastructure with no immediate consumer.
 
-| Block | Phases | Source protocol | Services |
+Per principle 11, every phase ships the full N × N matrix in one phase. There are no "source rows" of horizontal expansion later; horizontal expansion happens **inside** each phase.
+
+| Phase | Service | Frontends (source clouds) | Backends |
 |---|---|---|---|
-| AWS source row | 1 – 8 | AWS SDK + CLI + Terraform | Storage · Secrets · Queue · Pub/Sub · RDBMS CP · Redis CP · Functions · Gateway |
-| GCP source row | 9 (sub-phases 9.1 – 9.8) | GCP SDK + gcloud + Terraform | same 8 services |
-| Azure source row | 10 (sub-phases 10.1 – 10.8) | Azure SDK + az + Terraform | same 8 services |
+| 1 | Object storage | AWS S3, GCS, Azure Blob | AWS S3, GCS, Azure Blob, K8s peer (MinIO) |
+| 2 | Secrets | AWS Secrets Manager, GCP Secret Manager, Azure Key Vault | same four + Vault as K8s peer |
+| 3 | Queue | AWS SQS, GCP Pub/Sub (pull), Azure Service Bus queues | same three clouds + NATS JetStream as K8s peer |
+| 4 | Pub/Sub | AWS SNS, GCP Pub/Sub, Azure Service Bus topics | same three clouds + NATS core as K8s peer |
+| 5 | Managed RDBMS (control plane) | AWS RDS, Cloud SQL Admin, Azure DB Admin | same three clouds + CloudNativePG / MySQL Operator as K8s peer |
+| 6 | Managed Redis (control plane) | AWS ElastiCache, GCP Memorystore Admin, Azure Cache for Redis Admin | same three clouds + Redis Operator as K8s peer |
+| 7 | Functions | AWS Lambda, GCP Cloud Run, Azure Container Apps | same three clouds + Knative as K8s peer |
+| 8 | API Gateway | AWS API Gateway v2, GCP API Gateway, Azure API Management | same three clouds + Envoy Gateway as K8s peer |
 
-Within a phase, sub-phases land as separate PRs.
+Within a phase, sub-phases land as separate commits on a single branch. Codegen for each frontend's spec format (Smithy / Discovery+protobuf / OpenAPI v3) is part of the per-phase work — Phase 1 establishes the AWS Smithy pipeline; Phase 1's GCP and Azure sub-phases establish the GCP Discovery and Azure OpenAPI pipelines, which then carry forward to Phases 2-8 as reusable infrastructure.
 
-## Phase 1 — Object storage (S3-source)
+## Phase 1 — Object storage
 
-Source: **S3** (AWS Signature V4, XML responses, multipart, presigned URLs).
-Backends: S3 passthrough · MinIO · GCS · Azure Blob.
+Frontends: **AWS S3** (SigV4, REST-XML), **GCS** (OAuth2 bearer, JSON, resumable uploads), **Azure Blob** (SharedKey / SAS, REST + XML for some paths).
+Backends: AWS S3 · GCS · Azure Blob · K8s peer (MinIO-in-cluster).
 
-**Why first:** largest API surface; richest auth + content semantics; MinIO is a free truth oracle. Phase 1 also carries the foundation work (codegen + harness + CI matrix), so later phases are mostly translation-table additions.
+**Why first:** largest API surface; richest auth + content semantics; MinIO is a free truth oracle for the K8s peer. Phase 1 also carries the foundation work — codegen for all three spec formats (Smithy 2.0, GCP Discovery, Azure OpenAPI v3), the conformance harness, the CI matrix — so Phases 2-8 are mostly translation-table additions on top of established infrastructure.
 
 ### Sub-phases
 
 | Sub | Status | Headline |
 |---|---|---|
-| **1.1** | ◐ | Repo skeleton: Go module, Makefile, Go CI lane. |
-| **1.2** | ◻ | Spec ingestion: fetch + cache AWS Smithy JSON for S3. |
-| **1.3** | ◻ | Codegen pilot: Smithy → Go server stub for one operation (`ListBuckets`). |
-| **1.4** | ◻ | Conformance harness skeleton: SDK + CLI + Terraform drivers against an `EchoService` returning canonical AWS S3 shape. All three drivers pass against the no-op. |
-| **1.5** | ◻ | First real backend: `ListBuckets` → MinIO. Validates plumbing end-to-end (same protocol, no translation lies — control case). |
-| **1.6** | ◻ | `ListBuckets` → GCS. First real cross-cloud translation. |
-| **1.7** | ◻ | `ListBuckets` → Azure Blob. |
-| **1.8** | ◻ | `PutObject` + `GetObject` (single-part) across all four backends. |
-| **1.9** | ◻ | Multipart upload (`CreateMultipartUpload` / `UploadPart` / `CompleteMultipartUpload`). |
-| **1.10** | ◻ | Presigned URLs. |
-| **1.11** | ◻ | Bucket lifecycle (`CreateBucket`, `DeleteBucket`, `HeadBucket`, `ListObjects(V2)`, `DeleteObject`, `HeadObject`, `CopyObject`). |
-| **1.12** | ◻ | Phase 1 closer: full conformance lane green against all four backends; Terraform `aws_s3_bucket` + `aws_s3_object` drive every backend via `endpoints { s3 = ... }`. |
+| **1.1** | ✅ | Repo skeleton: Go module, Makefile, Go CI lane. |
+| **1.2** | ✅ | Spec ingestion: fetch + cache AWS Smithy JSON for S3. |
+| **1.3** | ✅ | Codegen pilot: Smithy → Go server stubs (all 107 ops; subsequently scoped down). |
+| **1.4** | ✅ | Conformance harness: SDK + CLI + Terraform drivers against the shim. |
+| **1.5.0** | ✅ | Domain refactor: `internal/storage/domain/` neutral interface; AWS S3 frontend adapter; streaming codegen. |
+| **1.5.1** | ✅ | MinIO backend (S3-compatible control case; lives at `services/storage/backends/minio/`). |
+| **1.5.2** | ✅ | AWS S3 passthrough backend. |
+| **1.6** | ✅ | GCS backend — first cross-shape translation. |
+| **1.7** | ✅ | Azure Blob backend. |
+| **1.8** | ✅ | K8s peer: runnable `cmd/shim` + `deploy/k8s/peer/` MinIO + shim manifests + Dockerfile. |
+| **1.9** | ✅ | CopyObject cross-cloud nuances (Azure fail-loud poll loop). |
+| **1.10** | ✅ | Multipart ETag parity via `domain.MultipartETag`. |
+| **1.11** | ✅ | Presigned URL conformance test. |
+| **1.12** | ✅ | BUG-1 fix: router `ForbiddenQueries` + GetObjectTagging / GetObjectAcl object probes. |
+| **1.13** | ◐ | CI conformance matrix (minio / gcs / azureblob lanes). |
+| **1.14** | ◻ | **GCS frontend.** Spec ingest (Discovery doc / protobuf) → GCS-shaped server stubs → adapter wrapping `domain.Storage` → conformance via `cloud.google.com/go/storage` SDK + `gcloud` CLI + `hashicorp/google` Terraform provider against all four backends. |
+| **1.15** | ◻ | **Azure Blob frontend.** Spec ingest (Azure OpenAPI v3) → Azure-Blob-shaped server stubs (XML for blob list, REST + JSON for control) → adapter wrapping `domain.Storage` → conformance via `azure-sdk-for-go/sdk/storage/azblob` SDK + `az` CLI + `hashicorp/azurerm` Terraform provider against all four backends. |
+| **1.16** | ◻ | Phase 1 closer: full conformance lane green for **all 3 frontends × 4 backends × 3 driver types = 36 driver-backend combinations**. Terraform `aws_s3_bucket`, `google_storage_bucket`, `azurerm_storage_container` each provision against every backend through endpoint overrides. |
 
-**Exit criteria:** Terraform HCL written for AWS S3 provisions and exercises a GCS-backed bucket end-to-end via `endpoints { s3 = "..." }`, with no resource churn or fabricated responses. Equivalents for MinIO and Blob.
+**Exit criteria:** any one of `aws s3 cp` / `gcloud storage cp` / `az storage blob upload` (configured to hit the shim's endpoint) writes an object that round-trips correctly when the shim is backed by any of AWS S3 / GCS / Azure Blob / K8s peer. Symmetrically: the corresponding Terraform resource (`aws_s3_object` / `google_storage_bucket_object` / `azurerm_storage_blob`) provisions through every (frontend, backend) combination without resource churn or fabricated responses.
 
 ### Architecture: cross-cloud routing
 
@@ -84,111 +97,78 @@ The implementation order is:
 - **1.7** (Azure Blob): same.
 - **1.8** (K8s peer): MinIO-in-cluster via operator (or equivalent).
 
-## Phase 2 — Secrets (Secrets Manager-source)
+## Phase 2 — Secrets
 
-Source: AWS Secrets Manager.
-Backends: Secrets Manager passthrough · Vault · GCP Secret Manager · Azure Key Vault (secrets surface only).
+Frontends: **AWS Secrets Manager**, **GCP Secret Manager**, **Azure Key Vault** (secrets surface only — Key Vault's certificate / key APIs are out of intersection).
+Backends: same three clouds + **Vault** as the K8s peer.
 
-Simpler API; validates the platform pattern doesn't accidentally depend on object-storage specifics. Reuses codegen + harness from Phase 1; should ship in a fraction of Phase 1's time.
+Simpler API than storage; validates the platform pattern doesn't accidentally depend on object-storage specifics. Reuses the codegen pipelines for all three spec formats and the conformance harness from Phase 1; should ship in a fraction of Phase 1's time.
 
-**Sub-phases (sketch):** spec ingest · codegen · `GetSecretValue` × 4 backends · `PutSecretValue` · `CreateSecret` · `DeleteSecret` · `ListSecrets` · version management · closer.
+**Sub-phases (sketch per frontend × backend matrix):** Smithy / Discovery / OpenAPI ingest · codegen for the three frontends · per-cloud auth wiring · `GetSecretValue` × 4 backends · `PutSecretValue` · `CreateSecret` · `DeleteSecret` · `ListSecrets` · version management · K8s peer (Vault deployment manifests) · closer.
 
-**Exit criteria:** `aws secretsmanager get-secret-value` and Terraform provider drive all four backends correctly.
+**Exit criteria:** any of `aws secretsmanager get-secret-value` / `gcloud secrets versions access` / `az keyvault secret show` drives every backend correctly, plus the matching Terraform resource for each.
 
-## Phase 3 — Queue (SQS-source)
+## Phase 3 — Queue
 
-Source: AWS SQS.
-Backends: SQS passthrough · NATS JetStream · GCP Pub/Sub (pull mode) · Azure Service Bus queue.
+Frontends: **AWS SQS**, **GCP Pub/Sub (pull mode)**, **Azure Service Bus queue**.
+Backends: same three clouds + **NATS JetStream** as the K8s peer.
 
-Fidelity challenges: visibility timeouts, FIFO ordering, message attributes, dead-letter queues.
+Fidelity challenges: visibility timeouts, FIFO ordering, message attributes, dead-letter queues. Each frontend has its own model of in-flight vs visible vs dead-letter; the domain interface lives at the intersection.
 
-**Exit criteria:** an SDK-using worker drains an SQS-shaped queue identically when the backend is each of the four.
+**Exit criteria:** an SDK-using worker (any of the three) drains a queue identically when the backend is each of the four.
 
-## Phase 4 — Pub/Sub (SNS-source)
+## Phase 4 — Pub/Sub
 
-Source: AWS SNS (with SQS-shaped subscriptions for delivery).
-Backends: SNS+SQS passthrough · NATS core · GCP Pub/Sub · Azure Service Bus topics.
+Frontends: **AWS SNS** (with SQS-shaped subscriptions for delivery), **GCP Pub/Sub**, **Azure Service Bus topics**.
+Backends: same three clouds + **NATS core** as the K8s peer.
 
 Shares auth + messaging infrastructure with Phase 3.
 
-**Exit criteria:** `aws sns publish` to a topic with subscriptions on every backend type fans out correctly; subscribers receive the canonical SNS message envelope.
+**Exit criteria:** any of `aws sns publish` / `gcloud pubsub topics publish` / `az servicebus topic create+send` fans out to a topic with subscriptions on every backend type correctly; subscribers receive the canonical message envelope for whichever frontend they used.
 
-## Phase 5 — Managed RDBMS (RDS-source, control plane only)
+## Phase 5 — Managed RDBMS (control plane only)
 
-Source: AWS RDS (Postgres + MySQL engines).
-Backends: RDS passthrough · CloudNativePG / MySQL Operator (K8s) · Cloud SQL Admin · Azure DB Admin.
+Frontends: **AWS RDS**, **Cloud SQL Admin**, **Azure DB Admin** (Postgres + MySQL engines for each).
+Backends: same three clouds + **CloudNativePG / MySQL Operator** (K8s) as the K8s peer.
 
-**Different shape from Phases 1-4:** no data-plane proxying. Shim translates control-plane API calls (`CreateDBInstance`, snapshot, restore) and returns connection metadata. Clients connect directly to the real Postgres / MySQL via wire protocol.
+**Different shape from Phases 1-4:** no data-plane proxying. The shim translates control-plane API calls (`CreateDBInstance` / `instances.insert` / `Servers_Create`, snapshot, restore) and returns connection metadata. Clients connect directly to the real Postgres / MySQL via wire protocol.
 
-**Exit criteria:** `aws rds create-db-instance --endpoint-url=...` provisions a CloudNativePG cluster in K8s; the returned connection details let `psql` connect to the real PG and run queries.
+**Exit criteria:** any of `aws rds create-db-instance` / `gcloud sql instances create` / `az postgres flexible-server create` provisions a CloudNativePG cluster in K8s through the shim; the returned connection details let `psql` connect to the real PG and run queries.
 
-## Phase 6 — Managed Redis (ElastiCache-source, control plane only)
+## Phase 6 — Managed Redis (control plane only)
 
-Source: AWS ElastiCache.
-Backends: ElastiCache passthrough · Redis Operator (K8s) · GCP Memorystore Admin · Azure Cache for Redis Admin.
+Frontends: **AWS ElastiCache**, **GCP Memorystore Admin**, **Azure Cache for Redis Admin**.
+Backends: same three clouds + **Redis Operator** (K8s) as the K8s peer.
 
 Same shape as Phase 5: control-plane only; data plane is wire-protocol RESP — direct client connection.
 
-**Exit criteria:** `aws elasticache create-cache-cluster` provisions a Redis Operator instance; returned endpoint accepts a `redis-cli` connection.
+**Exit criteria:** any of `aws elasticache create-cache-cluster` / `gcloud redis instances create` / `az redis create` provisions a Redis Operator instance through the shim; returned endpoint accepts a `redis-cli` connection.
 
-## Phase 7 — Functions (Lambda-source)
+## Phase 7 — Functions
 
-Source: AWS Lambda (container image deployment path).
-Backends: Lambda passthrough · Knative (K8s) · Cloud Run · Azure Container Apps.
+Frontends: **AWS Lambda** (container image deployment path), **GCP Cloud Run / Cloud Functions Gen 2**, **Azure Container Apps / Functions** (ARM, container path).
+Backends: same three clouds + **Knative** (K8s) as the K8s peer.
 
-Translation challenges: deployment metadata, event payload normalization (S3 / SQS / SNS events → canonical HTTP envelope), VPC integration.
+Translation challenges: deployment metadata, event payload normalization (cross-cloud events → canonical HTTP envelope), VPC / network integration.
 
-**Exit criteria:** a SAM template deploys to Knative + Cloud Run through the shim and serves traffic; AWS Lambda Powertools sees the expected event shape.
+**Exit criteria:** a deployment (SAM template / `gcloud run deploy` / `az containerapp create`) deploys to Knative + every cloud backend through the shim and serves traffic; the function sees the expected event shape for whichever frontend originated the deployment.
 
-## Phase 8 — API Gateway (API Gateway HTTP API v2-source)
+## Phase 8 — API Gateway
 
-Source: AWS API Gateway HTTP API v2.
-Backends: API Gateway passthrough · Envoy Gateway (K8s) · GCP API Gateway · Azure API Management (Consumption tier).
+Frontends: **AWS API Gateway HTTP API v2**, **GCP API Gateway**, **Azure API Management** (Consumption tier).
+Backends: same three clouds + **Envoy Gateway** (K8s) as the K8s peer.
 
 Declarative-replace model: `deploy(gateway_spec)` swaps the entire routing table atomically.
 
-**Exit criteria:** Terraform `aws_apigatewayv2_api` + routes + integrations deploy correctly through the shim to Envoy Gateway; published URL serves the configured routes.
-
-## Phase 9 — GCP source row (horizontal expansion)
-
-For each of the eight services, add a GCP-source adapter. Backends unchanged. Re-run conformance with `gcloud`, the GCP Go SDK, the GCP Terraform provider.
-
-This is where the codegen pipeline pays back: each sub-phase is mostly a translation-table addition, not new architecture.
-
-| Sub | Service | Source |
-|---|---|---|
-| 9.1 | Object storage | GCS |
-| 9.2 | Secrets | GCP Secret Manager |
-| 9.3 | Queue | GCP Pub/Sub (pull) |
-| 9.4 | Pub/Sub | GCP Pub/Sub |
-| 9.5 | RDBMS | Cloud SQL Admin |
-| 9.6 | Redis | GCP Memorystore Admin |
-| 9.7 | Functions | Cloud Run Admin |
-| 9.8 | API Gateway | GCP API Gateway |
-
-**Exit criteria:** `gcloud storage cp` with `--api-endpoint-overrides` works against an Azure-Blob-backed bucket through the shim, just as `aws s3 cp` did in Phase 1.
-
-## Phase 10 — Azure source row (horizontal expansion)
-
-| Sub | Service | Source |
-|---|---|---|
-| 10.1 | Object storage | Azure Blob |
-| 10.2 | Secrets | Azure Key Vault (secrets) |
-| 10.3 | Queue | Azure Service Bus queue (decide AMQP-vs-REST fidelity tier here) |
-| 10.4 | Pub/Sub | Azure Service Bus topics |
-| 10.5 | RDBMS | Azure Database for PG/MySQL (ARM) |
-| 10.6 | Redis | Azure Cache for Redis (ARM) |
-| 10.7 | Functions | Azure Container Apps / Functions (ARM) |
-| 10.8 | API Gateway | Azure API Management (ARM) |
-
-**Exit criteria:** Azure SDK + `az` CLI + AzureRM Terraform provider all drive the shim against every backend for every service.
+**Exit criteria:** Terraform `aws_apigatewayv2_api` + `google_api_gateway_api` + `azurerm_api_management` each deploy routes + integrations correctly through the shim to Envoy Gateway and to every cloud backend; published URLs serve the configured routes.
 
 ## Open questions (decide before they block work)
 
 - Single org-wide deployment vs per-tenant — affects auth model.
-- Where do live cloud test accounts live; who pays.
+- Where do live cloud test accounts live; who pays. (Blocks the per-cloud SDK / CLI / Terraform real-backend conformance lanes.)
 - Coding-agent permissions for upstream spec-version bumps: auto-PR or human-in-loop?
-- AMQP fidelity tier for Azure Service Bus (Phase 10.3 + 10.4) — REST-only initially, or AMQP from the start?
+- AMQP fidelity tier for Azure Service Bus (Phase 3.x + 4.x) — REST-only initially, or AMQP from the start?
+- Codegen pipelines for the non-Smithy spec formats (GCP Discovery / Azure OpenAPI v3): build in-house alongside the existing Smithy emitter, or generate via official spec → Go tooling (oapi-codegen, etc.) and adapt the output to our handler shape? Phase 1.14 / 1.15 forces the call.
 
 ## Closed phases (PR index)
 

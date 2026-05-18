@@ -165,12 +165,15 @@ The adapter checks that the bucket exists (via the domain), then returns the can
 
 ## The single-PR / one-direction-at-a-time discipline
 
-shimanism is built one front, one back at a time:
-- Phase 1.4 (current): AWS frontend, in-mem backend.
-- Phase 1.5: domain refactor + MinIO backend (still AWS frontend).
-- Phase 1.6: GCS backend, then 1.7 Azure Blob backend (still AWS frontend).
-- Phase 1.12: phase closer — all AWS frontend / all backends green.
-- Phase 9 (much later): GCS frontend. Reuses the same backends.
-- Phase 10: Azure frontend. Reuses the same backends.
+shimanism is built one front, one back at a time, **but every service phase ships the full N × N matrix before moving to the next service**:
+- Phase 1.4: AWS frontend, in-mem backend (foundation).
+- Phase 1.5: domain refactor + MinIO backend.
+- Phase 1.6: GCS backend.
+- Phase 1.7: Azure Blob backend.
+- Phase 1.8: K8s peer deployment.
+- Phase 1.9 – 1.13: nuance + bug-fix + CI matrix.
+- **Phase 1.14: GCS frontend.** Reuses the four backends.
+- **Phase 1.15: Azure Blob frontend.** Reuses the four backends.
+- Phase 1.16: full-matrix closer (3 frontends × 4 backends × 3 driver types = 36 driver-backend combinations green).
 
-Each phase ships one cell-or-row of the matrix end-to-end, with full conformance, before moving on.
+A service is not done until any cloud's tooling can drive it against any backend. Phases 2-8 follow the same N × N discipline for their service.
