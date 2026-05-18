@@ -285,6 +285,15 @@ type opView struct {
 	// RequiredInputHeaders, but for query params (e.g. UploadPart's
 	// partNumber + uploadId).
 	RequiredInputQueries []string
+	// ForbiddenQueries are query parameter names that, if present,
+	// disqualify this route. Used by base object/bucket operations
+	// (GetObject, PutObject, HeadObject, DeleteObject) to reject S3
+	// feature-config queries (`?tagging`, `?acl`, …) that name
+	// out-of-intersection sibling operations not in the manifest.
+	// Without this, a request like `GET /bucket/key?tagging` falls
+	// through to GetObject and the shim silently returns the object
+	// body — a fidelity break. See BUGS.md BUG-1.
+	ForbiddenQueries []string
 }
 
 type errorRef struct {
@@ -605,7 +614,62 @@ func (g *gen) opView(op operation) (opView, error) {
 			v.HTTPStatus = 200
 		}
 	}
+	v.ForbiddenQueries = forbiddenQueriesFor(v.GoName)
 	return v, nil
+}
+
+// s3FeatureQueries lists every S3 query parameter that names a
+// per-object or per-bucket *feature* operation in S3's REST API. Any
+// of these on a base GET/PUT/HEAD/DELETE object/bucket request
+// signals an out-of-intersection sibling operation (GetObjectAcl,
+// GetObjectTagging, GetBucketPolicy, etc.). The base operation
+// declares all of these as forbidden so the router doesn't fall
+// through and silently serve the wrong response shape.
+//
+// The list intentionally **excludes** parameters that are legitimate
+// arguments to the base operations themselves: `versionId`,
+// `partNumber`, `uploadId`, `response-*` (response-header
+// overrides), `x-id` (the SDK's disambiguator we already strip).
+var s3FeatureQueries = []string{
+	"acl",
+	"accelerate",
+	"analytics",
+	"attributes",
+	"cors",
+	"encryption",
+	"intelligent-tiering",
+	"inventory",
+	"legal-hold",
+	"lifecycle",
+	"logging",
+	"metrics",
+	"notification",
+	"object-lock",
+	"ownershipControls",
+	"policy",
+	"policyStatus",
+	"publicAccessBlock",
+	"replication",
+	"requestPayment",
+	"restore",
+	"retention",
+	"select",
+	"tagging",
+	"torrent",
+	"versioning",
+	"website",
+}
+
+func forbiddenQueriesFor(opName string) []string {
+	switch opName {
+	case "GetObject", "PutObject", "HeadObject", "DeleteObject", "CopyObject":
+		// Object-level base ops: any feature query names a sibling.
+		return append([]string(nil), s3FeatureQueries...)
+	case "ListObjectsV2", "HeadBucket", "DeleteBucket":
+		// Bucket-level base ops: same set applies.
+		return append([]string(nil), s3FeatureQueries...)
+	}
+	return nil
 }
 
 // goTypeForRef returns the Go type expression for a member targeting

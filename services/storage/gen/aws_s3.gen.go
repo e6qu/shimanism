@@ -2110,6 +2110,39 @@ type GetPublicAccessBlockOutput struct {
 	PublicAccessBlockConfiguration *PublicAccessBlockConfiguration // bound to payload=
 }
 
+// GetObjectTaggingRequest is a generated Smithy structure.
+type GetObjectTaggingRequest struct {
+	Bucket              string        // bound to label=Bucket
+	ExpectedBucketOwner *string       // bound to header=x-amz-expected-bucket-owner
+	Key                 string        // bound to label=Key
+	RequestPayer        *RequestPayer // bound to header=x-amz-request-payer
+	VersionId           *string       // bound to query=versionId
+}
+
+// GetObjectTaggingOutput is a generated Smithy structure.
+type GetObjectTaggingOutput struct {
+	XMLName   xml.Name `xml:"Tagging"`
+	TagSet    TagSet   `xml:"TagSet,omitempty"`
+	VersionId *string  // bound to header=x-amz-version-id
+}
+
+// GetObjectAclRequest is a generated Smithy structure.
+type GetObjectAclRequest struct {
+	Bucket              string        // bound to label=Bucket
+	ExpectedBucketOwner *string       // bound to header=x-amz-expected-bucket-owner
+	Key                 string        // bound to label=Key
+	RequestPayer        *RequestPayer // bound to header=x-amz-request-payer
+	VersionId           *string       // bound to query=versionId
+}
+
+// GetObjectAclOutput is a generated Smithy structure.
+type GetObjectAclOutput struct {
+	XMLName        xml.Name        `xml:"AccessControlPolicy"`
+	Grants         Grants          `xml:"AccessControlList,omitempty"`
+	Owner          *Owner          `xml:"Owner,omitempty"`
+	RequestCharged *RequestCharged // bound to header=x-amz-request-charged
+}
+
 // AmazonS3Backend is the union of every per-operation backend
 // interface emitted from the spec. A real backend implementation
 // satisfies this union; the harness's in-memory backend satisfies it
@@ -2150,6 +2183,8 @@ type AmazonS3Backend interface {
 	GetBucketOwnershipControlsBackend
 	GetBucketPolicyStatusBackend
 	GetPublicAccessBlockBackend
+	GetObjectTaggingBackend
+	GetObjectAclBackend
 }
 
 // RegisterAmazonS3Routes mounts every shimmed operation handler
@@ -2159,206 +2194,254 @@ type AmazonS3Backend interface {
 func RegisterAmazonS3Routes(router *restxml.Router, b AmazonS3Backend) {
 	router.Register(ListBucketsMethod, ListBucketsURITemplate, "ListBuckets", ListBucketsHandler(b),
 		restxml.RouteOptions{
-			RequiredHeaders: []string{},
-			RequiredQueries: []string{},
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{},
+			ForbiddenQueries: []string{},
 		},
 	)
 	router.Register(CreateBucketMethod, CreateBucketURITemplate, "CreateBucket", CreateBucketHandler(b),
 		restxml.RouteOptions{
-			RequiredHeaders: []string{},
-			RequiredQueries: []string{},
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{},
+			ForbiddenQueries: []string{},
 		},
 	)
 	router.Register(DeleteBucketMethod, DeleteBucketURITemplate, "DeleteBucket", DeleteBucketHandler(b),
 		restxml.RouteOptions{
-			RequiredHeaders: []string{},
-			RequiredQueries: []string{},
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{},
+			ForbiddenQueries: []string{"acl", "accelerate", "analytics", "attributes", "cors", "encryption", "intelligent-tiering", "inventory", "legal-hold", "lifecycle", "logging", "metrics", "notification", "object-lock", "ownershipControls", "policy", "policyStatus", "publicAccessBlock", "replication", "requestPayment", "restore", "retention", "select", "tagging", "torrent", "versioning", "website"},
 		},
 	)
 	router.Register(HeadBucketMethod, HeadBucketURITemplate, "HeadBucket", HeadBucketHandler(b),
 		restxml.RouteOptions{
-			RequiredHeaders: []string{},
-			RequiredQueries: []string{},
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{},
+			ForbiddenQueries: []string{"acl", "accelerate", "analytics", "attributes", "cors", "encryption", "intelligent-tiering", "inventory", "legal-hold", "lifecycle", "logging", "metrics", "notification", "object-lock", "ownershipControls", "policy", "policyStatus", "publicAccessBlock", "replication", "requestPayment", "restore", "retention", "select", "tagging", "torrent", "versioning", "website"},
 		},
 	)
 	router.Register(ListObjectsV2Method, ListObjectsV2URITemplate, "ListObjectsV2", ListObjectsV2Handler(b),
 		restxml.RouteOptions{
-			RequiredHeaders: []string{},
-			RequiredQueries: []string{},
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{},
+			ForbiddenQueries: []string{"acl", "accelerate", "analytics", "attributes", "cors", "encryption", "intelligent-tiering", "inventory", "legal-hold", "lifecycle", "logging", "metrics", "notification", "object-lock", "ownershipControls", "policy", "policyStatus", "publicAccessBlock", "replication", "requestPayment", "restore", "retention", "select", "tagging", "torrent", "versioning", "website"},
 		},
 	)
 	router.Register(GetObjectMethod, GetObjectURITemplate, "GetObject", GetObjectHandler(b),
 		restxml.RouteOptions{
-			RequiredHeaders: []string{},
-			RequiredQueries: []string{},
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{},
+			ForbiddenQueries: []string{"acl", "accelerate", "analytics", "attributes", "cors", "encryption", "intelligent-tiering", "inventory", "legal-hold", "lifecycle", "logging", "metrics", "notification", "object-lock", "ownershipControls", "policy", "policyStatus", "publicAccessBlock", "replication", "requestPayment", "restore", "retention", "select", "tagging", "torrent", "versioning", "website"},
 		},
 	)
 	router.Register(PutObjectMethod, PutObjectURITemplate, "PutObject", PutObjectHandler(b),
 		restxml.RouteOptions{
-			RequiredHeaders: []string{},
-			RequiredQueries: []string{},
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{},
+			ForbiddenQueries: []string{"acl", "accelerate", "analytics", "attributes", "cors", "encryption", "intelligent-tiering", "inventory", "legal-hold", "lifecycle", "logging", "metrics", "notification", "object-lock", "ownershipControls", "policy", "policyStatus", "publicAccessBlock", "replication", "requestPayment", "restore", "retention", "select", "tagging", "torrent", "versioning", "website"},
 		},
 	)
 	router.Register(DeleteObjectMethod, DeleteObjectURITemplate, "DeleteObject", DeleteObjectHandler(b),
 		restxml.RouteOptions{
-			RequiredHeaders: []string{},
-			RequiredQueries: []string{},
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{},
+			ForbiddenQueries: []string{"acl", "accelerate", "analytics", "attributes", "cors", "encryption", "intelligent-tiering", "inventory", "legal-hold", "lifecycle", "logging", "metrics", "notification", "object-lock", "ownershipControls", "policy", "policyStatus", "publicAccessBlock", "replication", "requestPayment", "restore", "retention", "select", "tagging", "torrent", "versioning", "website"},
 		},
 	)
 	router.Register(HeadObjectMethod, HeadObjectURITemplate, "HeadObject", HeadObjectHandler(b),
 		restxml.RouteOptions{
-			RequiredHeaders: []string{},
-			RequiredQueries: []string{},
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{},
+			ForbiddenQueries: []string{"acl", "accelerate", "analytics", "attributes", "cors", "encryption", "intelligent-tiering", "inventory", "legal-hold", "lifecycle", "logging", "metrics", "notification", "object-lock", "ownershipControls", "policy", "policyStatus", "publicAccessBlock", "replication", "requestPayment", "restore", "retention", "select", "tagging", "torrent", "versioning", "website"},
 		},
 	)
 	router.Register(CopyObjectMethod, CopyObjectURITemplate, "CopyObject", CopyObjectHandler(b),
 		restxml.RouteOptions{
-			RequiredHeaders: []string{"x-amz-copy-source"},
-			RequiredQueries: []string{},
+			RequiredHeaders:  []string{"x-amz-copy-source"},
+			RequiredQueries:  []string{},
+			ForbiddenQueries: []string{"acl", "accelerate", "analytics", "attributes", "cors", "encryption", "intelligent-tiering", "inventory", "legal-hold", "lifecycle", "logging", "metrics", "notification", "object-lock", "ownershipControls", "policy", "policyStatus", "publicAccessBlock", "replication", "requestPayment", "restore", "retention", "select", "tagging", "torrent", "versioning", "website"},
 		},
 	)
 	router.Register(CreateMultipartUploadMethod, CreateMultipartUploadURITemplate, "CreateMultipartUpload", CreateMultipartUploadHandler(b),
 		restxml.RouteOptions{
-			RequiredHeaders: []string{},
-			RequiredQueries: []string{},
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{},
+			ForbiddenQueries: []string{},
 		},
 	)
 	router.Register(UploadPartMethod, UploadPartURITemplate, "UploadPart", UploadPartHandler(b),
 		restxml.RouteOptions{
-			RequiredHeaders: []string{},
-			RequiredQueries: []string{"partNumber", "uploadId"},
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{"partNumber", "uploadId"},
+			ForbiddenQueries: []string{},
 		},
 	)
 	router.Register(CompleteMultipartUploadMethod, CompleteMultipartUploadURITemplate, "CompleteMultipartUpload", CompleteMultipartUploadHandler(b),
 		restxml.RouteOptions{
-			RequiredHeaders: []string{},
-			RequiredQueries: []string{"uploadId"},
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{"uploadId"},
+			ForbiddenQueries: []string{},
 		},
 	)
 	router.Register(AbortMultipartUploadMethod, AbortMultipartUploadURITemplate, "AbortMultipartUpload", AbortMultipartUploadHandler(b),
 		restxml.RouteOptions{
-			RequiredHeaders: []string{},
-			RequiredQueries: []string{"uploadId"},
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{"uploadId"},
+			ForbiddenQueries: []string{},
 		},
 	)
 	router.Register(ListMultipartUploadsMethod, ListMultipartUploadsURITemplate, "ListMultipartUploads", ListMultipartUploadsHandler(b),
 		restxml.RouteOptions{
-			RequiredHeaders: []string{},
-			RequiredQueries: []string{},
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{},
+			ForbiddenQueries: []string{},
 		},
 	)
 	router.Register(ListPartsMethod, ListPartsURITemplate, "ListParts", ListPartsHandler(b),
 		restxml.RouteOptions{
-			RequiredHeaders: []string{},
-			RequiredQueries: []string{"uploadId"},
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{"uploadId"},
+			ForbiddenQueries: []string{},
 		},
 	)
 	router.Register(GetBucketLocationMethod, GetBucketLocationURITemplate, "GetBucketLocation", GetBucketLocationHandler(b),
 		restxml.RouteOptions{
-			RequiredHeaders: []string{},
-			RequiredQueries: []string{},
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{},
+			ForbiddenQueries: []string{},
 		},
 	)
 	router.Register(GetBucketPolicyMethod, GetBucketPolicyURITemplate, "GetBucketPolicy", GetBucketPolicyHandler(b),
 		restxml.RouteOptions{
-			RequiredHeaders: []string{},
-			RequiredQueries: []string{},
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{},
+			ForbiddenQueries: []string{},
 		},
 	)
 	router.Register(GetBucketAclMethod, GetBucketAclURITemplate, "GetBucketAcl", GetBucketAclHandler(b),
 		restxml.RouteOptions{
-			RequiredHeaders: []string{},
-			RequiredQueries: []string{},
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{},
+			ForbiddenQueries: []string{},
 		},
 	)
 	router.Register(GetBucketVersioningMethod, GetBucketVersioningURITemplate, "GetBucketVersioning", GetBucketVersioningHandler(b),
 		restxml.RouteOptions{
-			RequiredHeaders: []string{},
-			RequiredQueries: []string{},
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{},
+			ForbiddenQueries: []string{},
 		},
 	)
 	router.Register(GetBucketLoggingMethod, GetBucketLoggingURITemplate, "GetBucketLogging", GetBucketLoggingHandler(b),
 		restxml.RouteOptions{
-			RequiredHeaders: []string{},
-			RequiredQueries: []string{},
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{},
+			ForbiddenQueries: []string{},
 		},
 	)
 	router.Register(GetBucketCorsMethod, GetBucketCorsURITemplate, "GetBucketCors", GetBucketCorsHandler(b),
 		restxml.RouteOptions{
-			RequiredHeaders: []string{},
-			RequiredQueries: []string{},
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{},
+			ForbiddenQueries: []string{},
 		},
 	)
 	router.Register(GetBucketLifecycleConfigurationMethod, GetBucketLifecycleConfigurationURITemplate, "GetBucketLifecycleConfiguration", GetBucketLifecycleConfigurationHandler(b),
 		restxml.RouteOptions{
-			RequiredHeaders: []string{},
-			RequiredQueries: []string{},
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{},
+			ForbiddenQueries: []string{},
 		},
 	)
 	router.Register(GetBucketReplicationMethod, GetBucketReplicationURITemplate, "GetBucketReplication", GetBucketReplicationHandler(b),
 		restxml.RouteOptions{
-			RequiredHeaders: []string{},
-			RequiredQueries: []string{},
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{},
+			ForbiddenQueries: []string{},
 		},
 	)
 	router.Register(GetBucketRequestPaymentMethod, GetBucketRequestPaymentURITemplate, "GetBucketRequestPayment", GetBucketRequestPaymentHandler(b),
 		restxml.RouteOptions{
-			RequiredHeaders: []string{},
-			RequiredQueries: []string{},
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{},
+			ForbiddenQueries: []string{},
 		},
 	)
 	router.Register(GetBucketTaggingMethod, GetBucketTaggingURITemplate, "GetBucketTagging", GetBucketTaggingHandler(b),
 		restxml.RouteOptions{
-			RequiredHeaders: []string{},
-			RequiredQueries: []string{},
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{},
+			ForbiddenQueries: []string{},
 		},
 	)
 	router.Register(GetBucketWebsiteMethod, GetBucketWebsiteURITemplate, "GetBucketWebsite", GetBucketWebsiteHandler(b),
 		restxml.RouteOptions{
-			RequiredHeaders: []string{},
-			RequiredQueries: []string{},
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{},
+			ForbiddenQueries: []string{},
 		},
 	)
 	router.Register(GetBucketEncryptionMethod, GetBucketEncryptionURITemplate, "GetBucketEncryption", GetBucketEncryptionHandler(b),
 		restxml.RouteOptions{
-			RequiredHeaders: []string{},
-			RequiredQueries: []string{},
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{},
+			ForbiddenQueries: []string{},
 		},
 	)
 	router.Register(GetBucketAccelerateConfigurationMethod, GetBucketAccelerateConfigurationURITemplate, "GetBucketAccelerateConfiguration", GetBucketAccelerateConfigurationHandler(b),
 		restxml.RouteOptions{
-			RequiredHeaders: []string{},
-			RequiredQueries: []string{},
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{},
+			ForbiddenQueries: []string{},
 		},
 	)
 	router.Register(GetObjectLockConfigurationMethod, GetObjectLockConfigurationURITemplate, "GetObjectLockConfiguration", GetObjectLockConfigurationHandler(b),
 		restxml.RouteOptions{
-			RequiredHeaders: []string{},
-			RequiredQueries: []string{},
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{},
+			ForbiddenQueries: []string{},
 		},
 	)
 	router.Register(GetBucketNotificationConfigurationMethod, GetBucketNotificationConfigurationURITemplate, "GetBucketNotificationConfiguration", GetBucketNotificationConfigurationHandler(b),
 		restxml.RouteOptions{
-			RequiredHeaders: []string{},
-			RequiredQueries: []string{},
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{},
+			ForbiddenQueries: []string{},
 		},
 	)
 	router.Register(GetBucketOwnershipControlsMethod, GetBucketOwnershipControlsURITemplate, "GetBucketOwnershipControls", GetBucketOwnershipControlsHandler(b),
 		restxml.RouteOptions{
-			RequiredHeaders: []string{},
-			RequiredQueries: []string{},
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{},
+			ForbiddenQueries: []string{},
 		},
 	)
 	router.Register(GetBucketPolicyStatusMethod, GetBucketPolicyStatusURITemplate, "GetBucketPolicyStatus", GetBucketPolicyStatusHandler(b),
 		restxml.RouteOptions{
-			RequiredHeaders: []string{},
-			RequiredQueries: []string{},
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{},
+			ForbiddenQueries: []string{},
 		},
 	)
 	router.Register(GetPublicAccessBlockMethod, GetPublicAccessBlockURITemplate, "GetPublicAccessBlock", GetPublicAccessBlockHandler(b),
 		restxml.RouteOptions{
-			RequiredHeaders: []string{},
-			RequiredQueries: []string{},
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{},
+			ForbiddenQueries: []string{},
+		},
+	)
+	router.Register(GetObjectTaggingMethod, GetObjectTaggingURITemplate, "GetObjectTagging", GetObjectTaggingHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{},
+			ForbiddenQueries: []string{},
+		},
+	)
+	router.Register(GetObjectAclMethod, GetObjectAclURITemplate, "GetObjectAcl", GetObjectAclHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{},
+			ForbiddenQueries: []string{},
 		},
 	)
 }
@@ -5654,5 +5737,128 @@ func GetPublicAccessBlockHandler(b GetPublicAccessBlockBackend) http.Handler {
 		if out.PublicAccessBlockConfiguration != nil {
 			_ = xml.NewEncoder(w).Encode(out.PublicAccessBlockConfiguration)
 		}
+	})
+}
+
+// GetObjectTaggingBackend serves the GetObjectTagging operation.
+type GetObjectTaggingBackend interface {
+	GetObjectTagging(ctx context.Context, in *GetObjectTaggingRequest) (*GetObjectTaggingOutput, error)
+}
+
+// GetObjectTaggingURITemplate is the Smithy URI template for the operation.
+const GetObjectTaggingURITemplate = "/{Bucket}/{Key+}?tagging"
+
+// GetObjectTaggingMethod is the HTTP method for the operation.
+const GetObjectTaggingMethod = "GET"
+
+// GetObjectTaggingHandler decodes a GetObjectTagging request, dispatches to
+// the backend, and encodes the response per AWS REST-XML semantics.
+func GetObjectTaggingHandler(b GetObjectTaggingBackend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		in := &GetObjectTaggingRequest{}
+		labels, ok := restxml.MatchURI(r.URL.Path, GetObjectTaggingURITemplate)
+		if !ok {
+			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
+			return
+		}
+		_ = labels
+		q := r.URL.Query()
+		_ = q
+		if v, ok := labels["Bucket"]; ok {
+			in.Bucket = v
+		}
+		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
+			s := v
+			in.ExpectedBucketOwner = &s
+		}
+		if v, ok := labels["Key"]; ok {
+			in.Key = v
+		}
+		if v := r.Header.Get("x-amz-request-payer"); v != "" {
+			// codegen: treats value as string-backed (custom string or enum)
+			_ = v
+		}
+		if v := q.Get("versionId"); v != "" {
+			s := v
+			in.VersionId = &s
+		}
+
+		out, err := b.GetObjectTagging(ctx, in)
+		if err != nil {
+			restxml.WriteBackendError(w, err)
+			return
+		}
+		_ = out
+		if out.VersionId != nil {
+			w.Header().Set("x-amz-version-id", *out.VersionId)
+		}
+
+		w.Header().Set("Content-Type", "application/xml")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(xml.Header))
+		_ = xml.NewEncoder(w).Encode(out)
+	})
+}
+
+// GetObjectAclBackend serves the GetObjectAcl operation.
+type GetObjectAclBackend interface {
+	GetObjectAcl(ctx context.Context, in *GetObjectAclRequest) (*GetObjectAclOutput, error)
+}
+
+// GetObjectAclURITemplate is the Smithy URI template for the operation.
+const GetObjectAclURITemplate = "/{Bucket}/{Key+}?acl"
+
+// GetObjectAclMethod is the HTTP method for the operation.
+const GetObjectAclMethod = "GET"
+
+// GetObjectAclHandler decodes a GetObjectAcl request, dispatches to
+// the backend, and encodes the response per AWS REST-XML semantics.
+func GetObjectAclHandler(b GetObjectAclBackend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		in := &GetObjectAclRequest{}
+		labels, ok := restxml.MatchURI(r.URL.Path, GetObjectAclURITemplate)
+		if !ok {
+			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
+			return
+		}
+		_ = labels
+		q := r.URL.Query()
+		_ = q
+		if v, ok := labels["Bucket"]; ok {
+			in.Bucket = v
+		}
+		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
+			s := v
+			in.ExpectedBucketOwner = &s
+		}
+		if v, ok := labels["Key"]; ok {
+			in.Key = v
+		}
+		if v := r.Header.Get("x-amz-request-payer"); v != "" {
+			// codegen: treats value as string-backed (custom string or enum)
+			_ = v
+		}
+		if v := q.Get("versionId"); v != "" {
+			s := v
+			in.VersionId = &s
+		}
+
+		out, err := b.GetObjectAcl(ctx, in)
+		if err != nil {
+			restxml.WriteBackendError(w, err)
+			return
+		}
+		_ = out
+		// codegen: header for *RequestCharged (RequestCharged -> x-amz-request-charged); falls back to string conversion if pointer to enum.
+		if out.RequestCharged != nil {
+			w.Header().Set("x-amz-request-charged", string(*out.RequestCharged))
+		}
+
+		w.Header().Set("Content-Type", "application/xml")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(xml.Header))
+		_ = xml.NewEncoder(w).Encode(out)
 	})
 }

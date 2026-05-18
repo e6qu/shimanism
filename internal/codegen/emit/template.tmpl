@@ -99,8 +99,9 @@ func Register{{ .Service }}Routes(router *restxml.Router, b {{ .Service }}Backen
 {{- range .Ops }}
 	router.Register({{ .GoName }}Method, {{ .GoName }}URITemplate, "{{ .GoName }}", {{ .GoName }}Handler(b),
 		restxml.RouteOptions{
-			RequiredHeaders: []string{ {{- range .RequiredInputHeaders }}"{{ . }}",{{ end -}} },
-			RequiredQueries: []string{ {{- range .RequiredInputQueries }}"{{ . }}",{{ end -}} },
+			RequiredHeaders:  []string{ {{- range .RequiredInputHeaders }}"{{ . }}",{{ end -}} },
+			RequiredQueries:  []string{ {{- range .RequiredInputQueries }}"{{ . }}",{{ end -}} },
+			ForbiddenQueries: []string{ {{- range .ForbiddenQueries }}"{{ . }}",{{ end -}} },
 		},
 	)
 {{- end }}

@@ -27,7 +27,7 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 | **1.9** | ◻ | `CopyObject` cross-cloud nuances. Azure block-blob block-ID translation; GCS rewrite semantics. |
 | **1.10** | ◻ | Multipart upload cross-cloud nuances. GCS resumable session translation; Azure block-list translation. |
 | **1.11** | ◻ | Presigned URLs. |
-| **1.12** | ◻ | Fix [BUG-1](BUGS.md) (router x-id stripping) once a real backend reveals where the leak matters in practice. |
+| **1.12** | ✅ | Fix [BUG-1](BUGS.md): `restxml.RouteOptions.ForbiddenQueries` + codegen emits the S3 feature-query list for the base ops + GetObjectTagging / GetObjectAcl added as object-level probes. Piled on PR #6. |
 | **1.13** | ◻ | Phase 1 closer: full conformance lane green across all five backends; Terraform `aws_s3_bucket` + `aws_s3_object` apply against MinIO / AWS / GCS / Azure Blob / K8s peer via `endpoints { s3 = ... }`. |
 
 Status legend: ✅ done · ◐ in progress · ◻ pending · ⏸ paused.

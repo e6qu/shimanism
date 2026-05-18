@@ -37,6 +37,8 @@
     "GetBucketNotificationConfiguration",
     "GetBucketOwnershipControls",
     "GetBucketPolicyStatus",
-    "GetPublicAccessBlock"
+    "GetPublicAccessBlock",
+    "GetObjectTagging",
+    "GetObjectAcl"
   ]
 }

@@ -151,6 +151,31 @@ func (a *Adapter) GetPublicAccessBlock(ctx context.Context, in *gen.GetPublicAcc
 	return nil, restxml.NoSuchPublicAccessBlockConfiguration(in.Bucket)
 }
 
+// Object-level probes. Same shape as the bucket-level probes above:
+// the TF AWS provider's aws_s3_object Read step issues GetObjectTagging
+// and GetObjectAcl on every refresh. Both translate universally to
+// "feature not configured" / "default state" across every cloud's
+// object model, so the adapter returns the canonical default without
+// touching the domain backend.
+
+func (a *Adapter) GetObjectTagging(ctx context.Context, in *gen.GetObjectTaggingRequest) (*gen.GetObjectTaggingOutput, error) {
+	// Verify the object exists; if not, return the source-vocabulary
+	// NoSuchKey 404 (matches what AWS would return).
+	if _, err := a.s.HeadObject(ctx, in.Bucket, in.Key); err != nil {
+		return nil, mapError(err)
+	}
+	return &gen.GetObjectTaggingOutput{}, nil
+}
+
+func (a *Adapter) GetObjectAcl(ctx context.Context, in *gen.GetObjectAclRequest) (*gen.GetObjectAclOutput, error) {
+	if _, err := a.s.HeadObject(ctx, in.Bucket, in.Key); err != nil {
+		return nil, mapError(err)
+	}
+	return &gen.GetObjectAclOutput{
+		Owner: &gen.Owner{ID: ptr("shimanism"), DisplayName: ptr("shimanism")},
+	}, nil
+}
+
 // Reference the domain package so the import doesn't go unused when
 // adapter.go is the only caller of it that compilers can see.
 var _ = domain.KindUnknown

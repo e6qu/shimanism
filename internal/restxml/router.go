@@ -29,13 +29,14 @@ type Router struct {
 }
 
 type route struct {
-	Method          string
-	Path            string            // path portion of the template (no ?…)
-	Query           map[string]string // required query params; "" = presence-only
-	RequiredHeaders []string          // header names that must be present
-	RequiredQueries []string          // query names that must be present (presence-only)
-	Handler         http.Handler
-	Operation       string // for diagnostics
+	Method           string
+	Path             string            // path portion of the template (no ?…)
+	Query            map[string]string // required query params; "" = presence-only
+	RequiredHeaders  []string          // header names that must be present
+	RequiredQueries  []string          // query names that must be present (presence-only)
+	ForbiddenQueries []string          // query names that, if present, disqualify this route
+	Handler          http.Handler
+	Operation        string // for diagnostics
 }
 
 // RouteOptions describes the disambiguation predicates a route uses
@@ -49,6 +50,15 @@ type RouteOptions struct {
 	// RequiredQueries names URL query parameters that must be present
 	// (presence is enough; the value is not pinned by the route).
 	RequiredQueries []string
+	// ForbiddenQueries names query parameters that, if present on the
+	// incoming request, disqualify this route. Used by "base" object /
+	// bucket operations (GetObject, HeadObject, DeleteObject,
+	// PutObject) to reject S3 feature-config queries (`?tagging`,
+	// `?acl`, `?policy`, …) that name out-of-intersection sibling
+	// operations. Without this, a request like
+	// `GET /bucket/key?tagging` falls through to GetObject and the
+	// shim silently returns the object body — a fidelity break.
+	ForbiddenQueries []string
 }
 
 // Register mounts a handler for an operation declared with the given
@@ -62,19 +72,21 @@ type RouteOptions struct {
 func (r *Router) Register(method, template, operation string, h http.Handler, opts ...RouteOptions) {
 	path, query := splitTemplate(template)
 	delete(query, "x-id")
-	var reqHeaders, reqQueries []string
+	var reqHeaders, reqQueries, forbiddenQueries []string
 	for _, o := range opts {
 		reqHeaders = append(reqHeaders, o.RequiredHeaders...)
 		reqQueries = append(reqQueries, o.RequiredQueries...)
+		forbiddenQueries = append(forbiddenQueries, o.ForbiddenQueries...)
 	}
 	r.routes = append(r.routes, route{
-		Method:          method,
-		Path:            path,
-		Query:           query,
-		RequiredHeaders: reqHeaders,
-		RequiredQueries: reqQueries,
-		Handler:         h,
-		Operation:       operation,
+		Method:           method,
+		Path:             path,
+		Query:            query,
+		RequiredHeaders:  reqHeaders,
+		RequiredQueries:  reqQueries,
+		ForbiddenQueries: forbiddenQueries,
+		Handler:          h,
+		Operation:        operation,
 	})
 	r.dirty = true
 }
@@ -108,6 +120,9 @@ func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			continue
 		}
 		if !queriesPresent(q, rt.RequiredQueries) {
+			continue
+		}
+		if queriesPresentAny(q, rt.ForbiddenQueries) {
 			continue
 		}
 		rt.Handler.ServeHTTP(w, req)
@@ -152,6 +167,18 @@ func queriesPresent(actual map[string][]string, required []string) bool {
 		}
 	}
 	return true
+}
+
+// queriesPresentAny reports whether at least one of `names` is
+// present in `actual`. Used to short-circuit a route when any
+// forbidden query is present.
+func queriesPresentAny(actual map[string][]string, names []string) bool {
+	for _, name := range names {
+		if got, ok := actual[name]; ok && len(got) > 0 {
+			return true
+		}
+	}
+	return false
 }
 
 func queryMatches(actual map[string][]string, required map[string]string) bool {
