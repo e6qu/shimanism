@@ -4,6 +4,59 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 
 > Reverse chronological. One section per phase. The *why*, the surprises, the root causes — not per-PR detail. For commit-level history, `git log`. For per-bug detail, [BUGS.md](BUGS.md).
 
+## Phases 1.8 – 1.13 — Closing out Phase 1 (still on PR #6)
+
+### 1.8 — K8s peer (deployment-side)
+
+The "leave the cloud entirely" path. `cmd/shim` was a placeholder; rewrote it as a runnable service with a subcommand model:
+
+```
+shim storage -backend=<inmem|minio|aws|gcs|azureblob> [flags] [-addr=:9000]
+```
+
+Each backend reads its connection config from flags or env vars (`MINIO_ENDPOINT`, `AWS_S3_ENDPOINT`, `GCS_PROJECT_ID`, `AZURE_STORAGE_CONNECTION_STRING`). The harness's wiring (frontend adapter + restxml router + listen) was hoisted out of the test-only path into the production entry point.
+
+`deploy/k8s/peer/` ships a kustomization with: MinIO StatefulSet (1 replica, 10 GiB PVC) + Service, shim Deployment (2 replicas) configured `-backend=minio -minio-endpoint=minio:9000`, shim Service (ClusterIP), and a placeholder Secret. The README covers replicas / replication / TLS / credentials-rotation considerations for production deployment.
+
+`Dockerfile` is multi-stage: golang:1.26-alpine for build (CGO_ENABLED=0, trimpath, -s -w), distroless/static-debian12:nonroot for runtime.
+
+### 1.9 — CopyObject cross-cloud nuances
+
+Azure: `StartCopyFromURL` returns immediately for same-account copies but may return `pending` for cross-account or very large blobs. The poll loop now (a) fails loud on Azure-reported `failed`/`aborted`, (b) errors on still-pending after 30s (no silent partial copy), (c) keeps ETag + LastModified in sync via GetProperties.
+
+GCS: `Copier.Run` already loops on rewrite tokens internally for >5GB copies — no code change needed, just verified.
+
+### 1.10 — Multipart ETag parity
+
+S3 multipart ETag is `md5(concat(decode(part-md5s)))-<N>`, **not** the md5 of the assembled object. The in-mem backend was returning md5(assembled), GCS was returning its CRC32C-derived composed-object Etag, Azure was returning the block-blob ETag — three different shapes, all wrong relative to S3.
+
+Added `domain.MultipartETag(parts)` as the canonical computation: hex-decode each part's ETag (stripping any `-N` suffix defensively), concatenate the raw bytes, md5, hex-encode, suffix `-<count>`, quote.
+
+In-mem / GCS / Azure `CompleteMultipartUpload` now return this shape. MinIO + AWS passthrough already return it natively because they speak S3 underneath.
+
+### 1.11 — Presigned URLs
+
+The AWS SDK's `PresignClient.PresignGetObject` generates a URL bearing SigV4 query parameters (`X-Amz-Algorithm`, `X-Amz-Signature`, …). For this to work against the shim:
+
+1. The router must not reject SigV4 query params. The forbidden-queries protection from 1.12 only names S3 feature-config queries (`tagging`, `acl`, …); SigV4 params are not in that list, so they pass through.
+2. The shim must accept SigV4-bearing requests. At this phase the shim is a passthrough — it ignores signatures (validation is a future hardening step).
+
+`TestSDK_PresignedURL` exercises the full loop: PutObject → PresignGetObject → http.Get → assert body. Green against in-mem.
+
+### 1.12 — BUG-1 fix (router x-id leak)
+
+The bug: `GET /{Bucket}/{Key+}?tagging=` was routing to GetObject because (a) no GetObjectTagging route was registered, (b) the router had no notion of "this query disqualifies this route", so the GetObject route's empty required-queries set matched anything. Result: TF AWS provider asks the shim for object tags, gets the object body back, ignores the body, moves on. A fidelity break shadowed by a benign coincidence.
+
+Fix: `restxml.RouteOptions.ForbiddenQueries`. If any named query is present on the request, the route is skipped. The codegen emits the well-known S3 feature-query list (`acl`, `tagging`, `policy`, `versioning`, `cors`, …, ~27 entries) for the base object/bucket ops (GetObject, PutObject, HeadObject, DeleteObject, CopyObject, ListObjectsV2, HeadBucket, DeleteBucket). Everything else gets an empty list.
+
+The fix surfaced that the TF AWS provider's `aws_s3_object` Read step issues GetObjectTagging + GetObjectAcl on every refresh. Added both to the manifest as object-level probes (same shape as the 18 bucket-config probes from Phase 1.4): empty TagSet, canonical owner ACL. Manifest is now 36 ops (16 core + 18 bucket-config probes + 2 object probes).
+
+### 1.13 — CI conformance matrix
+
+Three new jobs in `.github/workflows/checks.yml`: `conformance-minio`, `conformance-gcs`, `conformance-azureblob`. Each starts the matching docker container in a step (GHA `services:` doesn't accept the command overrides most of these images need), exports the env var the backend factory recognises, and runs `TestConformance_AllBackends` (a per-backend Put → Head → Get → Delete sweep with randomised bucket+key names). The factory's other-backend skips keep each lane focused on its own backend.
+
+AWS-real-account lane and Terraform-against-real-backend lane are deferred to Track A (cloud test accounts decision). K8s peer end-to-end (cluster CI) is deferred — manifests ship and are valid; running them in CI is a separate infrastructure question.
+
 ## Phases 1.5 – 1.7 — Cross-shape backends (still on PR #6)
 
 After the Phase 1.4 harness stabilised, user defined the cross-cloud routing architecture (option B): a single neutral `domain.Storage` interface with **frontends** (per source cloud) translating into it and **backends** (per destination cloud) translating out of it. Per service: one domain.Storage interface (+ types + errors), one or more frontends, one or more backends. For storage that's 3 + 1 + 4 ≈ 8 files of meaningful code per service.
