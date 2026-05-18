@@ -1,0 +1,27 @@
+# Build artifacts
+/dist/
+/bin/
+*.test
+*.out
+
+# Go
+/vendor/
+*.exe
+coverage.txt
+coverage.html
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Claude Code / agent local state
+.claude/
+
+# Local spec caches (we fetch upstream; cached copies are not committed)
+/services/*/spec/cache/
+
+# Local conformance harness recordings (committed selectively, not wholesale)
+/services/*/conformance/recordings/*.tmp

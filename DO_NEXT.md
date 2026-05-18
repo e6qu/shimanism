@@ -2,33 +2,37 @@
 
 Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BUGS.md) · narrative [WHAT_WE_DID.md](WHAT_WE_DID.md) · philosophy [PHILOSOPHY.md](PHILOSOPHY.md) · rules [AGENTS.md](AGENTS.md).
 
-> **This is the resume-from-cold file.** A fresh agent or a post-compaction session should read this top-to-bottom and pick up work without re-deriving context from older messages.
+> **This is the resume-from-cold file.** A fresh agent or post-compaction session should read this top-to-bottom and pick up work without re-deriving context from older messages.
 
 ## Where we are
 
-- **Last merged:** PR #1 (PHILOSOPHY.md + README.md) at `e5cc262` on `origin/main`, 2026-05-18.
-- **Active branch:** `continuity-docs` — this PR adds the continuity files (PLAN / STATUS / WHAT_WE_DID / DO_NEXT / BUGS / AGENTS / CLAUDE.md symlink).
-- **Project phase:** Pre-phase 0. No service code yet. We are still locking in foundational decisions.
+- **Last merged:** PR #2 (continuity docs + Phase-0 CI checks) at `4549a90` on `origin/main`, 2026-05-18.
+- **Active branch:** `phase-1.1-repo-skeleton` — PR open. PLAN.md restructured to one-service-per-phase; Phase 1.1 starts.
+- **Project phase:** **Phase 1 — Object storage (S3-source).** Phase 1 absorbs foundation work (codegen, harness, CI) alongside its first user.
 
-## Immediate next sub-tasks
+## Phase 1 sub-task table
 
 | Sub | Status | Headline |
 |---|---|---|
-| **Pre-phase.1** | ◐ | User confirmation of the [Pre-phase decision table](PLAN.md#pre-phase-decisions-to-lock-in-before-phase-0). Defaults are listed; user signs off or amends. Blocks Phase 0 start. |
-| **Pre-phase.2** | ◻ | Choose first cloud-source spec to ingest end-to-end (recommendation: AWS S3 since it's the Phase 1 service). Validates the codegen pipeline before fanning out. |
-| **Pre-phase.3** | ◻ | Pick the conformance-harness shape: how the SDK / CLI / Terraform-provider drivers plug in; how backend selection works; how recorded interactions are captured. Sketch in a `CONFORMANCE.md` (or extend PLAN.md). |
-| **Phase 0.1** | ◻ | Repo skeleton: monorepo layout, `services/<svc>/` template, Go module structure, Makefile, basic CI on GitHub Actions. |
-| **Phase 0.2** | ◻ | Spec ingestion: pull AWS Smithy JSON for one service (S3) from upstream. Vendor or just-in-time fetch — decide. |
-| **Phase 0.3** | ◻ | Codegen pilot: Smithy JSON → Go server stub for one S3 operation (e.g. `ListBuckets`). Validate the spec→server flow before going wider. |
-| **Phase 0.4** | ◻ | Conformance harness skeleton: invoke `aws s3api list-buckets`, `boto3.list_buckets()`, and a Terraform `data "aws_s3_bucket"` against an `EchoService` adapter that returns the canonical AWS shape. All three drivers must pass against the dummy. |
-| **Phase 0.5** | ◻ | CI wires harness to every PR. Exit-criteria green = Phase 0 done. |
+| **1.1** | ◐ | Repo skeleton: Go module at `github.com/e6qu/shimanism`, Makefile (lint/test/build/vet), Go CI lane, placeholder `cmd/shim/main.go`. |
+| **1.2** | ◻ | Spec ingestion: fetch + cache AWS Smithy JSON for S3 from `aws/aws-sdk-go-v2`. Tooling lives in `internal/specfetch/`. |
+| **1.3** | ◻ | Codegen pilot: Smithy → Go server stub for `ListBuckets`. Output goes to `services/storage/gen/`. |
+| **1.4** | ◻ | Conformance harness skeleton in `internal/harness/`: SDK + CLI + Terraform drivers all hit an `EchoService` that returns canonical AWS S3 shape. Establishes the test contract. |
+| **1.5** | ◻ | First real backend: `ListBuckets` → **MinIO**. Same protocol as S3 — control case for the plumbing. |
+| **1.6** | ◻ | `ListBuckets` → **GCS**. First real cross-cloud translation. |
+| **1.7** | ◻ | `ListBuckets` → **Azure Blob**. |
+| **1.8** | ◻ | `PutObject` + `GetObject` (single-part) across all four backends. |
+| **1.9** | ◻ | Multipart upload (`CreateMultipartUpload` / `UploadPart` / `CompleteMultipartUpload`). |
+| **1.10** | ◻ | Presigned URLs. |
+| **1.11** | ◻ | Remaining bucket lifecycle: `CreateBucket`, `DeleteBucket`, `HeadBucket`, `ListObjectsV2`, `DeleteObject`, `HeadObject`, `CopyObject`. |
+| **1.12** | ◻ | Phase 1 closer: full conformance lane green across all four backends; Terraform end-to-end against GCS / MinIO / Blob via `endpoints { s3 = ... }`. |
 
 Status legend: ✅ done · ◐ in progress · ◻ pending · ⏸ paused.
 
-## Invariants snapshot (full list in [STATUS.md](STATUS.md))
+## Invariants snapshot (full list in [STATUS.md § Invariants](STATUS.md#invariants-carry-across-compactions--fresh-sessions))
 
 - Never auto-merge; user merges every PR.
-- Single-branch rule per phase; rebase on `origin/main` before push.
+- Single-branch rule per phase / sub-phase; rebase on `origin/main` before push.
 - File BUGs in [BUGS.md](BUGS.md) *before* fixing.
 - Update STATUS / WHAT_WE_DID / DO_NEXT at every significant chunk — not just at phase end.
 - Fidelity to the source cloud's API. Out-of-intersection features return source cloud's own error; never fabricate success.
@@ -38,9 +42,9 @@ Status legend: ✅ done · ◐ in progress · ◻ pending · ⏸ paused.
 
 ## Resumable tracks (longer-horizon)
 
-- **Track A — Cloud test accounts.** Decide where live cloud accounts for nightly conformance runs live, and who pays. Needed before Phase 1 nightly tier can light up.
-- **Track B — GCP-source horizontal expansion.** Holds until Phase 5 wraps; Phase 6 is the explicit handoff.
-- **Track C — Azure-source + AMQP fidelity decision.** Holds until Phase 6 wraps.
+- **Track A — Cloud test accounts.** Decide where live cloud accounts for nightly conformance runs live, and who pays. Needed before Phase 1.12 nightly tier can light up.
+- **Track B — GCP source row (Phase 9).** Holds until Phase 8 (API Gateway) wraps.
+- **Track C — Azure source row (Phase 10).** Holds until Phase 9 wraps. AMQP-vs-REST fidelity decision to be made at Phase 10.3 start.
 - **Track D — Coding-agent automation.** Auto-PR template per service, agent permissions for upstream spec bumps, conformance-failure → BUG-filing automation.
 
 ## Session-resume checklist
@@ -52,4 +56,4 @@ When picking up after compaction or in a fresh session:
 3. Read [STATUS.md § Snapshot](STATUS.md#snapshot) and this file's "Where we are" section.
 4. Read [STATUS.md § Invariants](STATUS.md#invariants-carry-across-compactions--fresh-sessions) and [AGENTS.md](AGENTS.md) before any code change.
 5. Skim [BUGS.md § Open](BUGS.md#open) — anything in there pre-empts new work.
-6. Pick the next ◻ sub-task in this file; mark ◐ when starting; commit with the continuity-doc updates in the same PR.
+6. Pick the next ◻ sub-task in the table above; mark ◐ when starting; include continuity-doc updates in the same PR.
