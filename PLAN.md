@@ -32,6 +32,7 @@ State [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md
 | 8 | License | AGPL-3.0. |
 | 9 | Passthrough mode | Ship per service when there's a real reason (auth interception, observability injection). |
 | 10 | Agent permissions for spec updates | Human-in-loop on upstream-spec change. Agents propose; humans review translation-table delta. |
+| 11 | **Reuse-over-reinvention** | Lean on the cloud's official spec + official Go SDK whenever they fit. Each frontend's wire layer is generated from the cloud's canonical spec (AWS Smithy → custom emitter; GCP Discovery doc → `google.golang.org/api` raw types where pragmatic; Azure OpenAPI → `oapi-codegen` or equivalent). Wire types are imported from the official SDK when they round-trip cleanly server-side; emitted from the spec when SDK types fight server-side handling. Auth verification uses the cloud's official verifier (e.g. `aws-sdk-go-v2/aws/signer/v4`). The shim's job is to **be** the cloud's API surface, not to maintain a parallel one. See [AGENTS.md § Reuse over reinvention](AGENTS.md#reuse-over-reinvention). |
 
 ## Phase structure
 

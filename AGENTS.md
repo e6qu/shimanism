@@ -76,9 +76,42 @@ There is no "land it and add tests later." If you edit a service, the conformanc
 
 ## Spec is the source of truth
 
-Each shimmed service has a canonical published spec (AWS Smithy JSON, GCP protobuf, Azure OpenAPI). The codegen pipeline generates Go server stubs (handlers, types, error envelopes) from that spec. **Hand-written code is restricted to per-operation `translate.go` files** that map the source-API request to the backend's domain operation.
+Each shimmed service has a canonical published spec (AWS Smithy JSON, GCP protobuf / Discovery doc, Azure OpenAPI). The codegen pipeline generates Go server stubs (handlers, types, error envelopes) from that spec. **Hand-written code is restricted to per-operation `translate.go` files** that map the source-API request to the backend's domain operation.
 
 When the upstream cloud changes its spec, regenerate. The translation-table delta is the only thing to review by hand. Stale generated code is a bug (see [BUGS.md § Class-of-bug rules](BUGS.md#class-of-bug-rules-carried-forward)).
+
+## Reuse over reinvention
+
+Where the cloud's official tooling fits, use it. The shim's job is to **match** the cloud's published API, not to maintain a parallel implementation that drifts. This is locked-in decision #11 in [PLAN.md](PLAN.md#locked-in-decisions); the rules below make it operational.
+
+**Spec inputs.** Always vendor from upstream-canonical; never fork. AWS = Smithy JSON from `aws/aws-sdk-go-v2/codegen/sdk-codegen/aws-models`. GCP = protobuf from `googleapis/googleapis` and/or the Discovery doc at the documented URL. Azure = OpenAPI v3 from `Azure/azure-rest-api-specs`.
+
+**Wire types.** Prefer reusing the official Go SDK's wire-type structs over re-emitting equivalents:
+
+| Cloud | Reusable wire-type package |
+|---|---|
+| AWS | `github.com/aws/aws-sdk-go-v2/service/<svc>/types` |
+| GCP REST | `google.golang.org/api/<svc>/v1` (generated from Discovery) |
+| GCP gRPC | the proto-generated structs in `cloud.google.com/go/<svc>` |
+| Azure | the SDK's internal `generated/` package (the types `azblob` etc. use under the hood) |
+
+Re-emit server-side types only when SDK types fight server-side handling — for example, client-only fields, pointer-heavy shapes that don't round-trip, or struct tags that target the SDK's middleware rather than direct (un)marshalling. When re-emitting, generate from the same spec the SDK is generated from, not from a copy.
+
+**Server-side codegen.** For each spec format, prefer the most authoritative existing generator:
+
+| Spec format | First choice | When to fall back to a custom emitter |
+|---|---|---|
+| Smithy (AWS) | Custom emitter (no official Smithy → Go *server* generator exists; `smithy-go` is client-side). | n/a — custom is the only option. |
+| OpenAPI v3 (Azure) | `oapi-codegen` server-stubs. | When generated stubs can't match the shim's handler shape after reasonable adapter glue. |
+| Discovery / protobuf (GCP) | Reuse `google.golang.org/api` wire types directly; emit only the routing + dispatch layer. | When the generated types are too SDK-coupled to import cleanly. |
+
+The codegen pipeline owns the diff between spec and emitted code. The translation table (in `translate.go`) is the only file an agent should write by hand.
+
+**Auth verification.** Use the cloud's official signer/verifier libraries — never roll a SigV4 / OAuth2 / SharedKey implementation. AWS = `aws-sdk-go-v2/aws/signer/v4`. GCP = `golang.org/x/oauth2`. Azure = the signer in `azure-sdk-for-go/sdk/azcore/auth` and the SharedKey verifier exposed by the storage SDK.
+
+**Validation.** The cloud's spec carries field-level constraints (string lengths, enum sets, pattern regexes). Honor them at the wire-decode boundary so an invalid request fails with the **source cloud's own error vocabulary**, not a generic 500. When the spec generator emits validation (it does for Smithy and OpenAPI), wire it in.
+
+**When to *not* reuse.** Reuse is a tool, not a contract. If reusing a piece of SDK or generator output forces the shim to lie (synthetic responses, swallowed errors, fabricated success), drop the reuse and emit our own honest implementation. The fidelity rule beats the reuse rule.
 
 ## Intersection-only scope
 
