@@ -67,6 +67,16 @@ jobs:
           terraform_wrapper: false
       - name: Verify terraform is present
         run: terraform version
+      # gcloud: needed by the GCS CLI conformance driver. GitHub-hosted
+      # ubuntu-latest runners include gcloud out of the box, but pin
+      # the install path so a future runner image change surfaces as
+      # a failed check rather than a silently-skipped conformance test.
+      - name: Verify gcloud is present
+        run: gcloud --version | head -1
+      # az: needed by the Azure Blob CLI conformance driver. Same as
+      # gcloud — preinstalled on the ubuntu-latest image.
+      - name: Verify az is present
+        run: az --version | head -1
       - name: go vet
         run: go vet ./...
       # Conformance tests use SDK + CLI + Terraform drivers. SDK is
