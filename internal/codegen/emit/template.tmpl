@@ -5,6 +5,7 @@
 package {{ .Pkg }}
 
 import (
+	"bytes"
 	"context"
 	"encoding/xml"
 	"io"
@@ -26,6 +27,7 @@ var (
 	_ time.Time
 	_ = strconv.ParseInt
 	_ = strings.HasPrefix
+	_ = bytes.NewReader
 	_ restxml.Decoder
 )
 {{ range .Enums }}
@@ -34,7 +36,7 @@ type {{ .GoName }} string
 
 const (
 {{- range .Members }}
-	{{ .GoName }} = "{{ .Value }}"
+	{{ .GoName }} {{ .ParentType }} = "{{ .Value }}"
 {{- end }}
 )
 {{ end }}
@@ -77,6 +79,33 @@ type {{ .GoName }} struct {
 {{- end }}
 }
 {{ end }}
+{{ if .Ops }}
+// {{ .Service }}Backend is the union of every per-operation backend
+// interface emitted from the spec. A real backend implementation
+// satisfies this union; the harness's in-memory backend satisfies it
+// too. Register{{ .Service }}Routes wires every operation handler onto
+// a restxml.Router using this combined backend.
+type {{ .Service }}Backend interface {
+{{- range .Ops }}
+	{{ .GoName }}Backend
+{{- end }}
+}
+
+// Register{{ .Service }}Routes mounts every shimmed operation handler
+// onto the given router. Routes that need extra disambiguation
+// declare required headers and/or required query params; the router
+// prefers more-specific matches over less-specific shared-path ones.
+func Register{{ .Service }}Routes(router *restxml.Router, b {{ .Service }}Backend) {
+{{- range .Ops }}
+	router.Register({{ .GoName }}Method, {{ .GoName }}URITemplate, "{{ .GoName }}", {{ .GoName }}Handler(b),
+		restxml.RouteOptions{
+			RequiredHeaders: []string{ {{- range .RequiredInputHeaders }}"{{ . }}",{{ end -}} },
+			RequiredQueries: []string{ {{- range .RequiredInputQueries }}"{{ . }}",{{ end -}} },
+		},
+	)
+{{- end }}
+}
+{{ end }}
 {{ range .Ops }}
 // {{ .GoName }}Backend serves the {{ .GoName }} operation.
 type {{ .GoName }}Backend interface {
@@ -116,10 +145,28 @@ func {{ .GoName }}Handler(b {{ .GoName }}Backend) http.Handler {
 				in.{{ .GoName }}[strings.TrimPrefix(strings.ToLower(hk), strings.ToLower("{{ .BindKey }}"))] = hvs[0]
 			}
 		}
-{{ else if eq .Binding "payload" }}		// payload binding for {{ .GoName }}: read full body
+{{ end }}{{ end }}
+{{- if .InputPayload }}
 		_payload, _ := io.ReadAll(r.Body)
-		_ = _payload
-{{ end }}{{ end }}{{ end }}
+{{- if eq .InputPayload.GoType "[]byte" }}
+		in.{{ .InputPayload.GoName }} = _payload
+{{- else if eq .InputPayload.GoType "*string" }}
+		_s := string(_payload); in.{{ .InputPayload.GoName }} = &_s
+{{- else }}
+		// Struct-shaped payload: XML-decode into the target.
+		if len(_payload) > 0 {
+			_val := &{{ slice .InputPayload.GoType 1 }}{}
+			if err := xml.Unmarshal(_payload, _val); err == nil {
+				in.{{ .InputPayload.GoName }} = _val
+			}
+		}
+{{- end }}
+{{- else if .InputHasBodyFields }}
+		if r.ContentLength != 0 {
+			_ = xml.NewDecoder(r.Body).Decode(in)
+		}
+{{- end }}
+{{- end }}
 		out, err := b.{{ .GoName }}(ctx{{ if .InputType }}, in{{ end }})
 		if err != nil {
 			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
@@ -127,12 +174,40 @@ func {{ .GoName }}Handler(b {{ .GoName }}Backend) http.Handler {
 		}
 		_ = out
 {{- if .OutputType }}
+{{ range .OutputHeaders }}		{{ template "writeHeader" . }}
+{{ end }}{{ range .OutputPrefixHeaders }}		for _k, _v := range out.{{ .GoName }} {
+			w.Header().Set("{{ .BindKey }}" + _k, _v)
+		}
+{{ end }}
+{{- if .OutputPayload }}
+{{- if eq .OutputPayload.GoType "[]byte" }}
+		w.Header().Set("Content-Length", strconv.Itoa(len(out.{{ .OutputPayload.GoName }})))
+		w.WriteHeader({{ .HTTPStatus }})
+		_, _ = w.Write(out.{{ .OutputPayload.GoName }})
+{{- else if eq .OutputPayload.GoType "*string" }}
+		if out.{{ .OutputPayload.GoName }} != nil {
+			w.Header().Set("Content-Length", strconv.Itoa(len(*out.{{ .OutputPayload.GoName }})))
+			w.WriteHeader({{ .HTTPStatus }})
+			_, _ = w.Write([]byte(*out.{{ .OutputPayload.GoName }}))
+		} else {
+			w.WriteHeader({{ .HTTPStatus }})
+		}
+{{- else }}
 		w.Header().Set("Content-Type", "application/xml")
 		w.WriteHeader({{ .HTTPStatus }})
 		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
+		if out.{{ .OutputPayload.GoName }} != nil {
+			_ = xml.NewEncoder(w).Encode(out.{{ .OutputPayload.GoName }})
+		}
+{{- end }}
+{{- else if .OutputHasBodyFields }}
+		w.Header().Set("Content-Type", "application/xml")
+		w.WriteHeader({{ .HTTPStatus }})
+		_, _ = w.Write([]byte(xml.Header))
+		_ = xml.NewEncoder(w).Encode(out)
+{{- else }}
+		w.WriteHeader({{ .HTTPStatus }})
+{{- end }}
 {{- else }}
 		w.WriteHeader({{ .HTTPStatus }})
 {{- end }}
@@ -150,7 +225,20 @@ func {{ .GoName }}Handler(b {{ .GoName }}Backend) http.Handler {
 {{ else if eq .GoType "bool" }}			if p, err := restxml.ParseBool(v); err == nil && p != nil { in.{{ .GoName }} = *p }
 {{ else if eq .GoType "*time.Time" }}			if t, err := restxml.ParseTime(v, "{{ .TSFormat }}"); err == nil && t != nil { in.{{ .GoName }} = t }
 {{ else if eq .GoType "time.Time" }}			if t, err := restxml.ParseTime(v, "{{ .TSFormat }}"); err == nil && t != nil { in.{{ .GoName }} = *t }
-{{ else }}			// codegen: assign-from-string for {{ .GoType }} treats value as the underlying string; backend should validate.
+{{ else }}			// codegen: treats value as string-backed (custom string or enum)
 			_ = v
+{{ end -}}
+{{ end -}}
+{{- define "writeHeader" -}}
+{{ if eq .GoType "string" }}if out.{{ .GoName }} != "" { w.Header().Set("{{ .BindKey }}", out.{{ .GoName }}) }
+{{ else if eq .GoType "*string" }}if out.{{ .GoName }} != nil { w.Header().Set("{{ .BindKey }}", *out.{{ .GoName }}) }
+{{ else if eq .GoType "*int64" }}if out.{{ .GoName }} != nil { w.Header().Set("{{ .BindKey }}", strconv.FormatInt(*out.{{ .GoName }}, 10)) }
+{{ else if eq .GoType "int64" }}w.Header().Set("{{ .BindKey }}", strconv.FormatInt(out.{{ .GoName }}, 10))
+{{ else if eq .GoType "*int32" }}if out.{{ .GoName }} != nil { w.Header().Set("{{ .BindKey }}", strconv.FormatInt(int64(*out.{{ .GoName }}), 10)) }
+{{ else if eq .GoType "int32" }}w.Header().Set("{{ .BindKey }}", strconv.FormatInt(int64(out.{{ .GoName }}), 10))
+{{ else if eq .GoType "*bool" }}if out.{{ .GoName }} != nil { w.Header().Set("{{ .BindKey }}", strconv.FormatBool(*out.{{ .GoName }})) }
+{{ else if eq .GoType "*time.Time" }}if out.{{ .GoName }} != nil { w.Header().Set("{{ .BindKey }}", restxml.FormatTime(*out.{{ .GoName }}, "{{ .TSFormat }}")) }
+{{ else }}// codegen: header for {{ .GoType }} ({{ .GoName }} -> {{ .BindKey }}); falls back to string conversion if pointer to enum.
+		if out.{{ .GoName }} != nil { w.Header().Set("{{ .BindKey }}", string(*out.{{ .GoName }})) }
 {{ end -}}
 {{ end -}}

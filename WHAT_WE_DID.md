@@ -18,9 +18,41 @@ The fix:
 - **Determinism test** reads the same manifest, so Makefile and test stay in sync.
 - **`services/storage/gen/aws_s3.gen.go` shrunk 423 KB → 120 KB** (72% reduction). The codegen pipeline is unchanged; only the operation list is.
 
-### What the harness will exercise (continuing)
+### The conformance harness
 
-The conformance harness drives `aws-sdk-go-v2`, `aws-cli`, and the Terraform AWS provider against an in-memory implementation of the 16-op surface. Establishes the test contract Phase 1.5+ uses when wiring real backends (MinIO first, then GCS, then Azure Blob).
+The harness exercises the shim from three real clients:
+
+- **AWS SDK Go v2 (Apache 2.0)** — `services/storage/conformance/sdk_test.go` drives bucket lifecycle, object round-trips, copy, and full multipart upload state machines through the SDK pointed at the shim via `BaseEndpoint` + `UsePathStyle = true`.
+- **AWS CLI (`aws`)** — `services/storage/conformance/cli_test.go` shells out to the official CLI with `--endpoint-url`, `AWS_S3_FORCE_PATH_STYLE=true`, fixed test credentials, and pinned region. Tests `s3api create-bucket`, `s3api list-buckets`, `s3api head-bucket`, `s3api delete-bucket`, and `s3 cp` (which exercises the high-level transfer manager — different code path from the SDK).
+- **Terraform AWS provider (`hashicorp/aws`)** — `services/storage/conformance/terraform_test.go` runs real `terraform init` + `terraform apply` against the shim. The flow uses `data "aws_s3_object"` against a pre-seeded bucket because the `resource "aws_s3_bucket"` post-create-read step would hit GetBucketLocation / GetBucketVersioning / etc., which are AWS-only and not in shimanism's intersection. Provider flows that need those features land in their own follow-up phase once the shim's resource backends are wired (Phase 1.5+).
+
+### The router
+
+`internal/restxml/router.go` disambiguates operations that share a URI path:
+
+- Method + path-template matching (URI labels resolved via `MatchURI`).
+- Fixed query-param matching from the URI template's `?…` suffix, *minus* the SDK-added `x-id` operation marker so the AWS CLI's `s3 cp` (which omits `x-id`) and the SDK (which includes it) share routes.
+- Required-headers presence — disambiguates CopyObject (`x-amz-copy-source`) from PutObject (no extra header).
+- Required-queries presence — disambiguates UploadPart (`partNumber`, `uploadId`) from PutObject.
+
+Routes sort by descending specificity (sum of fixed-query + required-header + required-query count); the most-constrained match wins.
+
+### The in-mem backend
+
+`services/storage/backends/inmem/` is a real, not-fake implementation of all 16 intersection operations. It stores buckets and objects in a `sync.Mutex`-guarded map, supports multipart upload assembly with deterministic part ordering, computes real MD5 ETags, honors `Prefix` / `Delimiter` / `MaxKeys` / pagination on ListObjectsV2, and serves the read path that Terraform's data source exercises. It is the harness's standard backend and may also be used in short-lived local dev environments.
+
+### Codegen extensions to make conformance pass
+
+- **Payload binding**: handlers now read the request body and assign it to a member tagged `httpPayload`; if the member is a struct type, the body is XML-decoded.
+- **Header binding (output)**: header-bound output members are emitted to response headers per type (`*string`, `*int64`, `*time.Time`, `*int32`, `*bool`, named-enum types).
+- **PrefixHeaders output**: map members are emitted as one response header per key, prefixed.
+- **Body encoding**: when there is no payload but there are XML-body fields, the whole struct is XML-encoded (Go's encoding/xml skips bound fields without tags); when there is a payload, only the payload bytes/XML are written.
+- **REST-XML timestamp default**: header-bound timestamps default to `http-date` (RFC 7231 IMF-fixdate); body-bound timestamps default to `date-time` (RFC 3339). This is the Smithy REST-XML protocol rule.
+- **Register&lt;Service&gt;Routes** helper emitted alongside the union `&lt;Service&gt;Backend` interface; consumers wire all 16 handlers in one line.
+
+### CI
+
+`.github/workflows/checks.yml`'s `go vet + test + build` job now installs `terraform 1.13.0` via `hashicorp/setup-terraform@v3` and asserts `aws --version` succeeds (the GitHub runners ship with awscli on PATH). The conformance tests run on every PR with all three drivers green.
 
 ## Phase 1.3 — Codegen pipeline (PR #5, merged 2026-05-18)
 

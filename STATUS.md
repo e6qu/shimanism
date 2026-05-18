@@ -9,7 +9,7 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 | | |
 |---|---|
 | Active branch | `phase-1.4-conformance-harness` — PR open. Intersection scoping correction + conformance harness skeleton. |
-| In-flight | **Phase 1.4: Intersection scoping + conformance harness.** Codegen now reads the operation manifest at `services/storage/codegen.json` (16 ops — the AWS S3 ↔ GCS ↔ Azure Blob ↔ MinIO intersection); `services/storage/OPERATIONS.md` documents per-cloud equivalences. Generated `aws_s3.gen.go` shrunk 423 KB → 120 KB. Harness + SDK / CLI / TF conformance tests next. |
+| In-flight | **Phase 1.4: Intersection scoping + full conformance harness.** Manifest-driven codegen of the 16-op intersection. Real in-mem backend covering all 16 (no fakes). Method/URI/header/query-disambiguating router. SDK + CLI + Terraform conformance tests all green locally — CI installs aws CLI + terraform so they run on every PR. |
 | Last merged | PR #5 — Phase 1.3 (codegen, originally all 107 ops) (`03b0ebb`, 2026-05-18). |
 | Standing merge auth | **None.** User merges every PR. |
 | CI | Five required checks: `branch rebased on origin/main`, `tracked symlinks resolve`, `continuity docs present`, `go vet + test + build`, `dependency licenses AGPL-compatible`. |

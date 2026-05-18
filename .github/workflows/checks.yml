@@ -55,10 +55,28 @@ jobs:
         with:
           go-version: '1.26'
           cache: true
+      # AWS CLI: GitHub-hosted ubuntu-latest ships with awscli on PATH.
+      # Verify so a missing binary surfaces as a failed check, not as
+      # silently-skipped conformance tests.
+      - name: Verify aws CLI is present
+        run: aws --version
+      # Terraform: needed by the conformance Terraform driver.
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.13.0'
+          terraform_wrapper: false
+      - name: Verify terraform is present
+        run: terraform version
       - name: go vet
         run: go vet ./...
+      # Conformance tests use SDK + CLI + Terraform drivers. SDK is
+      # always available; CLI and Terraform skip without binaries but
+      # both are installed above, so all three drivers run in CI.
+      # Timeout sized to the slowest driver (Terraform: ~30s in CI
+      # for provider download + apply), plus headroom for cache-miss
+      # cold-starts.
       - name: go test
-        run: go test ./...
+        run: go test -timeout 2m ./...
       - name: go build
         run: go build ./...
 

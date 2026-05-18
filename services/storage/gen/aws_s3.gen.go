@@ -5,6 +5,7 @@
 package gen
 
 import (
+	"bytes"
 	"context"
 	"encoding/xml"
 	"io"
@@ -26,6 +27,7 @@ var (
 	_ time.Time
 	_ = strconv.ParseInt
 	_ = strings.HasPrefix
+	_ = bytes.NewReader
 	_ restxml.Decoder
 )
 
@@ -33,273 +35,273 @@ var (
 type BucketCannedACL string
 
 const (
-	BucketCannedACLAuthenticated_read = "authenticated-read"
-	BucketCannedACLPrivate            = "private"
-	BucketCannedACLPublic_read        = "public-read"
-	BucketCannedACLPublic_read_write  = "public-read-write"
+	BucketCannedACLAuthenticated_read BucketCannedACL = "authenticated-read"
+	BucketCannedACLPrivate            BucketCannedACL = "private"
+	BucketCannedACLPublic_read        BucketCannedACL = "public-read"
+	BucketCannedACLPublic_read_write  BucketCannedACL = "public-read-write"
 )
 
 // BucketNamespace is a generated Smithy enum.
 type BucketNamespace string
 
 const (
-	BucketNamespaceACCOUNT_REGIONAL = "account-regional"
-	BucketNamespaceGLOBAL           = "global"
+	BucketNamespaceACCOUNT_REGIONAL BucketNamespace = "account-regional"
+	BucketNamespaceGLOBAL           BucketNamespace = "global"
 )
 
 // DataRedundancy is a generated Smithy enum.
 type DataRedundancy string
 
 const (
-	DataRedundancySingleAvailabilityZone = "SingleAvailabilityZone"
-	DataRedundancySingleLocalZone        = "SingleLocalZone"
+	DataRedundancySingleAvailabilityZone DataRedundancy = "SingleAvailabilityZone"
+	DataRedundancySingleLocalZone        DataRedundancy = "SingleLocalZone"
 )
 
 // BucketType is a generated Smithy enum.
 type BucketType string
 
 const (
-	BucketTypeDirectory = "Directory"
+	BucketTypeDirectory BucketType = "Directory"
 )
 
 // LocationType is a generated Smithy enum.
 type LocationType string
 
 const (
-	LocationTypeAvailabilityZone = "AvailabilityZone"
-	LocationTypeLocalZone        = "LocalZone"
+	LocationTypeAvailabilityZone LocationType = "AvailabilityZone"
+	LocationTypeLocalZone        LocationType = "LocalZone"
 )
 
 // BucketLocationConstraint is a generated Smithy enum.
 type BucketLocationConstraint string
 
 const (
-	BucketLocationConstraintEU             = "EU"
-	BucketLocationConstraintAf_south_1     = "af-south-1"
-	BucketLocationConstraintAp_east_1      = "ap-east-1"
-	BucketLocationConstraintAp_east_2      = "ap-east-2"
-	BucketLocationConstraintAp_northeast_1 = "ap-northeast-1"
-	BucketLocationConstraintAp_northeast_2 = "ap-northeast-2"
-	BucketLocationConstraintAp_northeast_3 = "ap-northeast-3"
-	BucketLocationConstraintAp_south_1     = "ap-south-1"
-	BucketLocationConstraintAp_south_2     = "ap-south-2"
-	BucketLocationConstraintAp_southeast_1 = "ap-southeast-1"
-	BucketLocationConstraintAp_southeast_2 = "ap-southeast-2"
-	BucketLocationConstraintAp_southeast_3 = "ap-southeast-3"
-	BucketLocationConstraintAp_southeast_4 = "ap-southeast-4"
-	BucketLocationConstraintAp_southeast_5 = "ap-southeast-5"
-	BucketLocationConstraintAp_southeast_6 = "ap-southeast-6"
-	BucketLocationConstraintAp_southeast_7 = "ap-southeast-7"
-	BucketLocationConstraintCa_central_1   = "ca-central-1"
-	BucketLocationConstraintCa_west_1      = "ca-west-1"
-	BucketLocationConstraintCn_north_1     = "cn-north-1"
-	BucketLocationConstraintCn_northwest_1 = "cn-northwest-1"
-	BucketLocationConstraintEu_central_1   = "eu-central-1"
-	BucketLocationConstraintEu_central_2   = "eu-central-2"
-	BucketLocationConstraintEu_north_1     = "eu-north-1"
-	BucketLocationConstraintEu_south_1     = "eu-south-1"
-	BucketLocationConstraintEu_south_2     = "eu-south-2"
-	BucketLocationConstraintEu_west_1      = "eu-west-1"
-	BucketLocationConstraintEu_west_2      = "eu-west-2"
-	BucketLocationConstraintEu_west_3      = "eu-west-3"
-	BucketLocationConstraintIl_central_1   = "il-central-1"
-	BucketLocationConstraintMe_central_1   = "me-central-1"
-	BucketLocationConstraintMe_south_1     = "me-south-1"
-	BucketLocationConstraintMx_central_1   = "mx-central-1"
-	BucketLocationConstraintSa_east_1      = "sa-east-1"
-	BucketLocationConstraintUs_east_2      = "us-east-2"
-	BucketLocationConstraintUs_gov_east_1  = "us-gov-east-1"
-	BucketLocationConstraintUs_gov_west_1  = "us-gov-west-1"
-	BucketLocationConstraintUs_west_1      = "us-west-1"
-	BucketLocationConstraintUs_west_2      = "us-west-2"
+	BucketLocationConstraintEU             BucketLocationConstraint = "EU"
+	BucketLocationConstraintAf_south_1     BucketLocationConstraint = "af-south-1"
+	BucketLocationConstraintAp_east_1      BucketLocationConstraint = "ap-east-1"
+	BucketLocationConstraintAp_east_2      BucketLocationConstraint = "ap-east-2"
+	BucketLocationConstraintAp_northeast_1 BucketLocationConstraint = "ap-northeast-1"
+	BucketLocationConstraintAp_northeast_2 BucketLocationConstraint = "ap-northeast-2"
+	BucketLocationConstraintAp_northeast_3 BucketLocationConstraint = "ap-northeast-3"
+	BucketLocationConstraintAp_south_1     BucketLocationConstraint = "ap-south-1"
+	BucketLocationConstraintAp_south_2     BucketLocationConstraint = "ap-south-2"
+	BucketLocationConstraintAp_southeast_1 BucketLocationConstraint = "ap-southeast-1"
+	BucketLocationConstraintAp_southeast_2 BucketLocationConstraint = "ap-southeast-2"
+	BucketLocationConstraintAp_southeast_3 BucketLocationConstraint = "ap-southeast-3"
+	BucketLocationConstraintAp_southeast_4 BucketLocationConstraint = "ap-southeast-4"
+	BucketLocationConstraintAp_southeast_5 BucketLocationConstraint = "ap-southeast-5"
+	BucketLocationConstraintAp_southeast_6 BucketLocationConstraint = "ap-southeast-6"
+	BucketLocationConstraintAp_southeast_7 BucketLocationConstraint = "ap-southeast-7"
+	BucketLocationConstraintCa_central_1   BucketLocationConstraint = "ca-central-1"
+	BucketLocationConstraintCa_west_1      BucketLocationConstraint = "ca-west-1"
+	BucketLocationConstraintCn_north_1     BucketLocationConstraint = "cn-north-1"
+	BucketLocationConstraintCn_northwest_1 BucketLocationConstraint = "cn-northwest-1"
+	BucketLocationConstraintEu_central_1   BucketLocationConstraint = "eu-central-1"
+	BucketLocationConstraintEu_central_2   BucketLocationConstraint = "eu-central-2"
+	BucketLocationConstraintEu_north_1     BucketLocationConstraint = "eu-north-1"
+	BucketLocationConstraintEu_south_1     BucketLocationConstraint = "eu-south-1"
+	BucketLocationConstraintEu_south_2     BucketLocationConstraint = "eu-south-2"
+	BucketLocationConstraintEu_west_1      BucketLocationConstraint = "eu-west-1"
+	BucketLocationConstraintEu_west_2      BucketLocationConstraint = "eu-west-2"
+	BucketLocationConstraintEu_west_3      BucketLocationConstraint = "eu-west-3"
+	BucketLocationConstraintIl_central_1   BucketLocationConstraint = "il-central-1"
+	BucketLocationConstraintMe_central_1   BucketLocationConstraint = "me-central-1"
+	BucketLocationConstraintMe_south_1     BucketLocationConstraint = "me-south-1"
+	BucketLocationConstraintMx_central_1   BucketLocationConstraint = "mx-central-1"
+	BucketLocationConstraintSa_east_1      BucketLocationConstraint = "sa-east-1"
+	BucketLocationConstraintUs_east_2      BucketLocationConstraint = "us-east-2"
+	BucketLocationConstraintUs_gov_east_1  BucketLocationConstraint = "us-gov-east-1"
+	BucketLocationConstraintUs_gov_west_1  BucketLocationConstraint = "us-gov-west-1"
+	BucketLocationConstraintUs_west_1      BucketLocationConstraint = "us-west-1"
+	BucketLocationConstraintUs_west_2      BucketLocationConstraint = "us-west-2"
 )
 
 // ObjectOwnership is a generated Smithy enum.
 type ObjectOwnership string
 
 const (
-	ObjectOwnershipBucketOwnerEnforced  = "BucketOwnerEnforced"
-	ObjectOwnershipBucketOwnerPreferred = "BucketOwnerPreferred"
-	ObjectOwnershipObjectWriter         = "ObjectWriter"
+	ObjectOwnershipBucketOwnerEnforced  ObjectOwnership = "BucketOwnerEnforced"
+	ObjectOwnershipBucketOwnerPreferred ObjectOwnership = "BucketOwnerPreferred"
+	ObjectOwnershipObjectWriter         ObjectOwnership = "ObjectWriter"
 )
 
 // EncodingType is a generated Smithy enum.
 type EncodingType string
 
 const (
-	EncodingTypeUrl = "url"
+	EncodingTypeUrl EncodingType = "url"
 )
 
 // OptionalObjectAttributes is a generated Smithy enum.
 type OptionalObjectAttributes string
 
 const (
-	OptionalObjectAttributesRESTORE_STATUS = "RestoreStatus"
+	OptionalObjectAttributesRESTORE_STATUS OptionalObjectAttributes = "RestoreStatus"
 )
 
 // RequestPayer is a generated Smithy enum.
 type RequestPayer string
 
 const (
-	RequestPayerRequester = "requester"
+	RequestPayerRequester RequestPayer = "requester"
 )
 
 // ChecksumAlgorithm is a generated Smithy enum.
 type ChecksumAlgorithm string
 
 const (
-	ChecksumAlgorithmCRC32     = "CRC32"
-	ChecksumAlgorithmCRC32C    = "CRC32C"
-	ChecksumAlgorithmCRC64NVME = "CRC64NVME"
-	ChecksumAlgorithmMD5       = "MD5"
-	ChecksumAlgorithmSHA1      = "SHA1"
-	ChecksumAlgorithmSHA256    = "SHA256"
-	ChecksumAlgorithmSHA512    = "SHA512"
-	ChecksumAlgorithmXXHASH128 = "XXHASH128"
-	ChecksumAlgorithmXXHASH3   = "XXHASH3"
-	ChecksumAlgorithmXXHASH64  = "XXHASH64"
+	ChecksumAlgorithmCRC32     ChecksumAlgorithm = "CRC32"
+	ChecksumAlgorithmCRC32C    ChecksumAlgorithm = "CRC32C"
+	ChecksumAlgorithmCRC64NVME ChecksumAlgorithm = "CRC64NVME"
+	ChecksumAlgorithmMD5       ChecksumAlgorithm = "MD5"
+	ChecksumAlgorithmSHA1      ChecksumAlgorithm = "SHA1"
+	ChecksumAlgorithmSHA256    ChecksumAlgorithm = "SHA256"
+	ChecksumAlgorithmSHA512    ChecksumAlgorithm = "SHA512"
+	ChecksumAlgorithmXXHASH128 ChecksumAlgorithm = "XXHASH128"
+	ChecksumAlgorithmXXHASH3   ChecksumAlgorithm = "XXHASH3"
+	ChecksumAlgorithmXXHASH64  ChecksumAlgorithm = "XXHASH64"
 )
 
 // ChecksumType is a generated Smithy enum.
 type ChecksumType string
 
 const (
-	ChecksumTypeCOMPOSITE   = "COMPOSITE"
-	ChecksumTypeFULL_OBJECT = "FULL_OBJECT"
+	ChecksumTypeCOMPOSITE   ChecksumType = "COMPOSITE"
+	ChecksumTypeFULL_OBJECT ChecksumType = "FULL_OBJECT"
 )
 
 // ObjectStorageClass is a generated Smithy enum.
 type ObjectStorageClass string
 
 const (
-	ObjectStorageClassDEEP_ARCHIVE        = "DEEP_ARCHIVE"
-	ObjectStorageClassEXPRESS_ONEZONE     = "EXPRESS_ONEZONE"
-	ObjectStorageClassFSX_ONTAP           = "FSX_ONTAP"
-	ObjectStorageClassFSX_OPENZFS         = "FSX_OPENZFS"
-	ObjectStorageClassGLACIER             = "GLACIER"
-	ObjectStorageClassGLACIER_IR          = "GLACIER_IR"
-	ObjectStorageClassINTELLIGENT_TIERING = "INTELLIGENT_TIERING"
-	ObjectStorageClassONEZONE_IA          = "ONEZONE_IA"
-	ObjectStorageClassOUTPOSTS            = "OUTPOSTS"
-	ObjectStorageClassREDUCED_REDUNDANCY  = "REDUCED_REDUNDANCY"
-	ObjectStorageClassSNOW                = "SNOW"
-	ObjectStorageClassSTANDARD            = "STANDARD"
-	ObjectStorageClassSTANDARD_IA         = "STANDARD_IA"
+	ObjectStorageClassDEEP_ARCHIVE        ObjectStorageClass = "DEEP_ARCHIVE"
+	ObjectStorageClassEXPRESS_ONEZONE     ObjectStorageClass = "EXPRESS_ONEZONE"
+	ObjectStorageClassFSX_ONTAP           ObjectStorageClass = "FSX_ONTAP"
+	ObjectStorageClassFSX_OPENZFS         ObjectStorageClass = "FSX_OPENZFS"
+	ObjectStorageClassGLACIER             ObjectStorageClass = "GLACIER"
+	ObjectStorageClassGLACIER_IR          ObjectStorageClass = "GLACIER_IR"
+	ObjectStorageClassINTELLIGENT_TIERING ObjectStorageClass = "INTELLIGENT_TIERING"
+	ObjectStorageClassONEZONE_IA          ObjectStorageClass = "ONEZONE_IA"
+	ObjectStorageClassOUTPOSTS            ObjectStorageClass = "OUTPOSTS"
+	ObjectStorageClassREDUCED_REDUNDANCY  ObjectStorageClass = "REDUCED_REDUNDANCY"
+	ObjectStorageClassSNOW                ObjectStorageClass = "SNOW"
+	ObjectStorageClassSTANDARD            ObjectStorageClass = "STANDARD"
+	ObjectStorageClassSTANDARD_IA         ObjectStorageClass = "STANDARD_IA"
 )
 
 // RequestCharged is a generated Smithy enum.
 type RequestCharged string
 
 const (
-	RequestChargedRequester = "requester"
+	RequestChargedRequester RequestCharged = "requester"
 )
 
 // ChecksumMode is a generated Smithy enum.
 type ChecksumMode string
 
 const (
-	ChecksumModeENABLED = "ENABLED"
+	ChecksumModeENABLED ChecksumMode = "ENABLED"
 )
 
 // ObjectLockLegalHoldStatus is a generated Smithy enum.
 type ObjectLockLegalHoldStatus string
 
 const (
-	ObjectLockLegalHoldStatusOFF = "OFF"
-	ObjectLockLegalHoldStatusON  = "ON"
+	ObjectLockLegalHoldStatusOFF ObjectLockLegalHoldStatus = "OFF"
+	ObjectLockLegalHoldStatusON  ObjectLockLegalHoldStatus = "ON"
 )
 
 // ObjectLockMode is a generated Smithy enum.
 type ObjectLockMode string
 
 const (
-	ObjectLockModeCOMPLIANCE = "COMPLIANCE"
-	ObjectLockModeGOVERNANCE = "GOVERNANCE"
+	ObjectLockModeCOMPLIANCE ObjectLockMode = "COMPLIANCE"
+	ObjectLockModeGOVERNANCE ObjectLockMode = "GOVERNANCE"
 )
 
 // ReplicationStatus is a generated Smithy enum.
 type ReplicationStatus string
 
 const (
-	ReplicationStatusCOMPLETE  = "COMPLETE"
-	ReplicationStatusCOMPLETED = "COMPLETED"
-	ReplicationStatusFAILED    = "FAILED"
-	ReplicationStatusPENDING   = "PENDING"
-	ReplicationStatusREPLICA   = "REPLICA"
+	ReplicationStatusCOMPLETE  ReplicationStatus = "COMPLETE"
+	ReplicationStatusCOMPLETED ReplicationStatus = "COMPLETED"
+	ReplicationStatusFAILED    ReplicationStatus = "FAILED"
+	ReplicationStatusPENDING   ReplicationStatus = "PENDING"
+	ReplicationStatusREPLICA   ReplicationStatus = "REPLICA"
 )
 
 // ServerSideEncryption is a generated Smithy enum.
 type ServerSideEncryption string
 
 const (
-	ServerSideEncryptionAES256       = "AES256"
-	ServerSideEncryptionAws_fsx      = "aws:fsx"
-	ServerSideEncryptionAws_kms      = "aws:kms"
-	ServerSideEncryptionAws_kms_dsse = "aws:kms:dsse"
+	ServerSideEncryptionAES256       ServerSideEncryption = "AES256"
+	ServerSideEncryptionAws_fsx      ServerSideEncryption = "aws:fsx"
+	ServerSideEncryptionAws_kms      ServerSideEncryption = "aws:kms"
+	ServerSideEncryptionAws_kms_dsse ServerSideEncryption = "aws:kms:dsse"
 )
 
 // StorageClass is a generated Smithy enum.
 type StorageClass string
 
 const (
-	StorageClassDEEP_ARCHIVE        = "DEEP_ARCHIVE"
-	StorageClassEXPRESS_ONEZONE     = "EXPRESS_ONEZONE"
-	StorageClassFSX_ONTAP           = "FSX_ONTAP"
-	StorageClassFSX_OPENZFS         = "FSX_OPENZFS"
-	StorageClassGLACIER             = "GLACIER"
-	StorageClassGLACIER_IR          = "GLACIER_IR"
-	StorageClassINTELLIGENT_TIERING = "INTELLIGENT_TIERING"
-	StorageClassONEZONE_IA          = "ONEZONE_IA"
-	StorageClassOUTPOSTS            = "OUTPOSTS"
-	StorageClassREDUCED_REDUNDANCY  = "REDUCED_REDUNDANCY"
-	StorageClassSNOW                = "SNOW"
-	StorageClassSTANDARD            = "STANDARD"
-	StorageClassSTANDARD_IA         = "STANDARD_IA"
+	StorageClassDEEP_ARCHIVE        StorageClass = "DEEP_ARCHIVE"
+	StorageClassEXPRESS_ONEZONE     StorageClass = "EXPRESS_ONEZONE"
+	StorageClassFSX_ONTAP           StorageClass = "FSX_ONTAP"
+	StorageClassFSX_OPENZFS         StorageClass = "FSX_OPENZFS"
+	StorageClassGLACIER             StorageClass = "GLACIER"
+	StorageClassGLACIER_IR          StorageClass = "GLACIER_IR"
+	StorageClassINTELLIGENT_TIERING StorageClass = "INTELLIGENT_TIERING"
+	StorageClassONEZONE_IA          StorageClass = "ONEZONE_IA"
+	StorageClassOUTPOSTS            StorageClass = "OUTPOSTS"
+	StorageClassREDUCED_REDUNDANCY  StorageClass = "REDUCED_REDUNDANCY"
+	StorageClassSNOW                StorageClass = "SNOW"
+	StorageClassSTANDARD            StorageClass = "STANDARD"
+	StorageClassSTANDARD_IA         StorageClass = "STANDARD_IA"
 )
 
 // IntelligentTieringAccessTier is a generated Smithy enum.
 type IntelligentTieringAccessTier string
 
 const (
-	IntelligentTieringAccessTierARCHIVE_ACCESS      = "ARCHIVE_ACCESS"
-	IntelligentTieringAccessTierDEEP_ARCHIVE_ACCESS = "DEEP_ARCHIVE_ACCESS"
+	IntelligentTieringAccessTierARCHIVE_ACCESS      IntelligentTieringAccessTier = "ARCHIVE_ACCESS"
+	IntelligentTieringAccessTierDEEP_ARCHIVE_ACCESS IntelligentTieringAccessTier = "DEEP_ARCHIVE_ACCESS"
 )
 
 // ObjectCannedACL is a generated Smithy enum.
 type ObjectCannedACL string
 
 const (
-	ObjectCannedACLAuthenticated_read        = "authenticated-read"
-	ObjectCannedACLAws_exec_read             = "aws-exec-read"
-	ObjectCannedACLBucket_owner_full_control = "bucket-owner-full-control"
-	ObjectCannedACLBucket_owner_read         = "bucket-owner-read"
-	ObjectCannedACLPrivate                   = "private"
-	ObjectCannedACLPublic_read               = "public-read"
-	ObjectCannedACLPublic_read_write         = "public-read-write"
+	ObjectCannedACLAuthenticated_read        ObjectCannedACL = "authenticated-read"
+	ObjectCannedACLAws_exec_read             ObjectCannedACL = "aws-exec-read"
+	ObjectCannedACLBucket_owner_full_control ObjectCannedACL = "bucket-owner-full-control"
+	ObjectCannedACLBucket_owner_read         ObjectCannedACL = "bucket-owner-read"
+	ObjectCannedACLPrivate                   ObjectCannedACL = "private"
+	ObjectCannedACLPublic_read               ObjectCannedACL = "public-read"
+	ObjectCannedACLPublic_read_write         ObjectCannedACL = "public-read-write"
 )
 
 // ArchiveStatus is a generated Smithy enum.
 type ArchiveStatus string
 
 const (
-	ArchiveStatusARCHIVE_ACCESS      = "ARCHIVE_ACCESS"
-	ArchiveStatusDEEP_ARCHIVE_ACCESS = "DEEP_ARCHIVE_ACCESS"
+	ArchiveStatusARCHIVE_ACCESS      ArchiveStatus = "ARCHIVE_ACCESS"
+	ArchiveStatusDEEP_ARCHIVE_ACCESS ArchiveStatus = "DEEP_ARCHIVE_ACCESS"
 )
 
 // MetadataDirective is a generated Smithy enum.
 type MetadataDirective string
 
 const (
-	MetadataDirectiveCOPY    = "COPY"
-	MetadataDirectiveREPLACE = "REPLACE"
+	MetadataDirectiveCOPY    MetadataDirective = "COPY"
+	MetadataDirectiveREPLACE MetadataDirective = "REPLACE"
 )
 
 // TaggingDirective is a generated Smithy enum.
 type TaggingDirective string
 
 const (
-	TaggingDirectiveCOPY    = "COPY"
-	TaggingDirectiveREPLACE = "REPLACE"
+	TaggingDirectiveCOPY    TaggingDirective = "COPY"
+	TaggingDirectiveREPLACE TaggingDirective = "REPLACE"
 )
 
 // Buckets is a generated Smithy list (wrapper used for the
@@ -1178,6 +1180,133 @@ type ListPartsOutput struct {
 	UploadId             *string            `xml:"UploadId,omitempty"`
 }
 
+// AmazonS3Backend is the union of every per-operation backend
+// interface emitted from the spec. A real backend implementation
+// satisfies this union; the harness's in-memory backend satisfies it
+// too. RegisterAmazonS3Routes wires every operation handler onto
+// a restxml.Router using this combined backend.
+type AmazonS3Backend interface {
+	ListBucketsBackend
+	CreateBucketBackend
+	DeleteBucketBackend
+	HeadBucketBackend
+	ListObjectsV2Backend
+	GetObjectBackend
+	PutObjectBackend
+	DeleteObjectBackend
+	HeadObjectBackend
+	CopyObjectBackend
+	CreateMultipartUploadBackend
+	UploadPartBackend
+	CompleteMultipartUploadBackend
+	AbortMultipartUploadBackend
+	ListMultipartUploadsBackend
+	ListPartsBackend
+}
+
+// RegisterAmazonS3Routes mounts every shimmed operation handler
+// onto the given router. Routes that need extra disambiguation
+// declare required headers and/or required query params; the router
+// prefers more-specific matches over less-specific shared-path ones.
+func RegisterAmazonS3Routes(router *restxml.Router, b AmazonS3Backend) {
+	router.Register(ListBucketsMethod, ListBucketsURITemplate, "ListBuckets", ListBucketsHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders: []string{},
+			RequiredQueries: []string{},
+		},
+	)
+	router.Register(CreateBucketMethod, CreateBucketURITemplate, "CreateBucket", CreateBucketHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders: []string{},
+			RequiredQueries: []string{},
+		},
+	)
+	router.Register(DeleteBucketMethod, DeleteBucketURITemplate, "DeleteBucket", DeleteBucketHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders: []string{},
+			RequiredQueries: []string{},
+		},
+	)
+	router.Register(HeadBucketMethod, HeadBucketURITemplate, "HeadBucket", HeadBucketHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders: []string{},
+			RequiredQueries: []string{},
+		},
+	)
+	router.Register(ListObjectsV2Method, ListObjectsV2URITemplate, "ListObjectsV2", ListObjectsV2Handler(b),
+		restxml.RouteOptions{
+			RequiredHeaders: []string{},
+			RequiredQueries: []string{},
+		},
+	)
+	router.Register(GetObjectMethod, GetObjectURITemplate, "GetObject", GetObjectHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders: []string{},
+			RequiredQueries: []string{},
+		},
+	)
+	router.Register(PutObjectMethod, PutObjectURITemplate, "PutObject", PutObjectHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders: []string{},
+			RequiredQueries: []string{},
+		},
+	)
+	router.Register(DeleteObjectMethod, DeleteObjectURITemplate, "DeleteObject", DeleteObjectHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders: []string{},
+			RequiredQueries: []string{},
+		},
+	)
+	router.Register(HeadObjectMethod, HeadObjectURITemplate, "HeadObject", HeadObjectHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders: []string{},
+			RequiredQueries: []string{},
+		},
+	)
+	router.Register(CopyObjectMethod, CopyObjectURITemplate, "CopyObject", CopyObjectHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders: []string{"x-amz-copy-source"},
+			RequiredQueries: []string{},
+		},
+	)
+	router.Register(CreateMultipartUploadMethod, CreateMultipartUploadURITemplate, "CreateMultipartUpload", CreateMultipartUploadHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders: []string{},
+			RequiredQueries: []string{},
+		},
+	)
+	router.Register(UploadPartMethod, UploadPartURITemplate, "UploadPart", UploadPartHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders: []string{},
+			RequiredQueries: []string{"partNumber", "uploadId"},
+		},
+	)
+	router.Register(CompleteMultipartUploadMethod, CompleteMultipartUploadURITemplate, "CompleteMultipartUpload", CompleteMultipartUploadHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders: []string{},
+			RequiredQueries: []string{"uploadId"},
+		},
+	)
+	router.Register(AbortMultipartUploadMethod, AbortMultipartUploadURITemplate, "AbortMultipartUpload", AbortMultipartUploadHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders: []string{},
+			RequiredQueries: []string{"uploadId"},
+		},
+	)
+	router.Register(ListMultipartUploadsMethod, ListMultipartUploadsURITemplate, "ListMultipartUploads", ListMultipartUploadsHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders: []string{},
+			RequiredQueries: []string{},
+		},
+	)
+	router.Register(ListPartsMethod, ListPartsURITemplate, "ListParts", ListPartsHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders: []string{},
+			RequiredQueries: []string{"uploadId"},
+		},
+	)
+}
+
 // ListBucketsBackend serves the ListBuckets operation.
 type ListBucketsBackend interface {
 	ListBuckets(ctx context.Context, in *ListBucketsRequest) (*ListBucketsOutput, error)
@@ -1227,12 +1356,11 @@ func ListBucketsHandler(b ListBucketsBackend) http.Handler {
 			return
 		}
 		_ = out
+
 		w.Header().Set("Content-Type", "application/xml")
 		w.WriteHeader(200)
 		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
+		_ = xml.NewEncoder(w).Encode(out)
 	})
 }
 
@@ -1262,19 +1390,16 @@ func CreateBucketHandler(b CreateBucketBackend) http.Handler {
 		q := r.URL.Query()
 		_ = q
 		if v := r.Header.Get("x-amz-acl"); v != "" {
-			// codegen: assign-from-string for *BucketCannedACL treats value as the underlying string; backend should validate.
+			// codegen: treats value as string-backed (custom string or enum)
 			_ = v
 		}
 		if v, ok := labels["Bucket"]; ok {
 			in.Bucket = v
 		}
 		if v := r.Header.Get("x-amz-bucket-namespace"); v != "" {
-			// codegen: assign-from-string for *BucketNamespace treats value as the underlying string; backend should validate.
+			// codegen: treats value as string-backed (custom string or enum)
 			_ = v
 		}
-		// payload binding for CreateBucketConfiguration: read full body
-		_payload, _ := io.ReadAll(r.Body)
-		_ = _payload
 		if v := r.Header.Get("x-amz-grant-full-control"); v != "" {
 			s := v
 			in.GrantFullControl = &s
@@ -1301,22 +1426,33 @@ func CreateBucketHandler(b CreateBucketBackend) http.Handler {
 			}
 		}
 		if v := r.Header.Get("x-amz-object-ownership"); v != "" {
-			// codegen: assign-from-string for *ObjectOwnership treats value as the underlying string; backend should validate.
+			// codegen: treats value as string-backed (custom string or enum)
 			_ = v
 		}
 
+		_payload, _ := io.ReadAll(r.Body)
+		// Struct-shaped payload: XML-decode into the target.
+		if len(_payload) > 0 {
+			_val := &CreateBucketConfiguration{}
+			if err := xml.Unmarshal(_payload, _val); err == nil {
+				in.CreateBucketConfiguration = _val
+			}
+		}
 		out, err := b.CreateBucket(ctx, in)
 		if err != nil {
 			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
 			return
 		}
 		_ = out
-		w.Header().Set("Content-Type", "application/xml")
+		if out.BucketArn != nil {
+			w.Header().Set("x-amz-bucket-arn", *out.BucketArn)
+		}
+
+		if out.Location != nil {
+			w.Header().Set("Location", *out.Location)
+		}
+
 		w.WriteHeader(200)
-		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
 	})
 }
 
@@ -1402,12 +1538,28 @@ func HeadBucketHandler(b HeadBucketBackend) http.Handler {
 			return
 		}
 		_ = out
-		w.Header().Set("Content-Type", "application/xml")
+		if out.AccessPointAlias != nil {
+			w.Header().Set("x-amz-access-point-alias", strconv.FormatBool(*out.AccessPointAlias))
+		}
+
+		if out.BucketArn != nil {
+			w.Header().Set("x-amz-bucket-arn", *out.BucketArn)
+		}
+
+		if out.BucketLocationName != nil {
+			w.Header().Set("x-amz-bucket-location-name", *out.BucketLocationName)
+		}
+
+		// codegen: header for *LocationType (BucketLocationType -> x-amz-bucket-location-type); falls back to string conversion if pointer to enum.
+		if out.BucketLocationType != nil {
+			w.Header().Set("x-amz-bucket-location-type", string(*out.BucketLocationType))
+		}
+
+		if out.BucketRegion != nil {
+			w.Header().Set("x-amz-bucket-region", *out.BucketRegion)
+		}
+
 		w.WriteHeader(200)
-		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
 	})
 }
 
@@ -1448,7 +1600,7 @@ func ListObjectsV2Handler(b ListObjectsV2Backend) http.Handler {
 			in.Delimiter = &s
 		}
 		if v := q.Get("encoding-type"); v != "" {
-			// codegen: assign-from-string for *EncodingType treats value as the underlying string; backend should validate.
+			// codegen: treats value as string-backed (custom string or enum)
 			_ = v
 		}
 		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
@@ -1466,7 +1618,7 @@ func ListObjectsV2Handler(b ListObjectsV2Backend) http.Handler {
 			}
 		}
 		if v := r.Header.Get("x-amz-optional-object-attributes"); v != "" {
-			// codegen: assign-from-string for OptionalObjectAttributesList treats value as the underlying string; backend should validate.
+			// codegen: treats value as string-backed (custom string or enum)
 			_ = v
 		}
 		if v := q.Get("prefix"); v != "" {
@@ -1474,7 +1626,7 @@ func ListObjectsV2Handler(b ListObjectsV2Backend) http.Handler {
 			in.Prefix = &s
 		}
 		if v := r.Header.Get("x-amz-request-payer"); v != "" {
-			// codegen: assign-from-string for *RequestPayer treats value as the underlying string; backend should validate.
+			// codegen: treats value as string-backed (custom string or enum)
 			_ = v
 		}
 		if v := q.Get("start-after"); v != "" {
@@ -1488,12 +1640,15 @@ func ListObjectsV2Handler(b ListObjectsV2Backend) http.Handler {
 			return
 		}
 		_ = out
+		// codegen: header for *RequestCharged (RequestCharged -> x-amz-request-charged); falls back to string conversion if pointer to enum.
+		if out.RequestCharged != nil {
+			w.Header().Set("x-amz-request-charged", string(*out.RequestCharged))
+		}
+
 		w.Header().Set("Content-Type", "application/xml")
 		w.WriteHeader(200)
 		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
+		_ = xml.NewEncoder(w).Encode(out)
 	})
 }
 
@@ -1526,7 +1681,7 @@ func GetObjectHandler(b GetObjectBackend) http.Handler {
 			in.Bucket = v
 		}
 		if v := r.Header.Get("x-amz-checksum-mode"); v != "" {
-			// codegen: assign-from-string for *ChecksumMode treats value as the underlying string; backend should validate.
+			// codegen: treats value as string-backed (custom string or enum)
 			_ = v
 		}
 		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
@@ -1538,7 +1693,7 @@ func GetObjectHandler(b GetObjectBackend) http.Handler {
 			in.IfMatch = &s
 		}
 		if v := r.Header.Get("If-Modified-Since"); v != "" {
-			if t, err := restxml.ParseTime(v, ""); err == nil && t != nil {
+			if t, err := restxml.ParseTime(v, "http-date"); err == nil && t != nil {
 				in.IfModifiedSince = t
 			}
 		}
@@ -1547,7 +1702,7 @@ func GetObjectHandler(b GetObjectBackend) http.Handler {
 			in.IfNoneMatch = &s
 		}
 		if v := r.Header.Get("If-Unmodified-Since"); v != "" {
-			if t, err := restxml.ParseTime(v, ""); err == nil && t != nil {
+			if t, err := restxml.ParseTime(v, "http-date"); err == nil && t != nil {
 				in.IfUnmodifiedSince = t
 			}
 		}
@@ -1564,7 +1719,7 @@ func GetObjectHandler(b GetObjectBackend) http.Handler {
 			in.Range = &s
 		}
 		if v := r.Header.Get("x-amz-request-payer"); v != "" {
-			// codegen: assign-from-string for *RequestPayer treats value as the underlying string; backend should validate.
+			// codegen: treats value as string-backed (custom string or enum)
 			_ = v
 		}
 		if v := q.Get("response-cache-control"); v != "" {
@@ -1615,12 +1770,184 @@ func GetObjectHandler(b GetObjectBackend) http.Handler {
 			return
 		}
 		_ = out
-		w.Header().Set("Content-Type", "application/xml")
+		if out.AcceptRanges != nil {
+			w.Header().Set("accept-ranges", *out.AcceptRanges)
+		}
+
+		if out.BucketKeyEnabled != nil {
+			w.Header().Set("x-amz-server-side-encryption-bucket-key-enabled", strconv.FormatBool(*out.BucketKeyEnabled))
+		}
+
+		if out.CacheControl != nil {
+			w.Header().Set("Cache-Control", *out.CacheControl)
+		}
+
+		if out.ChecksumCRC32 != nil {
+			w.Header().Set("x-amz-checksum-crc32", *out.ChecksumCRC32)
+		}
+
+		if out.ChecksumCRC32C != nil {
+			w.Header().Set("x-amz-checksum-crc32c", *out.ChecksumCRC32C)
+		}
+
+		if out.ChecksumCRC64NVME != nil {
+			w.Header().Set("x-amz-checksum-crc64nvme", *out.ChecksumCRC64NVME)
+		}
+
+		if out.ChecksumMD5 != nil {
+			w.Header().Set("x-amz-checksum-md5", *out.ChecksumMD5)
+		}
+
+		if out.ChecksumSHA1 != nil {
+			w.Header().Set("x-amz-checksum-sha1", *out.ChecksumSHA1)
+		}
+
+		if out.ChecksumSHA256 != nil {
+			w.Header().Set("x-amz-checksum-sha256", *out.ChecksumSHA256)
+		}
+
+		if out.ChecksumSHA512 != nil {
+			w.Header().Set("x-amz-checksum-sha512", *out.ChecksumSHA512)
+		}
+
+		// codegen: header for *ChecksumType (ChecksumType -> x-amz-checksum-type); falls back to string conversion if pointer to enum.
+		if out.ChecksumType != nil {
+			w.Header().Set("x-amz-checksum-type", string(*out.ChecksumType))
+		}
+
+		if out.ChecksumXXHASH128 != nil {
+			w.Header().Set("x-amz-checksum-xxhash128", *out.ChecksumXXHASH128)
+		}
+
+		if out.ChecksumXXHASH3 != nil {
+			w.Header().Set("x-amz-checksum-xxhash3", *out.ChecksumXXHASH3)
+		}
+
+		if out.ChecksumXXHASH64 != nil {
+			w.Header().Set("x-amz-checksum-xxhash64", *out.ChecksumXXHASH64)
+		}
+
+		if out.ContentDisposition != nil {
+			w.Header().Set("Content-Disposition", *out.ContentDisposition)
+		}
+
+		if out.ContentEncoding != nil {
+			w.Header().Set("Content-Encoding", *out.ContentEncoding)
+		}
+
+		if out.ContentLanguage != nil {
+			w.Header().Set("Content-Language", *out.ContentLanguage)
+		}
+
+		if out.ContentLength != nil {
+			w.Header().Set("Content-Length", strconv.FormatInt(*out.ContentLength, 10))
+		}
+
+		if out.ContentRange != nil {
+			w.Header().Set("Content-Range", *out.ContentRange)
+		}
+
+		if out.ContentType != nil {
+			w.Header().Set("Content-Type", *out.ContentType)
+		}
+
+		if out.DeleteMarker != nil {
+			w.Header().Set("x-amz-delete-marker", strconv.FormatBool(*out.DeleteMarker))
+		}
+
+		if out.ETag != nil {
+			w.Header().Set("ETag", *out.ETag)
+		}
+
+		if out.Expiration != nil {
+			w.Header().Set("x-amz-expiration", *out.Expiration)
+		}
+
+		if out.Expires != nil {
+			w.Header().Set("Expires", *out.Expires)
+		}
+
+		if out.LastModified != nil {
+			w.Header().Set("Last-Modified", restxml.FormatTime(*out.LastModified, "http-date"))
+		}
+
+		if out.MissingMeta != nil {
+			w.Header().Set("x-amz-missing-meta", strconv.FormatInt(int64(*out.MissingMeta), 10))
+		}
+
+		// codegen: header for *ObjectLockLegalHoldStatus (ObjectLockLegalHoldStatus -> x-amz-object-lock-legal-hold); falls back to string conversion if pointer to enum.
+		if out.ObjectLockLegalHoldStatus != nil {
+			w.Header().Set("x-amz-object-lock-legal-hold", string(*out.ObjectLockLegalHoldStatus))
+		}
+
+		// codegen: header for *ObjectLockMode (ObjectLockMode -> x-amz-object-lock-mode); falls back to string conversion if pointer to enum.
+		if out.ObjectLockMode != nil {
+			w.Header().Set("x-amz-object-lock-mode", string(*out.ObjectLockMode))
+		}
+
+		if out.ObjectLockRetainUntilDate != nil {
+			w.Header().Set("x-amz-object-lock-retain-until-date", restxml.FormatTime(*out.ObjectLockRetainUntilDate, "http-date"))
+		}
+
+		if out.PartsCount != nil {
+			w.Header().Set("x-amz-mp-parts-count", strconv.FormatInt(int64(*out.PartsCount), 10))
+		}
+
+		// codegen: header for *ReplicationStatus (ReplicationStatus -> x-amz-replication-status); falls back to string conversion if pointer to enum.
+		if out.ReplicationStatus != nil {
+			w.Header().Set("x-amz-replication-status", string(*out.ReplicationStatus))
+		}
+
+		// codegen: header for *RequestCharged (RequestCharged -> x-amz-request-charged); falls back to string conversion if pointer to enum.
+		if out.RequestCharged != nil {
+			w.Header().Set("x-amz-request-charged", string(*out.RequestCharged))
+		}
+
+		if out.Restore != nil {
+			w.Header().Set("x-amz-restore", *out.Restore)
+		}
+
+		if out.SSECustomerAlgorithm != nil {
+			w.Header().Set("x-amz-server-side-encryption-customer-algorithm", *out.SSECustomerAlgorithm)
+		}
+
+		if out.SSECustomerKeyMD5 != nil {
+			w.Header().Set("x-amz-server-side-encryption-customer-key-MD5", *out.SSECustomerKeyMD5)
+		}
+
+		if out.SSEKMSKeyId != nil {
+			w.Header().Set("x-amz-server-side-encryption-aws-kms-key-id", *out.SSEKMSKeyId)
+		}
+
+		// codegen: header for *ServerSideEncryption (ServerSideEncryption -> x-amz-server-side-encryption); falls back to string conversion if pointer to enum.
+		if out.ServerSideEncryption != nil {
+			w.Header().Set("x-amz-server-side-encryption", string(*out.ServerSideEncryption))
+		}
+
+		// codegen: header for *StorageClass (StorageClass -> x-amz-storage-class); falls back to string conversion if pointer to enum.
+		if out.StorageClass != nil {
+			w.Header().Set("x-amz-storage-class", string(*out.StorageClass))
+		}
+
+		if out.TagCount != nil {
+			w.Header().Set("x-amz-tagging-count", strconv.FormatInt(int64(*out.TagCount), 10))
+		}
+
+		if out.VersionId != nil {
+			w.Header().Set("x-amz-version-id", *out.VersionId)
+		}
+
+		if out.WebsiteRedirectLocation != nil {
+			w.Header().Set("x-amz-website-redirect-location", *out.WebsiteRedirectLocation)
+		}
+
+		for _k, _v := range out.Metadata {
+			w.Header().Set("x-amz-meta-"+_k, _v)
+		}
+
+		w.Header().Set("Content-Length", strconv.Itoa(len(out.Body)))
 		w.WriteHeader(200)
-		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
+		_, _ = w.Write(out.Body)
 	})
 }
 
@@ -1650,12 +1977,9 @@ func PutObjectHandler(b PutObjectBackend) http.Handler {
 		q := r.URL.Query()
 		_ = q
 		if v := r.Header.Get("x-amz-acl"); v != "" {
-			// codegen: assign-from-string for *ObjectCannedACL treats value as the underlying string; backend should validate.
+			// codegen: treats value as string-backed (custom string or enum)
 			_ = v
 		}
-		// payload binding for Body: read full body
-		_payload, _ := io.ReadAll(r.Body)
-		_ = _payload
 		if v, ok := labels["Bucket"]; ok {
 			in.Bucket = v
 		}
@@ -1669,7 +1993,7 @@ func PutObjectHandler(b PutObjectBackend) http.Handler {
 			in.CacheControl = &s
 		}
 		if v := r.Header.Get("x-amz-sdk-checksum-algorithm"); v != "" {
-			// codegen: assign-from-string for *ChecksumAlgorithm treats value as the underlying string; backend should validate.
+			// codegen: treats value as string-backed (custom string or enum)
 			_ = v
 		}
 		if v := r.Header.Get("x-amz-checksum-crc32"); v != "" {
@@ -1781,20 +2105,20 @@ func PutObjectHandler(b PutObjectBackend) http.Handler {
 			}
 		}
 		if v := r.Header.Get("x-amz-object-lock-legal-hold"); v != "" {
-			// codegen: assign-from-string for *ObjectLockLegalHoldStatus treats value as the underlying string; backend should validate.
+			// codegen: treats value as string-backed (custom string or enum)
 			_ = v
 		}
 		if v := r.Header.Get("x-amz-object-lock-mode"); v != "" {
-			// codegen: assign-from-string for *ObjectLockMode treats value as the underlying string; backend should validate.
+			// codegen: treats value as string-backed (custom string or enum)
 			_ = v
 		}
 		if v := r.Header.Get("x-amz-object-lock-retain-until-date"); v != "" {
-			if t, err := restxml.ParseTime(v, ""); err == nil && t != nil {
+			if t, err := restxml.ParseTime(v, "http-date"); err == nil && t != nil {
 				in.ObjectLockRetainUntilDate = t
 			}
 		}
 		if v := r.Header.Get("x-amz-request-payer"); v != "" {
-			// codegen: assign-from-string for *RequestPayer treats value as the underlying string; backend should validate.
+			// codegen: treats value as string-backed (custom string or enum)
 			_ = v
 		}
 		if v := r.Header.Get("x-amz-server-side-encryption-customer-algorithm"); v != "" {
@@ -1818,11 +2142,11 @@ func PutObjectHandler(b PutObjectBackend) http.Handler {
 			in.SSEKMSKeyId = &s
 		}
 		if v := r.Header.Get("x-amz-server-side-encryption"); v != "" {
-			// codegen: assign-from-string for *ServerSideEncryption treats value as the underlying string; backend should validate.
+			// codegen: treats value as string-backed (custom string or enum)
 			_ = v
 		}
 		if v := r.Header.Get("x-amz-storage-class"); v != "" {
-			// codegen: assign-from-string for *StorageClass treats value as the underlying string; backend should validate.
+			// codegen: treats value as string-backed (custom string or enum)
 			_ = v
 		}
 		if v := r.Header.Get("x-amz-tagging"); v != "" {
@@ -1839,18 +2163,106 @@ func PutObjectHandler(b PutObjectBackend) http.Handler {
 			}
 		}
 
+		_payload, _ := io.ReadAll(r.Body)
+		in.Body = _payload
 		out, err := b.PutObject(ctx, in)
 		if err != nil {
 			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
 			return
 		}
 		_ = out
-		w.Header().Set("Content-Type", "application/xml")
+		if out.BucketKeyEnabled != nil {
+			w.Header().Set("x-amz-server-side-encryption-bucket-key-enabled", strconv.FormatBool(*out.BucketKeyEnabled))
+		}
+
+		if out.ChecksumCRC32 != nil {
+			w.Header().Set("x-amz-checksum-crc32", *out.ChecksumCRC32)
+		}
+
+		if out.ChecksumCRC32C != nil {
+			w.Header().Set("x-amz-checksum-crc32c", *out.ChecksumCRC32C)
+		}
+
+		if out.ChecksumCRC64NVME != nil {
+			w.Header().Set("x-amz-checksum-crc64nvme", *out.ChecksumCRC64NVME)
+		}
+
+		if out.ChecksumMD5 != nil {
+			w.Header().Set("x-amz-checksum-md5", *out.ChecksumMD5)
+		}
+
+		if out.ChecksumSHA1 != nil {
+			w.Header().Set("x-amz-checksum-sha1", *out.ChecksumSHA1)
+		}
+
+		if out.ChecksumSHA256 != nil {
+			w.Header().Set("x-amz-checksum-sha256", *out.ChecksumSHA256)
+		}
+
+		if out.ChecksumSHA512 != nil {
+			w.Header().Set("x-amz-checksum-sha512", *out.ChecksumSHA512)
+		}
+
+		// codegen: header for *ChecksumType (ChecksumType -> x-amz-checksum-type); falls back to string conversion if pointer to enum.
+		if out.ChecksumType != nil {
+			w.Header().Set("x-amz-checksum-type", string(*out.ChecksumType))
+		}
+
+		if out.ChecksumXXHASH128 != nil {
+			w.Header().Set("x-amz-checksum-xxhash128", *out.ChecksumXXHASH128)
+		}
+
+		if out.ChecksumXXHASH3 != nil {
+			w.Header().Set("x-amz-checksum-xxhash3", *out.ChecksumXXHASH3)
+		}
+
+		if out.ChecksumXXHASH64 != nil {
+			w.Header().Set("x-amz-checksum-xxhash64", *out.ChecksumXXHASH64)
+		}
+
+		if out.ETag != nil {
+			w.Header().Set("ETag", *out.ETag)
+		}
+
+		if out.Expiration != nil {
+			w.Header().Set("x-amz-expiration", *out.Expiration)
+		}
+
+		// codegen: header for *RequestCharged (RequestCharged -> x-amz-request-charged); falls back to string conversion if pointer to enum.
+		if out.RequestCharged != nil {
+			w.Header().Set("x-amz-request-charged", string(*out.RequestCharged))
+		}
+
+		if out.SSECustomerAlgorithm != nil {
+			w.Header().Set("x-amz-server-side-encryption-customer-algorithm", *out.SSECustomerAlgorithm)
+		}
+
+		if out.SSECustomerKeyMD5 != nil {
+			w.Header().Set("x-amz-server-side-encryption-customer-key-MD5", *out.SSECustomerKeyMD5)
+		}
+
+		if out.SSEKMSEncryptionContext != nil {
+			w.Header().Set("x-amz-server-side-encryption-context", *out.SSEKMSEncryptionContext)
+		}
+
+		if out.SSEKMSKeyId != nil {
+			w.Header().Set("x-amz-server-side-encryption-aws-kms-key-id", *out.SSEKMSKeyId)
+		}
+
+		// codegen: header for *ServerSideEncryption (ServerSideEncryption -> x-amz-server-side-encryption); falls back to string conversion if pointer to enum.
+		if out.ServerSideEncryption != nil {
+			w.Header().Set("x-amz-server-side-encryption", string(*out.ServerSideEncryption))
+		}
+
+		if out.Size != nil {
+			w.Header().Set("x-amz-object-size", strconv.FormatInt(*out.Size, 10))
+		}
+
+		if out.VersionId != nil {
+			w.Header().Set("x-amz-version-id", *out.VersionId)
+		}
+
 		w.WriteHeader(200)
-		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
 	})
 }
 
@@ -1896,7 +2308,7 @@ func DeleteObjectHandler(b DeleteObjectBackend) http.Handler {
 			in.IfMatch = &s
 		}
 		if v := r.Header.Get("x-amz-if-match-last-modified-time"); v != "" {
-			if t, err := restxml.ParseTime(v, ""); err == nil && t != nil {
+			if t, err := restxml.ParseTime(v, "http-date"); err == nil && t != nil {
 				in.IfMatchLastModifiedTime = t
 			}
 		}
@@ -1913,7 +2325,7 @@ func DeleteObjectHandler(b DeleteObjectBackend) http.Handler {
 			in.MFA = &s
 		}
 		if v := r.Header.Get("x-amz-request-payer"); v != "" {
-			// codegen: assign-from-string for *RequestPayer treats value as the underlying string; backend should validate.
+			// codegen: treats value as string-backed (custom string or enum)
 			_ = v
 		}
 		if v := q.Get("versionId"); v != "" {
@@ -1927,12 +2339,20 @@ func DeleteObjectHandler(b DeleteObjectBackend) http.Handler {
 			return
 		}
 		_ = out
-		w.Header().Set("Content-Type", "application/xml")
+		if out.DeleteMarker != nil {
+			w.Header().Set("x-amz-delete-marker", strconv.FormatBool(*out.DeleteMarker))
+		}
+
+		// codegen: header for *RequestCharged (RequestCharged -> x-amz-request-charged); falls back to string conversion if pointer to enum.
+		if out.RequestCharged != nil {
+			w.Header().Set("x-amz-request-charged", string(*out.RequestCharged))
+		}
+
+		if out.VersionId != nil {
+			w.Header().Set("x-amz-version-id", *out.VersionId)
+		}
+
 		w.WriteHeader(204)
-		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
 	})
 }
 
@@ -1965,7 +2385,7 @@ func HeadObjectHandler(b HeadObjectBackend) http.Handler {
 			in.Bucket = v
 		}
 		if v := r.Header.Get("x-amz-checksum-mode"); v != "" {
-			// codegen: assign-from-string for *ChecksumMode treats value as the underlying string; backend should validate.
+			// codegen: treats value as string-backed (custom string or enum)
 			_ = v
 		}
 		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
@@ -1977,7 +2397,7 @@ func HeadObjectHandler(b HeadObjectBackend) http.Handler {
 			in.IfMatch = &s
 		}
 		if v := r.Header.Get("If-Modified-Since"); v != "" {
-			if t, err := restxml.ParseTime(v, ""); err == nil && t != nil {
+			if t, err := restxml.ParseTime(v, "http-date"); err == nil && t != nil {
 				in.IfModifiedSince = t
 			}
 		}
@@ -1986,7 +2406,7 @@ func HeadObjectHandler(b HeadObjectBackend) http.Handler {
 			in.IfNoneMatch = &s
 		}
 		if v := r.Header.Get("If-Unmodified-Since"); v != "" {
-			if t, err := restxml.ParseTime(v, ""); err == nil && t != nil {
+			if t, err := restxml.ParseTime(v, "http-date"); err == nil && t != nil {
 				in.IfUnmodifiedSince = t
 			}
 		}
@@ -2003,7 +2423,7 @@ func HeadObjectHandler(b HeadObjectBackend) http.Handler {
 			in.Range = &s
 		}
 		if v := r.Header.Get("x-amz-request-payer"); v != "" {
-			// codegen: assign-from-string for *RequestPayer treats value as the underlying string; backend should validate.
+			// codegen: treats value as string-backed (custom string or enum)
 			_ = v
 		}
 		if v := q.Get("response-cache-control"); v != "" {
@@ -2054,12 +2474,187 @@ func HeadObjectHandler(b HeadObjectBackend) http.Handler {
 			return
 		}
 		_ = out
-		w.Header().Set("Content-Type", "application/xml")
+		if out.AcceptRanges != nil {
+			w.Header().Set("accept-ranges", *out.AcceptRanges)
+		}
+
+		// codegen: header for *ArchiveStatus (ArchiveStatus -> x-amz-archive-status); falls back to string conversion if pointer to enum.
+		if out.ArchiveStatus != nil {
+			w.Header().Set("x-amz-archive-status", string(*out.ArchiveStatus))
+		}
+
+		if out.BucketKeyEnabled != nil {
+			w.Header().Set("x-amz-server-side-encryption-bucket-key-enabled", strconv.FormatBool(*out.BucketKeyEnabled))
+		}
+
+		if out.CacheControl != nil {
+			w.Header().Set("Cache-Control", *out.CacheControl)
+		}
+
+		if out.ChecksumCRC32 != nil {
+			w.Header().Set("x-amz-checksum-crc32", *out.ChecksumCRC32)
+		}
+
+		if out.ChecksumCRC32C != nil {
+			w.Header().Set("x-amz-checksum-crc32c", *out.ChecksumCRC32C)
+		}
+
+		if out.ChecksumCRC64NVME != nil {
+			w.Header().Set("x-amz-checksum-crc64nvme", *out.ChecksumCRC64NVME)
+		}
+
+		if out.ChecksumMD5 != nil {
+			w.Header().Set("x-amz-checksum-md5", *out.ChecksumMD5)
+		}
+
+		if out.ChecksumSHA1 != nil {
+			w.Header().Set("x-amz-checksum-sha1", *out.ChecksumSHA1)
+		}
+
+		if out.ChecksumSHA256 != nil {
+			w.Header().Set("x-amz-checksum-sha256", *out.ChecksumSHA256)
+		}
+
+		if out.ChecksumSHA512 != nil {
+			w.Header().Set("x-amz-checksum-sha512", *out.ChecksumSHA512)
+		}
+
+		// codegen: header for *ChecksumType (ChecksumType -> x-amz-checksum-type); falls back to string conversion if pointer to enum.
+		if out.ChecksumType != nil {
+			w.Header().Set("x-amz-checksum-type", string(*out.ChecksumType))
+		}
+
+		if out.ChecksumXXHASH128 != nil {
+			w.Header().Set("x-amz-checksum-xxhash128", *out.ChecksumXXHASH128)
+		}
+
+		if out.ChecksumXXHASH3 != nil {
+			w.Header().Set("x-amz-checksum-xxhash3", *out.ChecksumXXHASH3)
+		}
+
+		if out.ChecksumXXHASH64 != nil {
+			w.Header().Set("x-amz-checksum-xxhash64", *out.ChecksumXXHASH64)
+		}
+
+		if out.ContentDisposition != nil {
+			w.Header().Set("Content-Disposition", *out.ContentDisposition)
+		}
+
+		if out.ContentEncoding != nil {
+			w.Header().Set("Content-Encoding", *out.ContentEncoding)
+		}
+
+		if out.ContentLanguage != nil {
+			w.Header().Set("Content-Language", *out.ContentLanguage)
+		}
+
+		if out.ContentLength != nil {
+			w.Header().Set("Content-Length", strconv.FormatInt(*out.ContentLength, 10))
+		}
+
+		if out.ContentRange != nil {
+			w.Header().Set("Content-Range", *out.ContentRange)
+		}
+
+		if out.ContentType != nil {
+			w.Header().Set("Content-Type", *out.ContentType)
+		}
+
+		if out.DeleteMarker != nil {
+			w.Header().Set("x-amz-delete-marker", strconv.FormatBool(*out.DeleteMarker))
+		}
+
+		if out.ETag != nil {
+			w.Header().Set("ETag", *out.ETag)
+		}
+
+		if out.Expiration != nil {
+			w.Header().Set("x-amz-expiration", *out.Expiration)
+		}
+
+		if out.Expires != nil {
+			w.Header().Set("Expires", *out.Expires)
+		}
+
+		if out.LastModified != nil {
+			w.Header().Set("Last-Modified", restxml.FormatTime(*out.LastModified, "http-date"))
+		}
+
+		if out.MissingMeta != nil {
+			w.Header().Set("x-amz-missing-meta", strconv.FormatInt(int64(*out.MissingMeta), 10))
+		}
+
+		// codegen: header for *ObjectLockLegalHoldStatus (ObjectLockLegalHoldStatus -> x-amz-object-lock-legal-hold); falls back to string conversion if pointer to enum.
+		if out.ObjectLockLegalHoldStatus != nil {
+			w.Header().Set("x-amz-object-lock-legal-hold", string(*out.ObjectLockLegalHoldStatus))
+		}
+
+		// codegen: header for *ObjectLockMode (ObjectLockMode -> x-amz-object-lock-mode); falls back to string conversion if pointer to enum.
+		if out.ObjectLockMode != nil {
+			w.Header().Set("x-amz-object-lock-mode", string(*out.ObjectLockMode))
+		}
+
+		if out.ObjectLockRetainUntilDate != nil {
+			w.Header().Set("x-amz-object-lock-retain-until-date", restxml.FormatTime(*out.ObjectLockRetainUntilDate, "http-date"))
+		}
+
+		if out.PartsCount != nil {
+			w.Header().Set("x-amz-mp-parts-count", strconv.FormatInt(int64(*out.PartsCount), 10))
+		}
+
+		// codegen: header for *ReplicationStatus (ReplicationStatus -> x-amz-replication-status); falls back to string conversion if pointer to enum.
+		if out.ReplicationStatus != nil {
+			w.Header().Set("x-amz-replication-status", string(*out.ReplicationStatus))
+		}
+
+		// codegen: header for *RequestCharged (RequestCharged -> x-amz-request-charged); falls back to string conversion if pointer to enum.
+		if out.RequestCharged != nil {
+			w.Header().Set("x-amz-request-charged", string(*out.RequestCharged))
+		}
+
+		if out.Restore != nil {
+			w.Header().Set("x-amz-restore", *out.Restore)
+		}
+
+		if out.SSECustomerAlgorithm != nil {
+			w.Header().Set("x-amz-server-side-encryption-customer-algorithm", *out.SSECustomerAlgorithm)
+		}
+
+		if out.SSECustomerKeyMD5 != nil {
+			w.Header().Set("x-amz-server-side-encryption-customer-key-MD5", *out.SSECustomerKeyMD5)
+		}
+
+		if out.SSEKMSKeyId != nil {
+			w.Header().Set("x-amz-server-side-encryption-aws-kms-key-id", *out.SSEKMSKeyId)
+		}
+
+		// codegen: header for *ServerSideEncryption (ServerSideEncryption -> x-amz-server-side-encryption); falls back to string conversion if pointer to enum.
+		if out.ServerSideEncryption != nil {
+			w.Header().Set("x-amz-server-side-encryption", string(*out.ServerSideEncryption))
+		}
+
+		// codegen: header for *StorageClass (StorageClass -> x-amz-storage-class); falls back to string conversion if pointer to enum.
+		if out.StorageClass != nil {
+			w.Header().Set("x-amz-storage-class", string(*out.StorageClass))
+		}
+
+		if out.TagCount != nil {
+			w.Header().Set("x-amz-tagging-count", strconv.FormatInt(int64(*out.TagCount), 10))
+		}
+
+		if out.VersionId != nil {
+			w.Header().Set("x-amz-version-id", *out.VersionId)
+		}
+
+		if out.WebsiteRedirectLocation != nil {
+			w.Header().Set("x-amz-website-redirect-location", *out.WebsiteRedirectLocation)
+		}
+
+		for _k, _v := range out.Metadata {
+			w.Header().Set("x-amz-meta-"+_k, _v)
+		}
+
 		w.WriteHeader(200)
-		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
 	})
 }
 
@@ -2089,7 +2684,7 @@ func CopyObjectHandler(b CopyObjectBackend) http.Handler {
 		q := r.URL.Query()
 		_ = q
 		if v := r.Header.Get("x-amz-acl"); v != "" {
-			// codegen: assign-from-string for *ObjectCannedACL treats value as the underlying string; backend should validate.
+			// codegen: treats value as string-backed (custom string or enum)
 			_ = v
 		}
 		if v, ok := labels["Bucket"]; ok {
@@ -2105,7 +2700,7 @@ func CopyObjectHandler(b CopyObjectBackend) http.Handler {
 			in.CacheControl = &s
 		}
 		if v := r.Header.Get("x-amz-checksum-algorithm"); v != "" {
-			// codegen: assign-from-string for *ChecksumAlgorithm treats value as the underlying string; backend should validate.
+			// codegen: treats value as string-backed (custom string or enum)
 			_ = v
 		}
 		if v := r.Header.Get("Content-Disposition"); v != "" {
@@ -2132,7 +2727,7 @@ func CopyObjectHandler(b CopyObjectBackend) http.Handler {
 			in.CopySourceIfMatch = &s
 		}
 		if v := r.Header.Get("x-amz-copy-source-if-modified-since"); v != "" {
-			if t, err := restxml.ParseTime(v, ""); err == nil && t != nil {
+			if t, err := restxml.ParseTime(v, "http-date"); err == nil && t != nil {
 				in.CopySourceIfModifiedSince = t
 			}
 		}
@@ -2141,7 +2736,7 @@ func CopyObjectHandler(b CopyObjectBackend) http.Handler {
 			in.CopySourceIfNoneMatch = &s
 		}
 		if v := r.Header.Get("x-amz-copy-source-if-unmodified-since"); v != "" {
-			if t, err := restxml.ParseTime(v, ""); err == nil && t != nil {
+			if t, err := restxml.ParseTime(v, "http-date"); err == nil && t != nil {
 				in.CopySourceIfUnmodifiedSince = t
 			}
 		}
@@ -2205,24 +2800,24 @@ func CopyObjectHandler(b CopyObjectBackend) http.Handler {
 			}
 		}
 		if v := r.Header.Get("x-amz-metadata-directive"); v != "" {
-			// codegen: assign-from-string for *MetadataDirective treats value as the underlying string; backend should validate.
+			// codegen: treats value as string-backed (custom string or enum)
 			_ = v
 		}
 		if v := r.Header.Get("x-amz-object-lock-legal-hold"); v != "" {
-			// codegen: assign-from-string for *ObjectLockLegalHoldStatus treats value as the underlying string; backend should validate.
+			// codegen: treats value as string-backed (custom string or enum)
 			_ = v
 		}
 		if v := r.Header.Get("x-amz-object-lock-mode"); v != "" {
-			// codegen: assign-from-string for *ObjectLockMode treats value as the underlying string; backend should validate.
+			// codegen: treats value as string-backed (custom string or enum)
 			_ = v
 		}
 		if v := r.Header.Get("x-amz-object-lock-retain-until-date"); v != "" {
-			if t, err := restxml.ParseTime(v, ""); err == nil && t != nil {
+			if t, err := restxml.ParseTime(v, "http-date"); err == nil && t != nil {
 				in.ObjectLockRetainUntilDate = t
 			}
 		}
 		if v := r.Header.Get("x-amz-request-payer"); v != "" {
-			// codegen: assign-from-string for *RequestPayer treats value as the underlying string; backend should validate.
+			// codegen: treats value as string-backed (custom string or enum)
 			_ = v
 		}
 		if v := r.Header.Get("x-amz-server-side-encryption-customer-algorithm"); v != "" {
@@ -2246,11 +2841,11 @@ func CopyObjectHandler(b CopyObjectBackend) http.Handler {
 			in.SSEKMSKeyId = &s
 		}
 		if v := r.Header.Get("x-amz-server-side-encryption"); v != "" {
-			// codegen: assign-from-string for *ServerSideEncryption treats value as the underlying string; backend should validate.
+			// codegen: treats value as string-backed (custom string or enum)
 			_ = v
 		}
 		if v := r.Header.Get("x-amz-storage-class"); v != "" {
-			// codegen: assign-from-string for *StorageClass treats value as the underlying string; backend should validate.
+			// codegen: treats value as string-backed (custom string or enum)
 			_ = v
 		}
 		if v := r.Header.Get("x-amz-tagging"); v != "" {
@@ -2258,7 +2853,7 @@ func CopyObjectHandler(b CopyObjectBackend) http.Handler {
 			in.Tagging = &s
 		}
 		if v := r.Header.Get("x-amz-tagging-directive"); v != "" {
-			// codegen: assign-from-string for *TaggingDirective treats value as the underlying string; backend should validate.
+			// codegen: treats value as string-backed (custom string or enum)
 			_ = v
 		}
 		if v := r.Header.Get("x-amz-website-redirect-location"); v != "" {
@@ -2272,12 +2867,54 @@ func CopyObjectHandler(b CopyObjectBackend) http.Handler {
 			return
 		}
 		_ = out
+		if out.BucketKeyEnabled != nil {
+			w.Header().Set("x-amz-server-side-encryption-bucket-key-enabled", strconv.FormatBool(*out.BucketKeyEnabled))
+		}
+
+		if out.CopySourceVersionId != nil {
+			w.Header().Set("x-amz-copy-source-version-id", *out.CopySourceVersionId)
+		}
+
+		if out.Expiration != nil {
+			w.Header().Set("x-amz-expiration", *out.Expiration)
+		}
+
+		// codegen: header for *RequestCharged (RequestCharged -> x-amz-request-charged); falls back to string conversion if pointer to enum.
+		if out.RequestCharged != nil {
+			w.Header().Set("x-amz-request-charged", string(*out.RequestCharged))
+		}
+
+		if out.SSECustomerAlgorithm != nil {
+			w.Header().Set("x-amz-server-side-encryption-customer-algorithm", *out.SSECustomerAlgorithm)
+		}
+
+		if out.SSECustomerKeyMD5 != nil {
+			w.Header().Set("x-amz-server-side-encryption-customer-key-MD5", *out.SSECustomerKeyMD5)
+		}
+
+		if out.SSEKMSEncryptionContext != nil {
+			w.Header().Set("x-amz-server-side-encryption-context", *out.SSEKMSEncryptionContext)
+		}
+
+		if out.SSEKMSKeyId != nil {
+			w.Header().Set("x-amz-server-side-encryption-aws-kms-key-id", *out.SSEKMSKeyId)
+		}
+
+		// codegen: header for *ServerSideEncryption (ServerSideEncryption -> x-amz-server-side-encryption); falls back to string conversion if pointer to enum.
+		if out.ServerSideEncryption != nil {
+			w.Header().Set("x-amz-server-side-encryption", string(*out.ServerSideEncryption))
+		}
+
+		if out.VersionId != nil {
+			w.Header().Set("x-amz-version-id", *out.VersionId)
+		}
+
 		w.Header().Set("Content-Type", "application/xml")
 		w.WriteHeader(200)
 		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
+		if out.CopyObjectResult != nil {
+			_ = xml.NewEncoder(w).Encode(out.CopyObjectResult)
+		}
 	})
 }
 
@@ -2307,7 +2944,7 @@ func CreateMultipartUploadHandler(b CreateMultipartUploadBackend) http.Handler {
 		q := r.URL.Query()
 		_ = q
 		if v := r.Header.Get("x-amz-acl"); v != "" {
-			// codegen: assign-from-string for *ObjectCannedACL treats value as the underlying string; backend should validate.
+			// codegen: treats value as string-backed (custom string or enum)
 			_ = v
 		}
 		if v, ok := labels["Bucket"]; ok {
@@ -2323,11 +2960,11 @@ func CreateMultipartUploadHandler(b CreateMultipartUploadBackend) http.Handler {
 			in.CacheControl = &s
 		}
 		if v := r.Header.Get("x-amz-checksum-algorithm"); v != "" {
-			// codegen: assign-from-string for *ChecksumAlgorithm treats value as the underlying string; backend should validate.
+			// codegen: treats value as string-backed (custom string or enum)
 			_ = v
 		}
 		if v := r.Header.Get("x-amz-checksum-type"); v != "" {
-			// codegen: assign-from-string for *ChecksumType treats value as the underlying string; backend should validate.
+			// codegen: treats value as string-backed (custom string or enum)
 			_ = v
 		}
 		if v := r.Header.Get("Content-Disposition"); v != "" {
@@ -2382,20 +3019,20 @@ func CreateMultipartUploadHandler(b CreateMultipartUploadBackend) http.Handler {
 			}
 		}
 		if v := r.Header.Get("x-amz-object-lock-legal-hold"); v != "" {
-			// codegen: assign-from-string for *ObjectLockLegalHoldStatus treats value as the underlying string; backend should validate.
+			// codegen: treats value as string-backed (custom string or enum)
 			_ = v
 		}
 		if v := r.Header.Get("x-amz-object-lock-mode"); v != "" {
-			// codegen: assign-from-string for *ObjectLockMode treats value as the underlying string; backend should validate.
+			// codegen: treats value as string-backed (custom string or enum)
 			_ = v
 		}
 		if v := r.Header.Get("x-amz-object-lock-retain-until-date"); v != "" {
-			if t, err := restxml.ParseTime(v, ""); err == nil && t != nil {
+			if t, err := restxml.ParseTime(v, "http-date"); err == nil && t != nil {
 				in.ObjectLockRetainUntilDate = t
 			}
 		}
 		if v := r.Header.Get("x-amz-request-payer"); v != "" {
-			// codegen: assign-from-string for *RequestPayer treats value as the underlying string; backend should validate.
+			// codegen: treats value as string-backed (custom string or enum)
 			_ = v
 		}
 		if v := r.Header.Get("x-amz-server-side-encryption-customer-algorithm"); v != "" {
@@ -2419,11 +3056,11 @@ func CreateMultipartUploadHandler(b CreateMultipartUploadBackend) http.Handler {
 			in.SSEKMSKeyId = &s
 		}
 		if v := r.Header.Get("x-amz-server-side-encryption"); v != "" {
-			// codegen: assign-from-string for *ServerSideEncryption treats value as the underlying string; backend should validate.
+			// codegen: treats value as string-backed (custom string or enum)
 			_ = v
 		}
 		if v := r.Header.Get("x-amz-storage-class"); v != "" {
-			// codegen: assign-from-string for *StorageClass treats value as the underlying string; backend should validate.
+			// codegen: treats value as string-backed (custom string or enum)
 			_ = v
 		}
 		if v := r.Header.Get("x-amz-tagging"); v != "" {
@@ -2441,12 +3078,58 @@ func CreateMultipartUploadHandler(b CreateMultipartUploadBackend) http.Handler {
 			return
 		}
 		_ = out
+		if out.AbortDate != nil {
+			w.Header().Set("x-amz-abort-date", restxml.FormatTime(*out.AbortDate, "http-date"))
+		}
+
+		if out.AbortRuleId != nil {
+			w.Header().Set("x-amz-abort-rule-id", *out.AbortRuleId)
+		}
+
+		if out.BucketKeyEnabled != nil {
+			w.Header().Set("x-amz-server-side-encryption-bucket-key-enabled", strconv.FormatBool(*out.BucketKeyEnabled))
+		}
+
+		// codegen: header for *ChecksumAlgorithm (ChecksumAlgorithm -> x-amz-checksum-algorithm); falls back to string conversion if pointer to enum.
+		if out.ChecksumAlgorithm != nil {
+			w.Header().Set("x-amz-checksum-algorithm", string(*out.ChecksumAlgorithm))
+		}
+
+		// codegen: header for *ChecksumType (ChecksumType -> x-amz-checksum-type); falls back to string conversion if pointer to enum.
+		if out.ChecksumType != nil {
+			w.Header().Set("x-amz-checksum-type", string(*out.ChecksumType))
+		}
+
+		// codegen: header for *RequestCharged (RequestCharged -> x-amz-request-charged); falls back to string conversion if pointer to enum.
+		if out.RequestCharged != nil {
+			w.Header().Set("x-amz-request-charged", string(*out.RequestCharged))
+		}
+
+		if out.SSECustomerAlgorithm != nil {
+			w.Header().Set("x-amz-server-side-encryption-customer-algorithm", *out.SSECustomerAlgorithm)
+		}
+
+		if out.SSECustomerKeyMD5 != nil {
+			w.Header().Set("x-amz-server-side-encryption-customer-key-MD5", *out.SSECustomerKeyMD5)
+		}
+
+		if out.SSEKMSEncryptionContext != nil {
+			w.Header().Set("x-amz-server-side-encryption-context", *out.SSEKMSEncryptionContext)
+		}
+
+		if out.SSEKMSKeyId != nil {
+			w.Header().Set("x-amz-server-side-encryption-aws-kms-key-id", *out.SSEKMSKeyId)
+		}
+
+		// codegen: header for *ServerSideEncryption (ServerSideEncryption -> x-amz-server-side-encryption); falls back to string conversion if pointer to enum.
+		if out.ServerSideEncryption != nil {
+			w.Header().Set("x-amz-server-side-encryption", string(*out.ServerSideEncryption))
+		}
+
 		w.Header().Set("Content-Type", "application/xml")
 		w.WriteHeader(200)
 		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
+		_ = xml.NewEncoder(w).Encode(out)
 	})
 }
 
@@ -2475,14 +3158,11 @@ func UploadPartHandler(b UploadPartBackend) http.Handler {
 		_ = labels
 		q := r.URL.Query()
 		_ = q
-		// payload binding for Body: read full body
-		_payload, _ := io.ReadAll(r.Body)
-		_ = _payload
 		if v, ok := labels["Bucket"]; ok {
 			in.Bucket = v
 		}
 		if v := r.Header.Get("x-amz-sdk-checksum-algorithm"); v != "" {
-			// codegen: assign-from-string for *ChecksumAlgorithm treats value as the underlying string; backend should validate.
+			// codegen: treats value as string-backed (custom string or enum)
 			_ = v
 		}
 		if v := r.Header.Get("x-amz-checksum-crc32"); v != "" {
@@ -2547,7 +3227,7 @@ func UploadPartHandler(b UploadPartBackend) http.Handler {
 			}
 		}
 		if v := r.Header.Get("x-amz-request-payer"); v != "" {
-			// codegen: assign-from-string for *RequestPayer treats value as the underlying string; backend should validate.
+			// codegen: treats value as string-backed (custom string or enum)
 			_ = v
 		}
 		if v := r.Header.Get("x-amz-server-side-encryption-customer-algorithm"); v != "" {
@@ -2566,18 +3246,85 @@ func UploadPartHandler(b UploadPartBackend) http.Handler {
 			in.UploadId = v
 		}
 
+		_payload, _ := io.ReadAll(r.Body)
+		in.Body = _payload
 		out, err := b.UploadPart(ctx, in)
 		if err != nil {
 			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
 			return
 		}
 		_ = out
-		w.Header().Set("Content-Type", "application/xml")
+		if out.BucketKeyEnabled != nil {
+			w.Header().Set("x-amz-server-side-encryption-bucket-key-enabled", strconv.FormatBool(*out.BucketKeyEnabled))
+		}
+
+		if out.ChecksumCRC32 != nil {
+			w.Header().Set("x-amz-checksum-crc32", *out.ChecksumCRC32)
+		}
+
+		if out.ChecksumCRC32C != nil {
+			w.Header().Set("x-amz-checksum-crc32c", *out.ChecksumCRC32C)
+		}
+
+		if out.ChecksumCRC64NVME != nil {
+			w.Header().Set("x-amz-checksum-crc64nvme", *out.ChecksumCRC64NVME)
+		}
+
+		if out.ChecksumMD5 != nil {
+			w.Header().Set("x-amz-checksum-md5", *out.ChecksumMD5)
+		}
+
+		if out.ChecksumSHA1 != nil {
+			w.Header().Set("x-amz-checksum-sha1", *out.ChecksumSHA1)
+		}
+
+		if out.ChecksumSHA256 != nil {
+			w.Header().Set("x-amz-checksum-sha256", *out.ChecksumSHA256)
+		}
+
+		if out.ChecksumSHA512 != nil {
+			w.Header().Set("x-amz-checksum-sha512", *out.ChecksumSHA512)
+		}
+
+		if out.ChecksumXXHASH128 != nil {
+			w.Header().Set("x-amz-checksum-xxhash128", *out.ChecksumXXHASH128)
+		}
+
+		if out.ChecksumXXHASH3 != nil {
+			w.Header().Set("x-amz-checksum-xxhash3", *out.ChecksumXXHASH3)
+		}
+
+		if out.ChecksumXXHASH64 != nil {
+			w.Header().Set("x-amz-checksum-xxhash64", *out.ChecksumXXHASH64)
+		}
+
+		if out.ETag != nil {
+			w.Header().Set("ETag", *out.ETag)
+		}
+
+		// codegen: header for *RequestCharged (RequestCharged -> x-amz-request-charged); falls back to string conversion if pointer to enum.
+		if out.RequestCharged != nil {
+			w.Header().Set("x-amz-request-charged", string(*out.RequestCharged))
+		}
+
+		if out.SSECustomerAlgorithm != nil {
+			w.Header().Set("x-amz-server-side-encryption-customer-algorithm", *out.SSECustomerAlgorithm)
+		}
+
+		if out.SSECustomerKeyMD5 != nil {
+			w.Header().Set("x-amz-server-side-encryption-customer-key-MD5", *out.SSECustomerKeyMD5)
+		}
+
+		if out.SSEKMSKeyId != nil {
+			w.Header().Set("x-amz-server-side-encryption-aws-kms-key-id", *out.SSEKMSKeyId)
+		}
+
+		// codegen: header for *ServerSideEncryption (ServerSideEncryption -> x-amz-server-side-encryption); falls back to string conversion if pointer to enum.
+		if out.ServerSideEncryption != nil {
+			w.Header().Set("x-amz-server-side-encryption", string(*out.ServerSideEncryption))
+		}
+
 		w.WriteHeader(200)
-		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
 	})
 }
 
@@ -2638,7 +3385,7 @@ func CompleteMultipartUploadHandler(b CompleteMultipartUploadBackend) http.Handl
 			in.ChecksumSHA512 = &s
 		}
 		if v := r.Header.Get("x-amz-checksum-type"); v != "" {
-			// codegen: assign-from-string for *ChecksumType treats value as the underlying string; backend should validate.
+			// codegen: treats value as string-backed (custom string or enum)
 			_ = v
 		}
 		if v := r.Header.Get("x-amz-checksum-xxhash128"); v != "" {
@@ -2673,11 +3420,8 @@ func CompleteMultipartUploadHandler(b CompleteMultipartUploadBackend) http.Handl
 				in.MpuObjectSize = p
 			}
 		}
-		// payload binding for MultipartUpload: read full body
-		_payload, _ := io.ReadAll(r.Body)
-		_ = _payload
 		if v := r.Header.Get("x-amz-request-payer"); v != "" {
-			// codegen: assign-from-string for *RequestPayer treats value as the underlying string; backend should validate.
+			// codegen: treats value as string-backed (custom string or enum)
 			_ = v
 		}
 		if v := r.Header.Get("x-amz-server-side-encryption-customer-algorithm"); v != "" {
@@ -2696,18 +3440,50 @@ func CompleteMultipartUploadHandler(b CompleteMultipartUploadBackend) http.Handl
 			in.UploadId = v
 		}
 
+		_payload, _ := io.ReadAll(r.Body)
+		// Struct-shaped payload: XML-decode into the target.
+		if len(_payload) > 0 {
+			_val := &CompletedMultipartUpload{}
+			if err := xml.Unmarshal(_payload, _val); err == nil {
+				in.MultipartUpload = _val
+			}
+		}
 		out, err := b.CompleteMultipartUpload(ctx, in)
 		if err != nil {
 			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
 			return
 		}
 		_ = out
+		if out.BucketKeyEnabled != nil {
+			w.Header().Set("x-amz-server-side-encryption-bucket-key-enabled", strconv.FormatBool(*out.BucketKeyEnabled))
+		}
+
+		if out.Expiration != nil {
+			w.Header().Set("x-amz-expiration", *out.Expiration)
+		}
+
+		// codegen: header for *RequestCharged (RequestCharged -> x-amz-request-charged); falls back to string conversion if pointer to enum.
+		if out.RequestCharged != nil {
+			w.Header().Set("x-amz-request-charged", string(*out.RequestCharged))
+		}
+
+		if out.SSEKMSKeyId != nil {
+			w.Header().Set("x-amz-server-side-encryption-aws-kms-key-id", *out.SSEKMSKeyId)
+		}
+
+		// codegen: header for *ServerSideEncryption (ServerSideEncryption -> x-amz-server-side-encryption); falls back to string conversion if pointer to enum.
+		if out.ServerSideEncryption != nil {
+			w.Header().Set("x-amz-server-side-encryption", string(*out.ServerSideEncryption))
+		}
+
+		if out.VersionId != nil {
+			w.Header().Set("x-amz-version-id", *out.VersionId)
+		}
+
 		w.Header().Set("Content-Type", "application/xml")
 		w.WriteHeader(200)
 		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
+		_ = xml.NewEncoder(w).Encode(out)
 	})
 }
 
@@ -2744,7 +3520,7 @@ func AbortMultipartUploadHandler(b AbortMultipartUploadBackend) http.Handler {
 			in.ExpectedBucketOwner = &s
 		}
 		if v := r.Header.Get("x-amz-if-match-initiated-time"); v != "" {
-			if t, err := restxml.ParseTime(v, ""); err == nil && t != nil {
+			if t, err := restxml.ParseTime(v, "http-date"); err == nil && t != nil {
 				in.IfMatchInitiatedTime = t
 			}
 		}
@@ -2752,7 +3528,7 @@ func AbortMultipartUploadHandler(b AbortMultipartUploadBackend) http.Handler {
 			in.Key = v
 		}
 		if v := r.Header.Get("x-amz-request-payer"); v != "" {
-			// codegen: assign-from-string for *RequestPayer treats value as the underlying string; backend should validate.
+			// codegen: treats value as string-backed (custom string or enum)
 			_ = v
 		}
 		if v := q.Get("uploadId"); v != "" {
@@ -2765,12 +3541,12 @@ func AbortMultipartUploadHandler(b AbortMultipartUploadBackend) http.Handler {
 			return
 		}
 		_ = out
-		w.Header().Set("Content-Type", "application/xml")
+		// codegen: header for *RequestCharged (RequestCharged -> x-amz-request-charged); falls back to string conversion if pointer to enum.
+		if out.RequestCharged != nil {
+			w.Header().Set("x-amz-request-charged", string(*out.RequestCharged))
+		}
+
 		w.WriteHeader(204)
-		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
 	})
 }
 
@@ -2807,7 +3583,7 @@ func ListMultipartUploadsHandler(b ListMultipartUploadsBackend) http.Handler {
 			in.Delimiter = &s
 		}
 		if v := q.Get("encoding-type"); v != "" {
-			// codegen: assign-from-string for *EncodingType treats value as the underlying string; backend should validate.
+			// codegen: treats value as string-backed (custom string or enum)
 			_ = v
 		}
 		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
@@ -2828,7 +3604,7 @@ func ListMultipartUploadsHandler(b ListMultipartUploadsBackend) http.Handler {
 			in.Prefix = &s
 		}
 		if v := r.Header.Get("x-amz-request-payer"); v != "" {
-			// codegen: assign-from-string for *RequestPayer treats value as the underlying string; backend should validate.
+			// codegen: treats value as string-backed (custom string or enum)
 			_ = v
 		}
 		if v := q.Get("upload-id-marker"); v != "" {
@@ -2842,12 +3618,15 @@ func ListMultipartUploadsHandler(b ListMultipartUploadsBackend) http.Handler {
 			return
 		}
 		_ = out
+		// codegen: header for *RequestCharged (RequestCharged -> x-amz-request-charged); falls back to string conversion if pointer to enum.
+		if out.RequestCharged != nil {
+			w.Header().Set("x-amz-request-charged", string(*out.RequestCharged))
+		}
+
 		w.Header().Set("Content-Type", "application/xml")
 		w.WriteHeader(200)
 		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
+		_ = xml.NewEncoder(w).Encode(out)
 	})
 }
 
@@ -2896,7 +3675,7 @@ func ListPartsHandler(b ListPartsBackend) http.Handler {
 			in.PartNumberMarker = &s
 		}
 		if v := r.Header.Get("x-amz-request-payer"); v != "" {
-			// codegen: assign-from-string for *RequestPayer treats value as the underlying string; backend should validate.
+			// codegen: treats value as string-backed (custom string or enum)
 			_ = v
 		}
 		if v := r.Header.Get("x-amz-server-side-encryption-customer-algorithm"); v != "" {
@@ -2921,11 +3700,22 @@ func ListPartsHandler(b ListPartsBackend) http.Handler {
 			return
 		}
 		_ = out
+		if out.AbortDate != nil {
+			w.Header().Set("x-amz-abort-date", restxml.FormatTime(*out.AbortDate, "http-date"))
+		}
+
+		if out.AbortRuleId != nil {
+			w.Header().Set("x-amz-abort-rule-id", *out.AbortRuleId)
+		}
+
+		// codegen: header for *RequestCharged (RequestCharged -> x-amz-request-charged); falls back to string conversion if pointer to enum.
+		if out.RequestCharged != nil {
+			w.Header().Set("x-amz-request-charged", string(*out.RequestCharged))
+		}
+
 		w.Header().Set("Content-Type", "application/xml")
 		w.WriteHeader(200)
 		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
+		_ = xml.NewEncoder(w).Encode(out)
 	})
 }
