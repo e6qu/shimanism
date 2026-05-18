@@ -16,6 +16,7 @@ import (
 	"github.com/e6qu/shimanism/internal/restxml"
 	"github.com/e6qu/shimanism/internal/storage/domain"
 	awsfront "github.com/e6qu/shimanism/internal/storage/frontends/aws_s3"
+	azurefront "github.com/e6qu/shimanism/internal/storage/frontends/azure_blob"
 	gcsfront "github.com/e6qu/shimanism/internal/storage/frontends/gcs"
 	storagegen "github.com/e6qu/shimanism/services/storage/gen"
 )
@@ -55,6 +56,19 @@ func StartStorageServer(t *testing.T, backend domain.Storage) *StorageServer {
 func StartStorageServerGCS(t *testing.T, backend domain.Storage) *StorageServer {
 	t.Helper()
 	srv := gcsfront.New(backend)
+	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
+	t.Cleanup(ts.Close)
+	return &StorageServer{URL: ts.URL, Close: ts.Close}
+}
+
+// StartStorageServerAzureBlob starts a shim instance with the Azure
+// Blob REST API frontend backed by the given storage implementation.
+// Azure-shaped clients (azure-sdk-for-go/sdk/storage/azblob, az CLI,
+// hashicorp/azurerm Terraform provider) drive it through the
+// endpoint-override path.
+func StartStorageServerAzureBlob(t *testing.T, backend domain.Storage) *StorageServer {
+	t.Helper()
+	srv := azurefront.New(backend)
 	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
 	t.Cleanup(ts.Close)
 	return &StorageServer{URL: ts.URL, Close: ts.Close}
