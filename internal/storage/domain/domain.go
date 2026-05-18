@@ -10,7 +10,11 @@ package domain
 
 import (
 	"context"
+	"crypto/md5"
+	"encoding/hex"
+	"fmt"
 	"io"
+	"strings"
 	"time"
 )
 
@@ -72,6 +76,46 @@ type Part struct {
 type CompletePartRef struct {
 	Number int32
 	ETag   string
+}
+
+// MultipartETag computes the S3-style multipart ETag from the
+// per-part ETags. S3's convention for a multipart object is:
+//
+//	"<md5(concat(decode(part_etag_hex)))>-<N>"
+//
+// where each part's ETag is the md5 of that part's body in hex
+// (quoted in transit), and the final ETag concatenates the *raw*
+// md5 bytes (not the hex), md5-hashes them, and suffixes the part
+// count. Backends whose native multipart finalization returns a
+// different shape (GCS composed-object Etag, Azure block-blob ETag,
+// the in-mem md5-of-assembled-body) call this helper from
+// CompleteMultipartUpload to return the S3-compatible ETag instead,
+// so SDK clients verifying multipart ETags don't see drift across
+// backends. Real-S3-compatible backends (AWS passthrough, MinIO)
+// pass through the native ETag because it already matches.
+func MultipartETag(parts []CompletePartRef) string {
+	h := md5.New()
+	for _, p := range parts {
+		raw := strings.Trim(p.ETag, "\"")
+		// A per-part ETag may itself be the multipart-suffix shape
+		// `<hex>-<n>` if a client somehow uploaded a composed part
+		// (not legal in S3 today but kept defensive). Strip any
+		// suffix before decoding.
+		if i := strings.IndexByte(raw, '-'); i >= 0 {
+			raw = raw[:i]
+		}
+		b, err := hex.DecodeString(raw)
+		if err != nil {
+			// If a backend handed us a non-hex ETag (e.g. GCS's
+			// base64-encoded CRC32C), fall back to hashing the
+			// string itself so we still return *some* stable
+			// per-multipart identifier instead of swallowing the
+			// error silently.
+			b = []byte(raw)
+		}
+		h.Write(b)
+	}
+	return fmt.Sprintf("\"%s-%d\"", hex.EncodeToString(h.Sum(nil)), len(parts))
 }
 
 // ListBucketsOptions bundles ListBuckets request options.

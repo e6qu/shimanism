@@ -432,7 +432,7 @@ func (b *Backend) UploadPart(ctx context.Context, bucket, key, uploadID string, 
 	return part.etag, nil
 }
 
-func (b *Backend) CompleteMultipartUpload(ctx context.Context, bucket, key, uploadID string, _ []domain.CompletePartRef) (string, error) {
+func (b *Backend) CompleteMultipartUpload(ctx context.Context, bucket, key, uploadID string, parts []domain.CompletePartRef) (string, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	up, ok := b.uploads[uploadID]
@@ -456,12 +456,17 @@ func (b *Backend) CompleteMultipartUpload(ctx context.Context, bucket, key, uplo
 		assembled = append(assembled, up.parts[n].data...)
 	}
 	now := time.Now().UTC()
+	// S3 multipart ETag is `md5(concat(part-md5s))-<count>`, NOT the
+	// md5 of the assembled object. Use the part refs to compute it so
+	// SDK clients verifying multipart ETags see the canonical shape
+	// across every backend.
+	multipartTag := domain.MultipartETag(parts)
 	obj := &objectState{
 		data:         assembled,
 		contentType:  up.contentType,
 		metadata:     copyMeta(up.metadata),
 		lastModified: now,
-		etag:         etagOf(assembled),
+		etag:         multipartTag,
 	}
 	if obj.contentType == "" {
 		obj.contentType = "application/octet-stream"

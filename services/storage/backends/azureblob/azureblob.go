@@ -376,22 +376,36 @@ func (b *Backend) CopyObject(ctx context.Context, opt domain.CopyObjectOptions) 
 	if err != nil {
 		return domain.CopyObjectResult{}, translateErr(err, opt.DstBucket, opt.DstKey)
 	}
-	// Poll for completion. For a same-account copy this is usually
-	// immediate, but Azure technically allows asynchronous copy.
-	for i := 0; i < 60; i++ {
-		if resp.CopyStatus == nil || *resp.CopyStatus == "success" {
-			break
-		}
-		time.Sleep(100 * time.Millisecond)
+	// Poll for completion. Same-account copies are usually immediate,
+	// but Azure technically allows asynchronous copy for cross-account
+	// or very large blobs. The loop fails loud on Azure-reported
+	// "failed"/"aborted" status (no silent partial copy) and on
+	// still-pending after the budget (matches the
+	// no-fakes/no-fallbacks rule).
+	status := ""
+	if resp.CopyStatus != nil {
+		status = string(*resp.CopyStatus)
+	}
+	deadline := time.Now().Add(30 * time.Second)
+	for status == "pending" && time.Now().Before(deadline) {
+		time.Sleep(200 * time.Millisecond)
 		props, perr := dstClient.GetProperties(ctx, nil)
 		if perr != nil {
 			return domain.CopyObjectResult{}, translateErr(perr, opt.DstBucket, opt.DstKey)
 		}
-		if props.CopyStatus == nil || *props.CopyStatus == "success" {
-			resp.ETag = props.ETag
-			resp.LastModified = props.LastModified
-			break
+		if props.CopyStatus != nil {
+			status = string(*props.CopyStatus)
 		}
+		resp.ETag = props.ETag
+		resp.LastModified = props.LastModified
+	}
+	switch status {
+	case "success", "":
+		// ok
+	case "pending":
+		return domain.CopyObjectResult{}, domain.InvalidArgument("copy still pending after 30s")
+	default:
+		return domain.CopyObjectResult{}, domain.InvalidArgument("copy " + status)
 	}
 	etag := ""
 	if resp.ETag != nil {
@@ -497,20 +511,18 @@ func (b *Backend) CompleteMultipartUpload(ctx context.Context, bucket, key, uplo
 			}
 		}
 	}
-	resp, err := bc.CommitBlockList(ctx, blockIDs, &blockblob.CommitBlockListOptions{
+	if _, err := bc.CommitBlockList(ctx, blockIDs, &blockblob.CommitBlockListOptions{
 		HTTPHeaders: headers,
 		Metadata:    meta,
-	})
-	if err != nil {
+	}); err != nil {
 		return "", translateErr(err, bucket, key)
 	}
 	// Best-effort cleanup of the marker; failure doesn't break the upload.
 	_, _ = mc.Delete(ctx, nil)
-	etag := ""
-	if resp.ETag != nil {
-		etag = "\"" + strings.Trim(string(*resp.ETag), "\"") + "\""
-	}
-	return etag, nil
+	// Return the S3 multipart ETag, not Azure's native block-blob
+	// ETag (which is unrelated to part md5s and would surprise S3
+	// clients that verify multipart ETags).
+	return domain.MultipartETag(parts), nil
 }
 
 func (b *Backend) AbortMultipartUpload(ctx context.Context, bucket, key, uploadID string) error {

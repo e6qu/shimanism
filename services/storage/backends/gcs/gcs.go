@@ -369,7 +369,7 @@ func (b *Backend) UploadPart(ctx context.Context, bucket, key, uploadID string, 
 	return "\"" + w.Attrs().Etag + "\"", nil
 }
 
-func (b *Backend) CompleteMultipartUpload(ctx context.Context, bucket, key, uploadID string, _ []domain.CompletePartRef) (string, error) {
+func (b *Backend) CompleteMultipartUpload(ctx context.Context, bucket, key, uploadID string, parts []domain.CompletePartRef) (string, error) {
 	// Discover parts under .uploads/<id>/ and order by part-NNNNN.
 	prefix := uploadPrefix(key, uploadID)
 	it := b.c.Bucket(bucket).Objects(ctx, &gcsstorage.Query{Prefix: prefix})
@@ -458,11 +458,15 @@ func (b *Backend) CompleteMultipartUpload(ctx context.Context, bucket, key, uplo
 		_ = markerObj.Delete(ctx)
 	}
 
-	attrs, err := finalObj.Attrs(ctx)
-	if err != nil {
+	// Return the S3 multipart ETag computed from the part ETags, not
+	// the GCS-native composed-object Etag (which is CRC32C-derived
+	// and has no defined cross-backend shape). Verifying the result
+	// object exists is still useful as a fault check; we discard the
+	// attrs.
+	if _, err := finalObj.Attrs(ctx); err != nil {
 		return "", translateErr(err, bucket, key)
 	}
-	return "\"" + attrs.Etag + "\"", nil
+	return domain.MultipartETag(parts), nil
 }
 
 func (b *Backend) AbortMultipartUpload(ctx context.Context, bucket, key, uploadID string) error {
