@@ -8,14 +8,14 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 
 | | |
 |---|---|
-| Active branch | `phase-6-cache` — PR #11 open. 6.0–6.15 piled + closer below. |
-| In-flight | None — Phase 6 closing. Three frontends (AWS ElastiCache, GCP Memorystore Admin, Azure Cache for Redis) × five backends (inmem + Redis Operator as K8s peer via dynamic-client + the three clouds) × three driver types. 6-op intersection. Same control-plane-only shape as Phase 5. Exit criterion: `redis-cli PING → PONG` through the shim-returned Connection block (sub-phase 6.15). New CI lane `conformance-redisop` (kind + OT-CONTAINER-KIT Redis Operator). |
-| Phase 5 closed | PR #10 merged `aeadbc8` 2026-05-19. Three rdbms frontends × five backends × three driver types; 14 required CI checks (added `conformance-cnpg` lane). CloudNativePG as K8s peer; explicit async Status enum; psql connectivity exit criterion validated end-to-end. BUG-5 carried forward (GCP Operations polling endpoint blocks `gcloud sql instances` + `google_sql_database_instance` cells). |
+| Active branch | `phase-7-functions` — fresh off main. 7.0 scope baseline drafted. |
+| In-flight | **Phase 7 — Functions.** Same control-plane shape as Phases 5+6; HTTP as the data plane. Container-image deployments only. Three frontends (AWS Lambda, GCP Cloud Run, Azure Container Apps) × five backends (inmem + Knative Serving as K8s peer + the three clouds) × three driver types. 5-op intersection. Events + auth-on-invoke deferred. Exit criterion: `curl <returned-url>` → function HTTP response. |
+| Phase 6 closed | PR #11 merged `cca8bc0` 2026-05-19. Three cache frontends × five backends × three driver types; 15 required CI checks (added `conformance-redisop` lane). Redis Operator as K8s peer via dynamic client; PING exit criterion validated end-to-end. |
 | Phase 4 closed | PR #9 merged `6305354` 2026-05-19. Three pubsub frontends × five backends × three driver types; same 13 required CI checks. NATS JetStream throughout as K8s peer; AWS dual-protocol surface (SNS publish + slim SQS-receive); 4-part Azure receipt encoding; AMQP / ARM-only cells ◇-skipped. `aws_sns_topic_subscription` cell carried as ripple of BUG-2. |
 | Phase 3 closed | PR #8 merged `07d11f5` 2026-05-19. Three queue frontends × five backends × three driver types; 13 required CI checks. NATS JetStream as K8s peer; stateless receipt-handle round-trip; AMQP / ARM-only cells ◇-skipped with documented reasons. BUG-2 carried forward (SetQueueAttributes gap blocks `aws_sqs_queue` TF cell). |
 | Phase 2 closed | PR #7 merged `7df43ec` 2026-05-19. Three secrets frontends × five secrets backends × three driver types; 12 required CI checks. Stateless invariant + shimakit framework + shima<service> naming convention landed alongside. |
 | Phase 1 closed | PR #6 merged `1f64d9f` 2026-05-19. Three storage frontends × five storage backends × three driver types matrix; 11 required CI checks. |
-| CI baseline | 15 required checks — the 14 from Phase 5 plus `conformance-redisop` added in Phase 6.14. Real-cloud lanes wait on Track A. |
+| CI baseline | 15 required checks from Phase 6. Phase 7 will add `conformance-knative` (kind + Knative Serving). Real-cloud lanes wait on Track A. |
 | Scope rule (2026-05-18) | **Each phase ships the full N × N matrix.** Previous PLAN.md had Phases 9 and 10 as "GCP source row" and "Azure source row" of horizontal expansion across all 8 services; user reversed this. Each service phase now includes all 3 frontends + all 4 backends + SDK / CLI / Terraform for each, before moving to the next service. Phases 9 and 10 deleted; their work is absorbed into Phases 1-8. |
 | Last merged | PR #5 — Phase 1.3 (codegen, originally all 107 ops) (`03b0ebb`, 2026-05-18). |
 | Standing merge auth | **None.** User merges every PR. |
@@ -52,23 +52,25 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 - Monorepo: `services/<service>/`, shared `internal/codegen/`, `internal/harness/`.
 - Test rings: per-PR recorded interactions, nightly live cloud, pre-release vendor integration suites.
 
-## Current phase — Phase 6: Managed Redis
+## Current phase — Phase 7: Functions
 
-Phase 6 ships the cache service end-to-end. AWS ElastiCache / GCP Memorystore Admin / Azure Cache for Redis frontends, each translatable to inmem / Redis Operator (K8s peer) / AWS / GCP / Azure backends. 6-op intersection — provisioning + lifecycle. Snapshot/restore deferred (cross-cloud semantics too divergent).
+Phase 7 ships the functions service end-to-end. AWS Lambda / GCP Cloud Run / Azure Container Apps frontends, each translatable to inmem / Knative Serving (K8s peer) / AWS / GCP / Azure backends. 5-op intersection. Container-image deployments only; events + auth-on-invoke deferred.
 
-Sub-phase table is in [DO_NEXT.md](DO_NEXT.md). Scope baseline at [`services/cache/OPERATIONS.md`](services/cache/OPERATIONS.md).
+Sub-phase table is in [DO_NEXT.md](DO_NEXT.md). Scope baseline at [`services/functions/OPERATIONS.md`](services/functions/OPERATIONS.md).
 
-### Phase 6 standing notes
-- **Same shape as Phase 5.** Control plane only — shim provisions; clients connect directly via RESP. Reuses Phase 5's Status enum, async-polling discipline, stateless credential pattern, and K8s-peer-via-dynamic-client design.
-- **Snapshot/restore deferred.** AWS ElastiCache → S3, GCP → GCS export, Azure → backup containers, Redis Operator → BackupRestore CRs. Conventions are too divergent for a clean intersection at this phase.
-- **Exit criterion: `redis-cli PING`.** Sub-phase 6.15 owns the RESP-connectivity test against the Redis-Operator-provisioned instance through the shim-returned Connection block (host, port, auth token).
+### Phase 7 standing notes
+- **Same control-plane shape as Phases 5+6; HTTP as the data plane.** The shim provisions and returns an endpoint URL; clients invoke via plain HTTP — shim plays no role on the invocation path.
+- **Container image only.** All four backends natively support container images; ZIP-package Lambda is out of intersection.
+- **Events deferred.** Cross-cloud event payload normalization is the hard part per PLAN.md; HTTP-trigger functions only at this phase.
+- **Auth-on-invoke deferred.** Public-HTTP functions only.
+- **Exit criterion: `curl <endpoint>`.** Sub-phase 7.15 owns the HTTP-connectivity test against the Knative-provisioned function through the shim-returned endpoint URL.
 
 ## Recently closed phases (last 5)
 
 | PR | Phase | Headline |
 |---|---|---|
+| #11 | 6 | Cache service end-to-end (control-plane only). 3 frontends × 5 backends (inmem, Redis Operator as K8s peer via dynamic-client, AWS ElastiCache, GCP Memorystore, Azure Cache for Redis) × 3 driver types. Same control-plane shape as Phase 5; RESP PING exit criterion validated through kind + Redis Operator. Merged 2026-05-19 at `cca8bc0`. |
 | #10 | 5 | RDBMS service end-to-end (control-plane only). 3 frontends × 5 backends (inmem, CloudNativePG as K8s peer via dynamic-client + unstructured Cluster CRs, AWS RDS, GCP Cloud SQL Admin, Azure flexible-servers) × 3 driver types. Explicit async Status enum; psql connectivity exit criterion validated through kind + cnpg + real PG. Merged 2026-05-19 at `aeadbc8`. |
 | #9 | 4 | Pubsub service end-to-end. 3 frontends × 5 backends (inmem, NATS JetStream as K8s peer with InterestPolicy retention + per-sub consumers, AWS SNS+SQS-receive, GCP Pub/Sub fanout, Azure Service Bus topics REST) × 3 driver types. Topic ≠ Subscription split as load-bearing change. Merged 2026-05-19 at `6305354`. |
 | #8 | 3 | Queue service end-to-end. 3 frontends × 5 backends (inmem, NATS JetStream as K8s peer, AWS SQS, GCP Pub/Sub pull, Azure Service Bus queue) × 3 driver types. Stateless receipt-handle round-trip; new `conformance-nats` CI lane. Merged 2026-05-19 at `07d11f5`. |
 | #7 | 2 | Secrets service end-to-end. 3 frontends × 5 backends (inmem, Vault as K8s peer via shimakit, AWS Secrets Manager, GCP Secret Manager, Azure Key Vault) × 3 driver types. shimakit framework + shima\<service\> naming. Stateless invariant established. Merged 2026-05-19 at `7df43ec`. |
-| #6 | 1 | Storage service end-to-end. 3 frontends × 5 backends (inmem, MinIO as K8s peer, AWS S3, GCS, Azure Blob) × 3 driver types. Spec-driven codegen pipeline. Merged 2026-05-19 at `1f64d9f`. |
