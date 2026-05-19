@@ -136,12 +136,16 @@ func waitForKnativeURL(t *testing.T, ctx context.Context, name string) string {
 }
 
 // portForwardKnativeService spawns `kubectl port-forward` against
-// the Knative-emitted Service `<name>` so the test can dial the
-// HTTP endpoint directly.
+// the Knative ingress gateway (kourier-system/kourier) so the test
+// can dial Knative-routed HTTP. The caller sets the Host header to
+// the ksvc's URL host; kourier dispatches to the backing Pod.
+//
+// `name` is unused here because all Knative Services share one
+// gateway; routing is by Host header. Kept in the signature for
+// future symmetry.
 func portForwardKnativeService(t *testing.T, ctx context.Context, name string) (string, int) {
 	t.Helper()
-	// Knative creates a Service named `<name>` in the ksvc's
-	// namespace targeting port 80 → 8080 on the backing Pod.
+	_ = name
 	lst, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("listen for free port: %v", err)
@@ -149,9 +153,13 @@ func portForwardKnativeService(t *testing.T, ctx context.Context, name string) (
 	localPort := lst.Addr().(*net.TCPAddr).Port
 	lst.Close()
 
+	// kourier-system is the namespace the Knative operator installs
+	// kourier into when KnativeServing.spec.ingress.kourier.enabled
+	// is true. The Service is named `kourier` and listens on :80.
 	cmd := exec.CommandContext(ctx, "kubectl",
+		"-n", "kourier-system",
 		"port-forward",
-		"svc/"+name,
+		"svc/kourier",
 		fmt.Sprintf("%d:80", localPort),
 	)
 	if err := cmd.Start(); err != nil {
