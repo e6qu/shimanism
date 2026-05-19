@@ -13,6 +13,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	pubsubdomain "github.com/e6qu/shimanism/internal/pubsub/domain"
+	awssnsfront "github.com/e6qu/shimanism/internal/pubsub/frontends/aws_sns"
+	awssqsreceivefront "github.com/e6qu/shimanism/internal/pubsub/frontends/aws_sqs_receive"
 	queuedomain "github.com/e6qu/shimanism/internal/queue/domain"
 	awssqsfront "github.com/e6qu/shimanism/internal/queue/frontends/aws_sqs"
 	azuresbfront "github.com/e6qu/shimanism/internal/queue/frontends/azure_servicebus"
@@ -171,6 +174,38 @@ func StartQueueServerAzure(t *testing.T, backend queuedomain.Queues) *QueueServe
 	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
 	t.Cleanup(ts.Close)
 	return &QueueServer{URL: ts.URL, Close: ts.Close}
+}
+
+// PubsubServer is a started pubsub-shim instance. AWS-shaped
+// pubsub exposes a separate SNS endpoint (publish side) and SQS
+// endpoint (receive side), so callers get two URLs to point their
+// snsClient + sqsClient at. GCP and Azure expose a single URL each.
+type PubsubServer struct {
+	// SnsURL is the SNS endpoint (awsQuery / XML). Empty for non-AWS.
+	SnsURL string
+	// SqsURL is the SQS-shaped receive endpoint (awsJson1_0). Empty
+	// for non-AWS.
+	SqsURL string
+	// URL is the single endpoint for non-AWS frontends.
+	URL   string
+	Close func()
+}
+
+// StartPubsubServerAWS starts a shim instance with the AWS SNS
+// frontend + the SQS-shaped receive surface, both wired to the
+// same pubsub backend. Returns two URLs the SDK clients should
+// target through their BaseEndpoint override.
+func StartPubsubServerAWS(t *testing.T, backend pubsubdomain.Pubsub) *PubsubServer {
+	t.Helper()
+	snsTs := httptest.NewServer(&logRoundTrip{t: t, mux: awssnsfront.New(backend)})
+	sqsTs := httptest.NewServer(&logRoundTrip{t: t, mux: awssqsreceivefront.New(backend)})
+	t.Cleanup(snsTs.Close)
+	t.Cleanup(sqsTs.Close)
+	return &PubsubServer{
+		SnsURL: snsTs.URL,
+		SqsURL: sqsTs.URL,
+		Close:  func() { snsTs.Close(); sqsTs.Close() },
+	}
 }
 
 // logRoundTrip logs each request through the harness. Lightweight —
