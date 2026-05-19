@@ -23,7 +23,7 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 | CI | Five required checks: `branch rebased on origin/main`, `tracked symlinks resolve`, `continuity docs present`, `go vet + test + build`, `dependency licenses AGPL-compatible`. |
 | Renovate | Config committed (48h minimum release age, weekly batches, pinned GitHub Actions SHAs); **user must install the Renovate GitHub App** at https://github.com/apps/renovate. |
 | Dep policy | [`doc/DEPENDENCY_POLICY.md`](doc/DEPENDENCY_POLICY.md): min release age 48h, prefer pure-Go over cgo, pnpm + no lifecycle scripts when JS lands. |
-| Bugs | 5 filed · 3 fixed · 2 open. BUG-2 (queue / SetQueueAttributes) ripples into Phase 4 + 5 TF cells. BUG-5 (rdbms / GCP Operations polling endpoint) blocks the GCP CLI + TF cells. |
+| Bugs | 8 filed · 3 fixed · 5 open. BUG-2/BUG-5 carry; Phase 8 added BUG-6 (Azure APIM v3 Delete signature), BUG-7 (az CLI per-resource override), BUG-8 (hashicorp/google APIGW override). All three are smoke-skipped pending Track A. |
 | Live infra | None. |
 
 ## Invariants (carry across compactions / fresh sessions)
