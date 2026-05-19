@@ -251,7 +251,9 @@ jobs:
       - name: Run nats conformance
         env:
           NATS_URL: nats://localhost:4222
-        run: go test -timeout 2m -run TestQueueMatrix ./services/queue/conformance/...
+        run: |
+          go test -timeout 2m -run TestQueueMatrix ./services/queue/conformance/...
+          go test -timeout 2m -run TestPubsubMatrix ./services/pubsub/conformance/...
 
   conformance-azureblob:
     name: conformance azureblob
