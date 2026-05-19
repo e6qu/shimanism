@@ -4,6 +4,55 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 
 > Reverse chronological. One section per phase. The *why*, the surprises, the root causes — not per-PR detail. For commit-level history, `git log`. For per-bug detail, [BUGS.md](BUGS.md).
 
+## Phase 3 — Queue (in-flight on `phase-3-queue`)
+
+Same N × N discipline as Phases 1 + 2 applied to message queueing. Three frontends (AWS SQS, GCP Pub/Sub pull, Azure Service Bus REST) × five backends (inmem test fixture, NATS JetStream as K8s peer, AWS / GCP / Azure passthrough) × three driver types (SDK, CLI, Terraform). 8-op intersection in [`services/queue/OPERATIONS.md`](services/queue/OPERATIONS.md): CreateQueue, DeleteQueue, ListQueues, GetQueueAttributes, SendMessage, ReceiveMessages, DeleteMessage, ChangeVisibility; plus `GetQueueUrl` as an AWS-only probe.
+
+### Receipt handles are the hard part
+
+Each cloud emits a different opaque token after a Receive that the consumer must present back to ack / extend / delete. The shim is **stateless**, so the handle has to round-trip through the backend without a shim-side index. Per-backend mapping:
+
+- **AWS** — `ReceiptHandle` passes through unchanged.
+- **GCP** — `AckId` passes through unchanged.
+- **NATS** — receipt handle = the message's *reply subject*. Ack via publishing `+ACK` to that subject through the long-lived connection. No `*nats.Msg` retained.
+- **Azure** — composite `<messageID>|<lockToken>`. Native Azure pairs MessageId + LockToken; the shim encodes them into a single opaque string so the receive→ack round trip can reconstruct the URL `messages/{messageID}/{lockToken}` without state.
+
+For the Azure frontend, the URL exposes both halves of the pair (REST fidelity), but the shim treats the lockToken alone as the receipt — backends needing the messageID encode it themselves. This keeps non-Azure backends (inmem, AWS, GCP, NATS) blind to the Azure URL shape.
+
+### Hybrid SDK + REST: the Azure backend
+
+`azure-sdk-for-go/sdk/messaging/azservicebus`'s high-level receive returns `*azservicebus.ReceivedMessage` — a Go object you must hold to call `CompleteMessage(msg)` or `RenewMessageLock(msg)`. That violates the stateless rule: the shim can't hold the `*ReceivedMessage` between receive and ack.
+
+Solution: hybrid. SDK for Create / Delete / List / Head / Send / Receive (all stateless surface). Raw HTTP REST + SAS-token signing for Complete (DELETE) and Renew Lock (POST), reconstructing the URL from the receipt handle alone. The `<messageID>|<lockToken>` encoding makes this clean.
+
+### AMQP vs REST: PLAN.md open question becomes a documented deferral
+
+The Azure SDK drives Service Bus over **AMQP**, not REST. The shim's Azure frontend speaks REST only. The fidelity question — should we ship an AMQP wire-level shim? — is deferred this phase:
+- SDK + Terraform azurerm cells ◇ skipped (AMQP / ARM).
+- `az servicebus` CLI cell ◇ skipped (ARM control plane + AMQP data plane).
+- Raw-HTTP REST is the conformance contract for the Azure frontend; lives at `services/queue/conformance/azure_rest_test.go` and `TestQueueMatrix_AzureFrontend`.
+
+### The synchronous GCP Pub/Sub SDK choice
+
+`cloud.google.com/go/pubsub` is streaming-first — the high-level `Subscription.Receive` opens a long-lived gRPC stream and dispatches messages via callbacks. That doesn't fit a per-call REST shim that wants bounded waits. The Phase 3 GCP backend uses **`google.golang.org/api/pubsub/v1`** (the Discovery-generated synchronous REST SDK) instead. Per-call `Pull` with `MaxMessages` + `ReturnImmediately` matches the shim's request-response shape exactly. Same package supplies wire types for the GCP frontend, so request/response shapes are reused on both sides.
+
+### Topic + subscription onto one queue
+
+GCP models a topic + subscription as two independent resources; the shim's domain has one entity, "queue". Mapping: a topic and a subscription sharing a short name resolve to the same backend queue. Delete-subscription is then a **no-op** against the queue (real Pub/Sub keeps the topic alive when only the subscription goes away); only delete-topic actually tears down the queue. The Terraform `google_pubsub_*` resources drive create→destroy through this shape without surprise.
+
+### SetQueueAttributes is the Phase-3 intersection extension we owe
+
+Terraform's `hashicorp/aws aws_sqs_queue` resource always reconciles attributes after `CreateQueue` via `SetQueueAttributes`, then polls `GetQueueAttributes` until two consecutive responses match. The current 8-op intersection doesn't include `SetQueueAttributes`. Filed as [BUG-2](BUGS.md); the `aws_sqs_queue` cell ◇ skipped until the extension lands (domain method + 5 backends + AWS frontend dispatcher).
+
+### Caps for cross-cloud uniformity
+
+- **VisibilityTimeoutSeconds** capped at 600s (GCP's max). AWS allows up to 43200; honouring that on a GCP backend would silently fail. Cap → uniform behaviour.
+- **WaitTimeSeconds** capped at 20s (AWS's max). NATS / GCP / Azure all support longer, but a higher value would silently truncate on the AWS backend. Same reasoning.
+
+### CI
+
+`conformance-nats` lane joins the matrix in `.github/workflows/checks.yml`. Pulls `nats:2.10`, starts with `-js -m 8222`, waits on `/healthz`, runs `TestQueueMatrix` with `NATS_URL`. Real-cloud lanes (aws-sqs, gcp-pubsub, azure-servicebus) wait on Track A.
+
 ## Phase 2 — Secrets management (PR #7)
 
 Same N × N discipline as Phase 1, smaller surface (7-op intersection). Three frontends (AWS Secrets Manager, GCP Secret Manager, Azure Key Vault) × five backends (inmem test fixture, Vault as K8s peer, AWS / GCP / Azure passthrough) × three driver types (SDK, CLI, Terraform). Per-cloud equivalence table in [`services/secrets/OPERATIONS.md`](services/secrets/OPERATIONS.md).
