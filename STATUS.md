@@ -8,20 +8,20 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 
 | | |
 |---|---|
-| Active branch | `phase-5-rdbms` — fresh off main. 5.0 scope baseline drafted; sub-phases 5.1–5.16 ahead. |
-| In-flight | **Phase 5 — Managed RDBMS (control plane only).** Different shape from Phases 1-4: the shim provisions real DB instances via control-plane APIs and returns connection metadata; clients connect *directly* to the provisioned Postgres/MySQL — the shim never sits on the wire-protocol path. Three frontends (AWS RDS, GCP Cloud SQL Admin, Azure DB Admin) × five backends (inmem + CloudNativePG as K8s peer + the three clouds) × three driver types. Two engines (Postgres + MySQL). 10-op intersection (Create/Delete/Describe/List/Modify/Reboot Instance + Create/Delete/Describe Snapshot + RestoreFromSnapshot). |
+| Active branch | `phase-5-rdbms` — PR #10 open. 5.0–5.15 piled across ~20 commits + the 5.16 closer below. |
+| In-flight | None — Phase 5 closing. Three frontends (AWS RDS, GCP Cloud SQL Admin, Azure DB Admin) × five backends (inmem + CloudNativePG as K8s peer + the three clouds) × three driver types. **Control-plane only** — shim provisions instances + returns connection metadata; clients connect *directly* to the real Postgres/MySQL. Postgres only this phase (MySQL via MySQL-Operator on K8s deferred). 11-op intersection (Create/Delete/Describe/List/Modify/Reboot Instance + Create/Delete/Describe Snapshot + RestoreFromSnapshot + ListSnapshots). New CI lane `conformance-cnpg` (kind + CloudNativePG operator). Phase-5 exit criterion is psql connectivity through the shim-returned Connection block — owned by sub-phase 5.15. Three documented skips: `aws_db_instance` Terraform (BUG-2 ripple), `gcloud sql instances` CLI + `google_sql_database_instance` Terraform (BUG-5 — GCP Operations polling endpoint), `az postgres flexible-server` CLI + `azurerm_postgresql_flexible_server` Terraform (Azure-AsyncOperation polling). |
 | Phase 4 closed | PR #9 merged `6305354` 2026-05-19. Three pubsub frontends × five backends × three driver types; same 13 required CI checks. NATS JetStream throughout as K8s peer; AWS dual-protocol surface (SNS publish + slim SQS-receive); 4-part Azure receipt encoding; AMQP / ARM-only cells ◇-skipped. `aws_sns_topic_subscription` cell carried as ripple of BUG-2. |
 | Phase 3 closed | PR #8 merged `07d11f5` 2026-05-19. Three queue frontends × five backends × three driver types; 13 required CI checks. NATS JetStream as K8s peer; stateless receipt-handle round-trip; AMQP / ARM-only cells ◇-skipped with documented reasons. BUG-2 carried forward (SetQueueAttributes gap blocks `aws_sqs_queue` TF cell). |
 | Phase 2 closed | PR #7 merged `7df43ec` 2026-05-19. Three secrets frontends × five secrets backends × three driver types; 12 required CI checks. Stateless invariant + shimakit framework + shima<service> naming convention landed alongside. |
 | Phase 1 closed | PR #6 merged `1f64d9f` 2026-05-19. Three storage frontends × five storage backends × three driver types matrix; 11 required CI checks. |
-| CI baseline | 13 required checks from Phase 3. Phase 5 will add a `conformance-cnpg` lane (kind cluster + CloudNativePG operator) for the K8s peer. Real-cloud lanes wait on Track A. |
+| CI baseline | 14 required checks — the 13 from Phase 3-4 plus `conformance-cnpg` added in Phase 5.14. Real-cloud lanes (aws-rds, gcp-cloudsql, azure-dbadmin) wait on Track A. |
 | Scope rule (2026-05-18) | **Each phase ships the full N × N matrix.** Previous PLAN.md had Phases 9 and 10 as "GCP source row" and "Azure source row" of horizontal expansion across all 8 services; user reversed this. Each service phase now includes all 3 frontends + all 4 backends + SDK / CLI / Terraform for each, before moving to the next service. Phases 9 and 10 deleted; their work is absorbed into Phases 1-8. |
 | Last merged | PR #5 — Phase 1.3 (codegen, originally all 107 ops) (`03b0ebb`, 2026-05-18). |
 | Standing merge auth | **None.** User merges every PR. |
 | CI | Five required checks: `branch rebased on origin/main`, `tracked symlinks resolve`, `continuity docs present`, `go vet + test + build`, `dependency licenses AGPL-compatible`. |
 | Renovate | Config committed (48h minimum release age, weekly batches, pinned GitHub Actions SHAs); **user must install the Renovate GitHub App** at https://github.com/apps/renovate. |
 | Dep policy | [`doc/DEPENDENCY_POLICY.md`](doc/DEPENDENCY_POLICY.md): min release age 48h, prefer pure-Go over cgo, pnpm + no lifecycle scripts when JS lands. |
-| Bugs | 2 filed · 1 fixed · 1 open (BUG-2: SetQueueAttributes gap blocks `aws_sqs_queue` TF cell). |
+| Bugs | 5 filed · 3 fixed · 2 open. BUG-2 (queue / SetQueueAttributes) ripples into Phase 4 + 5 TF cells. BUG-5 (rdbms / GCP Operations polling endpoint) blocks the GCP CLI + TF cells. |
 | Live infra | None. |
 
 ## Invariants (carry across compactions / fresh sessions)

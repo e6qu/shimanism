@@ -4,6 +4,48 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 
 > Reverse chronological. One section per phase. The *why*, the surprises, the root causes — not per-PR detail. For commit-level history, `git log`. For per-bug detail, [BUGS.md](BUGS.md).
 
+## Phase 5 — Managed RDBMS (in-flight on `phase-5-rdbms`)
+
+Control-plane only — the load-bearing shape change versus Phases 1-4.
+
+### The premise
+
+Storage / Secrets / Queue / Pubsub all sit on the data path: every wire-protocol message goes through the shim. RDBMS doesn't. The shim provisions a DB instance via the cloud's control-plane API and returns a `Connection` block (host, port, master username, database name). Clients open a *direct* PostgreSQL/MySQL connection to the returned host; the shim is invisible to every SQL statement.
+
+That makes the Phase-5 exit criterion uniquely concrete: **`psql` opens a real connection to the CloudNativePG-provisioned cluster through the shim-returned Connection block and runs `SELECT 1`.** It either works or it doesn't — there's no "the shim faked it." Sub-phase 5.15 owns that test.
+
+### Async semantics, surfaced explicitly
+
+All four backends provision asynchronously. The earlier services had short async windows (an SQS queue is ready almost immediately; a Key Vault secret create-version is sub-second). DB provisioning takes minutes — the shim can't pretend to be synchronous. Solution: an explicit `Status` enum (`Creating`, `Available`, `Modifying`, `Rebooting`, `Deleting`) on every domain `Instance`; clients poll `DescribeInstance` until `Available`. Every backend reports its native lifecycle into this enum honestly.
+
+### CloudNativePG via dynamic client
+
+The K8s peer is CloudNativePG (cnpg). Their `Cluster` CRD owns the operator-managed Postgres deployment. Two options for the shim backend:
+1. Import `github.com/cloudnative-pg/api` (typed Cluster/Backup structs, hard dependency on cnpg's release cadence).
+2. Use `k8s.io/client-go/dynamic` + `unstructured.Unstructured` (no cnpg-api import, version-agnostic).
+
+Went with option 2 — the shim's dependency on cnpg stays loose, and cnpg releases don't force a recompile. The trade-off is hand-coded field paths into the unstructured map; that's a small surface and worth it for the decoupling.
+
+### Master password handling
+
+Master password is returned exactly once at `CreateInstance` via `CreateInstanceResult.MasterPassword`. After that, `DescribeInstance` returns a `Connection` block with the username but never the password. CloudNativePG stores the password in a Kubernetes `Secret`; the shim re-reads that Secret on each `DescribeInstance` (no shim-side credential cache — same stateless rule as the other phases).
+
+### awsQuery again
+
+AWS RDS uses the awsQuery wire protocol — same family as SNS in Phase 4. The frontend implementation follows the Phase 4 SNS pattern closely (form-encoded request parsing, XML-namespaced response envelopes, `<Op>Response/<Op>Result/ResponseMetadata`).
+
+### Azure ARM frontend: SDK conformance deferred
+
+Azure's flexible-servers SDK polls `Azure-AsyncOperation` URLs on every mutating op. The shim's Azure frontend doesn't emit those headers at this phase — it returns 202 Accepted and lets the SDK fall through to a `Get` call once the polling library eventually gives up the polling URL. SDK conformance is deferred; raw-HTTP + matrix-via-AWS-frontend coverage validate correctness.
+
+### Filed BUGs
+
+- **BUG-5 (P3, rdbms):** GCP Cloud SQL Admin frontend returns `PENDING` `Operation` envelopes but doesn't implement the `/v1/projects/{p}/operations/{op}` polling endpoint. `gcloud sql instances` and `hashicorp/google google_sql_database_instance` both hang. SDK + matrix cells cover correctness; CLI + TF cells ◇ skipped until BUG-5 lands.
+
+### CI: kind + CloudNativePG
+
+The new `conformance-cnpg` lane uses `helm/kind-action` to spin up a kind cluster, applies the CloudNativePG 1.24.1 release manifest, waits on the controller-manager rollout, then runs the matrix's `cnpg` cell + `TestPsqlConnectivity_CNPG`. The lane proves both the control-plane translation (matrix) AND the data-plane connectivity through the returned Connection block (psql test). Same single-lane discipline as Phase 4 (which reused the existing `conformance-nats` lane), now extended to a kind+operator topology.
+
 ## Phase 4 — Pub/Sub (in-flight on `phase-4-pubsub`)
 
 Topic-fanout sibling of Phase 3. Same N × N discipline (3 frontends × 5 backends × 3 driver types) applied to one-to-many message delivery. AWS SNS+SQS-receive / GCP Pub/Sub fanout / Azure Service Bus topics REST × inmem + NATS JetStream + AWS + GCP + Azure × SDK + CLI + Terraform.
