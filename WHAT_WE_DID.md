@@ -4,6 +4,66 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 
 > Reverse chronological. One section per phase. The *why*, the surprises, the root causes — not per-PR detail. For commit-level history, `git log`. For per-bug detail, [BUGS.md](BUGS.md).
 
+## Phase 2 — Secrets management (PR #7)
+
+Same N × N discipline as Phase 1, smaller surface (7-op intersection). Three frontends (AWS Secrets Manager, GCP Secret Manager, Azure Key Vault) × five backends (inmem test fixture, Vault as K8s peer, AWS / GCP / Azure passthrough) × three driver types (SDK, CLI, Terraform). Per-cloud equivalence table in [`services/secrets/OPERATIONS.md`](services/secrets/OPERATIONS.md).
+
+### The stateless invariant landed first
+
+Before any code, the user pinned the no-state rule: **the shim binary holds no state of record**. Locked into `AGENTS.md § The shim is stateless`, `PLAN.md` decision #12, `STATUS.md` architecture invariants, plus a `PHILOSOPHY.md` koan (*The Empty Hands*). The Phase 2 design then bent to comply: version-handle translation (AWS UUID ↔ monotonic uint64, Azure GUID ↔ monotonic uint64) is **derived per-request by listing versions and sorting by creation timestamp**. Earlier drafts had me storing the mapping in a shim-owned sidecar; the rewrite cuts that out — the data already lives in the backend, the shim just re-reads.
+
+### Wire-type reuse, just like Phase 1
+
+Per AGENTS.md "Reuse over reinvention":
+
+- **AWS frontend** hand-written (no Smithy → JSON-protocol server generator exists; codegen would have been a side quest worth ~1k lines for one phase). Wire types mirror the vendored `aws-sdk-go-v2/service/secretsmanager` Smithy spec at `services/secrets/spec/`.
+- **GCP frontend** reuses `google.golang.org/api/secretmanager/v1` raw types (Discovery-generated, same source the official SDK uses).
+- **Azure frontend** wire types mirror the shapes the SDK's `azsecrets/internal/generated` package uses.
+
+Backends use each cloud's official Go SDK directly. Vault uses `hashicorp/vault/api`.
+
+### The interesting design call: versions
+
+The four secret stores model versions differently:
+- AWS — UUID `VersionId` + multiple stage labels per version (`AWSCURRENT`, `AWSPREVIOUS`, …).
+- GCP — numeric `versions/<N>`, monotonic ≥ 1.
+- Azure — hex GUID.
+- Vault KV v2 — numeric, monotonic ≥ 1.
+
+The domain uses **monotonic uint64**. GCP and Vault are 1:1; AWS and Azure derive monotonic ↔ native by listing versions per request. AWS stage labels (`AWSCURRENT`, `AWSPREVIOUS`) only exist inside the AWS frontend adapter — they resolve to "the most recent live version" and "one below" via the same listing call. The domain knows nothing about stages.
+
+### Surprises during conformance
+
+**AWS TF — the ARN normaliser bug.** First version of the AWS frontend's `normaliseSecretID` stripped any `-XXXXXX` 7-char suffix from the ARN's name component, modelled on AWS's real 6-char random suffix. The Terraform AWS provider names its test secret `tf-driven`; my normaliser saw `tf` + suffix `driven` and looked up a secret named `tf` that doesn't exist. The fix: only strip suffixes from real-AWS-region ARNs (`arn:aws:secretsmanager:us-east-1:...`), never from shim-issued ones (`arn:aws:secretsmanager:shim:...`). Shim-issued ARNs have no suffix to strip.
+
+**AWS TF — GetResourcePolicy probe.** Terraform's `aws_secretsmanager_secret` resource refresh calls `GetResourcePolicy` after every `DescribeSecret`. The shim doesn't model resource policies (they're IAM-side, separate phase), but returning `UnknownOperationException` killed TF state reads. Probe handler added: accept the call, verify the secret exists, return the canonical "no policy attached" response with a null `ResourcePolicy`. Same shape as Phase 1's bucket-config probes.
+
+**GCP TF — `:enable` / `:disable` probes.** `hashicorp/google` calls `:enable` on every new secret_version after creation. The domain doesn't model per-version enabled state (GCP allows it, but Vault and the AWS-shim path don't honour it cleanly); treating `:enable` and `:disable` as no-op probes that return the version unchanged preserves the no-state rule.
+
+**Azure SDK — TLS + challenge-response.** Azure SDK refuses to send bearer tokens over plain HTTP — `httptest.NewServer` (HTTP-only) fails authentication immediately. Switched to `httptest.NewTLSServer`; the test SDK client gets `InsecureSkipVerify`. Then Azure's challenge-response flow needs the shim to issue a `401 + WWW-Authenticate: Bearer authorization="…", resource="…"` response on first request without auth; without it the SDK short-circuits the upload empty-body. Shim now sends the challenge.
+
+**Azure CLI — vault URL hard-coded.** `az keyvault secret` resolves the data-plane URL from `--vault-name` + a fixed `*.vault.azure.net` suffix. No override flag or env var. The CLI cell is documented as skipped; SDK + (when azurerm grows an override) TF cover it.
+
+### What landed across 2.1 → 2.15
+
+| Sub-phase | Headline |
+|---|---|
+| 2.1 | AWS Secrets Manager Smithy spec vendored at `2517fe9f`. Manifest names the 7 intersection ops. |
+| 2.2 | `internal/secrets/domain/` neutral interface + typed `Error` with `Kind`. |
+| 2.3 | AWS frontend `internal/secrets/frontends/aws_secretsmanager/` (hand-written awsJson1_1). |
+| 2.4 | In-mem backend + SDK conformance (`TestAWSSDK_*`). |
+| 2.5 | (rolled into 2.2-2.4 commit) |
+| 2.6 | AWS Secrets Manager passthrough backend. |
+| 2.7 | Vault KV v2 backend. |
+| 2.8 | GCP Secret Manager backend. |
+| 2.9 | Azure Key Vault backend. |
+| 2.10 | GCP + Azure frontends + their SDK conformance tests. |
+| 2.11 | `TestSecretsMatrix_*Frontend` matrix tests (3 frontends × N backends via the factory list). |
+| 2.12 | AWS + GCP CLI conformance. Azure CLI skipped (no override). |
+| 2.13 | AWS + GCP Terraform conformance. azurerm skipped (no data-plane override). |
+| 2.14 | `cmd/shim secrets` subcommand alongside `shim storage`. |
+| 2.15 | CI lane `conformance-vault` with the Vault dev container. Real-cloud lanes (AWS/GCP/Azure secrets) wait on Track A. |
+
 ## Phases 1.14 – 1.16 — Cross-frontend coverage (still on PR #6)
 
 After the user reset scope ("every phase ships every frontend × every backend") the remaining work was to land **GCS** and **Azure Blob** as full frontends matching the AWS frontend's depth.
