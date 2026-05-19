@@ -184,7 +184,7 @@ func portForwardEnvoyGateway(t *testing.T, ctx context.Context, apiID string) (s
 	// `envoy-gateway-system` namespace. Use a label selector since
 	// the hash isn't predictable.
 	var svcName string
-	deadline := time.Now().Add(120 * time.Second)
+	deadline := time.Now().Add(180 * time.Second)
 	for time.Now().Before(deadline) {
 		out, err := exec.CommandContext(ctx, "kubectl",
 			"-n", "envoy-gateway-system",
@@ -201,6 +201,33 @@ func portForwardEnvoyGateway(t *testing.T, ctx context.Context, apiID string) (s
 	if svcName == "" {
 		dumpEnvoyState(t, ctx)
 		t.Fatalf("Envoy proxy Service for gateway %s never appeared", apiID)
+	}
+
+	// Wait for the proxy Pod selected by the Service to actually be
+	// Running. Without this, kubectl port-forward errors with
+	// "pod is not running. Current status=Pending" — the Service
+	// is created before the Deployment's Pod is scheduled.
+	waitDeadline := time.Now().Add(180 * time.Second)
+	for time.Now().Before(waitDeadline) {
+		out, err := exec.CommandContext(ctx, "kubectl",
+			"-n", "envoy-gateway-system",
+			"get", "pods",
+			"-l", "gateway.envoyproxy.io/owning-gateway-name="+apiID,
+			"-o", "jsonpath={.items[0].status.phase}",
+		).CombinedOutput()
+		if err == nil && strings.TrimSpace(string(out)) == "Running" {
+			// Also confirm Ready=True on at least one container.
+			r, _ := exec.CommandContext(ctx, "kubectl",
+				"-n", "envoy-gateway-system",
+				"get", "pods",
+				"-l", "gateway.envoyproxy.io/owning-gateway-name="+apiID,
+				"-o", "jsonpath={.items[0].status.conditions[?(@.type==\"Ready\")].status}",
+			).CombinedOutput()
+			if strings.TrimSpace(string(r)) == "True" {
+				break
+			}
+		}
+		time.Sleep(2 * time.Second)
 	}
 
 	lst, err := net.Listen("tcp", "127.0.0.1:0")
