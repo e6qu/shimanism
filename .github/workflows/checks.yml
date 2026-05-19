@@ -46,6 +46,57 @@ jobs:
           done
           echo "OK: all continuity docs present."
 
+  lint:
+    name: golangci-lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.26'
+          cache: true
+      - name: Install golangci-lint
+        run: curl -sSfL https://golangci-lint.run/install.sh | sh -s -- -b $(go env GOPATH)/bin v2.10.1
+      - name: Lint
+        run: PATH="$(go env GOPATH)/bin:$PATH" make lint
+
+  typecheck:
+    name: type-check (go build + vet)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.26'
+          cache: true
+      - name: Type-check
+        run: make typecheck
+
+  precommit:
+    name: pre-commit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.26'
+          cache: true
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Install golangci-lint
+        run: curl -sSfL https://golangci-lint.run/install.sh | sh -s -- -b $(go env GOPATH)/bin v2.10.1
+      - name: Run pre-commit (file-scoped hooks)
+        env:
+          # Pre-commit runs the hooks against every tracked file when
+          # invoked via `--all-files`; skip the pre-push hook stages
+          # (check-rebased) since they only make sense on push.
+          SKIP: check-rebased,strip-ai-attribution
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pre-commit==4.0.1
+          PATH="$(go env GOPATH)/bin:$PATH" pre-commit run --all-files
+
   go:
     name: go vet + test + build
     runs-on: ubuntu-latest
@@ -55,12 +106,119 @@ jobs:
         with:
           go-version: '1.26'
           cache: true
+      # AWS CLI: GitHub-hosted ubuntu-latest ships with awscli on PATH.
+      # Verify so a missing binary surfaces as a failed check, not as
+      # silently-skipped conformance tests.
+      - name: Verify aws CLI is present
+        run: aws --version
+      # Terraform: needed by the conformance Terraform driver.
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.13.0'
+          terraform_wrapper: false
+      - name: Verify terraform is present
+        run: terraform version
+      # gcloud: needed by the GCS CLI conformance driver. GitHub-hosted
+      # ubuntu-latest runners include gcloud out of the box, but pin
+      # the install path so a future runner image change surfaces as
+      # a failed check rather than a silently-skipped conformance test.
+      - name: Verify gcloud is present
+        run: gcloud --version | head -1
+      # az: needed by the Azure Blob CLI conformance driver. Same as
+      # gcloud — preinstalled on the ubuntu-latest image.
+      - name: Verify az is present
+        run: az --version | head -1
       - name: go vet
         run: go vet ./...
+      # Conformance tests use SDK + CLI + Terraform drivers. SDK is
+      # always available; CLI and Terraform skip without binaries but
+      # both are installed above, so all three drivers run in CI.
+      # If this trips on slow CI, the right answer is to make a
+      # specific test faster — not to raise the cap.
       - name: go test
-        run: go test ./...
+        # 2m: the TF tests run real `terraform init` for hashicorp/aws
+        # and hashicorp/google which each download ~50 MiB of provider
+        # binary. With the plugin cache shared inside one go-test run
+        # the total stays under 2m; without it (cold CI runner) it
+        # creeps up to ~75s.
+        run: go test -timeout 2m ./...
       - name: go build
         run: go build ./...
+
+  # Conformance lanes per backend. Each starts the matching docker
+  # container in a step (services: doesn't take a command override,
+  # which most of these images need), exports the env var the backend
+  # factory recognises, and runs the cross-backend conformance sweep.
+  # The factory skips other backends so each lane only exercises its
+  # own. Test timeout is 2m here (vs 1m for the main go lane) to give
+  # the docker-pull + container-ready wait some headroom.
+  conformance-minio:
+    name: conformance minio
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.26'
+          cache: true
+      - name: Start MinIO
+        run: |
+          docker run -d --name minio \
+            -p 9000:9000 \
+            -e MINIO_ROOT_USER=minioadmin \
+            -e MINIO_ROOT_PASSWORD=minioadmin \
+            quay.io/minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e \
+            server /data
+          timeout 30 bash -c 'until curl -sf http://localhost:9000/minio/health/live; do sleep 1; done'
+      - name: Run minio conformance
+        env:
+          MINIO_ENDPOINT: localhost:9000
+          MINIO_ACCESS_KEY: minioadmin
+          MINIO_SECRET_KEY: minioadmin
+        run: go test -timeout 2m -run TestConformanceMatrix ./services/storage/conformance/...
+
+  conformance-gcs:
+    name: conformance gcs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.26'
+          cache: true
+      - name: Start fake-gcs-server
+        run: |
+          docker run -d --name fakegcs \
+            -p 4443:4443 \
+            fsouza/fake-gcs-server:1.50 \
+            -scheme http -port 4443 -public-host localhost:4443
+          timeout 30 bash -c 'until curl -sf http://localhost:4443/storage/v1/b; do sleep 1; done'
+      - name: Run gcs conformance
+        env:
+          STORAGE_EMULATOR_HOST: localhost:4443
+          GCS_PROJECT_ID: shim-conformance
+        run: go test -timeout 2m -run TestConformanceMatrix ./services/storage/conformance/...
+
+  conformance-azureblob:
+    name: conformance azureblob
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.26'
+          cache: true
+      - name: Start Azurite
+        run: |
+          docker run -d --name azurite \
+            -p 10000:10000 \
+            mcr.microsoft.com/azure-storage/azurite:3.34.0 \
+            azurite-blob --blobHost 0.0.0.0 --skipApiVersionCheck
+          timeout 30 bash -c 'until curl -sf http://localhost:10000/devstoreaccount1\?comp=list\&maxresults=1 > /dev/null 2>&1; do sleep 1; done' || true
+      - name: Run azureblob conformance
+        env:
+          AZURE_STORAGE_CONNECTION_STRING: "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://localhost:10000/devstoreaccount1;"
+        run: go test -timeout 2m -run TestConformanceMatrix ./services/storage/conformance/...
 
   licenses:
     name: dependency licenses AGPL-compatible

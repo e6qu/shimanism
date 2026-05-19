@@ -1,0 +1,14 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Stamps every object with a common label so kubectl can sweep the
+# whole peer install with `kubectl delete -k`.
+commonLabels:
+  app.kubernetes.io/part-of: shimanism-peer
+
+resources:
+  - minio-statefulset.yaml
+  - minio-service.yaml
+  - shim-deployment.yaml
+  - shim-service.yaml
+  - shim-credentials.yaml

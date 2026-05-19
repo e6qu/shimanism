@@ -1,6 +1,6 @@
 # Known Bugs
 
-**0 filed · 0 fixed · 0 open · 0 false positives.**
+**1 filed · 1 fixed · 0 open · 0 false positives.**
 
 Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLAN.md](PLAN.md) · narrative [WHAT_WE_DID.md](WHAT_WE_DID.md) · rules [AGENTS.md](AGENTS.md).
 
@@ -38,4 +38,6 @@ These are the failure patterns that recur across services. When a new bug fits o
 
 ## Resolved history (compressed)
 
-*(empty — no bugs filed yet)*
+| ID | Sev | Area | Source-API | One-liner |
+|----|-----|------|------------|-----------|
+| 1 | P2 | restxml router | AWS S3 | Router required-only matching meant `GET /{Bucket}/{Key+}?tagging=` (with no GetObjectTagging route registered) silently fell through to GetObject. Fix: `restxml.RouteOptions.ForbiddenQueries` rejects routes when any named query is present; codegen emits the S3 feature-query list for the base object/bucket ops. Plus added GetObjectTagging + GetObjectAcl as object-level probes (canonical "no tags" / "default ACL") so the TF AWS provider's aws_s3_object Read step gets a faithful response instead of a 404. Phase 1.12, on PR #6. |

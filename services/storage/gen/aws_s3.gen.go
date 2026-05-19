@@ -5,6 +5,7 @@
 package gen
 
 import (
+	"bytes"
 	"context"
 	"encoding/xml"
 	"io"
@@ -26,718 +27,519 @@ var (
 	_ time.Time
 	_ = strconv.ParseInt
 	_ = strings.HasPrefix
+	_ = bytes.NewReader
 	_ restxml.Decoder
-)
-
-// RequestPayer is a generated Smithy enum.
-type RequestPayer string
-
-const (
-	RequestPayerRequester = "requester"
-)
-
-// RequestCharged is a generated Smithy enum.
-type RequestCharged string
-
-const (
-	RequestChargedRequester = "requester"
-)
-
-// ChecksumType is a generated Smithy enum.
-type ChecksumType string
-
-const (
-	ChecksumTypeCOMPOSITE   = "COMPOSITE"
-	ChecksumTypeFULL_OBJECT = "FULL_OBJECT"
-)
-
-// ServerSideEncryption is a generated Smithy enum.
-type ServerSideEncryption string
-
-const (
-	ServerSideEncryptionAES256       = "AES256"
-	ServerSideEncryptionAws_fsx      = "aws:fsx"
-	ServerSideEncryptionAws_kms      = "aws:kms"
-	ServerSideEncryptionAws_kms_dsse = "aws:kms:dsse"
-)
-
-// ObjectCannedACL is a generated Smithy enum.
-type ObjectCannedACL string
-
-const (
-	ObjectCannedACLAuthenticated_read        = "authenticated-read"
-	ObjectCannedACLAws_exec_read             = "aws-exec-read"
-	ObjectCannedACLBucket_owner_full_control = "bucket-owner-full-control"
-	ObjectCannedACLBucket_owner_read         = "bucket-owner-read"
-	ObjectCannedACLPrivate                   = "private"
-	ObjectCannedACLPublic_read               = "public-read"
-	ObjectCannedACLPublic_read_write         = "public-read-write"
-)
-
-// ChecksumAlgorithm is a generated Smithy enum.
-type ChecksumAlgorithm string
-
-const (
-	ChecksumAlgorithmCRC32     = "CRC32"
-	ChecksumAlgorithmCRC32C    = "CRC32C"
-	ChecksumAlgorithmCRC64NVME = "CRC64NVME"
-	ChecksumAlgorithmMD5       = "MD5"
-	ChecksumAlgorithmSHA1      = "SHA1"
-	ChecksumAlgorithmSHA256    = "SHA256"
-	ChecksumAlgorithmSHA512    = "SHA512"
-	ChecksumAlgorithmXXHASH128 = "XXHASH128"
-	ChecksumAlgorithmXXHASH3   = "XXHASH3"
-	ChecksumAlgorithmXXHASH64  = "XXHASH64"
-)
-
-// MetadataDirective is a generated Smithy enum.
-type MetadataDirective string
-
-const (
-	MetadataDirectiveCOPY    = "COPY"
-	MetadataDirectiveREPLACE = "REPLACE"
-)
-
-// ObjectLockLegalHoldStatus is a generated Smithy enum.
-type ObjectLockLegalHoldStatus string
-
-const (
-	ObjectLockLegalHoldStatusOFF = "OFF"
-	ObjectLockLegalHoldStatusON  = "ON"
-)
-
-// ObjectLockMode is a generated Smithy enum.
-type ObjectLockMode string
-
-const (
-	ObjectLockModeCOMPLIANCE = "COMPLIANCE"
-	ObjectLockModeGOVERNANCE = "GOVERNANCE"
-)
-
-// StorageClass is a generated Smithy enum.
-type StorageClass string
-
-const (
-	StorageClassDEEP_ARCHIVE        = "DEEP_ARCHIVE"
-	StorageClassEXPRESS_ONEZONE     = "EXPRESS_ONEZONE"
-	StorageClassFSX_ONTAP           = "FSX_ONTAP"
-	StorageClassFSX_OPENZFS         = "FSX_OPENZFS"
-	StorageClassGLACIER             = "GLACIER"
-	StorageClassGLACIER_IR          = "GLACIER_IR"
-	StorageClassINTELLIGENT_TIERING = "INTELLIGENT_TIERING"
-	StorageClassONEZONE_IA          = "ONEZONE_IA"
-	StorageClassOUTPOSTS            = "OUTPOSTS"
-	StorageClassREDUCED_REDUNDANCY  = "REDUCED_REDUNDANCY"
-	StorageClassSNOW                = "SNOW"
-	StorageClassSTANDARD            = "STANDARD"
-	StorageClassSTANDARD_IA         = "STANDARD_IA"
-)
-
-// TaggingDirective is a generated Smithy enum.
-type TaggingDirective string
-
-const (
-	TaggingDirectiveCOPY    = "COPY"
-	TaggingDirectiveREPLACE = "REPLACE"
 )
 
 // BucketCannedACL is a generated Smithy enum.
 type BucketCannedACL string
 
 const (
-	BucketCannedACLAuthenticated_read = "authenticated-read"
-	BucketCannedACLPrivate            = "private"
-	BucketCannedACLPublic_read        = "public-read"
-	BucketCannedACLPublic_read_write  = "public-read-write"
+	BucketCannedACLAuthenticated_read BucketCannedACL = "authenticated-read"
+	BucketCannedACLPrivate            BucketCannedACL = "private"
+	BucketCannedACLPublic_read        BucketCannedACL = "public-read"
+	BucketCannedACLPublic_read_write  BucketCannedACL = "public-read-write"
 )
 
 // BucketNamespace is a generated Smithy enum.
 type BucketNamespace string
 
 const (
-	BucketNamespaceACCOUNT_REGIONAL = "account-regional"
-	BucketNamespaceGLOBAL           = "global"
+	BucketNamespaceACCOUNT_REGIONAL BucketNamespace = "account-regional"
+	BucketNamespaceGLOBAL           BucketNamespace = "global"
 )
 
 // DataRedundancy is a generated Smithy enum.
 type DataRedundancy string
 
 const (
-	DataRedundancySingleAvailabilityZone = "SingleAvailabilityZone"
-	DataRedundancySingleLocalZone        = "SingleLocalZone"
+	DataRedundancySingleAvailabilityZone DataRedundancy = "SingleAvailabilityZone"
+	DataRedundancySingleLocalZone        DataRedundancy = "SingleLocalZone"
 )
 
 // BucketType is a generated Smithy enum.
 type BucketType string
 
 const (
-	BucketTypeDirectory = "Directory"
+	BucketTypeDirectory BucketType = "Directory"
 )
 
 // LocationType is a generated Smithy enum.
 type LocationType string
 
 const (
-	LocationTypeAvailabilityZone = "AvailabilityZone"
-	LocationTypeLocalZone        = "LocalZone"
+	LocationTypeAvailabilityZone LocationType = "AvailabilityZone"
+	LocationTypeLocalZone        LocationType = "LocalZone"
 )
 
 // BucketLocationConstraint is a generated Smithy enum.
 type BucketLocationConstraint string
 
 const (
-	BucketLocationConstraintEU             = "EU"
-	BucketLocationConstraintAf_south_1     = "af-south-1"
-	BucketLocationConstraintAp_east_1      = "ap-east-1"
-	BucketLocationConstraintAp_east_2      = "ap-east-2"
-	BucketLocationConstraintAp_northeast_1 = "ap-northeast-1"
-	BucketLocationConstraintAp_northeast_2 = "ap-northeast-2"
-	BucketLocationConstraintAp_northeast_3 = "ap-northeast-3"
-	BucketLocationConstraintAp_south_1     = "ap-south-1"
-	BucketLocationConstraintAp_south_2     = "ap-south-2"
-	BucketLocationConstraintAp_southeast_1 = "ap-southeast-1"
-	BucketLocationConstraintAp_southeast_2 = "ap-southeast-2"
-	BucketLocationConstraintAp_southeast_3 = "ap-southeast-3"
-	BucketLocationConstraintAp_southeast_4 = "ap-southeast-4"
-	BucketLocationConstraintAp_southeast_5 = "ap-southeast-5"
-	BucketLocationConstraintAp_southeast_6 = "ap-southeast-6"
-	BucketLocationConstraintAp_southeast_7 = "ap-southeast-7"
-	BucketLocationConstraintCa_central_1   = "ca-central-1"
-	BucketLocationConstraintCa_west_1      = "ca-west-1"
-	BucketLocationConstraintCn_north_1     = "cn-north-1"
-	BucketLocationConstraintCn_northwest_1 = "cn-northwest-1"
-	BucketLocationConstraintEu_central_1   = "eu-central-1"
-	BucketLocationConstraintEu_central_2   = "eu-central-2"
-	BucketLocationConstraintEu_north_1     = "eu-north-1"
-	BucketLocationConstraintEu_south_1     = "eu-south-1"
-	BucketLocationConstraintEu_south_2     = "eu-south-2"
-	BucketLocationConstraintEu_west_1      = "eu-west-1"
-	BucketLocationConstraintEu_west_2      = "eu-west-2"
-	BucketLocationConstraintEu_west_3      = "eu-west-3"
-	BucketLocationConstraintIl_central_1   = "il-central-1"
-	BucketLocationConstraintMe_central_1   = "me-central-1"
-	BucketLocationConstraintMe_south_1     = "me-south-1"
-	BucketLocationConstraintMx_central_1   = "mx-central-1"
-	BucketLocationConstraintSa_east_1      = "sa-east-1"
-	BucketLocationConstraintUs_east_2      = "us-east-2"
-	BucketLocationConstraintUs_gov_east_1  = "us-gov-east-1"
-	BucketLocationConstraintUs_gov_west_1  = "us-gov-west-1"
-	BucketLocationConstraintUs_west_1      = "us-west-1"
-	BucketLocationConstraintUs_west_2      = "us-west-2"
+	BucketLocationConstraintEU             BucketLocationConstraint = "EU"
+	BucketLocationConstraintAf_south_1     BucketLocationConstraint = "af-south-1"
+	BucketLocationConstraintAp_east_1      BucketLocationConstraint = "ap-east-1"
+	BucketLocationConstraintAp_east_2      BucketLocationConstraint = "ap-east-2"
+	BucketLocationConstraintAp_northeast_1 BucketLocationConstraint = "ap-northeast-1"
+	BucketLocationConstraintAp_northeast_2 BucketLocationConstraint = "ap-northeast-2"
+	BucketLocationConstraintAp_northeast_3 BucketLocationConstraint = "ap-northeast-3"
+	BucketLocationConstraintAp_south_1     BucketLocationConstraint = "ap-south-1"
+	BucketLocationConstraintAp_south_2     BucketLocationConstraint = "ap-south-2"
+	BucketLocationConstraintAp_southeast_1 BucketLocationConstraint = "ap-southeast-1"
+	BucketLocationConstraintAp_southeast_2 BucketLocationConstraint = "ap-southeast-2"
+	BucketLocationConstraintAp_southeast_3 BucketLocationConstraint = "ap-southeast-3"
+	BucketLocationConstraintAp_southeast_4 BucketLocationConstraint = "ap-southeast-4"
+	BucketLocationConstraintAp_southeast_5 BucketLocationConstraint = "ap-southeast-5"
+	BucketLocationConstraintAp_southeast_6 BucketLocationConstraint = "ap-southeast-6"
+	BucketLocationConstraintAp_southeast_7 BucketLocationConstraint = "ap-southeast-7"
+	BucketLocationConstraintCa_central_1   BucketLocationConstraint = "ca-central-1"
+	BucketLocationConstraintCa_west_1      BucketLocationConstraint = "ca-west-1"
+	BucketLocationConstraintCn_north_1     BucketLocationConstraint = "cn-north-1"
+	BucketLocationConstraintCn_northwest_1 BucketLocationConstraint = "cn-northwest-1"
+	BucketLocationConstraintEu_central_1   BucketLocationConstraint = "eu-central-1"
+	BucketLocationConstraintEu_central_2   BucketLocationConstraint = "eu-central-2"
+	BucketLocationConstraintEu_north_1     BucketLocationConstraint = "eu-north-1"
+	BucketLocationConstraintEu_south_1     BucketLocationConstraint = "eu-south-1"
+	BucketLocationConstraintEu_south_2     BucketLocationConstraint = "eu-south-2"
+	BucketLocationConstraintEu_west_1      BucketLocationConstraint = "eu-west-1"
+	BucketLocationConstraintEu_west_2      BucketLocationConstraint = "eu-west-2"
+	BucketLocationConstraintEu_west_3      BucketLocationConstraint = "eu-west-3"
+	BucketLocationConstraintIl_central_1   BucketLocationConstraint = "il-central-1"
+	BucketLocationConstraintMe_central_1   BucketLocationConstraint = "me-central-1"
+	BucketLocationConstraintMe_south_1     BucketLocationConstraint = "me-south-1"
+	BucketLocationConstraintMx_central_1   BucketLocationConstraint = "mx-central-1"
+	BucketLocationConstraintSa_east_1      BucketLocationConstraint = "sa-east-1"
+	BucketLocationConstraintUs_east_2      BucketLocationConstraint = "us-east-2"
+	BucketLocationConstraintUs_gov_east_1  BucketLocationConstraint = "us-gov-east-1"
+	BucketLocationConstraintUs_gov_west_1  BucketLocationConstraint = "us-gov-west-1"
+	BucketLocationConstraintUs_west_1      BucketLocationConstraint = "us-west-1"
+	BucketLocationConstraintUs_west_2      BucketLocationConstraint = "us-west-2"
 )
 
 // ObjectOwnership is a generated Smithy enum.
 type ObjectOwnership string
 
 const (
-	ObjectOwnershipBucketOwnerEnforced  = "BucketOwnerEnforced"
-	ObjectOwnershipBucketOwnerPreferred = "BucketOwnerPreferred"
-	ObjectOwnershipObjectWriter         = "ObjectWriter"
-)
-
-// InventoryConfigurationState is a generated Smithy enum.
-type InventoryConfigurationState string
-
-const (
-	InventoryConfigurationStateDISABLED = "DISABLED"
-	InventoryConfigurationStateENABLED  = "ENABLED"
-)
-
-// TableSseAlgorithm is a generated Smithy enum.
-type TableSseAlgorithm string
-
-const (
-	TableSseAlgorithmAES256  = "AES256"
-	TableSseAlgorithmAws_kms = "aws:kms"
-)
-
-// ExpirationState is a generated Smithy enum.
-type ExpirationState string
-
-const (
-	ExpirationStateDISABLED = "DISABLED"
-	ExpirationStateENABLED  = "ENABLED"
-)
-
-// SessionMode is a generated Smithy enum.
-type SessionMode string
-
-const (
-	SessionModeReadOnly  = "ReadOnly"
-	SessionModeReadWrite = "ReadWrite"
-)
-
-// BucketAbacStatus is a generated Smithy enum.
-type BucketAbacStatus string
-
-const (
-	BucketAbacStatusDisabled = "Disabled"
-	BucketAbacStatusEnabled  = "Enabled"
-)
-
-// BucketAccelerateStatus is a generated Smithy enum.
-type BucketAccelerateStatus string
-
-const (
-	BucketAccelerateStatusEnabled   = "Enabled"
-	BucketAccelerateStatusSuspended = "Suspended"
-)
-
-// Type is a generated Smithy enum.
-type Type string
-
-const (
-	TypeAmazonCustomerByEmail = "AmazonCustomerByEmail"
-	TypeCanonicalUser         = "CanonicalUser"
-	TypeGroup                 = "Group"
-)
-
-// Permission is a generated Smithy enum.
-type Permission string
-
-const (
-	PermissionFULL_CONTROL = "FULL_CONTROL"
-	PermissionREAD         = "READ"
-	PermissionREAD_ACP     = "READ_ACP"
-	PermissionWRITE        = "WRITE"
-	PermissionWRITE_ACP    = "WRITE_ACP"
-)
-
-// AnalyticsS3ExportFileFormat is a generated Smithy enum.
-type AnalyticsS3ExportFileFormat string
-
-const (
-	AnalyticsS3ExportFileFormatCSV = "CSV"
-)
-
-// StorageClassAnalysisSchemaVersion is a generated Smithy enum.
-type StorageClassAnalysisSchemaVersion string
-
-const (
-	StorageClassAnalysisSchemaVersionV_1 = "V_1"
-)
-
-// EncryptionType is a generated Smithy enum.
-type EncryptionType string
-
-const (
-	EncryptionTypeNONE  = "NONE"
-	EncryptionTypeSSE_C = "SSE-C"
-)
-
-// IntelligentTieringStatus is a generated Smithy enum.
-type IntelligentTieringStatus string
-
-const (
-	IntelligentTieringStatusDisabled = "Disabled"
-	IntelligentTieringStatusEnabled  = "Enabled"
-)
-
-// IntelligentTieringAccessTier is a generated Smithy enum.
-type IntelligentTieringAccessTier string
-
-const (
-	IntelligentTieringAccessTierARCHIVE_ACCESS      = "ARCHIVE_ACCESS"
-	IntelligentTieringAccessTierDEEP_ARCHIVE_ACCESS = "DEEP_ARCHIVE_ACCESS"
-)
-
-// InventoryFormat is a generated Smithy enum.
-type InventoryFormat string
-
-const (
-	InventoryFormatCSV     = "CSV"
-	InventoryFormatORC     = "ORC"
-	InventoryFormatParquet = "Parquet"
-)
-
-// InventoryIncludedObjectVersions is a generated Smithy enum.
-type InventoryIncludedObjectVersions string
-
-const (
-	InventoryIncludedObjectVersionsAll     = "All"
-	InventoryIncludedObjectVersionsCurrent = "Current"
-)
-
-// InventoryOptionalField is a generated Smithy enum.
-type InventoryOptionalField string
-
-const (
-	InventoryOptionalFieldBucketKeyStatus              = "BucketKeyStatus"
-	InventoryOptionalFieldChecksumAlgorithm            = "ChecksumAlgorithm"
-	InventoryOptionalFieldETag                         = "ETag"
-	InventoryOptionalFieldEncryptionStatus             = "EncryptionStatus"
-	InventoryOptionalFieldIntelligentTieringAccessTier = "IntelligentTieringAccessTier"
-	InventoryOptionalFieldIsMultipartUploaded          = "IsMultipartUploaded"
-	InventoryOptionalFieldLastModifiedDate             = "LastModifiedDate"
-	InventoryOptionalFieldLifecycleExpirationDate      = "LifecycleExpirationDate"
-	InventoryOptionalFieldObjectAccessControlList      = "ObjectAccessControlList"
-	InventoryOptionalFieldObjectLockLegalHoldStatus    = "ObjectLockLegalHoldStatus"
-	InventoryOptionalFieldObjectLockMode               = "ObjectLockMode"
-	InventoryOptionalFieldObjectLockRetainUntilDate    = "ObjectLockRetainUntilDate"
-	InventoryOptionalFieldObjectOwner                  = "ObjectOwner"
-	InventoryOptionalFieldReplicationStatus            = "ReplicationStatus"
-	InventoryOptionalFieldSize                         = "Size"
-	InventoryOptionalFieldStorageClass                 = "StorageClass"
-)
-
-// InventoryFrequency is a generated Smithy enum.
-type InventoryFrequency string
-
-const (
-	InventoryFrequencyDaily  = "Daily"
-	InventoryFrequencyWeekly = "Weekly"
-)
-
-// TransitionStorageClass is a generated Smithy enum.
-type TransitionStorageClass string
-
-const (
-	TransitionStorageClassDEEP_ARCHIVE        = "DEEP_ARCHIVE"
-	TransitionStorageClassGLACIER             = "GLACIER"
-	TransitionStorageClassGLACIER_IR          = "GLACIER_IR"
-	TransitionStorageClassINTELLIGENT_TIERING = "INTELLIGENT_TIERING"
-	TransitionStorageClassONEZONE_IA          = "ONEZONE_IA"
-	TransitionStorageClassSTANDARD_IA         = "STANDARD_IA"
-)
-
-// ExpirationStatus is a generated Smithy enum.
-type ExpirationStatus string
-
-const (
-	ExpirationStatusDisabled = "Disabled"
-	ExpirationStatusEnabled  = "Enabled"
-)
-
-// TransitionDefaultMinimumObjectSize is a generated Smithy enum.
-type TransitionDefaultMinimumObjectSize string
-
-const (
-	TransitionDefaultMinimumObjectSizeAll_storage_classes_128K = "all_storage_classes_128K"
-	TransitionDefaultMinimumObjectSizeVaries_by_storage_class  = "varies_by_storage_class"
-)
-
-// BucketLogsPermission is a generated Smithy enum.
-type BucketLogsPermission string
-
-const (
-	BucketLogsPermissionFULL_CONTROL = "FULL_CONTROL"
-	BucketLogsPermissionREAD         = "READ"
-	BucketLogsPermissionWRITE        = "WRITE"
-)
-
-// PartitionDateSource is a generated Smithy enum.
-type PartitionDateSource string
-
-const (
-	PartitionDateSourceDeliveryTime = "DeliveryTime"
-	PartitionDateSourceEventTime    = "EventTime"
-)
-
-// S3TablesBucketType is a generated Smithy enum.
-type S3TablesBucketType string
-
-const (
-	S3TablesBucketTypeAws      = "aws"
-	S3TablesBucketTypeCustomer = "customer"
-)
-
-// Event is a generated Smithy enum.
-type Event string
-
-const (
-	EventS3_IntelligentTiering                            = "s3:IntelligentTiering"
-	EventS3_LifecycleExpiration_                          = "s3:LifecycleExpiration:*"
-	EventS3_LifecycleExpiration_Delete                    = "s3:LifecycleExpiration:Delete"
-	EventS3_LifecycleExpiration_DeleteMarkerCreated       = "s3:LifecycleExpiration:DeleteMarkerCreated"
-	EventS3_LifecycleTransition                           = "s3:LifecycleTransition"
-	EventS3_ObjectAcl_Put                                 = "s3:ObjectAcl:Put"
-	EventS3_ObjectCreated_                                = "s3:ObjectCreated:*"
-	EventS3_ObjectCreated_CompleteMultipartUpload         = "s3:ObjectCreated:CompleteMultipartUpload"
-	EventS3_ObjectCreated_Copy                            = "s3:ObjectCreated:Copy"
-	EventS3_ObjectCreated_Post                            = "s3:ObjectCreated:Post"
-	EventS3_ObjectCreated_Put                             = "s3:ObjectCreated:Put"
-	EventS3_ObjectRemoved_                                = "s3:ObjectRemoved:*"
-	EventS3_ObjectRemoved_Delete                          = "s3:ObjectRemoved:Delete"
-	EventS3_ObjectRemoved_DeleteMarkerCreated             = "s3:ObjectRemoved:DeleteMarkerCreated"
-	EventS3_ObjectRestore_                                = "s3:ObjectRestore:*"
-	EventS3_ObjectRestore_Completed                       = "s3:ObjectRestore:Completed"
-	EventS3_ObjectRestore_Delete                          = "s3:ObjectRestore:Delete"
-	EventS3_ObjectRestore_Post                            = "s3:ObjectRestore:Post"
-	EventS3_ObjectTagging_                                = "s3:ObjectTagging:*"
-	EventS3_ObjectTagging_Delete                          = "s3:ObjectTagging:Delete"
-	EventS3_ObjectTagging_Put                             = "s3:ObjectTagging:Put"
-	EventS3_ReducedRedundancyLostObject                   = "s3:ReducedRedundancyLostObject"
-	EventS3_Replication_                                  = "s3:Replication:*"
-	EventS3_Replication_OperationFailedReplication        = "s3:Replication:OperationFailedReplication"
-	EventS3_Replication_OperationMissedThreshold          = "s3:Replication:OperationMissedThreshold"
-	EventS3_Replication_OperationNotTracked               = "s3:Replication:OperationNotTracked"
-	EventS3_Replication_OperationReplicatedAfterThreshold = "s3:Replication:OperationReplicatedAfterThreshold"
-)
-
-// FilterRuleName is a generated Smithy enum.
-type FilterRuleName string
-
-const (
-	FilterRuleNamePrefix = "prefix"
-	FilterRuleNameSuffix = "suffix"
-)
-
-// DeleteMarkerReplicationStatus is a generated Smithy enum.
-type DeleteMarkerReplicationStatus string
-
-const (
-	DeleteMarkerReplicationStatusDisabled = "Disabled"
-	DeleteMarkerReplicationStatusEnabled  = "Enabled"
-)
-
-// OwnerOverride is a generated Smithy enum.
-type OwnerOverride string
-
-const (
-	OwnerOverrideDestination = "Destination"
-)
-
-// MetricsStatus is a generated Smithy enum.
-type MetricsStatus string
-
-const (
-	MetricsStatusDisabled = "Disabled"
-	MetricsStatusEnabled  = "Enabled"
-)
-
-// ReplicationTimeStatus is a generated Smithy enum.
-type ReplicationTimeStatus string
-
-const (
-	ReplicationTimeStatusDisabled = "Disabled"
-	ReplicationTimeStatusEnabled  = "Enabled"
-)
-
-// ExistingObjectReplicationStatus is a generated Smithy enum.
-type ExistingObjectReplicationStatus string
-
-const (
-	ExistingObjectReplicationStatusDisabled = "Disabled"
-	ExistingObjectReplicationStatusEnabled  = "Enabled"
-)
-
-// ReplicaModificationsStatus is a generated Smithy enum.
-type ReplicaModificationsStatus string
-
-const (
-	ReplicaModificationsStatusDisabled = "Disabled"
-	ReplicaModificationsStatusEnabled  = "Enabled"
-)
-
-// SseKmsEncryptedObjectsStatus is a generated Smithy enum.
-type SseKmsEncryptedObjectsStatus string
-
-const (
-	SseKmsEncryptedObjectsStatusDisabled = "Disabled"
-	SseKmsEncryptedObjectsStatusEnabled  = "Enabled"
-)
-
-// ReplicationRuleStatus is a generated Smithy enum.
-type ReplicationRuleStatus string
-
-const (
-	ReplicationRuleStatusDisabled = "Disabled"
-	ReplicationRuleStatusEnabled  = "Enabled"
-)
-
-// Payer is a generated Smithy enum.
-type Payer string
-
-const (
-	PayerBucketOwner = "BucketOwner"
-	PayerRequester   = "Requester"
-)
-
-// MFADeleteStatus is a generated Smithy enum.
-type MFADeleteStatus string
-
-const (
-	MFADeleteStatusDisabled = "Disabled"
-	MFADeleteStatusEnabled  = "Enabled"
-)
-
-// BucketVersioningStatus is a generated Smithy enum.
-type BucketVersioningStatus string
-
-const (
-	BucketVersioningStatusEnabled   = "Enabled"
-	BucketVersioningStatusSuspended = "Suspended"
-)
-
-// Protocol is a generated Smithy enum.
-type Protocol string
-
-const (
-	ProtocolHttp  = "http"
-	ProtocolHttps = "https"
-)
-
-// ChecksumMode is a generated Smithy enum.
-type ChecksumMode string
-
-const (
-	ChecksumModeENABLED = "ENABLED"
-)
-
-// ReplicationStatus is a generated Smithy enum.
-type ReplicationStatus string
-
-const (
-	ReplicationStatusCOMPLETE  = "COMPLETE"
-	ReplicationStatusCOMPLETED = "COMPLETED"
-	ReplicationStatusFAILED    = "FAILED"
-	ReplicationStatusPENDING   = "PENDING"
-	ReplicationStatusREPLICA   = "REPLICA"
-)
-
-// ObjectAttributes is a generated Smithy enum.
-type ObjectAttributes string
-
-const (
-	ObjectAttributesCHECKSUM      = "Checksum"
-	ObjectAttributesETAG          = "ETag"
-	ObjectAttributesOBJECT_PARTS  = "ObjectParts"
-	ObjectAttributesOBJECT_SIZE   = "ObjectSize"
-	ObjectAttributesSTORAGE_CLASS = "StorageClass"
-)
-
-// ObjectLockEnabled is a generated Smithy enum.
-type ObjectLockEnabled string
-
-const (
-	ObjectLockEnabledEnabled = "Enabled"
-)
-
-// ObjectLockRetentionMode is a generated Smithy enum.
-type ObjectLockRetentionMode string
-
-const (
-	ObjectLockRetentionModeCOMPLIANCE = "COMPLIANCE"
-	ObjectLockRetentionModeGOVERNANCE = "GOVERNANCE"
-)
-
-// ArchiveStatus is a generated Smithy enum.
-type ArchiveStatus string
-
-const (
-	ArchiveStatusARCHIVE_ACCESS      = "ARCHIVE_ACCESS"
-	ArchiveStatusDEEP_ARCHIVE_ACCESS = "DEEP_ARCHIVE_ACCESS"
+	ObjectOwnershipBucketOwnerEnforced  ObjectOwnership = "BucketOwnerEnforced"
+	ObjectOwnershipBucketOwnerPreferred ObjectOwnership = "BucketOwnerPreferred"
+	ObjectOwnershipObjectWriter         ObjectOwnership = "ObjectWriter"
 )
 
 // EncodingType is a generated Smithy enum.
 type EncodingType string
 
 const (
-	EncodingTypeUrl = "url"
+	EncodingTypeUrl EncodingType = "url"
 )
 
 // OptionalObjectAttributes is a generated Smithy enum.
 type OptionalObjectAttributes string
 
 const (
-	OptionalObjectAttributesRESTORE_STATUS = "RestoreStatus"
+	OptionalObjectAttributesRESTORE_STATUS OptionalObjectAttributes = "RestoreStatus"
 )
 
-// ObjectVersionStorageClass is a generated Smithy enum.
-type ObjectVersionStorageClass string
+// RequestPayer is a generated Smithy enum.
+type RequestPayer string
 
 const (
-	ObjectVersionStorageClassSTANDARD = "STANDARD"
+	RequestPayerRequester RequestPayer = "requester"
+)
+
+// ChecksumAlgorithm is a generated Smithy enum.
+type ChecksumAlgorithm string
+
+const (
+	ChecksumAlgorithmCRC32     ChecksumAlgorithm = "CRC32"
+	ChecksumAlgorithmCRC32C    ChecksumAlgorithm = "CRC32C"
+	ChecksumAlgorithmCRC64NVME ChecksumAlgorithm = "CRC64NVME"
+	ChecksumAlgorithmMD5       ChecksumAlgorithm = "MD5"
+	ChecksumAlgorithmSHA1      ChecksumAlgorithm = "SHA1"
+	ChecksumAlgorithmSHA256    ChecksumAlgorithm = "SHA256"
+	ChecksumAlgorithmSHA512    ChecksumAlgorithm = "SHA512"
+	ChecksumAlgorithmXXHASH128 ChecksumAlgorithm = "XXHASH128"
+	ChecksumAlgorithmXXHASH3   ChecksumAlgorithm = "XXHASH3"
+	ChecksumAlgorithmXXHASH64  ChecksumAlgorithm = "XXHASH64"
+)
+
+// ChecksumType is a generated Smithy enum.
+type ChecksumType string
+
+const (
+	ChecksumTypeCOMPOSITE   ChecksumType = "COMPOSITE"
+	ChecksumTypeFULL_OBJECT ChecksumType = "FULL_OBJECT"
 )
 
 // ObjectStorageClass is a generated Smithy enum.
 type ObjectStorageClass string
 
 const (
-	ObjectStorageClassDEEP_ARCHIVE        = "DEEP_ARCHIVE"
-	ObjectStorageClassEXPRESS_ONEZONE     = "EXPRESS_ONEZONE"
-	ObjectStorageClassFSX_ONTAP           = "FSX_ONTAP"
-	ObjectStorageClassFSX_OPENZFS         = "FSX_OPENZFS"
-	ObjectStorageClassGLACIER             = "GLACIER"
-	ObjectStorageClassGLACIER_IR          = "GLACIER_IR"
-	ObjectStorageClassINTELLIGENT_TIERING = "INTELLIGENT_TIERING"
-	ObjectStorageClassONEZONE_IA          = "ONEZONE_IA"
-	ObjectStorageClassOUTPOSTS            = "OUTPOSTS"
-	ObjectStorageClassREDUCED_REDUNDANCY  = "REDUCED_REDUNDANCY"
-	ObjectStorageClassSNOW                = "SNOW"
-	ObjectStorageClassSTANDARD            = "STANDARD"
-	ObjectStorageClassSTANDARD_IA         = "STANDARD_IA"
+	ObjectStorageClassDEEP_ARCHIVE        ObjectStorageClass = "DEEP_ARCHIVE"
+	ObjectStorageClassEXPRESS_ONEZONE     ObjectStorageClass = "EXPRESS_ONEZONE"
+	ObjectStorageClassFSX_ONTAP           ObjectStorageClass = "FSX_ONTAP"
+	ObjectStorageClassFSX_OPENZFS         ObjectStorageClass = "FSX_OPENZFS"
+	ObjectStorageClassGLACIER             ObjectStorageClass = "GLACIER"
+	ObjectStorageClassGLACIER_IR          ObjectStorageClass = "GLACIER_IR"
+	ObjectStorageClassINTELLIGENT_TIERING ObjectStorageClass = "INTELLIGENT_TIERING"
+	ObjectStorageClassONEZONE_IA          ObjectStorageClass = "ONEZONE_IA"
+	ObjectStorageClassOUTPOSTS            ObjectStorageClass = "OUTPOSTS"
+	ObjectStorageClassREDUCED_REDUNDANCY  ObjectStorageClass = "REDUCED_REDUNDANCY"
+	ObjectStorageClassSNOW                ObjectStorageClass = "SNOW"
+	ObjectStorageClassSTANDARD            ObjectStorageClass = "STANDARD"
+	ObjectStorageClassSTANDARD_IA         ObjectStorageClass = "STANDARD_IA"
 )
 
-// MFADelete is a generated Smithy enum.
-type MFADelete string
+// RequestCharged is a generated Smithy enum.
+type RequestCharged string
 
 const (
-	MFADeleteDisabled = "Disabled"
-	MFADeleteEnabled  = "Enabled"
+	RequestChargedRequester RequestCharged = "requester"
 )
 
-// Tier is a generated Smithy enum.
-type Tier string
+// ChecksumMode is a generated Smithy enum.
+type ChecksumMode string
 
 const (
-	TierBulk      = "Bulk"
-	TierExpedited = "Expedited"
-	TierStandard  = "Standard"
+	ChecksumModeENABLED ChecksumMode = "ENABLED"
 )
 
-// ExpressionType is a generated Smithy enum.
-type ExpressionType string
+// ObjectLockLegalHoldStatus is a generated Smithy enum.
+type ObjectLockLegalHoldStatus string
 
 const (
-	ExpressionTypeSQL = "SQL"
+	ObjectLockLegalHoldStatusOFF ObjectLockLegalHoldStatus = "OFF"
+	ObjectLockLegalHoldStatusON  ObjectLockLegalHoldStatus = "ON"
 )
 
-// FileHeaderInfo is a generated Smithy enum.
-type FileHeaderInfo string
+// ObjectLockMode is a generated Smithy enum.
+type ObjectLockMode string
 
 const (
-	FileHeaderInfoIGNORE = "IGNORE"
-	FileHeaderInfoNONE   = "NONE"
-	FileHeaderInfoUSE    = "USE"
+	ObjectLockModeCOMPLIANCE ObjectLockMode = "COMPLIANCE"
+	ObjectLockModeGOVERNANCE ObjectLockMode = "GOVERNANCE"
 )
 
-// CompressionType is a generated Smithy enum.
-type CompressionType string
+// ReplicationStatus is a generated Smithy enum.
+type ReplicationStatus string
 
 const (
-	CompressionTypeBZIP2 = "BZIP2"
-	CompressionTypeGZIP  = "GZIP"
-	CompressionTypeNONE  = "NONE"
+	ReplicationStatusCOMPLETE  ReplicationStatus = "COMPLETE"
+	ReplicationStatusCOMPLETED ReplicationStatus = "COMPLETED"
+	ReplicationStatusFAILED    ReplicationStatus = "FAILED"
+	ReplicationStatusPENDING   ReplicationStatus = "PENDING"
+	ReplicationStatusREPLICA   ReplicationStatus = "REPLICA"
 )
 
-// JSONType is a generated Smithy enum.
-type JSONType string
+// ServerSideEncryption is a generated Smithy enum.
+type ServerSideEncryption string
 
 const (
-	JSONTypeDOCUMENT = "DOCUMENT"
-	JSONTypeLINES    = "LINES"
+	ServerSideEncryptionAES256       ServerSideEncryption = "AES256"
+	ServerSideEncryptionAws_fsx      ServerSideEncryption = "aws:fsx"
+	ServerSideEncryptionAws_kms      ServerSideEncryption = "aws:kms"
+	ServerSideEncryptionAws_kms_dsse ServerSideEncryption = "aws:kms:dsse"
 )
 
-// QuoteFields is a generated Smithy enum.
-type QuoteFields string
+// StorageClass is a generated Smithy enum.
+type StorageClass string
 
 const (
-	QuoteFieldsALWAYS   = "ALWAYS"
-	QuoteFieldsASNEEDED = "ASNEEDED"
+	StorageClassDEEP_ARCHIVE        StorageClass = "DEEP_ARCHIVE"
+	StorageClassEXPRESS_ONEZONE     StorageClass = "EXPRESS_ONEZONE"
+	StorageClassFSX_ONTAP           StorageClass = "FSX_ONTAP"
+	StorageClassFSX_OPENZFS         StorageClass = "FSX_OPENZFS"
+	StorageClassGLACIER             StorageClass = "GLACIER"
+	StorageClassGLACIER_IR          StorageClass = "GLACIER_IR"
+	StorageClassINTELLIGENT_TIERING StorageClass = "INTELLIGENT_TIERING"
+	StorageClassONEZONE_IA          StorageClass = "ONEZONE_IA"
+	StorageClassOUTPOSTS            StorageClass = "OUTPOSTS"
+	StorageClassREDUCED_REDUNDANCY  StorageClass = "REDUCED_REDUNDANCY"
+	StorageClassSNOW                StorageClass = "SNOW"
+	StorageClassSTANDARD            StorageClass = "STANDARD"
+	StorageClassSTANDARD_IA         StorageClass = "STANDARD_IA"
 )
 
-// RestoreRequestType is a generated Smithy enum.
-type RestoreRequestType string
+// IntelligentTieringAccessTier is a generated Smithy enum.
+type IntelligentTieringAccessTier string
 
 const (
-	RestoreRequestTypeSELECT = "SELECT"
+	IntelligentTieringAccessTierARCHIVE_ACCESS      IntelligentTieringAccessTier = "ARCHIVE_ACCESS"
+	IntelligentTieringAccessTierDEEP_ARCHIVE_ACCESS IntelligentTieringAccessTier = "DEEP_ARCHIVE_ACCESS"
 )
 
-// CompletedPartList is a generated Smithy list (wrapper used for the
-// non-flattened XML form; flattened uses inline []CompletedPart).
-type CompletedPartList struct {
-	Items []CompletedPart `xml:"CompletedPart"`
+// ObjectCannedACL is a generated Smithy enum.
+type ObjectCannedACL string
+
+const (
+	ObjectCannedACLAuthenticated_read        ObjectCannedACL = "authenticated-read"
+	ObjectCannedACLAws_exec_read             ObjectCannedACL = "aws-exec-read"
+	ObjectCannedACLBucket_owner_full_control ObjectCannedACL = "bucket-owner-full-control"
+	ObjectCannedACLBucket_owner_read         ObjectCannedACL = "bucket-owner-read"
+	ObjectCannedACLPrivate                   ObjectCannedACL = "private"
+	ObjectCannedACLPublic_read               ObjectCannedACL = "public-read"
+	ObjectCannedACLPublic_read_write         ObjectCannedACL = "public-read-write"
+)
+
+// ArchiveStatus is a generated Smithy enum.
+type ArchiveStatus string
+
+const (
+	ArchiveStatusARCHIVE_ACCESS      ArchiveStatus = "ARCHIVE_ACCESS"
+	ArchiveStatusDEEP_ARCHIVE_ACCESS ArchiveStatus = "DEEP_ARCHIVE_ACCESS"
+)
+
+// MetadataDirective is a generated Smithy enum.
+type MetadataDirective string
+
+const (
+	MetadataDirectiveCOPY    MetadataDirective = "COPY"
+	MetadataDirectiveREPLACE MetadataDirective = "REPLACE"
+)
+
+// TaggingDirective is a generated Smithy enum.
+type TaggingDirective string
+
+const (
+	TaggingDirectiveCOPY    TaggingDirective = "COPY"
+	TaggingDirectiveREPLACE TaggingDirective = "REPLACE"
+)
+
+// Type is a generated Smithy enum.
+type Type string
+
+const (
+	TypeAmazonCustomerByEmail Type = "AmazonCustomerByEmail"
+	TypeCanonicalUser         Type = "CanonicalUser"
+	TypeGroup                 Type = "Group"
+)
+
+// Permission is a generated Smithy enum.
+type Permission string
+
+const (
+	PermissionFULL_CONTROL Permission = "FULL_CONTROL"
+	PermissionREAD         Permission = "READ"
+	PermissionREAD_ACP     Permission = "READ_ACP"
+	PermissionWRITE        Permission = "WRITE"
+	PermissionWRITE_ACP    Permission = "WRITE_ACP"
+)
+
+// MFADeleteStatus is a generated Smithy enum.
+type MFADeleteStatus string
+
+const (
+	MFADeleteStatusDisabled MFADeleteStatus = "Disabled"
+	MFADeleteStatusEnabled  MFADeleteStatus = "Enabled"
+)
+
+// BucketVersioningStatus is a generated Smithy enum.
+type BucketVersioningStatus string
+
+const (
+	BucketVersioningStatusEnabled   BucketVersioningStatus = "Enabled"
+	BucketVersioningStatusSuspended BucketVersioningStatus = "Suspended"
+)
+
+// BucketLogsPermission is a generated Smithy enum.
+type BucketLogsPermission string
+
+const (
+	BucketLogsPermissionFULL_CONTROL BucketLogsPermission = "FULL_CONTROL"
+	BucketLogsPermissionREAD         BucketLogsPermission = "READ"
+	BucketLogsPermissionWRITE        BucketLogsPermission = "WRITE"
+)
+
+// PartitionDateSource is a generated Smithy enum.
+type PartitionDateSource string
+
+const (
+	PartitionDateSourceDeliveryTime PartitionDateSource = "DeliveryTime"
+	PartitionDateSourceEventTime    PartitionDateSource = "EventTime"
+)
+
+// TransitionStorageClass is a generated Smithy enum.
+type TransitionStorageClass string
+
+const (
+	TransitionStorageClassDEEP_ARCHIVE        TransitionStorageClass = "DEEP_ARCHIVE"
+	TransitionStorageClassGLACIER             TransitionStorageClass = "GLACIER"
+	TransitionStorageClassGLACIER_IR          TransitionStorageClass = "GLACIER_IR"
+	TransitionStorageClassINTELLIGENT_TIERING TransitionStorageClass = "INTELLIGENT_TIERING"
+	TransitionStorageClassONEZONE_IA          TransitionStorageClass = "ONEZONE_IA"
+	TransitionStorageClassSTANDARD_IA         TransitionStorageClass = "STANDARD_IA"
+)
+
+// ExpirationStatus is a generated Smithy enum.
+type ExpirationStatus string
+
+const (
+	ExpirationStatusDisabled ExpirationStatus = "Disabled"
+	ExpirationStatusEnabled  ExpirationStatus = "Enabled"
+)
+
+// TransitionDefaultMinimumObjectSize is a generated Smithy enum.
+type TransitionDefaultMinimumObjectSize string
+
+const (
+	TransitionDefaultMinimumObjectSizeAll_storage_classes_128K TransitionDefaultMinimumObjectSize = "all_storage_classes_128K"
+	TransitionDefaultMinimumObjectSizeVaries_by_storage_class  TransitionDefaultMinimumObjectSize = "varies_by_storage_class"
+)
+
+// DeleteMarkerReplicationStatus is a generated Smithy enum.
+type DeleteMarkerReplicationStatus string
+
+const (
+	DeleteMarkerReplicationStatusDisabled DeleteMarkerReplicationStatus = "Disabled"
+	DeleteMarkerReplicationStatusEnabled  DeleteMarkerReplicationStatus = "Enabled"
+)
+
+// OwnerOverride is a generated Smithy enum.
+type OwnerOverride string
+
+const (
+	OwnerOverrideDestination OwnerOverride = "Destination"
+)
+
+// MetricsStatus is a generated Smithy enum.
+type MetricsStatus string
+
+const (
+	MetricsStatusDisabled MetricsStatus = "Disabled"
+	MetricsStatusEnabled  MetricsStatus = "Enabled"
+)
+
+// ReplicationTimeStatus is a generated Smithy enum.
+type ReplicationTimeStatus string
+
+const (
+	ReplicationTimeStatusDisabled ReplicationTimeStatus = "Disabled"
+	ReplicationTimeStatusEnabled  ReplicationTimeStatus = "Enabled"
+)
+
+// ExistingObjectReplicationStatus is a generated Smithy enum.
+type ExistingObjectReplicationStatus string
+
+const (
+	ExistingObjectReplicationStatusDisabled ExistingObjectReplicationStatus = "Disabled"
+	ExistingObjectReplicationStatusEnabled  ExistingObjectReplicationStatus = "Enabled"
+)
+
+// ReplicaModificationsStatus is a generated Smithy enum.
+type ReplicaModificationsStatus string
+
+const (
+	ReplicaModificationsStatusDisabled ReplicaModificationsStatus = "Disabled"
+	ReplicaModificationsStatusEnabled  ReplicaModificationsStatus = "Enabled"
+)
+
+// SseKmsEncryptedObjectsStatus is a generated Smithy enum.
+type SseKmsEncryptedObjectsStatus string
+
+const (
+	SseKmsEncryptedObjectsStatusDisabled SseKmsEncryptedObjectsStatus = "Disabled"
+	SseKmsEncryptedObjectsStatusEnabled  SseKmsEncryptedObjectsStatus = "Enabled"
+)
+
+// ReplicationRuleStatus is a generated Smithy enum.
+type ReplicationRuleStatus string
+
+const (
+	ReplicationRuleStatusDisabled ReplicationRuleStatus = "Disabled"
+	ReplicationRuleStatusEnabled  ReplicationRuleStatus = "Enabled"
+)
+
+// Payer is a generated Smithy enum.
+type Payer string
+
+const (
+	PayerBucketOwner Payer = "BucketOwner"
+	PayerRequester   Payer = "Requester"
+)
+
+// Protocol is a generated Smithy enum.
+type Protocol string
+
+const (
+	ProtocolHttp  Protocol = "http"
+	ProtocolHttps Protocol = "https"
+)
+
+// EncryptionType is a generated Smithy enum.
+type EncryptionType string
+
+const (
+	EncryptionTypeNONE  EncryptionType = "NONE"
+	EncryptionTypeSSE_C EncryptionType = "SSE-C"
+)
+
+// BucketAccelerateStatus is a generated Smithy enum.
+type BucketAccelerateStatus string
+
+const (
+	BucketAccelerateStatusEnabled   BucketAccelerateStatus = "Enabled"
+	BucketAccelerateStatusSuspended BucketAccelerateStatus = "Suspended"
+)
+
+// ObjectLockEnabled is a generated Smithy enum.
+type ObjectLockEnabled string
+
+const (
+	ObjectLockEnabledEnabled ObjectLockEnabled = "Enabled"
+)
+
+// ObjectLockRetentionMode is a generated Smithy enum.
+type ObjectLockRetentionMode string
+
+const (
+	ObjectLockRetentionModeCOMPLIANCE ObjectLockRetentionMode = "COMPLIANCE"
+	ObjectLockRetentionModeGOVERNANCE ObjectLockRetentionMode = "GOVERNANCE"
+)
+
+// Event is a generated Smithy enum.
+type Event string
+
+const (
+	EventS3_IntelligentTiering                            Event = "s3:IntelligentTiering"
+	EventS3_LifecycleExpiration_                          Event = "s3:LifecycleExpiration:*"
+	EventS3_LifecycleExpiration_Delete                    Event = "s3:LifecycleExpiration:Delete"
+	EventS3_LifecycleExpiration_DeleteMarkerCreated       Event = "s3:LifecycleExpiration:DeleteMarkerCreated"
+	EventS3_LifecycleTransition                           Event = "s3:LifecycleTransition"
+	EventS3_ObjectAcl_Put                                 Event = "s3:ObjectAcl:Put"
+	EventS3_ObjectCreated_                                Event = "s3:ObjectCreated:*"
+	EventS3_ObjectCreated_CompleteMultipartUpload         Event = "s3:ObjectCreated:CompleteMultipartUpload"
+	EventS3_ObjectCreated_Copy                            Event = "s3:ObjectCreated:Copy"
+	EventS3_ObjectCreated_Post                            Event = "s3:ObjectCreated:Post"
+	EventS3_ObjectCreated_Put                             Event = "s3:ObjectCreated:Put"
+	EventS3_ObjectRemoved_                                Event = "s3:ObjectRemoved:*"
+	EventS3_ObjectRemoved_Delete                          Event = "s3:ObjectRemoved:Delete"
+	EventS3_ObjectRemoved_DeleteMarkerCreated             Event = "s3:ObjectRemoved:DeleteMarkerCreated"
+	EventS3_ObjectRestore_                                Event = "s3:ObjectRestore:*"
+	EventS3_ObjectRestore_Completed                       Event = "s3:ObjectRestore:Completed"
+	EventS3_ObjectRestore_Delete                          Event = "s3:ObjectRestore:Delete"
+	EventS3_ObjectRestore_Post                            Event = "s3:ObjectRestore:Post"
+	EventS3_ObjectTagging_                                Event = "s3:ObjectTagging:*"
+	EventS3_ObjectTagging_Delete                          Event = "s3:ObjectTagging:Delete"
+	EventS3_ObjectTagging_Put                             Event = "s3:ObjectTagging:Put"
+	EventS3_ReducedRedundancyLostObject                   Event = "s3:ReducedRedundancyLostObject"
+	EventS3_Replication_                                  Event = "s3:Replication:*"
+	EventS3_Replication_OperationFailedReplication        Event = "s3:Replication:OperationFailedReplication"
+	EventS3_Replication_OperationMissedThreshold          Event = "s3:Replication:OperationMissedThreshold"
+	EventS3_Replication_OperationNotTracked               Event = "s3:Replication:OperationNotTracked"
+	EventS3_Replication_OperationReplicatedAfterThreshold Event = "s3:Replication:OperationReplicatedAfterThreshold"
+)
+
+// FilterRuleName is a generated Smithy enum.
+type FilterRuleName string
+
+const (
+	FilterRuleNamePrefix FilterRuleName = "prefix"
+	FilterRuleNameSuffix FilterRuleName = "suffix"
+)
+
+// Buckets is a generated Smithy list (wrapper used for the
+// non-flattened XML form; flattened uses inline []Bucket).
+type Buckets struct {
+	Items []Bucket `xml:"Bucket"`
 }
 
 // TagSet is a generated Smithy list (wrapper used for the
@@ -746,28 +548,58 @@ type TagSet struct {
 	Items []Tag `xml:"Tag"`
 }
 
-// ObjectIdentifierList is a generated Smithy list (wrapper used for the
-// non-flattened XML form; flattened uses inline []ObjectIdentifier).
-type ObjectIdentifierList struct {
-	Items []ObjectIdentifier `xml:"ObjectIdentifier"`
+// OptionalObjectAttributesList is a generated Smithy list (wrapper used for the
+// non-flattened XML form; flattened uses inline []OptionalObjectAttributes).
+type OptionalObjectAttributesList struct {
+	Items []OptionalObjectAttributes `xml:"OptionalObjectAttributes"`
 }
 
-// DeletedObjects is a generated Smithy list (wrapper used for the
-// non-flattened XML form; flattened uses inline []DeletedObject).
-type DeletedObjects struct {
-	Items []DeletedObject `xml:"DeletedObject"`
+// CommonPrefixList is a generated Smithy list (wrapper used for the
+// non-flattened XML form; flattened uses inline []CommonPrefix).
+type CommonPrefixList struct {
+	Items []CommonPrefix `xml:"CommonPrefix"`
 }
 
-// Errors is a generated Smithy list (wrapper used for the
-// non-flattened XML form; flattened uses inline []Error).
-type Errors struct {
-	Items []Error `xml:"Error"`
+// ChecksumAlgorithmList is a generated Smithy list (wrapper used for the
+// non-flattened XML form; flattened uses inline []ChecksumAlgorithm).
+type ChecksumAlgorithmList struct {
+	Items []ChecksumAlgorithm `xml:"ChecksumAlgorithm"`
+}
+
+// ObjectList is a generated Smithy list (wrapper used for the
+// non-flattened XML form; flattened uses inline []Object).
+type ObjectList struct {
+	Items []Object `xml:"Object"`
+}
+
+// CompletedPartList is a generated Smithy list (wrapper used for the
+// non-flattened XML form; flattened uses inline []CompletedPart).
+type CompletedPartList struct {
+	Items []CompletedPart `xml:"CompletedPart"`
+}
+
+// MultipartUploadList is a generated Smithy list (wrapper used for the
+// non-flattened XML form; flattened uses inline []MultipartUpload).
+type MultipartUploadList struct {
+	Items []MultipartUpload `xml:"MultipartUpload"`
+}
+
+// Parts is a generated Smithy list (wrapper used for the
+// non-flattened XML form; flattened uses inline []Part).
+type Parts struct {
+	Items []Part `xml:"Part"`
 }
 
 // Grants is a generated Smithy list (wrapper used for the
 // non-flattened XML form; flattened uses inline []Grant).
 type Grants struct {
 	Items []Grant `xml:"Grant"`
+}
+
+// TargetGrants is a generated Smithy list (wrapper used for the
+// non-flattened XML form; flattened uses inline []TargetGrant).
+type TargetGrants struct {
+	Items []TargetGrant `xml:"Grant"`
 }
 
 // AllowedHeaders is a generated Smithy list (wrapper used for the
@@ -800,30 +632,6 @@ type CORSRules struct {
 	Items []CORSRule `xml:"CORSRule"`
 }
 
-// EncryptionTypeList is a generated Smithy list (wrapper used for the
-// non-flattened XML form; flattened uses inline []EncryptionType).
-type EncryptionTypeList struct {
-	Items []EncryptionType `xml:"EncryptionType"`
-}
-
-// ServerSideEncryptionRules is a generated Smithy list (wrapper used for the
-// non-flattened XML form; flattened uses inline []ServerSideEncryptionRule).
-type ServerSideEncryptionRules struct {
-	Items []ServerSideEncryptionRule `xml:"ServerSideEncryptionRule"`
-}
-
-// TieringList is a generated Smithy list (wrapper used for the
-// non-flattened XML form; flattened uses inline []Tiering).
-type TieringList struct {
-	Items []Tiering `xml:"Tiering"`
-}
-
-// InventoryOptionalFields is a generated Smithy list (wrapper used for the
-// non-flattened XML form; flattened uses inline []InventoryOptionalField).
-type InventoryOptionalFields struct {
-	Items []InventoryOptionalField `xml:"Field"`
-}
-
 // NoncurrentVersionTransitionList is a generated Smithy list (wrapper used for the
 // non-flattened XML form; flattened uses inline []NoncurrentVersionTransition).
 type NoncurrentVersionTransitionList struct {
@@ -842,10 +650,28 @@ type LifecycleRules struct {
 	Items []LifecycleRule `xml:"LifecycleRule"`
 }
 
-// TargetGrants is a generated Smithy list (wrapper used for the
-// non-flattened XML form; flattened uses inline []TargetGrant).
-type TargetGrants struct {
-	Items []TargetGrant `xml:"Grant"`
+// ReplicationRules is a generated Smithy list (wrapper used for the
+// non-flattened XML form; flattened uses inline []ReplicationRule).
+type ReplicationRules struct {
+	Items []ReplicationRule `xml:"ReplicationRule"`
+}
+
+// RoutingRules is a generated Smithy list (wrapper used for the
+// non-flattened XML form; flattened uses inline []RoutingRule).
+type RoutingRules struct {
+	Items []RoutingRule `xml:"RoutingRule"`
+}
+
+// EncryptionTypeList is a generated Smithy list (wrapper used for the
+// non-flattened XML form; flattened uses inline []EncryptionType).
+type EncryptionTypeList struct {
+	Items []EncryptionType `xml:"EncryptionType"`
+}
+
+// ServerSideEncryptionRules is a generated Smithy list (wrapper used for the
+// non-flattened XML form; flattened uses inline []ServerSideEncryptionRule).
+type ServerSideEncryptionRules struct {
+	Items []ServerSideEncryptionRule `xml:"ServerSideEncryptionRule"`
 }
 
 // EventList is a generated Smithy list (wrapper used for the
@@ -884,208 +710,446 @@ type OwnershipControlsRules struct {
 	Items []OwnershipControlsRule `xml:"OwnershipControlsRule"`
 }
 
-// ReplicationRules is a generated Smithy list (wrapper used for the
-// non-flattened XML form; flattened uses inline []ReplicationRule).
-type ReplicationRules struct {
-	Items []ReplicationRule `xml:"ReplicationRule"`
-}
-
-// RoutingRules is a generated Smithy list (wrapper used for the
-// non-flattened XML form; flattened uses inline []RoutingRule).
-type RoutingRules struct {
-	Items []RoutingRule `xml:"RoutingRule"`
-}
-
-// ObjectAttributesList is a generated Smithy list (wrapper used for the
-// non-flattened XML form; flattened uses inline []ObjectAttributes).
-type ObjectAttributesList struct {
-	Items []ObjectAttributes `xml:"ObjectAttributes"`
-}
-
-// PartsList is a generated Smithy list (wrapper used for the
-// non-flattened XML form; flattened uses inline []ObjectPart).
-type PartsList struct {
-	Items []ObjectPart `xml:"ObjectPart"`
-}
-
-// AnalyticsConfigurationList is a generated Smithy list (wrapper used for the
-// non-flattened XML form; flattened uses inline []AnalyticsConfiguration).
-type AnalyticsConfigurationList struct {
-	Items []AnalyticsConfiguration `xml:"AnalyticsConfiguration"`
-}
-
-// IntelligentTieringConfigurationList is a generated Smithy list (wrapper used for the
-// non-flattened XML form; flattened uses inline []IntelligentTieringConfiguration).
-type IntelligentTieringConfigurationList struct {
-	Items []IntelligentTieringConfiguration `xml:"IntelligentTieringConfiguration"`
-}
-
-// InventoryConfigurationList is a generated Smithy list (wrapper used for the
-// non-flattened XML form; flattened uses inline []InventoryConfiguration).
-type InventoryConfigurationList struct {
-	Items []InventoryConfiguration `xml:"InventoryConfiguration"`
-}
-
-// MetricsConfigurationList is a generated Smithy list (wrapper used for the
-// non-flattened XML form; flattened uses inline []MetricsConfiguration).
-type MetricsConfigurationList struct {
-	Items []MetricsConfiguration `xml:"MetricsConfiguration"`
-}
-
-// Buckets is a generated Smithy list (wrapper used for the
-// non-flattened XML form; flattened uses inline []Bucket).
-type Buckets struct {
-	Items []Bucket `xml:"Bucket"`
-}
-
-// CommonPrefixList is a generated Smithy list (wrapper used for the
-// non-flattened XML form; flattened uses inline []CommonPrefix).
-type CommonPrefixList struct {
-	Items []CommonPrefix `xml:"CommonPrefix"`
-}
-
-// MultipartUploadList is a generated Smithy list (wrapper used for the
-// non-flattened XML form; flattened uses inline []MultipartUpload).
-type MultipartUploadList struct {
-	Items []MultipartUpload `xml:"MultipartUpload"`
-}
-
-// OptionalObjectAttributesList is a generated Smithy list (wrapper used for the
-// non-flattened XML form; flattened uses inline []OptionalObjectAttributes).
-type OptionalObjectAttributesList struct {
-	Items []OptionalObjectAttributes `xml:"OptionalObjectAttributes"`
-}
-
-// DeleteMarkers is a generated Smithy list (wrapper used for the
-// non-flattened XML form; flattened uses inline []DeleteMarkerEntry).
-type DeleteMarkers struct {
-	Items []DeleteMarkerEntry `xml:"DeleteMarkerEntry"`
-}
-
-// ChecksumAlgorithmList is a generated Smithy list (wrapper used for the
-// non-flattened XML form; flattened uses inline []ChecksumAlgorithm).
-type ChecksumAlgorithmList struct {
-	Items []ChecksumAlgorithm `xml:"ChecksumAlgorithm"`
-}
-
-// ObjectVersionList is a generated Smithy list (wrapper used for the
-// non-flattened XML form; flattened uses inline []ObjectVersion).
-type ObjectVersionList struct {
-	Items []ObjectVersion `xml:"ObjectVersion"`
-}
-
-// ObjectList is a generated Smithy list (wrapper used for the
-// non-flattened XML form; flattened uses inline []Object).
-type ObjectList struct {
-	Items []Object `xml:"Object"`
-}
-
-// Parts is a generated Smithy list (wrapper used for the
-// non-flattened XML form; flattened uses inline []Part).
-type Parts struct {
-	Items []Part `xml:"Part"`
-}
-
-// UserMetadata is a generated Smithy list (wrapper used for the
-// non-flattened XML form; flattened uses inline []MetadataEntry).
-type UserMetadata struct {
-	Items []MetadataEntry `xml:"MetadataEntry"`
-}
-
 // Metadata is a generated Smithy map.
 type Metadata map[string]string
 
-// AbortMultipartUploadRequest is a generated Smithy structure.
-type AbortMultipartUploadRequest struct {
-	Bucket               string        // bound to label=Bucket
-	ExpectedBucketOwner  *string       // bound to header=x-amz-expected-bucket-owner
-	IfMatchInitiatedTime *time.Time    // bound to header=x-amz-if-match-initiated-time
-	Key                  string        // bound to label=Key
-	RequestPayer         *RequestPayer // bound to header=x-amz-request-payer
-	UploadId             string        // bound to query=uploadId
+// ListBucketsRequest is a generated Smithy structure.
+type ListBucketsRequest struct {
+	BucketRegion      *string // bound to query=bucket-region
+	ContinuationToken *string // bound to query=continuation-token
+	MaxBuckets        *int32  // bound to query=max-buckets
+	Prefix            *string // bound to query=prefix
 }
 
-// AbortMultipartUploadOutput is a generated Smithy structure.
-type AbortMultipartUploadOutput struct {
+// Bucket is a generated Smithy structure.
+type Bucket struct {
+	BucketArn    *string    `xml:"BucketArn,omitempty"`
+	BucketRegion *string    `xml:"BucketRegion,omitempty"`
+	CreationDate *time.Time `xml:"CreationDate,omitempty"`
+	Name         *string    `xml:"Name,omitempty"`
+}
+
+// Owner is a generated Smithy structure.
+type Owner struct {
+	DisplayName *string `xml:"DisplayName,omitempty"`
+	ID          *string `xml:"ID,omitempty"`
+}
+
+// ListBucketsOutput is a generated Smithy structure.
+type ListBucketsOutput struct {
+	XMLName           xml.Name `xml:"ListAllMyBucketsResult"`
+	Buckets           Buckets  `xml:"Buckets,omitempty"`
+	ContinuationToken *string  `xml:"ContinuationToken,omitempty"`
+	Owner             *Owner   `xml:"Owner,omitempty"`
+	Prefix            *string  `xml:"Prefix,omitempty"`
+}
+
+// BucketInfo is a generated Smithy structure.
+type BucketInfo struct {
+	DataRedundancy *DataRedundancy `xml:"DataRedundancy,omitempty"`
+	Type           *BucketType     `xml:"Type,omitempty"`
+}
+
+// LocationInfo is a generated Smithy structure.
+type LocationInfo struct {
+	Name *string       `xml:"Name,omitempty"`
+	Type *LocationType `xml:"Type,omitempty"`
+}
+
+// Tag is a generated Smithy structure.
+type Tag struct {
+	Key   string `xml:"Key,omitempty"`
+	Value string `xml:"Value,omitempty"`
+}
+
+// CreateBucketConfiguration is a generated Smithy structure.
+type CreateBucketConfiguration struct {
+	Bucket             *BucketInfo               `xml:"Bucket,omitempty"`
+	Location           *LocationInfo             `xml:"Location,omitempty"`
+	LocationConstraint *BucketLocationConstraint `xml:"LocationConstraint,omitempty"`
+	Tags               TagSet                    `xml:"Tags,omitempty"`
+}
+
+// CreateBucketRequest is a generated Smithy structure.
+type CreateBucketRequest struct {
+	ACL                        *BucketCannedACL           // bound to header=x-amz-acl
+	Bucket                     string                     // bound to label=Bucket
+	BucketNamespace            *BucketNamespace           // bound to header=x-amz-bucket-namespace
+	CreateBucketConfiguration  *CreateBucketConfiguration // bound to payload=
+	GrantFullControl           *string                    // bound to header=x-amz-grant-full-control
+	GrantRead                  *string                    // bound to header=x-amz-grant-read
+	GrantReadACP               *string                    // bound to header=x-amz-grant-read-acp
+	GrantWrite                 *string                    // bound to header=x-amz-grant-write
+	GrantWriteACP              *string                    // bound to header=x-amz-grant-write-acp
+	ObjectLockEnabledForBucket *bool                      // bound to header=x-amz-bucket-object-lock-enabled
+	ObjectOwnership            *ObjectOwnership           // bound to header=x-amz-object-ownership
+}
+
+// CreateBucketOutput is a generated Smithy structure.
+type CreateBucketOutput struct {
+	BucketArn *string // bound to header=x-amz-bucket-arn
+	Location  *string // bound to header=Location
+}
+
+// BucketAlreadyExists is a generated Smithy structure. It is an error response (HTTP 409).
+type BucketAlreadyExists struct {
+}
+
+// BucketAlreadyOwnedByYou is a generated Smithy structure. It is an error response (HTTP 409).
+type BucketAlreadyOwnedByYou struct {
+}
+
+// DeleteBucketRequest is a generated Smithy structure.
+type DeleteBucketRequest struct {
+	Bucket              string  // bound to label=Bucket
+	ExpectedBucketOwner *string // bound to header=x-amz-expected-bucket-owner
+}
+
+// HeadBucketRequest is a generated Smithy structure.
+type HeadBucketRequest struct {
+	Bucket              string  // bound to label=Bucket
+	ExpectedBucketOwner *string // bound to header=x-amz-expected-bucket-owner
+}
+
+// HeadBucketOutput is a generated Smithy structure.
+type HeadBucketOutput struct {
+	AccessPointAlias   *bool         // bound to header=x-amz-access-point-alias
+	BucketArn          *string       // bound to header=x-amz-bucket-arn
+	BucketLocationName *string       // bound to header=x-amz-bucket-location-name
+	BucketLocationType *LocationType // bound to header=x-amz-bucket-location-type
+	BucketRegion       *string       // bound to header=x-amz-bucket-region
+}
+
+// NotFound is a generated Smithy structure. It is an error response (HTTP 0).
+type NotFound struct {
+}
+
+// ListObjectsV2Request is a generated Smithy structure.
+type ListObjectsV2Request struct {
+	Bucket                   string                       // bound to label=Bucket
+	ContinuationToken        *string                      // bound to query=continuation-token
+	Delimiter                *string                      // bound to query=delimiter
+	EncodingType             *EncodingType                // bound to query=encoding-type
+	ExpectedBucketOwner      *string                      // bound to header=x-amz-expected-bucket-owner
+	FetchOwner               *bool                        // bound to query=fetch-owner
+	MaxKeys                  *int32                       // bound to query=max-keys
+	OptionalObjectAttributes OptionalObjectAttributesList // bound to header=x-amz-optional-object-attributes
+	Prefix                   *string                      // bound to query=prefix
+	RequestPayer             *RequestPayer                // bound to header=x-amz-request-payer
+	StartAfter               *string                      // bound to query=start-after
+}
+
+// CommonPrefix is a generated Smithy structure.
+type CommonPrefix struct {
+	Prefix *string `xml:"Prefix,omitempty"`
+}
+
+// RestoreStatus is a generated Smithy structure.
+type RestoreStatus struct {
+	IsRestoreInProgress *bool      `xml:"IsRestoreInProgress,omitempty"`
+	RestoreExpiryDate   *time.Time `xml:"RestoreExpiryDate,omitempty"`
+}
+
+// Object is a generated Smithy structure.
+type Object struct {
+	ChecksumAlgorithm []ChecksumAlgorithm `xml:"ChecksumAlgorithm,omitempty"`
+	ChecksumType      *ChecksumType       `xml:"ChecksumType,omitempty"`
+	ETag              *string             `xml:"ETag,omitempty"`
+	Key               *string             `xml:"Key,omitempty"`
+	LastModified      *time.Time          `xml:"LastModified,omitempty"`
+	Owner             *Owner              `xml:"Owner,omitempty"`
+	RestoreStatus     *RestoreStatus      `xml:"RestoreStatus,omitempty"`
+	Size              *int64              `xml:"Size,omitempty"`
+	StorageClass      *ObjectStorageClass `xml:"StorageClass,omitempty"`
+}
+
+// ListObjectsV2Output is a generated Smithy structure.
+type ListObjectsV2Output struct {
+	XMLName               xml.Name        `xml:"ListBucketResult"`
+	CommonPrefixes        []CommonPrefix  `xml:"CommonPrefix,omitempty"`
+	Contents              []Object        `xml:"Object,omitempty"`
+	ContinuationToken     *string         `xml:"ContinuationToken,omitempty"`
+	Delimiter             *string         `xml:"Delimiter,omitempty"`
+	EncodingType          *EncodingType   `xml:"EncodingType,omitempty"`
+	IsTruncated           *bool           `xml:"IsTruncated,omitempty"`
+	KeyCount              *int32          `xml:"KeyCount,omitempty"`
+	MaxKeys               *int32          `xml:"MaxKeys,omitempty"`
+	Name                  *string         `xml:"Name,omitempty"`
+	NextContinuationToken *string         `xml:"NextContinuationToken,omitempty"`
+	Prefix                *string         `xml:"Prefix,omitempty"`
+	RequestCharged        *RequestCharged // bound to header=x-amz-request-charged
+	StartAfter            *string         `xml:"StartAfter,omitempty"`
+}
+
+// NoSuchBucket is a generated Smithy structure. It is an error response (HTTP 404).
+type NoSuchBucket struct {
+}
+
+// GetObjectRequest is a generated Smithy structure.
+type GetObjectRequest struct {
+	Bucket                     string        // bound to label=Bucket
+	ChecksumMode               *ChecksumMode // bound to header=x-amz-checksum-mode
+	ExpectedBucketOwner        *string       // bound to header=x-amz-expected-bucket-owner
+	IfMatch                    *string       // bound to header=If-Match
+	IfModifiedSince            *time.Time    // bound to header=If-Modified-Since
+	IfNoneMatch                *string       // bound to header=If-None-Match
+	IfUnmodifiedSince          *time.Time    // bound to header=If-Unmodified-Since
+	Key                        string        // bound to label=Key
+	PartNumber                 *int32        // bound to query=partNumber
+	Range                      *string       // bound to header=Range
+	RequestPayer               *RequestPayer // bound to header=x-amz-request-payer
+	ResponseCacheControl       *string       // bound to query=response-cache-control
+	ResponseContentDisposition *string       // bound to query=response-content-disposition
+	ResponseContentEncoding    *string       // bound to query=response-content-encoding
+	ResponseContentLanguage    *string       // bound to query=response-content-language
+	ResponseContentType        *string       // bound to query=response-content-type
+	ResponseExpires            *time.Time    // bound to query=response-expires
+	SSECustomerAlgorithm       *string       // bound to header=x-amz-server-side-encryption-customer-algorithm
+	SSECustomerKey             *string       // bound to header=x-amz-server-side-encryption-customer-key
+	SSECustomerKeyMD5          *string       // bound to header=x-amz-server-side-encryption-customer-key-MD5
+	VersionId                  *string       // bound to query=versionId
+}
+
+// GetObjectOutput is a generated Smithy structure.
+type GetObjectOutput struct {
+	AcceptRanges              *string                    // bound to header=accept-ranges
+	Body                      io.ReadCloser              // bound to payload=
+	BucketKeyEnabled          *bool                      // bound to header=x-amz-server-side-encryption-bucket-key-enabled
+	CacheControl              *string                    // bound to header=Cache-Control
+	ChecksumCRC32             *string                    // bound to header=x-amz-checksum-crc32
+	ChecksumCRC32C            *string                    // bound to header=x-amz-checksum-crc32c
+	ChecksumCRC64NVME         *string                    // bound to header=x-amz-checksum-crc64nvme
+	ChecksumMD5               *string                    // bound to header=x-amz-checksum-md5
+	ChecksumSHA1              *string                    // bound to header=x-amz-checksum-sha1
+	ChecksumSHA256            *string                    // bound to header=x-amz-checksum-sha256
+	ChecksumSHA512            *string                    // bound to header=x-amz-checksum-sha512
+	ChecksumType              *ChecksumType              // bound to header=x-amz-checksum-type
+	ChecksumXXHASH128         *string                    // bound to header=x-amz-checksum-xxhash128
+	ChecksumXXHASH3           *string                    // bound to header=x-amz-checksum-xxhash3
+	ChecksumXXHASH64          *string                    // bound to header=x-amz-checksum-xxhash64
+	ContentDisposition        *string                    // bound to header=Content-Disposition
+	ContentEncoding           *string                    // bound to header=Content-Encoding
+	ContentLanguage           *string                    // bound to header=Content-Language
+	ContentLength             *int64                     // bound to header=Content-Length
+	ContentRange              *string                    // bound to header=Content-Range
+	ContentType               *string                    // bound to header=Content-Type
+	DeleteMarker              *bool                      // bound to header=x-amz-delete-marker
+	ETag                      *string                    // bound to header=ETag
+	Expiration                *string                    // bound to header=x-amz-expiration
+	Expires                   *string                    // bound to header=Expires
+	LastModified              *time.Time                 // bound to header=Last-Modified
+	Metadata                  Metadata                   // bound to prefix-headers=x-amz-meta-
+	MissingMeta               *int32                     // bound to header=x-amz-missing-meta
+	ObjectLockLegalHoldStatus *ObjectLockLegalHoldStatus // bound to header=x-amz-object-lock-legal-hold
+	ObjectLockMode            *ObjectLockMode            // bound to header=x-amz-object-lock-mode
+	ObjectLockRetainUntilDate *time.Time                 // bound to header=x-amz-object-lock-retain-until-date
+	PartsCount                *int32                     // bound to header=x-amz-mp-parts-count
+	ReplicationStatus         *ReplicationStatus         // bound to header=x-amz-replication-status
+	RequestCharged            *RequestCharged            // bound to header=x-amz-request-charged
+	Restore                   *string                    // bound to header=x-amz-restore
+	SSECustomerAlgorithm      *string                    // bound to header=x-amz-server-side-encryption-customer-algorithm
+	SSECustomerKeyMD5         *string                    // bound to header=x-amz-server-side-encryption-customer-key-MD5
+	SSEKMSKeyId               *string                    // bound to header=x-amz-server-side-encryption-aws-kms-key-id
+	ServerSideEncryption      *ServerSideEncryption      // bound to header=x-amz-server-side-encryption
+	StorageClass              *StorageClass              // bound to header=x-amz-storage-class
+	TagCount                  *int32                     // bound to header=x-amz-tagging-count
+	VersionId                 *string                    // bound to header=x-amz-version-id
+	WebsiteRedirectLocation   *string                    // bound to header=x-amz-website-redirect-location
+}
+
+// InvalidObjectState is a generated Smithy structure. It is an error response (HTTP 403).
+type InvalidObjectState struct {
+	AccessTier   *IntelligentTieringAccessTier `xml:"AccessTier,omitempty"`
+	StorageClass *StorageClass                 `xml:"StorageClass,omitempty"`
+}
+
+// NoSuchKey is a generated Smithy structure. It is an error response (HTTP 404).
+type NoSuchKey struct {
+}
+
+// PutObjectRequest is a generated Smithy structure.
+type PutObjectRequest struct {
+	ACL                       *ObjectCannedACL           // bound to header=x-amz-acl
+	Body                      io.ReadCloser              // bound to payload=
+	Bucket                    string                     // bound to label=Bucket
+	BucketKeyEnabled          *bool                      // bound to header=x-amz-server-side-encryption-bucket-key-enabled
+	CacheControl              *string                    // bound to header=Cache-Control
+	ChecksumAlgorithm         *ChecksumAlgorithm         // bound to header=x-amz-sdk-checksum-algorithm
+	ChecksumCRC32             *string                    // bound to header=x-amz-checksum-crc32
+	ChecksumCRC32C            *string                    // bound to header=x-amz-checksum-crc32c
+	ChecksumCRC64NVME         *string                    // bound to header=x-amz-checksum-crc64nvme
+	ChecksumMD5               *string                    // bound to header=x-amz-checksum-md5
+	ChecksumSHA1              *string                    // bound to header=x-amz-checksum-sha1
+	ChecksumSHA256            *string                    // bound to header=x-amz-checksum-sha256
+	ChecksumSHA512            *string                    // bound to header=x-amz-checksum-sha512
+	ChecksumXXHASH128         *string                    // bound to header=x-amz-checksum-xxhash128
+	ChecksumXXHASH3           *string                    // bound to header=x-amz-checksum-xxhash3
+	ChecksumXXHASH64          *string                    // bound to header=x-amz-checksum-xxhash64
+	ContentDisposition        *string                    // bound to header=Content-Disposition
+	ContentEncoding           *string                    // bound to header=Content-Encoding
+	ContentLanguage           *string                    // bound to header=Content-Language
+	ContentLength             *int64                     // bound to header=Content-Length
+	ContentMD5                *string                    // bound to header=Content-MD5
+	ContentType               *string                    // bound to header=Content-Type
+	ExpectedBucketOwner       *string                    // bound to header=x-amz-expected-bucket-owner
+	Expires                   *string                    // bound to header=Expires
+	GrantFullControl          *string                    // bound to header=x-amz-grant-full-control
+	GrantRead                 *string                    // bound to header=x-amz-grant-read
+	GrantReadACP              *string                    // bound to header=x-amz-grant-read-acp
+	GrantWriteACP             *string                    // bound to header=x-amz-grant-write-acp
+	IfMatch                   *string                    // bound to header=If-Match
+	IfNoneMatch               *string                    // bound to header=If-None-Match
+	Key                       string                     // bound to label=Key
+	Metadata                  Metadata                   // bound to prefix-headers=x-amz-meta-
+	ObjectLockLegalHoldStatus *ObjectLockLegalHoldStatus // bound to header=x-amz-object-lock-legal-hold
+	ObjectLockMode            *ObjectLockMode            // bound to header=x-amz-object-lock-mode
+	ObjectLockRetainUntilDate *time.Time                 // bound to header=x-amz-object-lock-retain-until-date
+	RequestPayer              *RequestPayer              // bound to header=x-amz-request-payer
+	SSECustomerAlgorithm      *string                    // bound to header=x-amz-server-side-encryption-customer-algorithm
+	SSECustomerKey            *string                    // bound to header=x-amz-server-side-encryption-customer-key
+	SSECustomerKeyMD5         *string                    // bound to header=x-amz-server-side-encryption-customer-key-MD5
+	SSEKMSEncryptionContext   *string                    // bound to header=x-amz-server-side-encryption-context
+	SSEKMSKeyId               *string                    // bound to header=x-amz-server-side-encryption-aws-kms-key-id
+	ServerSideEncryption      *ServerSideEncryption      // bound to header=x-amz-server-side-encryption
+	StorageClass              *StorageClass              // bound to header=x-amz-storage-class
+	Tagging                   *string                    // bound to header=x-amz-tagging
+	WebsiteRedirectLocation   *string                    // bound to header=x-amz-website-redirect-location
+	WriteOffsetBytes          *int64                     // bound to header=x-amz-write-offset-bytes
+}
+
+// PutObjectOutput is a generated Smithy structure.
+type PutObjectOutput struct {
+	BucketKeyEnabled        *bool                 // bound to header=x-amz-server-side-encryption-bucket-key-enabled
+	ChecksumCRC32           *string               // bound to header=x-amz-checksum-crc32
+	ChecksumCRC32C          *string               // bound to header=x-amz-checksum-crc32c
+	ChecksumCRC64NVME       *string               // bound to header=x-amz-checksum-crc64nvme
+	ChecksumMD5             *string               // bound to header=x-amz-checksum-md5
+	ChecksumSHA1            *string               // bound to header=x-amz-checksum-sha1
+	ChecksumSHA256          *string               // bound to header=x-amz-checksum-sha256
+	ChecksumSHA512          *string               // bound to header=x-amz-checksum-sha512
+	ChecksumType            *ChecksumType         // bound to header=x-amz-checksum-type
+	ChecksumXXHASH128       *string               // bound to header=x-amz-checksum-xxhash128
+	ChecksumXXHASH3         *string               // bound to header=x-amz-checksum-xxhash3
+	ChecksumXXHASH64        *string               // bound to header=x-amz-checksum-xxhash64
+	ETag                    *string               // bound to header=ETag
+	Expiration              *string               // bound to header=x-amz-expiration
+	RequestCharged          *RequestCharged       // bound to header=x-amz-request-charged
+	SSECustomerAlgorithm    *string               // bound to header=x-amz-server-side-encryption-customer-algorithm
+	SSECustomerKeyMD5       *string               // bound to header=x-amz-server-side-encryption-customer-key-MD5
+	SSEKMSEncryptionContext *string               // bound to header=x-amz-server-side-encryption-context
+	SSEKMSKeyId             *string               // bound to header=x-amz-server-side-encryption-aws-kms-key-id
+	ServerSideEncryption    *ServerSideEncryption // bound to header=x-amz-server-side-encryption
+	Size                    *int64                // bound to header=x-amz-object-size
+	VersionId               *string               // bound to header=x-amz-version-id
+}
+
+// EncryptionTypeMismatch is a generated Smithy structure. It is an error response (HTTP 400).
+type EncryptionTypeMismatch struct {
+}
+
+// InvalidRequest is a generated Smithy structure. It is an error response (HTTP 400).
+type InvalidRequest struct {
+}
+
+// InvalidWriteOffset is a generated Smithy structure. It is an error response (HTTP 400).
+type InvalidWriteOffset struct {
+}
+
+// TooManyParts is a generated Smithy structure. It is an error response (HTTP 400).
+type TooManyParts struct {
+}
+
+// DeleteObjectRequest is a generated Smithy structure.
+type DeleteObjectRequest struct {
+	Bucket                    string        // bound to label=Bucket
+	BypassGovernanceRetention *bool         // bound to header=x-amz-bypass-governance-retention
+	ExpectedBucketOwner       *string       // bound to header=x-amz-expected-bucket-owner
+	IfMatch                   *string       // bound to header=If-Match
+	IfMatchLastModifiedTime   *time.Time    // bound to header=x-amz-if-match-last-modified-time
+	IfMatchSize               *int64        // bound to header=x-amz-if-match-size
+	Key                       string        // bound to label=Key
+	MFA                       *string       // bound to header=x-amz-mfa
+	RequestPayer              *RequestPayer // bound to header=x-amz-request-payer
+	VersionId                 *string       // bound to query=versionId
+}
+
+// DeleteObjectOutput is a generated Smithy structure.
+type DeleteObjectOutput struct {
+	DeleteMarker   *bool           // bound to header=x-amz-delete-marker
 	RequestCharged *RequestCharged // bound to header=x-amz-request-charged
+	VersionId      *string         // bound to header=x-amz-version-id
 }
 
-// NoSuchUpload is a generated Smithy structure. It is an error response (HTTP 404).
-type NoSuchUpload struct {
+// HeadObjectRequest is a generated Smithy structure.
+type HeadObjectRequest struct {
+	Bucket                     string        // bound to label=Bucket
+	ChecksumMode               *ChecksumMode // bound to header=x-amz-checksum-mode
+	ExpectedBucketOwner        *string       // bound to header=x-amz-expected-bucket-owner
+	IfMatch                    *string       // bound to header=If-Match
+	IfModifiedSince            *time.Time    // bound to header=If-Modified-Since
+	IfNoneMatch                *string       // bound to header=If-None-Match
+	IfUnmodifiedSince          *time.Time    // bound to header=If-Unmodified-Since
+	Key                        string        // bound to label=Key
+	PartNumber                 *int32        // bound to query=partNumber
+	Range                      *string       // bound to header=Range
+	RequestPayer               *RequestPayer // bound to header=x-amz-request-payer
+	ResponseCacheControl       *string       // bound to query=response-cache-control
+	ResponseContentDisposition *string       // bound to query=response-content-disposition
+	ResponseContentEncoding    *string       // bound to query=response-content-encoding
+	ResponseContentLanguage    *string       // bound to query=response-content-language
+	ResponseContentType        *string       // bound to query=response-content-type
+	ResponseExpires            *time.Time    // bound to query=response-expires
+	SSECustomerAlgorithm       *string       // bound to header=x-amz-server-side-encryption-customer-algorithm
+	SSECustomerKey             *string       // bound to header=x-amz-server-side-encryption-customer-key
+	SSECustomerKeyMD5          *string       // bound to header=x-amz-server-side-encryption-customer-key-MD5
+	VersionId                  *string       // bound to query=versionId
 }
 
-// CompletedPart is a generated Smithy structure.
-type CompletedPart struct {
-	ChecksumCRC32     *string `xml:"ChecksumCRC32,omitempty"`
-	ChecksumCRC32C    *string `xml:"ChecksumCRC32C,omitempty"`
-	ChecksumCRC64NVME *string `xml:"ChecksumCRC64NVME,omitempty"`
-	ChecksumMD5       *string `xml:"ChecksumMD5,omitempty"`
-	ChecksumSHA1      *string `xml:"ChecksumSHA1,omitempty"`
-	ChecksumSHA256    *string `xml:"ChecksumSHA256,omitempty"`
-	ChecksumSHA512    *string `xml:"ChecksumSHA512,omitempty"`
-	ChecksumXXHASH128 *string `xml:"ChecksumXXHASH128,omitempty"`
-	ChecksumXXHASH3   *string `xml:"ChecksumXXHASH3,omitempty"`
-	ChecksumXXHASH64  *string `xml:"ChecksumXXHASH64,omitempty"`
-	ETag              *string `xml:"ETag,omitempty"`
-	PartNumber        *int32  `xml:"PartNumber,omitempty"`
-}
-
-// CompletedMultipartUpload is a generated Smithy structure.
-type CompletedMultipartUpload struct {
-	Parts []CompletedPart `xml:"CompletedPart,omitempty"`
-}
-
-// CompleteMultipartUploadRequest is a generated Smithy structure.
-type CompleteMultipartUploadRequest struct {
-	Bucket               string                    // bound to label=Bucket
-	ChecksumCRC32        *string                   // bound to header=x-amz-checksum-crc32
-	ChecksumCRC32C       *string                   // bound to header=x-amz-checksum-crc32c
-	ChecksumCRC64NVME    *string                   // bound to header=x-amz-checksum-crc64nvme
-	ChecksumMD5          *string                   // bound to header=x-amz-checksum-md5
-	ChecksumSHA1         *string                   // bound to header=x-amz-checksum-sha1
-	ChecksumSHA256       *string                   // bound to header=x-amz-checksum-sha256
-	ChecksumSHA512       *string                   // bound to header=x-amz-checksum-sha512
-	ChecksumType         *ChecksumType             // bound to header=x-amz-checksum-type
-	ChecksumXXHASH128    *string                   // bound to header=x-amz-checksum-xxhash128
-	ChecksumXXHASH3      *string                   // bound to header=x-amz-checksum-xxhash3
-	ChecksumXXHASH64     *string                   // bound to header=x-amz-checksum-xxhash64
-	ExpectedBucketOwner  *string                   // bound to header=x-amz-expected-bucket-owner
-	IfMatch              *string                   // bound to header=If-Match
-	IfNoneMatch          *string                   // bound to header=If-None-Match
-	Key                  string                    // bound to label=Key
-	MpuObjectSize        *int64                    // bound to header=x-amz-mp-object-size
-	MultipartUpload      *CompletedMultipartUpload // bound to payload=
-	RequestPayer         *RequestPayer             // bound to header=x-amz-request-payer
-	SSECustomerAlgorithm *string                   // bound to header=x-amz-server-side-encryption-customer-algorithm
-	SSECustomerKey       *string                   // bound to header=x-amz-server-side-encryption-customer-key
-	SSECustomerKeyMD5    *string                   // bound to header=x-amz-server-side-encryption-customer-key-MD5
-	UploadId             string                    // bound to query=uploadId
-}
-
-// CompleteMultipartUploadOutput is a generated Smithy structure.
-type CompleteMultipartUploadOutput struct {
-	XMLName              xml.Name              `xml:"CompleteMultipartUploadResult"`
-	Bucket               *string               `xml:"Bucket,omitempty"`
-	BucketKeyEnabled     *bool                 // bound to header=x-amz-server-side-encryption-bucket-key-enabled
-	ChecksumCRC32        *string               `xml:"ChecksumCRC32,omitempty"`
-	ChecksumCRC32C       *string               `xml:"ChecksumCRC32C,omitempty"`
-	ChecksumCRC64NVME    *string               `xml:"ChecksumCRC64NVME,omitempty"`
-	ChecksumMD5          *string               `xml:"ChecksumMD5,omitempty"`
-	ChecksumSHA1         *string               `xml:"ChecksumSHA1,omitempty"`
-	ChecksumSHA256       *string               `xml:"ChecksumSHA256,omitempty"`
-	ChecksumSHA512       *string               `xml:"ChecksumSHA512,omitempty"`
-	ChecksumType         *ChecksumType         `xml:"ChecksumType,omitempty"`
-	ChecksumXXHASH128    *string               `xml:"ChecksumXXHASH128,omitempty"`
-	ChecksumXXHASH3      *string               `xml:"ChecksumXXHASH3,omitempty"`
-	ChecksumXXHASH64     *string               `xml:"ChecksumXXHASH64,omitempty"`
-	ETag                 *string               `xml:"ETag,omitempty"`
-	Expiration           *string               // bound to header=x-amz-expiration
-	Key                  *string               `xml:"Key,omitempty"`
-	Location             *string               `xml:"Location,omitempty"`
-	RequestCharged       *RequestCharged       // bound to header=x-amz-request-charged
-	SSEKMSKeyId          *string               // bound to header=x-amz-server-side-encryption-aws-kms-key-id
-	ServerSideEncryption *ServerSideEncryption // bound to header=x-amz-server-side-encryption
-	VersionId            *string               // bound to header=x-amz-version-id
+// HeadObjectOutput is a generated Smithy structure.
+type HeadObjectOutput struct {
+	AcceptRanges              *string                    // bound to header=accept-ranges
+	ArchiveStatus             *ArchiveStatus             // bound to header=x-amz-archive-status
+	BucketKeyEnabled          *bool                      // bound to header=x-amz-server-side-encryption-bucket-key-enabled
+	CacheControl              *string                    // bound to header=Cache-Control
+	ChecksumCRC32             *string                    // bound to header=x-amz-checksum-crc32
+	ChecksumCRC32C            *string                    // bound to header=x-amz-checksum-crc32c
+	ChecksumCRC64NVME         *string                    // bound to header=x-amz-checksum-crc64nvme
+	ChecksumMD5               *string                    // bound to header=x-amz-checksum-md5
+	ChecksumSHA1              *string                    // bound to header=x-amz-checksum-sha1
+	ChecksumSHA256            *string                    // bound to header=x-amz-checksum-sha256
+	ChecksumSHA512            *string                    // bound to header=x-amz-checksum-sha512
+	ChecksumType              *ChecksumType              // bound to header=x-amz-checksum-type
+	ChecksumXXHASH128         *string                    // bound to header=x-amz-checksum-xxhash128
+	ChecksumXXHASH3           *string                    // bound to header=x-amz-checksum-xxhash3
+	ChecksumXXHASH64          *string                    // bound to header=x-amz-checksum-xxhash64
+	ContentDisposition        *string                    // bound to header=Content-Disposition
+	ContentEncoding           *string                    // bound to header=Content-Encoding
+	ContentLanguage           *string                    // bound to header=Content-Language
+	ContentLength             *int64                     // bound to header=Content-Length
+	ContentRange              *string                    // bound to header=Content-Range
+	ContentType               *string                    // bound to header=Content-Type
+	DeleteMarker              *bool                      // bound to header=x-amz-delete-marker
+	ETag                      *string                    // bound to header=ETag
+	Expiration                *string                    // bound to header=x-amz-expiration
+	Expires                   *string                    // bound to header=Expires
+	LastModified              *time.Time                 // bound to header=Last-Modified
+	Metadata                  Metadata                   // bound to prefix-headers=x-amz-meta-
+	MissingMeta               *int32                     // bound to header=x-amz-missing-meta
+	ObjectLockLegalHoldStatus *ObjectLockLegalHoldStatus // bound to header=x-amz-object-lock-legal-hold
+	ObjectLockMode            *ObjectLockMode            // bound to header=x-amz-object-lock-mode
+	ObjectLockRetainUntilDate *time.Time                 // bound to header=x-amz-object-lock-retain-until-date
+	PartsCount                *int32                     // bound to header=x-amz-mp-parts-count
+	ReplicationStatus         *ReplicationStatus         // bound to header=x-amz-replication-status
+	RequestCharged            *RequestCharged            // bound to header=x-amz-request-charged
+	Restore                   *string                    // bound to header=x-amz-restore
+	SSECustomerAlgorithm      *string                    // bound to header=x-amz-server-side-encryption-customer-algorithm
+	SSECustomerKeyMD5         *string                    // bound to header=x-amz-server-side-encryption-customer-key-MD5
+	SSEKMSKeyId               *string                    // bound to header=x-amz-server-side-encryption-aws-kms-key-id
+	ServerSideEncryption      *ServerSideEncryption      // bound to header=x-amz-server-side-encryption
+	StorageClass              *StorageClass              // bound to header=x-amz-storage-class
+	TagCount                  *int32                     // bound to header=x-amz-tagging-count
+	VersionId                 *string                    // bound to header=x-amz-version-id
+	WebsiteRedirectLocation   *string                    // bound to header=x-amz-website-redirect-location
 }
 
 // CopyObjectRequest is a generated Smithy structure.
@@ -1171,120 +1235,6 @@ type CopyObjectOutput struct {
 type ObjectNotInActiveTierError struct {
 }
 
-// BucketInfo is a generated Smithy structure.
-type BucketInfo struct {
-	DataRedundancy *DataRedundancy `xml:"DataRedundancy,omitempty"`
-	Type           *BucketType     `xml:"Type,omitempty"`
-}
-
-// LocationInfo is a generated Smithy structure.
-type LocationInfo struct {
-	Name *string       `xml:"Name,omitempty"`
-	Type *LocationType `xml:"Type,omitempty"`
-}
-
-// Tag is a generated Smithy structure.
-type Tag struct {
-	Key   string `xml:"Key,omitempty"`
-	Value string `xml:"Value,omitempty"`
-}
-
-// CreateBucketConfiguration is a generated Smithy structure.
-type CreateBucketConfiguration struct {
-	Bucket             *BucketInfo               `xml:"Bucket,omitempty"`
-	Location           *LocationInfo             `xml:"Location,omitempty"`
-	LocationConstraint *BucketLocationConstraint `xml:"LocationConstraint,omitempty"`
-	Tags               TagSet                    `xml:"Tags,omitempty"`
-}
-
-// CreateBucketRequest is a generated Smithy structure.
-type CreateBucketRequest struct {
-	ACL                        *BucketCannedACL           // bound to header=x-amz-acl
-	Bucket                     string                     // bound to label=Bucket
-	BucketNamespace            *BucketNamespace           // bound to header=x-amz-bucket-namespace
-	CreateBucketConfiguration  *CreateBucketConfiguration // bound to payload=
-	GrantFullControl           *string                    // bound to header=x-amz-grant-full-control
-	GrantRead                  *string                    // bound to header=x-amz-grant-read
-	GrantReadACP               *string                    // bound to header=x-amz-grant-read-acp
-	GrantWrite                 *string                    // bound to header=x-amz-grant-write
-	GrantWriteACP              *string                    // bound to header=x-amz-grant-write-acp
-	ObjectLockEnabledForBucket *bool                      // bound to header=x-amz-bucket-object-lock-enabled
-	ObjectOwnership            *ObjectOwnership           // bound to header=x-amz-object-ownership
-}
-
-// CreateBucketOutput is a generated Smithy structure.
-type CreateBucketOutput struct {
-	BucketArn *string // bound to header=x-amz-bucket-arn
-	Location  *string // bound to header=Location
-}
-
-// BucketAlreadyExists is a generated Smithy structure. It is an error response (HTTP 409).
-type BucketAlreadyExists struct {
-}
-
-// BucketAlreadyOwnedByYou is a generated Smithy structure. It is an error response (HTTP 409).
-type BucketAlreadyOwnedByYou struct {
-}
-
-// MetadataTableEncryptionConfiguration is a generated Smithy structure.
-type MetadataTableEncryptionConfiguration struct {
-	KmsKeyArn    *string           `xml:"KmsKeyArn,omitempty"`
-	SseAlgorithm TableSseAlgorithm `xml:"SseAlgorithm,omitempty"`
-}
-
-// InventoryTableConfiguration is a generated Smithy structure.
-type InventoryTableConfiguration struct {
-	ConfigurationState      InventoryConfigurationState           `xml:"ConfigurationState,omitempty"`
-	EncryptionConfiguration *MetadataTableEncryptionConfiguration `xml:"EncryptionConfiguration,omitempty"`
-}
-
-// RecordExpiration is a generated Smithy structure.
-type RecordExpiration struct {
-	Days       *int32          `xml:"Days,omitempty"`
-	Expiration ExpirationState `xml:"Expiration,omitempty"`
-}
-
-// JournalTableConfiguration is a generated Smithy structure.
-type JournalTableConfiguration struct {
-	EncryptionConfiguration *MetadataTableEncryptionConfiguration `xml:"EncryptionConfiguration,omitempty"`
-	RecordExpiration        *RecordExpiration                     `xml:"RecordExpiration,omitempty"`
-}
-
-// MetadataConfiguration is a generated Smithy structure.
-type MetadataConfiguration struct {
-	InventoryTableConfiguration *InventoryTableConfiguration `xml:"InventoryTableConfiguration,omitempty"`
-	JournalTableConfiguration   *JournalTableConfiguration   `xml:"JournalTableConfiguration,omitempty"`
-}
-
-// CreateBucketMetadataConfigurationRequest is a generated Smithy structure.
-type CreateBucketMetadataConfigurationRequest struct {
-	Bucket                string                 // bound to label=Bucket
-	ChecksumAlgorithm     *ChecksumAlgorithm     // bound to header=x-amz-sdk-checksum-algorithm
-	ContentMD5            *string                // bound to header=Content-MD5
-	ExpectedBucketOwner   *string                // bound to header=x-amz-expected-bucket-owner
-	MetadataConfiguration *MetadataConfiguration // bound to payload=
-}
-
-// S3TablesDestination is a generated Smithy structure.
-type S3TablesDestination struct {
-	TableBucketArn string `xml:"TableBucketArn,omitempty"`
-	TableName      string `xml:"TableName,omitempty"`
-}
-
-// MetadataTableConfiguration is a generated Smithy structure.
-type MetadataTableConfiguration struct {
-	S3TablesDestination *S3TablesDestination `xml:"S3TablesDestination,omitempty"`
-}
-
-// CreateBucketMetadataTableConfigurationRequest is a generated Smithy structure.
-type CreateBucketMetadataTableConfigurationRequest struct {
-	Bucket                     string                      // bound to label=Bucket
-	ChecksumAlgorithm          *ChecksumAlgorithm          // bound to header=x-amz-sdk-checksum-algorithm
-	ContentMD5                 *string                     // bound to header=Content-MD5
-	ExpectedBucketOwner        *string                     // bound to header=x-amz-expected-bucket-owner
-	MetadataTableConfiguration *MetadataTableConfiguration // bound to payload=
-}
-
 // CreateMultipartUploadRequest is a generated Smithy structure.
 type CreateMultipartUploadRequest struct {
 	ACL                       *ObjectCannedACL           // bound to header=x-amz-acl
@@ -1339,250 +1289,270 @@ type CreateMultipartUploadOutput struct {
 	UploadId                *string               `xml:"UploadId,omitempty"`
 }
 
-// CreateSessionRequest is a generated Smithy structure.
-type CreateSessionRequest struct {
-	Bucket                  string                // bound to label=Bucket
-	BucketKeyEnabled        *bool                 // bound to header=x-amz-server-side-encryption-bucket-key-enabled
-	SSEKMSEncryptionContext *string               // bound to header=x-amz-server-side-encryption-context
-	SSEKMSKeyId             *string               // bound to header=x-amz-server-side-encryption-aws-kms-key-id
-	ServerSideEncryption    *ServerSideEncryption // bound to header=x-amz-server-side-encryption
-	SessionMode             *SessionMode          // bound to header=x-amz-create-session-mode
+// UploadPartRequest is a generated Smithy structure.
+type UploadPartRequest struct {
+	Body                 io.ReadCloser      // bound to payload=
+	Bucket               string             // bound to label=Bucket
+	ChecksumAlgorithm    *ChecksumAlgorithm // bound to header=x-amz-sdk-checksum-algorithm
+	ChecksumCRC32        *string            // bound to header=x-amz-checksum-crc32
+	ChecksumCRC32C       *string            // bound to header=x-amz-checksum-crc32c
+	ChecksumCRC64NVME    *string            // bound to header=x-amz-checksum-crc64nvme
+	ChecksumMD5          *string            // bound to header=x-amz-checksum-md5
+	ChecksumSHA1         *string            // bound to header=x-amz-checksum-sha1
+	ChecksumSHA256       *string            // bound to header=x-amz-checksum-sha256
+	ChecksumSHA512       *string            // bound to header=x-amz-checksum-sha512
+	ChecksumXXHASH128    *string            // bound to header=x-amz-checksum-xxhash128
+	ChecksumXXHASH3      *string            // bound to header=x-amz-checksum-xxhash3
+	ChecksumXXHASH64     *string            // bound to header=x-amz-checksum-xxhash64
+	ContentLength        *int64             // bound to header=Content-Length
+	ContentMD5           *string            // bound to header=Content-MD5
+	ExpectedBucketOwner  *string            // bound to header=x-amz-expected-bucket-owner
+	Key                  string             // bound to label=Key
+	PartNumber           int32              // bound to query=partNumber
+	RequestPayer         *RequestPayer      // bound to header=x-amz-request-payer
+	SSECustomerAlgorithm *string            // bound to header=x-amz-server-side-encryption-customer-algorithm
+	SSECustomerKey       *string            // bound to header=x-amz-server-side-encryption-customer-key
+	SSECustomerKeyMD5    *string            // bound to header=x-amz-server-side-encryption-customer-key-MD5
+	UploadId             string             // bound to query=uploadId
 }
 
-// SessionCredentials is a generated Smithy structure.
-type SessionCredentials struct {
-	AccessKeyId     string    `xml:"AccessKeyId,omitempty"`
-	Expiration      time.Time `xml:"Expiration,omitempty"`
-	SecretAccessKey string    `xml:"SecretAccessKey,omitempty"`
-	SessionToken    string    `xml:"SessionToken,omitempty"`
+// UploadPartOutput is a generated Smithy structure.
+type UploadPartOutput struct {
+	BucketKeyEnabled     *bool                 // bound to header=x-amz-server-side-encryption-bucket-key-enabled
+	ChecksumCRC32        *string               // bound to header=x-amz-checksum-crc32
+	ChecksumCRC32C       *string               // bound to header=x-amz-checksum-crc32c
+	ChecksumCRC64NVME    *string               // bound to header=x-amz-checksum-crc64nvme
+	ChecksumMD5          *string               // bound to header=x-amz-checksum-md5
+	ChecksumSHA1         *string               // bound to header=x-amz-checksum-sha1
+	ChecksumSHA256       *string               // bound to header=x-amz-checksum-sha256
+	ChecksumSHA512       *string               // bound to header=x-amz-checksum-sha512
+	ChecksumXXHASH128    *string               // bound to header=x-amz-checksum-xxhash128
+	ChecksumXXHASH3      *string               // bound to header=x-amz-checksum-xxhash3
+	ChecksumXXHASH64     *string               // bound to header=x-amz-checksum-xxhash64
+	ETag                 *string               // bound to header=ETag
+	RequestCharged       *RequestCharged       // bound to header=x-amz-request-charged
+	SSECustomerAlgorithm *string               // bound to header=x-amz-server-side-encryption-customer-algorithm
+	SSECustomerKeyMD5    *string               // bound to header=x-amz-server-side-encryption-customer-key-MD5
+	SSEKMSKeyId          *string               // bound to header=x-amz-server-side-encryption-aws-kms-key-id
+	ServerSideEncryption *ServerSideEncryption // bound to header=x-amz-server-side-encryption
 }
 
-// CreateSessionOutput is a generated Smithy structure.
-type CreateSessionOutput struct {
-	XMLName                 xml.Name              `xml:"CreateSessionResult"`
-	BucketKeyEnabled        *bool                 // bound to header=x-amz-server-side-encryption-bucket-key-enabled
-	Credentials             *SessionCredentials   `xml:"Credentials,omitempty"`
-	SSEKMSEncryptionContext *string               // bound to header=x-amz-server-side-encryption-context
-	SSEKMSKeyId             *string               // bound to header=x-amz-server-side-encryption-aws-kms-key-id
-	ServerSideEncryption    *ServerSideEncryption // bound to header=x-amz-server-side-encryption
+// CompletedPart is a generated Smithy structure.
+type CompletedPart struct {
+	ChecksumCRC32     *string `xml:"ChecksumCRC32,omitempty"`
+	ChecksumCRC32C    *string `xml:"ChecksumCRC32C,omitempty"`
+	ChecksumCRC64NVME *string `xml:"ChecksumCRC64NVME,omitempty"`
+	ChecksumMD5       *string `xml:"ChecksumMD5,omitempty"`
+	ChecksumSHA1      *string `xml:"ChecksumSHA1,omitempty"`
+	ChecksumSHA256    *string `xml:"ChecksumSHA256,omitempty"`
+	ChecksumSHA512    *string `xml:"ChecksumSHA512,omitempty"`
+	ChecksumXXHASH128 *string `xml:"ChecksumXXHASH128,omitempty"`
+	ChecksumXXHASH3   *string `xml:"ChecksumXXHASH3,omitempty"`
+	ChecksumXXHASH64  *string `xml:"ChecksumXXHASH64,omitempty"`
+	ETag              *string `xml:"ETag,omitempty"`
+	PartNumber        *int32  `xml:"PartNumber,omitempty"`
 }
 
-// NoSuchBucket is a generated Smithy structure. It is an error response (HTTP 404).
-type NoSuchBucket struct {
+// CompletedMultipartUpload is a generated Smithy structure.
+type CompletedMultipartUpload struct {
+	Parts []CompletedPart `xml:"CompletedPart,omitempty"`
 }
 
-// DeleteBucketRequest is a generated Smithy structure.
-type DeleteBucketRequest struct {
-	Bucket              string  // bound to label=Bucket
-	ExpectedBucketOwner *string // bound to header=x-amz-expected-bucket-owner
+// CompleteMultipartUploadRequest is a generated Smithy structure.
+type CompleteMultipartUploadRequest struct {
+	Bucket               string                    // bound to label=Bucket
+	ChecksumCRC32        *string                   // bound to header=x-amz-checksum-crc32
+	ChecksumCRC32C       *string                   // bound to header=x-amz-checksum-crc32c
+	ChecksumCRC64NVME    *string                   // bound to header=x-amz-checksum-crc64nvme
+	ChecksumMD5          *string                   // bound to header=x-amz-checksum-md5
+	ChecksumSHA1         *string                   // bound to header=x-amz-checksum-sha1
+	ChecksumSHA256       *string                   // bound to header=x-amz-checksum-sha256
+	ChecksumSHA512       *string                   // bound to header=x-amz-checksum-sha512
+	ChecksumType         *ChecksumType             // bound to header=x-amz-checksum-type
+	ChecksumXXHASH128    *string                   // bound to header=x-amz-checksum-xxhash128
+	ChecksumXXHASH3      *string                   // bound to header=x-amz-checksum-xxhash3
+	ChecksumXXHASH64     *string                   // bound to header=x-amz-checksum-xxhash64
+	ExpectedBucketOwner  *string                   // bound to header=x-amz-expected-bucket-owner
+	IfMatch              *string                   // bound to header=If-Match
+	IfNoneMatch          *string                   // bound to header=If-None-Match
+	Key                  string                    // bound to label=Key
+	MpuObjectSize        *int64                    // bound to header=x-amz-mp-object-size
+	MultipartUpload      *CompletedMultipartUpload // bound to payload=
+	RequestPayer         *RequestPayer             // bound to header=x-amz-request-payer
+	SSECustomerAlgorithm *string                   // bound to header=x-amz-server-side-encryption-customer-algorithm
+	SSECustomerKey       *string                   // bound to header=x-amz-server-side-encryption-customer-key
+	SSECustomerKeyMD5    *string                   // bound to header=x-amz-server-side-encryption-customer-key-MD5
+	UploadId             string                    // bound to query=uploadId
 }
 
-// DeleteBucketAnalyticsConfigurationRequest is a generated Smithy structure.
-type DeleteBucketAnalyticsConfigurationRequest struct {
-	Bucket              string  // bound to label=Bucket
-	ExpectedBucketOwner *string // bound to header=x-amz-expected-bucket-owner
-	Id                  string  // bound to query=id
+// CompleteMultipartUploadOutput is a generated Smithy structure.
+type CompleteMultipartUploadOutput struct {
+	XMLName              xml.Name              `xml:"CompleteMultipartUploadResult"`
+	Bucket               *string               `xml:"Bucket,omitempty"`
+	BucketKeyEnabled     *bool                 // bound to header=x-amz-server-side-encryption-bucket-key-enabled
+	ChecksumCRC32        *string               `xml:"ChecksumCRC32,omitempty"`
+	ChecksumCRC32C       *string               `xml:"ChecksumCRC32C,omitempty"`
+	ChecksumCRC64NVME    *string               `xml:"ChecksumCRC64NVME,omitempty"`
+	ChecksumMD5          *string               `xml:"ChecksumMD5,omitempty"`
+	ChecksumSHA1         *string               `xml:"ChecksumSHA1,omitempty"`
+	ChecksumSHA256       *string               `xml:"ChecksumSHA256,omitempty"`
+	ChecksumSHA512       *string               `xml:"ChecksumSHA512,omitempty"`
+	ChecksumType         *ChecksumType         `xml:"ChecksumType,omitempty"`
+	ChecksumXXHASH128    *string               `xml:"ChecksumXXHASH128,omitempty"`
+	ChecksumXXHASH3      *string               `xml:"ChecksumXXHASH3,omitempty"`
+	ChecksumXXHASH64     *string               `xml:"ChecksumXXHASH64,omitempty"`
+	ETag                 *string               `xml:"ETag,omitempty"`
+	Expiration           *string               // bound to header=x-amz-expiration
+	Key                  *string               `xml:"Key,omitempty"`
+	Location             *string               `xml:"Location,omitempty"`
+	RequestCharged       *RequestCharged       // bound to header=x-amz-request-charged
+	SSEKMSKeyId          *string               // bound to header=x-amz-server-side-encryption-aws-kms-key-id
+	ServerSideEncryption *ServerSideEncryption // bound to header=x-amz-server-side-encryption
+	VersionId            *string               // bound to header=x-amz-version-id
 }
 
-// DeleteBucketCorsRequest is a generated Smithy structure.
-type DeleteBucketCorsRequest struct {
-	Bucket              string  // bound to label=Bucket
-	ExpectedBucketOwner *string // bound to header=x-amz-expected-bucket-owner
+// AbortMultipartUploadRequest is a generated Smithy structure.
+type AbortMultipartUploadRequest struct {
+	Bucket               string        // bound to label=Bucket
+	ExpectedBucketOwner  *string       // bound to header=x-amz-expected-bucket-owner
+	IfMatchInitiatedTime *time.Time    // bound to header=x-amz-if-match-initiated-time
+	Key                  string        // bound to label=Key
+	RequestPayer         *RequestPayer // bound to header=x-amz-request-payer
+	UploadId             string        // bound to query=uploadId
 }
 
-// DeleteBucketEncryptionRequest is a generated Smithy structure.
-type DeleteBucketEncryptionRequest struct {
-	Bucket              string  // bound to label=Bucket
-	ExpectedBucketOwner *string // bound to header=x-amz-expected-bucket-owner
-}
-
-// DeleteBucketIntelligentTieringConfigurationRequest is a generated Smithy structure.
-type DeleteBucketIntelligentTieringConfigurationRequest struct {
-	Bucket              string  // bound to label=Bucket
-	ExpectedBucketOwner *string // bound to header=x-amz-expected-bucket-owner
-	Id                  string  // bound to query=id
-}
-
-// DeleteBucketInventoryConfigurationRequest is a generated Smithy structure.
-type DeleteBucketInventoryConfigurationRequest struct {
-	Bucket              string  // bound to label=Bucket
-	ExpectedBucketOwner *string // bound to header=x-amz-expected-bucket-owner
-	Id                  string  // bound to query=id
-}
-
-// DeleteBucketLifecycleRequest is a generated Smithy structure.
-type DeleteBucketLifecycleRequest struct {
-	Bucket              string  // bound to label=Bucket
-	ExpectedBucketOwner *string // bound to header=x-amz-expected-bucket-owner
-}
-
-// DeleteBucketMetadataConfigurationRequest is a generated Smithy structure.
-type DeleteBucketMetadataConfigurationRequest struct {
-	Bucket              string  // bound to label=Bucket
-	ExpectedBucketOwner *string // bound to header=x-amz-expected-bucket-owner
-}
-
-// DeleteBucketMetadataTableConfigurationRequest is a generated Smithy structure.
-type DeleteBucketMetadataTableConfigurationRequest struct {
-	Bucket              string  // bound to label=Bucket
-	ExpectedBucketOwner *string // bound to header=x-amz-expected-bucket-owner
-}
-
-// DeleteBucketMetricsConfigurationRequest is a generated Smithy structure.
-type DeleteBucketMetricsConfigurationRequest struct {
-	Bucket              string  // bound to label=Bucket
-	ExpectedBucketOwner *string // bound to header=x-amz-expected-bucket-owner
-	Id                  string  // bound to query=id
-}
-
-// DeleteBucketOwnershipControlsRequest is a generated Smithy structure.
-type DeleteBucketOwnershipControlsRequest struct {
-	Bucket              string  // bound to label=Bucket
-	ExpectedBucketOwner *string // bound to header=x-amz-expected-bucket-owner
-}
-
-// DeleteBucketPolicyRequest is a generated Smithy structure.
-type DeleteBucketPolicyRequest struct {
-	Bucket              string  // bound to label=Bucket
-	ExpectedBucketOwner *string // bound to header=x-amz-expected-bucket-owner
-}
-
-// DeleteBucketReplicationRequest is a generated Smithy structure.
-type DeleteBucketReplicationRequest struct {
-	Bucket              string  // bound to label=Bucket
-	ExpectedBucketOwner *string // bound to header=x-amz-expected-bucket-owner
-}
-
-// DeleteBucketTaggingRequest is a generated Smithy structure.
-type DeleteBucketTaggingRequest struct {
-	Bucket              string  // bound to label=Bucket
-	ExpectedBucketOwner *string // bound to header=x-amz-expected-bucket-owner
-}
-
-// DeleteBucketWebsiteRequest is a generated Smithy structure.
-type DeleteBucketWebsiteRequest struct {
-	Bucket              string  // bound to label=Bucket
-	ExpectedBucketOwner *string // bound to header=x-amz-expected-bucket-owner
-}
-
-// DeleteObjectRequest is a generated Smithy structure.
-type DeleteObjectRequest struct {
-	Bucket                    string        // bound to label=Bucket
-	BypassGovernanceRetention *bool         // bound to header=x-amz-bypass-governance-retention
-	ExpectedBucketOwner       *string       // bound to header=x-amz-expected-bucket-owner
-	IfMatch                   *string       // bound to header=If-Match
-	IfMatchLastModifiedTime   *time.Time    // bound to header=x-amz-if-match-last-modified-time
-	IfMatchSize               *int64        // bound to header=x-amz-if-match-size
-	Key                       string        // bound to label=Key
-	MFA                       *string       // bound to header=x-amz-mfa
-	RequestPayer              *RequestPayer // bound to header=x-amz-request-payer
-	VersionId                 *string       // bound to query=versionId
-}
-
-// DeleteObjectOutput is a generated Smithy structure.
-type DeleteObjectOutput struct {
-	DeleteMarker   *bool           // bound to header=x-amz-delete-marker
-	RequestCharged *RequestCharged // bound to header=x-amz-request-charged
-	VersionId      *string         // bound to header=x-amz-version-id
-}
-
-// DeleteObjectTaggingRequest is a generated Smithy structure.
-type DeleteObjectTaggingRequest struct {
-	Bucket              string  // bound to label=Bucket
-	ExpectedBucketOwner *string // bound to header=x-amz-expected-bucket-owner
-	Key                 string  // bound to label=Key
-	VersionId           *string // bound to query=versionId
-}
-
-// DeleteObjectTaggingOutput is a generated Smithy structure.
-type DeleteObjectTaggingOutput struct {
-	VersionId *string // bound to header=x-amz-version-id
-}
-
-// ObjectIdentifier is a generated Smithy structure.
-type ObjectIdentifier struct {
-	ETag             *string    `xml:"ETag,omitempty"`
-	Key              string     `xml:"Key,omitempty"`
-	LastModifiedTime *time.Time `xml:"LastModifiedTime,omitempty"`
-	Size             *int64     `xml:"Size,omitempty"`
-	VersionId        *string    `xml:"VersionId,omitempty"`
-}
-
-// Delete is a generated Smithy structure.
-type Delete struct {
-	Objects []ObjectIdentifier `xml:"ObjectIdentifier,omitempty"`
-	Quiet   *bool              `xml:"Quiet,omitempty"`
-}
-
-// DeleteObjectsRequest is a generated Smithy structure.
-type DeleteObjectsRequest struct {
-	Bucket                    string             // bound to label=Bucket
-	BypassGovernanceRetention *bool              // bound to header=x-amz-bypass-governance-retention
-	ChecksumAlgorithm         *ChecksumAlgorithm // bound to header=x-amz-sdk-checksum-algorithm
-	Delete                    *Delete            // bound to payload=
-	ExpectedBucketOwner       *string            // bound to header=x-amz-expected-bucket-owner
-	MFA                       *string            // bound to header=x-amz-mfa
-	RequestPayer              *RequestPayer      // bound to header=x-amz-request-payer
-}
-
-// DeletedObject is a generated Smithy structure.
-type DeletedObject struct {
-	DeleteMarker          *bool   `xml:"DeleteMarker,omitempty"`
-	DeleteMarkerVersionId *string `xml:"DeleteMarkerVersionId,omitempty"`
-	Key                   *string `xml:"Key,omitempty"`
-	VersionId             *string `xml:"VersionId,omitempty"`
-}
-
-// Error is a generated Smithy structure.
-type Error struct {
-	Code      *string `xml:"Code,omitempty"`
-	Key       *string `xml:"Key,omitempty"`
-	Message   *string `xml:"Message,omitempty"`
-	VersionId *string `xml:"VersionId,omitempty"`
-}
-
-// DeleteObjectsOutput is a generated Smithy structure.
-type DeleteObjectsOutput struct {
-	XMLName        xml.Name        `xml:"DeleteResult"`
-	Deleted        []DeletedObject `xml:"DeletedObject,omitempty"`
-	Errors         []Error         `xml:"Error,omitempty"`
+// AbortMultipartUploadOutput is a generated Smithy structure.
+type AbortMultipartUploadOutput struct {
 	RequestCharged *RequestCharged // bound to header=x-amz-request-charged
 }
 
-// DeletePublicAccessBlockRequest is a generated Smithy structure.
-type DeletePublicAccessBlockRequest struct {
-	Bucket              string  // bound to label=Bucket
-	ExpectedBucketOwner *string // bound to header=x-amz-expected-bucket-owner
+// NoSuchUpload is a generated Smithy structure. It is an error response (HTTP 404).
+type NoSuchUpload struct {
 }
 
-// GetBucketAbacRequest is a generated Smithy structure.
-type GetBucketAbacRequest struct {
-	Bucket              string  // bound to label=Bucket
-	ExpectedBucketOwner *string // bound to header=x-amz-expected-bucket-owner
-}
-
-// AbacStatus is a generated Smithy structure.
-type AbacStatus struct {
-	Status *BucketAbacStatus `xml:"Status,omitempty"`
-}
-
-// GetBucketAbacOutput is a generated Smithy structure.
-type GetBucketAbacOutput struct {
-	AbacStatus *AbacStatus // bound to payload=
-}
-
-// GetBucketAccelerateConfigurationRequest is a generated Smithy structure.
-type GetBucketAccelerateConfigurationRequest struct {
+// ListMultipartUploadsRequest is a generated Smithy structure.
+type ListMultipartUploadsRequest struct {
 	Bucket              string        // bound to label=Bucket
+	Delimiter           *string       // bound to query=delimiter
+	EncodingType        *EncodingType // bound to query=encoding-type
 	ExpectedBucketOwner *string       // bound to header=x-amz-expected-bucket-owner
+	KeyMarker           *string       // bound to query=key-marker
+	MaxUploads          *int32        // bound to query=max-uploads
+	Prefix              *string       // bound to query=prefix
 	RequestPayer        *RequestPayer // bound to header=x-amz-request-payer
+	UploadIdMarker      *string       // bound to query=upload-id-marker
 }
 
-// GetBucketAccelerateConfigurationOutput is a generated Smithy structure.
-type GetBucketAccelerateConfigurationOutput struct {
-	XMLName        xml.Name                `xml:"AccelerateConfiguration"`
-	RequestCharged *RequestCharged         // bound to header=x-amz-request-charged
-	Status         *BucketAccelerateStatus `xml:"Status,omitempty"`
+// Initiator is a generated Smithy structure.
+type Initiator struct {
+	DisplayName *string `xml:"DisplayName,omitempty"`
+	ID          *string `xml:"ID,omitempty"`
+}
+
+// MultipartUpload is a generated Smithy structure.
+type MultipartUpload struct {
+	ChecksumAlgorithm *ChecksumAlgorithm `xml:"ChecksumAlgorithm,omitempty"`
+	ChecksumType      *ChecksumType      `xml:"ChecksumType,omitempty"`
+	Initiated         *time.Time         `xml:"Initiated,omitempty"`
+	Initiator         *Initiator         `xml:"Initiator,omitempty"`
+	Key               *string            `xml:"Key,omitempty"`
+	Owner             *Owner             `xml:"Owner,omitempty"`
+	StorageClass      *StorageClass      `xml:"StorageClass,omitempty"`
+	UploadId          *string            `xml:"UploadId,omitempty"`
+}
+
+// ListMultipartUploadsOutput is a generated Smithy structure.
+type ListMultipartUploadsOutput struct {
+	XMLName            xml.Name          `xml:"ListMultipartUploadsResult"`
+	Bucket             *string           `xml:"Bucket,omitempty"`
+	CommonPrefixes     []CommonPrefix    `xml:"CommonPrefix,omitempty"`
+	Delimiter          *string           `xml:"Delimiter,omitempty"`
+	EncodingType       *EncodingType     `xml:"EncodingType,omitempty"`
+	IsTruncated        *bool             `xml:"IsTruncated,omitempty"`
+	KeyMarker          *string           `xml:"KeyMarker,omitempty"`
+	MaxUploads         *int32            `xml:"MaxUploads,omitempty"`
+	NextKeyMarker      *string           `xml:"NextKeyMarker,omitempty"`
+	NextUploadIdMarker *string           `xml:"NextUploadIdMarker,omitempty"`
+	Prefix             *string           `xml:"Prefix,omitempty"`
+	RequestCharged     *RequestCharged   // bound to header=x-amz-request-charged
+	UploadIdMarker     *string           `xml:"UploadIdMarker,omitempty"`
+	Uploads            []MultipartUpload `xml:"MultipartUpload,omitempty"`
+}
+
+// ListPartsRequest is a generated Smithy structure.
+type ListPartsRequest struct {
+	Bucket               string        // bound to label=Bucket
+	ExpectedBucketOwner  *string       // bound to header=x-amz-expected-bucket-owner
+	Key                  string        // bound to label=Key
+	MaxParts             *int32        // bound to query=max-parts
+	PartNumberMarker     *string       // bound to query=part-number-marker
+	RequestPayer         *RequestPayer // bound to header=x-amz-request-payer
+	SSECustomerAlgorithm *string       // bound to header=x-amz-server-side-encryption-customer-algorithm
+	SSECustomerKey       *string       // bound to header=x-amz-server-side-encryption-customer-key
+	SSECustomerKeyMD5    *string       // bound to header=x-amz-server-side-encryption-customer-key-MD5
+	UploadId             string        // bound to query=uploadId
+}
+
+// Part is a generated Smithy structure.
+type Part struct {
+	ChecksumCRC32     *string    `xml:"ChecksumCRC32,omitempty"`
+	ChecksumCRC32C    *string    `xml:"ChecksumCRC32C,omitempty"`
+	ChecksumCRC64NVME *string    `xml:"ChecksumCRC64NVME,omitempty"`
+	ChecksumMD5       *string    `xml:"ChecksumMD5,omitempty"`
+	ChecksumSHA1      *string    `xml:"ChecksumSHA1,omitempty"`
+	ChecksumSHA256    *string    `xml:"ChecksumSHA256,omitempty"`
+	ChecksumSHA512    *string    `xml:"ChecksumSHA512,omitempty"`
+	ChecksumXXHASH128 *string    `xml:"ChecksumXXHASH128,omitempty"`
+	ChecksumXXHASH3   *string    `xml:"ChecksumXXHASH3,omitempty"`
+	ChecksumXXHASH64  *string    `xml:"ChecksumXXHASH64,omitempty"`
+	ETag              *string    `xml:"ETag,omitempty"`
+	LastModified      *time.Time `xml:"LastModified,omitempty"`
+	PartNumber        *int32     `xml:"PartNumber,omitempty"`
+	Size              *int64     `xml:"Size,omitempty"`
+}
+
+// ListPartsOutput is a generated Smithy structure.
+type ListPartsOutput struct {
+	XMLName              xml.Name           `xml:"ListPartsResult"`
+	AbortDate            *time.Time         // bound to header=x-amz-abort-date
+	AbortRuleId          *string            // bound to header=x-amz-abort-rule-id
+	Bucket               *string            `xml:"Bucket,omitempty"`
+	ChecksumAlgorithm    *ChecksumAlgorithm `xml:"ChecksumAlgorithm,omitempty"`
+	ChecksumType         *ChecksumType      `xml:"ChecksumType,omitempty"`
+	Initiator            *Initiator         `xml:"Initiator,omitempty"`
+	IsTruncated          *bool              `xml:"IsTruncated,omitempty"`
+	Key                  *string            `xml:"Key,omitempty"`
+	MaxParts             *int32             `xml:"MaxParts,omitempty"`
+	NextPartNumberMarker *string            `xml:"NextPartNumberMarker,omitempty"`
+	Owner                *Owner             `xml:"Owner,omitempty"`
+	PartNumberMarker     *string            `xml:"PartNumberMarker,omitempty"`
+	Parts                []Part             `xml:"Part,omitempty"`
+	RequestCharged       *RequestCharged    // bound to header=x-amz-request-charged
+	StorageClass         *StorageClass      `xml:"StorageClass,omitempty"`
+	UploadId             *string            `xml:"UploadId,omitempty"`
+}
+
+// GetBucketLocationRequest is a generated Smithy structure.
+type GetBucketLocationRequest struct {
+	Bucket              string  // bound to label=Bucket
+	ExpectedBucketOwner *string // bound to header=x-amz-expected-bucket-owner
+}
+
+// GetBucketLocationOutput is a generated Smithy structure.
+type GetBucketLocationOutput struct {
+	XMLName            xml.Name                  `xml:"LocationConstraint"`
+	LocationConstraint *BucketLocationConstraint `xml:"LocationConstraint,omitempty"`
+}
+
+// GetBucketPolicyRequest is a generated Smithy structure.
+type GetBucketPolicyRequest struct {
+	Bucket              string  // bound to label=Bucket
+	ExpectedBucketOwner *string // bound to header=x-amz-expected-bucket-owner
+}
+
+// GetBucketPolicyOutput is a generated Smithy structure.
+type GetBucketPolicyOutput struct {
+	Policy *string // bound to payload=
 }
 
 // GetBucketAclRequest is a generated Smithy structure.
@@ -1606,12 +1576,6 @@ type Grant struct {
 	Permission *Permission `xml:"Permission,omitempty"`
 }
 
-// Owner is a generated Smithy structure.
-type Owner struct {
-	DisplayName *string `xml:"DisplayName,omitempty"`
-	ID          *string `xml:"ID,omitempty"`
-}
-
 // GetBucketAclOutput is a generated Smithy structure.
 type GetBucketAclOutput struct {
 	XMLName xml.Name `xml:"AccessControlPolicy"`
@@ -1619,53 +1583,60 @@ type GetBucketAclOutput struct {
 	Owner   *Owner   `xml:"Owner,omitempty"`
 }
 
-// GetBucketAnalyticsConfigurationRequest is a generated Smithy structure.
-type GetBucketAnalyticsConfigurationRequest struct {
+// GetBucketVersioningRequest is a generated Smithy structure.
+type GetBucketVersioningRequest struct {
 	Bucket              string  // bound to label=Bucket
 	ExpectedBucketOwner *string // bound to header=x-amz-expected-bucket-owner
-	Id                  string  // bound to query=id
 }
 
-// AnalyticsAndOperator is a generated Smithy structure.
-type AnalyticsAndOperator struct {
-	Prefix *string `xml:"Prefix,omitempty"`
-	Tags   []Tag   `xml:"Tag,omitempty"`
+// GetBucketVersioningOutput is a generated Smithy structure.
+type GetBucketVersioningOutput struct {
+	XMLName   xml.Name                `xml:"VersioningConfiguration"`
+	MFADelete *MFADeleteStatus        `xml:"MfaDelete,omitempty"`
+	Status    *BucketVersioningStatus `xml:"Status,omitempty"`
 }
 
-// AnalyticsS3BucketDestination is a generated Smithy structure.
-type AnalyticsS3BucketDestination struct {
-	Bucket          string                      `xml:"Bucket,omitempty"`
-	BucketAccountId *string                     `xml:"BucketAccountId,omitempty"`
-	Format          AnalyticsS3ExportFileFormat `xml:"Format,omitempty"`
-	Prefix          *string                     `xml:"Prefix,omitempty"`
+// GetBucketLoggingRequest is a generated Smithy structure.
+type GetBucketLoggingRequest struct {
+	Bucket              string  // bound to label=Bucket
+	ExpectedBucketOwner *string // bound to header=x-amz-expected-bucket-owner
 }
 
-// AnalyticsExportDestination is a generated Smithy structure.
-type AnalyticsExportDestination struct {
-	S3BucketDestination *AnalyticsS3BucketDestination `xml:"S3BucketDestination,omitempty"`
+// TargetGrant is a generated Smithy structure.
+type TargetGrant struct {
+	Grantee    *Grantee              `xml:"Grantee,omitempty"`
+	Permission *BucketLogsPermission `xml:"Permission,omitempty"`
 }
 
-// StorageClassAnalysisDataExport is a generated Smithy structure.
-type StorageClassAnalysisDataExport struct {
-	Destination         *AnalyticsExportDestination       `xml:"Destination,omitempty"`
-	OutputSchemaVersion StorageClassAnalysisSchemaVersion `xml:"OutputSchemaVersion,omitempty"`
+// PartitionedPrefix is a generated Smithy structure.
+type PartitionedPrefix struct {
+	XMLName             xml.Name             `xml:"PartitionedPrefix"`
+	PartitionDateSource *PartitionDateSource `xml:"PartitionDateSource,omitempty"`
 }
 
-// StorageClassAnalysis is a generated Smithy structure.
-type StorageClassAnalysis struct {
-	DataExport *StorageClassAnalysisDataExport `xml:"DataExport,omitempty"`
+// SimplePrefix is a generated Smithy structure.
+type SimplePrefix struct {
+	XMLName xml.Name `xml:"SimplePrefix"`
 }
 
-// AnalyticsConfiguration is a generated Smithy structure.
-type AnalyticsConfiguration struct {
-	Filter               *AnalyticsFilter      `xml:"Filter,omitempty"`
-	Id                   string                `xml:"Id,omitempty"`
-	StorageClassAnalysis *StorageClassAnalysis `xml:"StorageClassAnalysis,omitempty"`
+// TargetObjectKeyFormat is a generated Smithy structure.
+type TargetObjectKeyFormat struct {
+	PartitionedPrefix *PartitionedPrefix `xml:"PartitionedPrefix,omitempty"`
+	SimplePrefix      *SimplePrefix      `xml:"SimplePrefix,omitempty"`
 }
 
-// GetBucketAnalyticsConfigurationOutput is a generated Smithy structure.
-type GetBucketAnalyticsConfigurationOutput struct {
-	AnalyticsConfiguration *AnalyticsConfiguration // bound to payload=
+// LoggingEnabled is a generated Smithy structure.
+type LoggingEnabled struct {
+	TargetBucket          string                 `xml:"TargetBucket,omitempty"`
+	TargetGrants          TargetGrants           `xml:"TargetGrants,omitempty"`
+	TargetObjectKeyFormat *TargetObjectKeyFormat `xml:"TargetObjectKeyFormat,omitempty"`
+	TargetPrefix          string                 `xml:"TargetPrefix,omitempty"`
+}
+
+// GetBucketLoggingOutput is a generated Smithy structure.
+type GetBucketLoggingOutput struct {
+	XMLName        xml.Name        `xml:"BucketLoggingStatus"`
+	LoggingEnabled *LoggingEnabled `xml:"LoggingEnabled,omitempty"`
 }
 
 // GetBucketCorsRequest is a generated Smithy structure.
@@ -1688,143 +1659,6 @@ type CORSRule struct {
 type GetBucketCorsOutput struct {
 	XMLName   xml.Name   `xml:"CORSConfiguration"`
 	CORSRules []CORSRule `xml:"CORSRule,omitempty"`
-}
-
-// GetBucketEncryptionRequest is a generated Smithy structure.
-type GetBucketEncryptionRequest struct {
-	Bucket              string  // bound to label=Bucket
-	ExpectedBucketOwner *string // bound to header=x-amz-expected-bucket-owner
-}
-
-// ServerSideEncryptionByDefault is a generated Smithy structure.
-type ServerSideEncryptionByDefault struct {
-	KMSMasterKeyID *string              `xml:"KMSMasterKeyID,omitempty"`
-	SSEAlgorithm   ServerSideEncryption `xml:"SSEAlgorithm,omitempty"`
-}
-
-// BlockedEncryptionTypes is a generated Smithy structure.
-type BlockedEncryptionTypes struct {
-	EncryptionType []EncryptionType `xml:"EncryptionType,omitempty"`
-}
-
-// ServerSideEncryptionRule is a generated Smithy structure.
-type ServerSideEncryptionRule struct {
-	ApplyServerSideEncryptionByDefault *ServerSideEncryptionByDefault `xml:"ApplyServerSideEncryptionByDefault,omitempty"`
-	BlockedEncryptionTypes             *BlockedEncryptionTypes        `xml:"BlockedEncryptionTypes,omitempty"`
-	BucketKeyEnabled                   *bool                          `xml:"BucketKeyEnabled,omitempty"`
-}
-
-// ServerSideEncryptionConfiguration is a generated Smithy structure.
-type ServerSideEncryptionConfiguration struct {
-	Rules []ServerSideEncryptionRule `xml:"ServerSideEncryptionRule,omitempty"`
-}
-
-// GetBucketEncryptionOutput is a generated Smithy structure.
-type GetBucketEncryptionOutput struct {
-	ServerSideEncryptionConfiguration *ServerSideEncryptionConfiguration // bound to payload=
-}
-
-// GetBucketIntelligentTieringConfigurationRequest is a generated Smithy structure.
-type GetBucketIntelligentTieringConfigurationRequest struct {
-	Bucket              string  // bound to label=Bucket
-	ExpectedBucketOwner *string // bound to header=x-amz-expected-bucket-owner
-	Id                  string  // bound to query=id
-}
-
-// IntelligentTieringAndOperator is a generated Smithy structure.
-type IntelligentTieringAndOperator struct {
-	Prefix *string `xml:"Prefix,omitempty"`
-	Tags   []Tag   `xml:"Tag,omitempty"`
-}
-
-// IntelligentTieringFilter is a generated Smithy structure.
-type IntelligentTieringFilter struct {
-	And    *IntelligentTieringAndOperator `xml:"And,omitempty"`
-	Prefix *string                        `xml:"Prefix,omitempty"`
-	Tag    *Tag                           `xml:"Tag,omitempty"`
-}
-
-// Tiering is a generated Smithy structure.
-type Tiering struct {
-	AccessTier IntelligentTieringAccessTier `xml:"AccessTier,omitempty"`
-	Days       int32                        `xml:"Days,omitempty"`
-}
-
-// IntelligentTieringConfiguration is a generated Smithy structure.
-type IntelligentTieringConfiguration struct {
-	Filter   *IntelligentTieringFilter `xml:"Filter,omitempty"`
-	Id       string                    `xml:"Id,omitempty"`
-	Status   IntelligentTieringStatus  `xml:"Status,omitempty"`
-	Tierings []Tiering                 `xml:"Tiering,omitempty"`
-}
-
-// GetBucketIntelligentTieringConfigurationOutput is a generated Smithy structure.
-type GetBucketIntelligentTieringConfigurationOutput struct {
-	IntelligentTieringConfiguration *IntelligentTieringConfiguration // bound to payload=
-}
-
-// GetBucketInventoryConfigurationRequest is a generated Smithy structure.
-type GetBucketInventoryConfigurationRequest struct {
-	Bucket              string  // bound to label=Bucket
-	ExpectedBucketOwner *string // bound to header=x-amz-expected-bucket-owner
-	Id                  string  // bound to query=id
-}
-
-// SSEKMS is a generated Smithy structure.
-type SSEKMS struct {
-	XMLName xml.Name `xml:"SSE-KMS"`
-	KeyId   string   `xml:"KeyId,omitempty"`
-}
-
-// SSES3 is a generated Smithy structure.
-type SSES3 struct {
-	XMLName xml.Name `xml:"SSE-S3"`
-}
-
-// InventoryEncryption is a generated Smithy structure.
-type InventoryEncryption struct {
-	SSEKMS *SSEKMS `xml:"SSE-KMS,omitempty"`
-	SSES3  *SSES3  `xml:"SSE-S3,omitempty"`
-}
-
-// InventoryS3BucketDestination is a generated Smithy structure.
-type InventoryS3BucketDestination struct {
-	AccountId  *string              `xml:"AccountId,omitempty"`
-	Bucket     string               `xml:"Bucket,omitempty"`
-	Encryption *InventoryEncryption `xml:"Encryption,omitempty"`
-	Format     InventoryFormat      `xml:"Format,omitempty"`
-	Prefix     *string              `xml:"Prefix,omitempty"`
-}
-
-// InventoryDestination is a generated Smithy structure.
-type InventoryDestination struct {
-	S3BucketDestination *InventoryS3BucketDestination `xml:"S3BucketDestination,omitempty"`
-}
-
-// InventoryFilter is a generated Smithy structure.
-type InventoryFilter struct {
-	Prefix string `xml:"Prefix,omitempty"`
-}
-
-// InventorySchedule is a generated Smithy structure.
-type InventorySchedule struct {
-	Frequency InventoryFrequency `xml:"Frequency,omitempty"`
-}
-
-// InventoryConfiguration is a generated Smithy structure.
-type InventoryConfiguration struct {
-	Destination            *InventoryDestination           `xml:"Destination,omitempty"`
-	Filter                 *InventoryFilter                `xml:"Filter,omitempty"`
-	Id                     string                          `xml:"Id,omitempty"`
-	IncludedObjectVersions InventoryIncludedObjectVersions `xml:"IncludedObjectVersions,omitempty"`
-	IsEnabled              bool                            `xml:"IsEnabled,omitempty"`
-	OptionalFields         InventoryOptionalFields         `xml:"OptionalFields,omitempty"`
-	Schedule               *InventorySchedule              `xml:"Schedule,omitempty"`
-}
-
-// GetBucketInventoryConfigurationOutput is a generated Smithy structure.
-type GetBucketInventoryConfigurationOutput struct {
-	InventoryConfiguration *InventoryConfiguration // bound to payload=
 }
 
 // GetBucketLifecycleConfigurationRequest is a generated Smithy structure.
@@ -1900,277 +1734,6 @@ type GetBucketLifecycleConfigurationOutput struct {
 	XMLName                            xml.Name                            `xml:"LifecycleConfiguration"`
 	Rules                              []LifecycleRule                     `xml:"LifecycleRule,omitempty"`
 	TransitionDefaultMinimumObjectSize *TransitionDefaultMinimumObjectSize // bound to header=x-amz-transition-default-minimum-object-size
-}
-
-// GetBucketLocationRequest is a generated Smithy structure.
-type GetBucketLocationRequest struct {
-	Bucket              string  // bound to label=Bucket
-	ExpectedBucketOwner *string // bound to header=x-amz-expected-bucket-owner
-}
-
-// GetBucketLocationOutput is a generated Smithy structure.
-type GetBucketLocationOutput struct {
-	XMLName            xml.Name                  `xml:"LocationConstraint"`
-	LocationConstraint *BucketLocationConstraint `xml:"LocationConstraint,omitempty"`
-}
-
-// GetBucketLoggingRequest is a generated Smithy structure.
-type GetBucketLoggingRequest struct {
-	Bucket              string  // bound to label=Bucket
-	ExpectedBucketOwner *string // bound to header=x-amz-expected-bucket-owner
-}
-
-// TargetGrant is a generated Smithy structure.
-type TargetGrant struct {
-	Grantee    *Grantee              `xml:"Grantee,omitempty"`
-	Permission *BucketLogsPermission `xml:"Permission,omitempty"`
-}
-
-// PartitionedPrefix is a generated Smithy structure.
-type PartitionedPrefix struct {
-	XMLName             xml.Name             `xml:"PartitionedPrefix"`
-	PartitionDateSource *PartitionDateSource `xml:"PartitionDateSource,omitempty"`
-}
-
-// SimplePrefix is a generated Smithy structure.
-type SimplePrefix struct {
-	XMLName xml.Name `xml:"SimplePrefix"`
-}
-
-// TargetObjectKeyFormat is a generated Smithy structure.
-type TargetObjectKeyFormat struct {
-	PartitionedPrefix *PartitionedPrefix `xml:"PartitionedPrefix,omitempty"`
-	SimplePrefix      *SimplePrefix      `xml:"SimplePrefix,omitempty"`
-}
-
-// LoggingEnabled is a generated Smithy structure.
-type LoggingEnabled struct {
-	TargetBucket          string                 `xml:"TargetBucket,omitempty"`
-	TargetGrants          TargetGrants           `xml:"TargetGrants,omitempty"`
-	TargetObjectKeyFormat *TargetObjectKeyFormat `xml:"TargetObjectKeyFormat,omitempty"`
-	TargetPrefix          string                 `xml:"TargetPrefix,omitempty"`
-}
-
-// GetBucketLoggingOutput is a generated Smithy structure.
-type GetBucketLoggingOutput struct {
-	XMLName        xml.Name        `xml:"BucketLoggingStatus"`
-	LoggingEnabled *LoggingEnabled `xml:"LoggingEnabled,omitempty"`
-}
-
-// GetBucketMetadataConfigurationRequest is a generated Smithy structure.
-type GetBucketMetadataConfigurationRequest struct {
-	Bucket              string  // bound to label=Bucket
-	ExpectedBucketOwner *string // bound to header=x-amz-expected-bucket-owner
-}
-
-// DestinationResult is a generated Smithy structure.
-type DestinationResult struct {
-	TableBucketArn  *string             `xml:"TableBucketArn,omitempty"`
-	TableBucketType *S3TablesBucketType `xml:"TableBucketType,omitempty"`
-	TableNamespace  *string             `xml:"TableNamespace,omitempty"`
-}
-
-// ErrorDetails is a generated Smithy structure.
-type ErrorDetails struct {
-	ErrorCode    *string `xml:"ErrorCode,omitempty"`
-	ErrorMessage *string `xml:"ErrorMessage,omitempty"`
-}
-
-// InventoryTableConfigurationResult is a generated Smithy structure.
-type InventoryTableConfigurationResult struct {
-	ConfigurationState InventoryConfigurationState `xml:"ConfigurationState,omitempty"`
-	Error              *ErrorDetails               `xml:"Error,omitempty"`
-	TableArn           *string                     `xml:"TableArn,omitempty"`
-	TableName          *string                     `xml:"TableName,omitempty"`
-	TableStatus        *string                     `xml:"TableStatus,omitempty"`
-}
-
-// JournalTableConfigurationResult is a generated Smithy structure.
-type JournalTableConfigurationResult struct {
-	Error            *ErrorDetails     `xml:"Error,omitempty"`
-	RecordExpiration *RecordExpiration `xml:"RecordExpiration,omitempty"`
-	TableArn         *string           `xml:"TableArn,omitempty"`
-	TableName        string            `xml:"TableName,omitempty"`
-	TableStatus      string            `xml:"TableStatus,omitempty"`
-}
-
-// MetadataConfigurationResult is a generated Smithy structure.
-type MetadataConfigurationResult struct {
-	DestinationResult                 *DestinationResult                 `xml:"DestinationResult,omitempty"`
-	InventoryTableConfigurationResult *InventoryTableConfigurationResult `xml:"InventoryTableConfigurationResult,omitempty"`
-	JournalTableConfigurationResult   *JournalTableConfigurationResult   `xml:"JournalTableConfigurationResult,omitempty"`
-}
-
-// GetBucketMetadataConfigurationResult is a generated Smithy structure.
-type GetBucketMetadataConfigurationResult struct {
-	MetadataConfigurationResult *MetadataConfigurationResult `xml:"MetadataConfigurationResult,omitempty"`
-}
-
-// GetBucketMetadataConfigurationOutput is a generated Smithy structure.
-type GetBucketMetadataConfigurationOutput struct {
-	GetBucketMetadataConfigurationResult *GetBucketMetadataConfigurationResult // bound to payload=
-}
-
-// GetBucketMetadataTableConfigurationRequest is a generated Smithy structure.
-type GetBucketMetadataTableConfigurationRequest struct {
-	Bucket              string  // bound to label=Bucket
-	ExpectedBucketOwner *string // bound to header=x-amz-expected-bucket-owner
-}
-
-// S3TablesDestinationResult is a generated Smithy structure.
-type S3TablesDestinationResult struct {
-	TableArn       string `xml:"TableArn,omitempty"`
-	TableBucketArn string `xml:"TableBucketArn,omitempty"`
-	TableName      string `xml:"TableName,omitempty"`
-	TableNamespace string `xml:"TableNamespace,omitempty"`
-}
-
-// MetadataTableConfigurationResult is a generated Smithy structure.
-type MetadataTableConfigurationResult struct {
-	S3TablesDestinationResult *S3TablesDestinationResult `xml:"S3TablesDestinationResult,omitempty"`
-}
-
-// GetBucketMetadataTableConfigurationResult is a generated Smithy structure.
-type GetBucketMetadataTableConfigurationResult struct {
-	Error                            *ErrorDetails                     `xml:"Error,omitempty"`
-	MetadataTableConfigurationResult *MetadataTableConfigurationResult `xml:"MetadataTableConfigurationResult,omitempty"`
-	Status                           string                            `xml:"Status,omitempty"`
-}
-
-// GetBucketMetadataTableConfigurationOutput is a generated Smithy structure.
-type GetBucketMetadataTableConfigurationOutput struct {
-	GetBucketMetadataTableConfigurationResult *GetBucketMetadataTableConfigurationResult // bound to payload=
-}
-
-// GetBucketMetricsConfigurationRequest is a generated Smithy structure.
-type GetBucketMetricsConfigurationRequest struct {
-	Bucket              string  // bound to label=Bucket
-	ExpectedBucketOwner *string // bound to header=x-amz-expected-bucket-owner
-	Id                  string  // bound to query=id
-}
-
-// MetricsAndOperator is a generated Smithy structure.
-type MetricsAndOperator struct {
-	AccessPointArn *string `xml:"AccessPointArn,omitempty"`
-	Prefix         *string `xml:"Prefix,omitempty"`
-	Tags           []Tag   `xml:"Tag,omitempty"`
-}
-
-// MetricsConfiguration is a generated Smithy structure.
-type MetricsConfiguration struct {
-	Filter *MetricsFilter `xml:"Filter,omitempty"`
-	Id     string         `xml:"Id,omitempty"`
-}
-
-// GetBucketMetricsConfigurationOutput is a generated Smithy structure.
-type GetBucketMetricsConfigurationOutput struct {
-	MetricsConfiguration *MetricsConfiguration // bound to payload=
-}
-
-// GetBucketNotificationConfigurationRequest is a generated Smithy structure.
-type GetBucketNotificationConfigurationRequest struct {
-	Bucket              string  // bound to label=Bucket
-	ExpectedBucketOwner *string // bound to header=x-amz-expected-bucket-owner
-}
-
-// EventBridgeConfiguration is a generated Smithy structure.
-type EventBridgeConfiguration struct {
-}
-
-// FilterRule is a generated Smithy structure.
-type FilterRule struct {
-	Name  *FilterRuleName `xml:"Name,omitempty"`
-	Value *string         `xml:"Value,omitempty"`
-}
-
-// S3KeyFilter is a generated Smithy structure.
-type S3KeyFilter struct {
-	FilterRules []FilterRule `xml:"FilterRule,omitempty"`
-}
-
-// NotificationConfigurationFilter is a generated Smithy structure.
-type NotificationConfigurationFilter struct {
-	Key *S3KeyFilter `xml:"S3Key,omitempty"`
-}
-
-// LambdaFunctionConfiguration is a generated Smithy structure.
-type LambdaFunctionConfiguration struct {
-	Events            []Event                          `xml:"Event,omitempty"`
-	Filter            *NotificationConfigurationFilter `xml:"Filter,omitempty"`
-	Id                *string                          `xml:"Id,omitempty"`
-	LambdaFunctionArn string                           `xml:"CloudFunction,omitempty"`
-}
-
-// QueueConfiguration is a generated Smithy structure.
-type QueueConfiguration struct {
-	Events   []Event                          `xml:"Event,omitempty"`
-	Filter   *NotificationConfigurationFilter `xml:"Filter,omitempty"`
-	Id       *string                          `xml:"Id,omitempty"`
-	QueueArn string                           `xml:"Queue,omitempty"`
-}
-
-// TopicConfiguration is a generated Smithy structure.
-type TopicConfiguration struct {
-	Events   []Event                          `xml:"Event,omitempty"`
-	Filter   *NotificationConfigurationFilter `xml:"Filter,omitempty"`
-	Id       *string                          `xml:"Id,omitempty"`
-	TopicArn string                           `xml:"Topic,omitempty"`
-}
-
-// NotificationConfiguration is a generated Smithy structure.
-type NotificationConfiguration struct {
-	EventBridgeConfiguration     *EventBridgeConfiguration     `xml:"EventBridgeConfiguration,omitempty"`
-	LambdaFunctionConfigurations []LambdaFunctionConfiguration `xml:"LambdaFunctionConfiguration,omitempty"`
-	QueueConfigurations          []QueueConfiguration          `xml:"QueueConfiguration,omitempty"`
-	TopicConfigurations          []TopicConfiguration          `xml:"TopicConfiguration,omitempty"`
-}
-
-// GetBucketOwnershipControlsRequest is a generated Smithy structure.
-type GetBucketOwnershipControlsRequest struct {
-	Bucket              string  // bound to label=Bucket
-	ExpectedBucketOwner *string // bound to header=x-amz-expected-bucket-owner
-}
-
-// OwnershipControlsRule is a generated Smithy structure.
-type OwnershipControlsRule struct {
-	ObjectOwnership ObjectOwnership `xml:"ObjectOwnership,omitempty"`
-}
-
-// OwnershipControls is a generated Smithy structure.
-type OwnershipControls struct {
-	Rules []OwnershipControlsRule `xml:"OwnershipControlsRule,omitempty"`
-}
-
-// GetBucketOwnershipControlsOutput is a generated Smithy structure.
-type GetBucketOwnershipControlsOutput struct {
-	OwnershipControls *OwnershipControls // bound to payload=
-}
-
-// GetBucketPolicyRequest is a generated Smithy structure.
-type GetBucketPolicyRequest struct {
-	Bucket              string  // bound to label=Bucket
-	ExpectedBucketOwner *string // bound to header=x-amz-expected-bucket-owner
-}
-
-// GetBucketPolicyOutput is a generated Smithy structure.
-type GetBucketPolicyOutput struct {
-	Policy *string // bound to payload=
-}
-
-// GetBucketPolicyStatusRequest is a generated Smithy structure.
-type GetBucketPolicyStatusRequest struct {
-	Bucket              string  // bound to label=Bucket
-	ExpectedBucketOwner *string // bound to header=x-amz-expected-bucket-owner
-}
-
-// PolicyStatus is a generated Smithy structure.
-type PolicyStatus struct {
-	IsPublic *bool `xml:"IsPublic,omitempty"`
-}
-
-// GetBucketPolicyStatusOutput is a generated Smithy structure.
-type GetBucketPolicyStatusOutput struct {
-	PolicyStatus *PolicyStatus // bound to payload=
 }
 
 // GetBucketReplicationRequest is a generated Smithy structure.
@@ -2304,19 +1867,6 @@ type GetBucketTaggingOutput struct {
 	TagSet  TagSet   `xml:"TagSet,omitempty"`
 }
 
-// GetBucketVersioningRequest is a generated Smithy structure.
-type GetBucketVersioningRequest struct {
-	Bucket              string  // bound to label=Bucket
-	ExpectedBucketOwner *string // bound to header=x-amz-expected-bucket-owner
-}
-
-// GetBucketVersioningOutput is a generated Smithy structure.
-type GetBucketVersioningOutput struct {
-	XMLName   xml.Name                `xml:"VersioningConfiguration"`
-	MFADelete *MFADeleteStatus        `xml:"MfaDelete,omitempty"`
-	Status    *BucketVersioningStatus `xml:"Status,omitempty"`
-}
-
 // GetBucketWebsiteRequest is a generated Smithy structure.
 type GetBucketWebsiteRequest struct {
 	Bucket              string  // bound to label=Bucket
@@ -2369,192 +1919,52 @@ type GetBucketWebsiteOutput struct {
 	RoutingRules          RoutingRules           `xml:"RoutingRules,omitempty"`
 }
 
-// GetObjectRequest is a generated Smithy structure.
-type GetObjectRequest struct {
-	Bucket                     string        // bound to label=Bucket
-	ChecksumMode               *ChecksumMode // bound to header=x-amz-checksum-mode
-	ExpectedBucketOwner        *string       // bound to header=x-amz-expected-bucket-owner
-	IfMatch                    *string       // bound to header=If-Match
-	IfModifiedSince            *time.Time    // bound to header=If-Modified-Since
-	IfNoneMatch                *string       // bound to header=If-None-Match
-	IfUnmodifiedSince          *time.Time    // bound to header=If-Unmodified-Since
-	Key                        string        // bound to label=Key
-	PartNumber                 *int32        // bound to query=partNumber
-	Range                      *string       // bound to header=Range
-	RequestPayer               *RequestPayer // bound to header=x-amz-request-payer
-	ResponseCacheControl       *string       // bound to query=response-cache-control
-	ResponseContentDisposition *string       // bound to query=response-content-disposition
-	ResponseContentEncoding    *string       // bound to query=response-content-encoding
-	ResponseContentLanguage    *string       // bound to query=response-content-language
-	ResponseContentType        *string       // bound to query=response-content-type
-	ResponseExpires            *time.Time    // bound to query=response-expires
-	SSECustomerAlgorithm       *string       // bound to header=x-amz-server-side-encryption-customer-algorithm
-	SSECustomerKey             *string       // bound to header=x-amz-server-side-encryption-customer-key
-	SSECustomerKeyMD5          *string       // bound to header=x-amz-server-side-encryption-customer-key-MD5
-	VersionId                  *string       // bound to query=versionId
+// GetBucketEncryptionRequest is a generated Smithy structure.
+type GetBucketEncryptionRequest struct {
+	Bucket              string  // bound to label=Bucket
+	ExpectedBucketOwner *string // bound to header=x-amz-expected-bucket-owner
 }
 
-// GetObjectOutput is a generated Smithy structure.
-type GetObjectOutput struct {
-	AcceptRanges              *string                    // bound to header=accept-ranges
-	Body                      []byte                     // bound to payload=
-	BucketKeyEnabled          *bool                      // bound to header=x-amz-server-side-encryption-bucket-key-enabled
-	CacheControl              *string                    // bound to header=Cache-Control
-	ChecksumCRC32             *string                    // bound to header=x-amz-checksum-crc32
-	ChecksumCRC32C            *string                    // bound to header=x-amz-checksum-crc32c
-	ChecksumCRC64NVME         *string                    // bound to header=x-amz-checksum-crc64nvme
-	ChecksumMD5               *string                    // bound to header=x-amz-checksum-md5
-	ChecksumSHA1              *string                    // bound to header=x-amz-checksum-sha1
-	ChecksumSHA256            *string                    // bound to header=x-amz-checksum-sha256
-	ChecksumSHA512            *string                    // bound to header=x-amz-checksum-sha512
-	ChecksumType              *ChecksumType              // bound to header=x-amz-checksum-type
-	ChecksumXXHASH128         *string                    // bound to header=x-amz-checksum-xxhash128
-	ChecksumXXHASH3           *string                    // bound to header=x-amz-checksum-xxhash3
-	ChecksumXXHASH64          *string                    // bound to header=x-amz-checksum-xxhash64
-	ContentDisposition        *string                    // bound to header=Content-Disposition
-	ContentEncoding           *string                    // bound to header=Content-Encoding
-	ContentLanguage           *string                    // bound to header=Content-Language
-	ContentLength             *int64                     // bound to header=Content-Length
-	ContentRange              *string                    // bound to header=Content-Range
-	ContentType               *string                    // bound to header=Content-Type
-	DeleteMarker              *bool                      // bound to header=x-amz-delete-marker
-	ETag                      *string                    // bound to header=ETag
-	Expiration                *string                    // bound to header=x-amz-expiration
-	Expires                   *string                    // bound to header=Expires
-	LastModified              *time.Time                 // bound to header=Last-Modified
-	Metadata                  Metadata                   // bound to prefix-headers=x-amz-meta-
-	MissingMeta               *int32                     // bound to header=x-amz-missing-meta
-	ObjectLockLegalHoldStatus *ObjectLockLegalHoldStatus // bound to header=x-amz-object-lock-legal-hold
-	ObjectLockMode            *ObjectLockMode            // bound to header=x-amz-object-lock-mode
-	ObjectLockRetainUntilDate *time.Time                 // bound to header=x-amz-object-lock-retain-until-date
-	PartsCount                *int32                     // bound to header=x-amz-mp-parts-count
-	ReplicationStatus         *ReplicationStatus         // bound to header=x-amz-replication-status
-	RequestCharged            *RequestCharged            // bound to header=x-amz-request-charged
-	Restore                   *string                    // bound to header=x-amz-restore
-	SSECustomerAlgorithm      *string                    // bound to header=x-amz-server-side-encryption-customer-algorithm
-	SSECustomerKeyMD5         *string                    // bound to header=x-amz-server-side-encryption-customer-key-MD5
-	SSEKMSKeyId               *string                    // bound to header=x-amz-server-side-encryption-aws-kms-key-id
-	ServerSideEncryption      *ServerSideEncryption      // bound to header=x-amz-server-side-encryption
-	StorageClass              *StorageClass              // bound to header=x-amz-storage-class
-	TagCount                  *int32                     // bound to header=x-amz-tagging-count
-	VersionId                 *string                    // bound to header=x-amz-version-id
-	WebsiteRedirectLocation   *string                    // bound to header=x-amz-website-redirect-location
+// ServerSideEncryptionByDefault is a generated Smithy structure.
+type ServerSideEncryptionByDefault struct {
+	KMSMasterKeyID *string              `xml:"KMSMasterKeyID,omitempty"`
+	SSEAlgorithm   ServerSideEncryption `xml:"SSEAlgorithm,omitempty"`
 }
 
-// InvalidObjectState is a generated Smithy structure. It is an error response (HTTP 403).
-type InvalidObjectState struct {
-	AccessTier   *IntelligentTieringAccessTier `xml:"AccessTier,omitempty"`
-	StorageClass *StorageClass                 `xml:"StorageClass,omitempty"`
+// BlockedEncryptionTypes is a generated Smithy structure.
+type BlockedEncryptionTypes struct {
+	EncryptionType []EncryptionType `xml:"EncryptionType,omitempty"`
 }
 
-// NoSuchKey is a generated Smithy structure. It is an error response (HTTP 404).
-type NoSuchKey struct {
+// ServerSideEncryptionRule is a generated Smithy structure.
+type ServerSideEncryptionRule struct {
+	ApplyServerSideEncryptionByDefault *ServerSideEncryptionByDefault `xml:"ApplyServerSideEncryptionByDefault,omitempty"`
+	BlockedEncryptionTypes             *BlockedEncryptionTypes        `xml:"BlockedEncryptionTypes,omitempty"`
+	BucketKeyEnabled                   *bool                          `xml:"BucketKeyEnabled,omitempty"`
 }
 
-// GetObjectAclRequest is a generated Smithy structure.
-type GetObjectAclRequest struct {
+// ServerSideEncryptionConfiguration is a generated Smithy structure.
+type ServerSideEncryptionConfiguration struct {
+	Rules []ServerSideEncryptionRule `xml:"ServerSideEncryptionRule,omitempty"`
+}
+
+// GetBucketEncryptionOutput is a generated Smithy structure.
+type GetBucketEncryptionOutput struct {
+	ServerSideEncryptionConfiguration *ServerSideEncryptionConfiguration // bound to payload=
+}
+
+// GetBucketAccelerateConfigurationRequest is a generated Smithy structure.
+type GetBucketAccelerateConfigurationRequest struct {
 	Bucket              string        // bound to label=Bucket
 	ExpectedBucketOwner *string       // bound to header=x-amz-expected-bucket-owner
-	Key                 string        // bound to label=Key
 	RequestPayer        *RequestPayer // bound to header=x-amz-request-payer
-	VersionId           *string       // bound to query=versionId
 }
 
-// GetObjectAclOutput is a generated Smithy structure.
-type GetObjectAclOutput struct {
-	XMLName        xml.Name        `xml:"AccessControlPolicy"`
-	Grants         Grants          `xml:"AccessControlList,omitempty"`
-	Owner          *Owner          `xml:"Owner,omitempty"`
-	RequestCharged *RequestCharged // bound to header=x-amz-request-charged
-}
-
-// GetObjectAttributesRequest is a generated Smithy structure.
-type GetObjectAttributesRequest struct {
-	Bucket               string               // bound to label=Bucket
-	ExpectedBucketOwner  *string              // bound to header=x-amz-expected-bucket-owner
-	Key                  string               // bound to label=Key
-	MaxParts             *int32               // bound to header=x-amz-max-parts
-	ObjectAttributes     ObjectAttributesList // bound to header=x-amz-object-attributes
-	PartNumberMarker     *string              // bound to header=x-amz-part-number-marker
-	RequestPayer         *RequestPayer        // bound to header=x-amz-request-payer
-	SSECustomerAlgorithm *string              // bound to header=x-amz-server-side-encryption-customer-algorithm
-	SSECustomerKey       *string              // bound to header=x-amz-server-side-encryption-customer-key
-	SSECustomerKeyMD5    *string              // bound to header=x-amz-server-side-encryption-customer-key-MD5
-	VersionId            *string              // bound to query=versionId
-}
-
-// Checksum is a generated Smithy structure.
-type Checksum struct {
-	ChecksumCRC32     *string       `xml:"ChecksumCRC32,omitempty"`
-	ChecksumCRC32C    *string       `xml:"ChecksumCRC32C,omitempty"`
-	ChecksumCRC64NVME *string       `xml:"ChecksumCRC64NVME,omitempty"`
-	ChecksumMD5       *string       `xml:"ChecksumMD5,omitempty"`
-	ChecksumSHA1      *string       `xml:"ChecksumSHA1,omitempty"`
-	ChecksumSHA256    *string       `xml:"ChecksumSHA256,omitempty"`
-	ChecksumSHA512    *string       `xml:"ChecksumSHA512,omitempty"`
-	ChecksumType      *ChecksumType `xml:"ChecksumType,omitempty"`
-	ChecksumXXHASH128 *string       `xml:"ChecksumXXHASH128,omitempty"`
-	ChecksumXXHASH3   *string       `xml:"ChecksumXXHASH3,omitempty"`
-	ChecksumXXHASH64  *string       `xml:"ChecksumXXHASH64,omitempty"`
-}
-
-// ObjectPart is a generated Smithy structure.
-type ObjectPart struct {
-	ChecksumCRC32     *string `xml:"ChecksumCRC32,omitempty"`
-	ChecksumCRC32C    *string `xml:"ChecksumCRC32C,omitempty"`
-	ChecksumCRC64NVME *string `xml:"ChecksumCRC64NVME,omitempty"`
-	ChecksumMD5       *string `xml:"ChecksumMD5,omitempty"`
-	ChecksumSHA1      *string `xml:"ChecksumSHA1,omitempty"`
-	ChecksumSHA256    *string `xml:"ChecksumSHA256,omitempty"`
-	ChecksumSHA512    *string `xml:"ChecksumSHA512,omitempty"`
-	ChecksumXXHASH128 *string `xml:"ChecksumXXHASH128,omitempty"`
-	ChecksumXXHASH3   *string `xml:"ChecksumXXHASH3,omitempty"`
-	ChecksumXXHASH64  *string `xml:"ChecksumXXHASH64,omitempty"`
-	PartNumber        *int32  `xml:"PartNumber,omitempty"`
-	Size              *int64  `xml:"Size,omitempty"`
-}
-
-// GetObjectAttributesParts is a generated Smithy structure.
-type GetObjectAttributesParts struct {
-	IsTruncated          *bool        `xml:"IsTruncated,omitempty"`
-	MaxParts             *int32       `xml:"MaxParts,omitempty"`
-	NextPartNumberMarker *string      `xml:"NextPartNumberMarker,omitempty"`
-	PartNumberMarker     *string      `xml:"PartNumberMarker,omitempty"`
-	Parts                []ObjectPart `xml:"ObjectPart,omitempty"`
-	TotalPartsCount      *int32       `xml:"PartsCount,omitempty"`
-}
-
-// GetObjectAttributesOutput is a generated Smithy structure.
-type GetObjectAttributesOutput struct {
-	XMLName        xml.Name                  `xml:"GetObjectAttributesResponse"`
-	Checksum       *Checksum                 `xml:"Checksum,omitempty"`
-	DeleteMarker   *bool                     // bound to header=x-amz-delete-marker
-	ETag           *string                   `xml:"ETag,omitempty"`
-	LastModified   *time.Time                // bound to header=Last-Modified
-	ObjectParts    *GetObjectAttributesParts `xml:"ObjectParts,omitempty"`
-	ObjectSize     *int64                    `xml:"ObjectSize,omitempty"`
-	RequestCharged *RequestCharged           // bound to header=x-amz-request-charged
-	StorageClass   *StorageClass             `xml:"StorageClass,omitempty"`
-	VersionId      *string                   // bound to header=x-amz-version-id
-}
-
-// GetObjectLegalHoldRequest is a generated Smithy structure.
-type GetObjectLegalHoldRequest struct {
-	Bucket              string        // bound to label=Bucket
-	ExpectedBucketOwner *string       // bound to header=x-amz-expected-bucket-owner
-	Key                 string        // bound to label=Key
-	RequestPayer        *RequestPayer // bound to header=x-amz-request-payer
-	VersionId           *string       // bound to query=versionId
-}
-
-// ObjectLockLegalHold is a generated Smithy structure.
-type ObjectLockLegalHold struct {
-	Status *ObjectLockLegalHoldStatus `xml:"Status,omitempty"`
-}
-
-// GetObjectLegalHoldOutput is a generated Smithy structure.
-type GetObjectLegalHoldOutput struct {
-	LegalHold *ObjectLockLegalHold // bound to payload=
+// GetBucketAccelerateConfigurationOutput is a generated Smithy structure.
+type GetBucketAccelerateConfigurationOutput struct {
+	XMLName        xml.Name                `xml:"AccelerateConfiguration"`
+	RequestCharged *RequestCharged         // bound to header=x-amz-request-charged
+	Status         *BucketAccelerateStatus `xml:"Status,omitempty"`
 }
 
 // GetObjectLockConfigurationRequest is a generated Smithy structure.
@@ -2586,54 +1996,99 @@ type GetObjectLockConfigurationOutput struct {
 	ObjectLockConfiguration *ObjectLockConfiguration // bound to payload=
 }
 
-// GetObjectRetentionRequest is a generated Smithy structure.
-type GetObjectRetentionRequest struct {
-	Bucket              string        // bound to label=Bucket
-	ExpectedBucketOwner *string       // bound to header=x-amz-expected-bucket-owner
-	Key                 string        // bound to label=Key
-	RequestPayer        *RequestPayer // bound to header=x-amz-request-payer
-	VersionId           *string       // bound to query=versionId
+// GetBucketNotificationConfigurationRequest is a generated Smithy structure.
+type GetBucketNotificationConfigurationRequest struct {
+	Bucket              string  // bound to label=Bucket
+	ExpectedBucketOwner *string // bound to header=x-amz-expected-bucket-owner
 }
 
-// ObjectLockRetention is a generated Smithy structure.
-type ObjectLockRetention struct {
-	Mode            *ObjectLockRetentionMode `xml:"Mode,omitempty"`
-	RetainUntilDate *time.Time               `xml:"RetainUntilDate,omitempty"`
+// EventBridgeConfiguration is a generated Smithy structure.
+type EventBridgeConfiguration struct {
 }
 
-// GetObjectRetentionOutput is a generated Smithy structure.
-type GetObjectRetentionOutput struct {
-	Retention *ObjectLockRetention // bound to payload=
+// FilterRule is a generated Smithy structure.
+type FilterRule struct {
+	Name  *FilterRuleName `xml:"Name,omitempty"`
+	Value *string         `xml:"Value,omitempty"`
 }
 
-// GetObjectTaggingRequest is a generated Smithy structure.
-type GetObjectTaggingRequest struct {
-	Bucket              string        // bound to label=Bucket
-	ExpectedBucketOwner *string       // bound to header=x-amz-expected-bucket-owner
-	Key                 string        // bound to label=Key
-	RequestPayer        *RequestPayer // bound to header=x-amz-request-payer
-	VersionId           *string       // bound to query=versionId
+// S3KeyFilter is a generated Smithy structure.
+type S3KeyFilter struct {
+	FilterRules []FilterRule `xml:"FilterRule,omitempty"`
 }
 
-// GetObjectTaggingOutput is a generated Smithy structure.
-type GetObjectTaggingOutput struct {
-	XMLName   xml.Name `xml:"Tagging"`
-	TagSet    TagSet   `xml:"TagSet,omitempty"`
-	VersionId *string  // bound to header=x-amz-version-id
+// NotificationConfigurationFilter is a generated Smithy structure.
+type NotificationConfigurationFilter struct {
+	Key *S3KeyFilter `xml:"S3Key,omitempty"`
 }
 
-// GetObjectTorrentRequest is a generated Smithy structure.
-type GetObjectTorrentRequest struct {
-	Bucket              string        // bound to label=Bucket
-	ExpectedBucketOwner *string       // bound to header=x-amz-expected-bucket-owner
-	Key                 string        // bound to label=Key
-	RequestPayer        *RequestPayer // bound to header=x-amz-request-payer
+// LambdaFunctionConfiguration is a generated Smithy structure.
+type LambdaFunctionConfiguration struct {
+	Events            []Event                          `xml:"Event,omitempty"`
+	Filter            *NotificationConfigurationFilter `xml:"Filter,omitempty"`
+	Id                *string                          `xml:"Id,omitempty"`
+	LambdaFunctionArn string                           `xml:"CloudFunction,omitempty"`
 }
 
-// GetObjectTorrentOutput is a generated Smithy structure.
-type GetObjectTorrentOutput struct {
-	Body           []byte          // bound to payload=
-	RequestCharged *RequestCharged // bound to header=x-amz-request-charged
+// QueueConfiguration is a generated Smithy structure.
+type QueueConfiguration struct {
+	Events   []Event                          `xml:"Event,omitempty"`
+	Filter   *NotificationConfigurationFilter `xml:"Filter,omitempty"`
+	Id       *string                          `xml:"Id,omitempty"`
+	QueueArn string                           `xml:"Queue,omitempty"`
+}
+
+// TopicConfiguration is a generated Smithy structure.
+type TopicConfiguration struct {
+	Events   []Event                          `xml:"Event,omitempty"`
+	Filter   *NotificationConfigurationFilter `xml:"Filter,omitempty"`
+	Id       *string                          `xml:"Id,omitempty"`
+	TopicArn string                           `xml:"Topic,omitempty"`
+}
+
+// NotificationConfiguration is a generated Smithy structure.
+type NotificationConfiguration struct {
+	EventBridgeConfiguration     *EventBridgeConfiguration     `xml:"EventBridgeConfiguration,omitempty"`
+	LambdaFunctionConfigurations []LambdaFunctionConfiguration `xml:"LambdaFunctionConfiguration,omitempty"`
+	QueueConfigurations          []QueueConfiguration          `xml:"QueueConfiguration,omitempty"`
+	TopicConfigurations          []TopicConfiguration          `xml:"TopicConfiguration,omitempty"`
+}
+
+// GetBucketOwnershipControlsRequest is a generated Smithy structure.
+type GetBucketOwnershipControlsRequest struct {
+	Bucket              string  // bound to label=Bucket
+	ExpectedBucketOwner *string // bound to header=x-amz-expected-bucket-owner
+}
+
+// OwnershipControlsRule is a generated Smithy structure.
+type OwnershipControlsRule struct {
+	ObjectOwnership ObjectOwnership `xml:"ObjectOwnership,omitempty"`
+}
+
+// OwnershipControls is a generated Smithy structure.
+type OwnershipControls struct {
+	Rules []OwnershipControlsRule `xml:"OwnershipControlsRule,omitempty"`
+}
+
+// GetBucketOwnershipControlsOutput is a generated Smithy structure.
+type GetBucketOwnershipControlsOutput struct {
+	OwnershipControls *OwnershipControls // bound to payload=
+}
+
+// GetBucketPolicyStatusRequest is a generated Smithy structure.
+type GetBucketPolicyStatusRequest struct {
+	Bucket              string  // bound to label=Bucket
+	ExpectedBucketOwner *string // bound to header=x-amz-expected-bucket-owner
+}
+
+// PolicyStatus is a generated Smithy structure.
+type PolicyStatus struct {
+	IsPublic *bool `xml:"IsPublic,omitempty"`
+}
+
+// GetBucketPolicyStatusOutput is a generated Smithy structure.
+type GetBucketPolicyStatusOutput struct {
+	PolicyStatus *PolicyStatus // bound to payload=
 }
 
 // GetPublicAccessBlockRequest is a generated Smithy structure.
@@ -2655,1333 +2110,509 @@ type GetPublicAccessBlockOutput struct {
 	PublicAccessBlockConfiguration *PublicAccessBlockConfiguration // bound to payload=
 }
 
-// HeadBucketRequest is a generated Smithy structure.
-type HeadBucketRequest struct {
-	Bucket              string  // bound to label=Bucket
-	ExpectedBucketOwner *string // bound to header=x-amz-expected-bucket-owner
-}
-
-// HeadBucketOutput is a generated Smithy structure.
-type HeadBucketOutput struct {
-	AccessPointAlias   *bool         // bound to header=x-amz-access-point-alias
-	BucketArn          *string       // bound to header=x-amz-bucket-arn
-	BucketLocationName *string       // bound to header=x-amz-bucket-location-name
-	BucketLocationType *LocationType // bound to header=x-amz-bucket-location-type
-	BucketRegion       *string       // bound to header=x-amz-bucket-region
-}
-
-// NotFound is a generated Smithy structure. It is an error response (HTTP 0).
-type NotFound struct {
-}
-
-// HeadObjectRequest is a generated Smithy structure.
-type HeadObjectRequest struct {
-	Bucket                     string        // bound to label=Bucket
-	ChecksumMode               *ChecksumMode // bound to header=x-amz-checksum-mode
-	ExpectedBucketOwner        *string       // bound to header=x-amz-expected-bucket-owner
-	IfMatch                    *string       // bound to header=If-Match
-	IfModifiedSince            *time.Time    // bound to header=If-Modified-Since
-	IfNoneMatch                *string       // bound to header=If-None-Match
-	IfUnmodifiedSince          *time.Time    // bound to header=If-Unmodified-Since
-	Key                        string        // bound to label=Key
-	PartNumber                 *int32        // bound to query=partNumber
-	Range                      *string       // bound to header=Range
-	RequestPayer               *RequestPayer // bound to header=x-amz-request-payer
-	ResponseCacheControl       *string       // bound to query=response-cache-control
-	ResponseContentDisposition *string       // bound to query=response-content-disposition
-	ResponseContentEncoding    *string       // bound to query=response-content-encoding
-	ResponseContentLanguage    *string       // bound to query=response-content-language
-	ResponseContentType        *string       // bound to query=response-content-type
-	ResponseExpires            *time.Time    // bound to query=response-expires
-	SSECustomerAlgorithm       *string       // bound to header=x-amz-server-side-encryption-customer-algorithm
-	SSECustomerKey             *string       // bound to header=x-amz-server-side-encryption-customer-key
-	SSECustomerKeyMD5          *string       // bound to header=x-amz-server-side-encryption-customer-key-MD5
-	VersionId                  *string       // bound to query=versionId
-}
-
-// HeadObjectOutput is a generated Smithy structure.
-type HeadObjectOutput struct {
-	AcceptRanges              *string                    // bound to header=accept-ranges
-	ArchiveStatus             *ArchiveStatus             // bound to header=x-amz-archive-status
-	BucketKeyEnabled          *bool                      // bound to header=x-amz-server-side-encryption-bucket-key-enabled
-	CacheControl              *string                    // bound to header=Cache-Control
-	ChecksumCRC32             *string                    // bound to header=x-amz-checksum-crc32
-	ChecksumCRC32C            *string                    // bound to header=x-amz-checksum-crc32c
-	ChecksumCRC64NVME         *string                    // bound to header=x-amz-checksum-crc64nvme
-	ChecksumMD5               *string                    // bound to header=x-amz-checksum-md5
-	ChecksumSHA1              *string                    // bound to header=x-amz-checksum-sha1
-	ChecksumSHA256            *string                    // bound to header=x-amz-checksum-sha256
-	ChecksumSHA512            *string                    // bound to header=x-amz-checksum-sha512
-	ChecksumType              *ChecksumType              // bound to header=x-amz-checksum-type
-	ChecksumXXHASH128         *string                    // bound to header=x-amz-checksum-xxhash128
-	ChecksumXXHASH3           *string                    // bound to header=x-amz-checksum-xxhash3
-	ChecksumXXHASH64          *string                    // bound to header=x-amz-checksum-xxhash64
-	ContentDisposition        *string                    // bound to header=Content-Disposition
-	ContentEncoding           *string                    // bound to header=Content-Encoding
-	ContentLanguage           *string                    // bound to header=Content-Language
-	ContentLength             *int64                     // bound to header=Content-Length
-	ContentRange              *string                    // bound to header=Content-Range
-	ContentType               *string                    // bound to header=Content-Type
-	DeleteMarker              *bool                      // bound to header=x-amz-delete-marker
-	ETag                      *string                    // bound to header=ETag
-	Expiration                *string                    // bound to header=x-amz-expiration
-	Expires                   *string                    // bound to header=Expires
-	LastModified              *time.Time                 // bound to header=Last-Modified
-	Metadata                  Metadata                   // bound to prefix-headers=x-amz-meta-
-	MissingMeta               *int32                     // bound to header=x-amz-missing-meta
-	ObjectLockLegalHoldStatus *ObjectLockLegalHoldStatus // bound to header=x-amz-object-lock-legal-hold
-	ObjectLockMode            *ObjectLockMode            // bound to header=x-amz-object-lock-mode
-	ObjectLockRetainUntilDate *time.Time                 // bound to header=x-amz-object-lock-retain-until-date
-	PartsCount                *int32                     // bound to header=x-amz-mp-parts-count
-	ReplicationStatus         *ReplicationStatus         // bound to header=x-amz-replication-status
-	RequestCharged            *RequestCharged            // bound to header=x-amz-request-charged
-	Restore                   *string                    // bound to header=x-amz-restore
-	SSECustomerAlgorithm      *string                    // bound to header=x-amz-server-side-encryption-customer-algorithm
-	SSECustomerKeyMD5         *string                    // bound to header=x-amz-server-side-encryption-customer-key-MD5
-	SSEKMSKeyId               *string                    // bound to header=x-amz-server-side-encryption-aws-kms-key-id
-	ServerSideEncryption      *ServerSideEncryption      // bound to header=x-amz-server-side-encryption
-	StorageClass              *StorageClass              // bound to header=x-amz-storage-class
-	TagCount                  *int32                     // bound to header=x-amz-tagging-count
-	VersionId                 *string                    // bound to header=x-amz-version-id
-	WebsiteRedirectLocation   *string                    // bound to header=x-amz-website-redirect-location
-}
-
-// ListBucketAnalyticsConfigurationsRequest is a generated Smithy structure.
-type ListBucketAnalyticsConfigurationsRequest struct {
-	Bucket              string  // bound to label=Bucket
-	ContinuationToken   *string // bound to query=continuation-token
-	ExpectedBucketOwner *string // bound to header=x-amz-expected-bucket-owner
-}
-
-// ListBucketAnalyticsConfigurationsOutput is a generated Smithy structure.
-type ListBucketAnalyticsConfigurationsOutput struct {
-	XMLName                    xml.Name                 `xml:"ListBucketAnalyticsConfigurationResult"`
-	AnalyticsConfigurationList []AnalyticsConfiguration `xml:"AnalyticsConfiguration,omitempty"`
-	ContinuationToken          *string                  `xml:"ContinuationToken,omitempty"`
-	IsTruncated                *bool                    `xml:"IsTruncated,omitempty"`
-	NextContinuationToken      *string                  `xml:"NextContinuationToken,omitempty"`
-}
-
-// ListBucketIntelligentTieringConfigurationsRequest is a generated Smithy structure.
-type ListBucketIntelligentTieringConfigurationsRequest struct {
-	Bucket              string  // bound to label=Bucket
-	ContinuationToken   *string // bound to query=continuation-token
-	ExpectedBucketOwner *string // bound to header=x-amz-expected-bucket-owner
-}
-
-// ListBucketIntelligentTieringConfigurationsOutput is a generated Smithy structure.
-type ListBucketIntelligentTieringConfigurationsOutput struct {
-	ContinuationToken                   *string                           `xml:"ContinuationToken,omitempty"`
-	IntelligentTieringConfigurationList []IntelligentTieringConfiguration `xml:"IntelligentTieringConfiguration,omitempty"`
-	IsTruncated                         *bool                             `xml:"IsTruncated,omitempty"`
-	NextContinuationToken               *string                           `xml:"NextContinuationToken,omitempty"`
-}
-
-// ListBucketInventoryConfigurationsRequest is a generated Smithy structure.
-type ListBucketInventoryConfigurationsRequest struct {
-	Bucket              string  // bound to label=Bucket
-	ContinuationToken   *string // bound to query=continuation-token
-	ExpectedBucketOwner *string // bound to header=x-amz-expected-bucket-owner
-}
-
-// ListBucketInventoryConfigurationsOutput is a generated Smithy structure.
-type ListBucketInventoryConfigurationsOutput struct {
-	XMLName                    xml.Name                 `xml:"ListInventoryConfigurationsResult"`
-	ContinuationToken          *string                  `xml:"ContinuationToken,omitempty"`
-	InventoryConfigurationList []InventoryConfiguration `xml:"InventoryConfiguration,omitempty"`
-	IsTruncated                *bool                    `xml:"IsTruncated,omitempty"`
-	NextContinuationToken      *string                  `xml:"NextContinuationToken,omitempty"`
-}
-
-// ListBucketMetricsConfigurationsRequest is a generated Smithy structure.
-type ListBucketMetricsConfigurationsRequest struct {
-	Bucket              string  // bound to label=Bucket
-	ContinuationToken   *string // bound to query=continuation-token
-	ExpectedBucketOwner *string // bound to header=x-amz-expected-bucket-owner
-}
-
-// ListBucketMetricsConfigurationsOutput is a generated Smithy structure.
-type ListBucketMetricsConfigurationsOutput struct {
-	XMLName                  xml.Name               `xml:"ListMetricsConfigurationsResult"`
-	ContinuationToken        *string                `xml:"ContinuationToken,omitempty"`
-	IsTruncated              *bool                  `xml:"IsTruncated,omitempty"`
-	MetricsConfigurationList []MetricsConfiguration `xml:"MetricsConfiguration,omitempty"`
-	NextContinuationToken    *string                `xml:"NextContinuationToken,omitempty"`
-}
-
-// ListBucketsRequest is a generated Smithy structure.
-type ListBucketsRequest struct {
-	BucketRegion      *string // bound to query=bucket-region
-	ContinuationToken *string // bound to query=continuation-token
-	MaxBuckets        *int32  // bound to query=max-buckets
-	Prefix            *string // bound to query=prefix
-}
-
-// Bucket is a generated Smithy structure.
-type Bucket struct {
-	BucketArn    *string    `xml:"BucketArn,omitempty"`
-	BucketRegion *string    `xml:"BucketRegion,omitempty"`
-	CreationDate *time.Time `xml:"CreationDate,omitempty"`
-	Name         *string    `xml:"Name,omitempty"`
-}
-
-// ListBucketsOutput is a generated Smithy structure.
-type ListBucketsOutput struct {
-	XMLName           xml.Name `xml:"ListAllMyBucketsResult"`
-	Buckets           Buckets  `xml:"Buckets,omitempty"`
-	ContinuationToken *string  `xml:"ContinuationToken,omitempty"`
-	Owner             *Owner   `xml:"Owner,omitempty"`
-	Prefix            *string  `xml:"Prefix,omitempty"`
-}
-
-// ListDirectoryBucketsRequest is a generated Smithy structure.
-type ListDirectoryBucketsRequest struct {
-	ContinuationToken   *string // bound to query=continuation-token
-	MaxDirectoryBuckets *int32  // bound to query=max-directory-buckets
-}
-
-// ListDirectoryBucketsOutput is a generated Smithy structure.
-type ListDirectoryBucketsOutput struct {
-	XMLName           xml.Name `xml:"ListAllMyDirectoryBucketsResult"`
-	Buckets           Buckets  `xml:"Buckets,omitempty"`
-	ContinuationToken *string  `xml:"ContinuationToken,omitempty"`
-}
-
-// ListMultipartUploadsRequest is a generated Smithy structure.
-type ListMultipartUploadsRequest struct {
+// GetObjectTaggingRequest is a generated Smithy structure.
+type GetObjectTaggingRequest struct {
 	Bucket              string        // bound to label=Bucket
-	Delimiter           *string       // bound to query=delimiter
-	EncodingType        *EncodingType // bound to query=encoding-type
 	ExpectedBucketOwner *string       // bound to header=x-amz-expected-bucket-owner
-	KeyMarker           *string       // bound to query=key-marker
-	MaxUploads          *int32        // bound to query=max-uploads
-	Prefix              *string       // bound to query=prefix
+	Key                 string        // bound to label=Key
 	RequestPayer        *RequestPayer // bound to header=x-amz-request-payer
-	UploadIdMarker      *string       // bound to query=upload-id-marker
+	VersionId           *string       // bound to query=versionId
 }
 
-// CommonPrefix is a generated Smithy structure.
-type CommonPrefix struct {
-	Prefix *string `xml:"Prefix,omitempty"`
+// GetObjectTaggingOutput is a generated Smithy structure.
+type GetObjectTaggingOutput struct {
+	XMLName   xml.Name `xml:"Tagging"`
+	TagSet    TagSet   `xml:"TagSet,omitempty"`
+	VersionId *string  // bound to header=x-amz-version-id
 }
 
-// Initiator is a generated Smithy structure.
-type Initiator struct {
-	DisplayName *string `xml:"DisplayName,omitempty"`
-	ID          *string `xml:"ID,omitempty"`
+// GetObjectAclRequest is a generated Smithy structure.
+type GetObjectAclRequest struct {
+	Bucket              string        // bound to label=Bucket
+	ExpectedBucketOwner *string       // bound to header=x-amz-expected-bucket-owner
+	Key                 string        // bound to label=Key
+	RequestPayer        *RequestPayer // bound to header=x-amz-request-payer
+	VersionId           *string       // bound to query=versionId
 }
 
-// MultipartUpload is a generated Smithy structure.
-type MultipartUpload struct {
-	ChecksumAlgorithm *ChecksumAlgorithm `xml:"ChecksumAlgorithm,omitempty"`
-	ChecksumType      *ChecksumType      `xml:"ChecksumType,omitempty"`
-	Initiated         *time.Time         `xml:"Initiated,omitempty"`
-	Initiator         *Initiator         `xml:"Initiator,omitempty"`
-	Key               *string            `xml:"Key,omitempty"`
-	Owner             *Owner             `xml:"Owner,omitempty"`
-	StorageClass      *StorageClass      `xml:"StorageClass,omitempty"`
-	UploadId          *string            `xml:"UploadId,omitempty"`
-}
-
-// ListMultipartUploadsOutput is a generated Smithy structure.
-type ListMultipartUploadsOutput struct {
-	XMLName            xml.Name          `xml:"ListMultipartUploadsResult"`
-	Bucket             *string           `xml:"Bucket,omitempty"`
-	CommonPrefixes     []CommonPrefix    `xml:"CommonPrefix,omitempty"`
-	Delimiter          *string           `xml:"Delimiter,omitempty"`
-	EncodingType       *EncodingType     `xml:"EncodingType,omitempty"`
-	IsTruncated        *bool             `xml:"IsTruncated,omitempty"`
-	KeyMarker          *string           `xml:"KeyMarker,omitempty"`
-	MaxUploads         *int32            `xml:"MaxUploads,omitempty"`
-	NextKeyMarker      *string           `xml:"NextKeyMarker,omitempty"`
-	NextUploadIdMarker *string           `xml:"NextUploadIdMarker,omitempty"`
-	Prefix             *string           `xml:"Prefix,omitempty"`
-	RequestCharged     *RequestCharged   // bound to header=x-amz-request-charged
-	UploadIdMarker     *string           `xml:"UploadIdMarker,omitempty"`
-	Uploads            []MultipartUpload `xml:"MultipartUpload,omitempty"`
-}
-
-// ListObjectVersionsRequest is a generated Smithy structure.
-type ListObjectVersionsRequest struct {
-	Bucket                   string                       // bound to label=Bucket
-	Delimiter                *string                      // bound to query=delimiter
-	EncodingType             *EncodingType                // bound to query=encoding-type
-	ExpectedBucketOwner      *string                      // bound to header=x-amz-expected-bucket-owner
-	KeyMarker                *string                      // bound to query=key-marker
-	MaxKeys                  *int32                       // bound to query=max-keys
-	OptionalObjectAttributes OptionalObjectAttributesList // bound to header=x-amz-optional-object-attributes
-	Prefix                   *string                      // bound to query=prefix
-	RequestPayer             *RequestPayer                // bound to header=x-amz-request-payer
-	VersionIdMarker          *string                      // bound to query=version-id-marker
-}
-
-// DeleteMarkerEntry is a generated Smithy structure.
-type DeleteMarkerEntry struct {
-	IsLatest     *bool      `xml:"IsLatest,omitempty"`
-	Key          *string    `xml:"Key,omitempty"`
-	LastModified *time.Time `xml:"LastModified,omitempty"`
-	Owner        *Owner     `xml:"Owner,omitempty"`
-	VersionId    *string    `xml:"VersionId,omitempty"`
-}
-
-// RestoreStatus is a generated Smithy structure.
-type RestoreStatus struct {
-	IsRestoreInProgress *bool      `xml:"IsRestoreInProgress,omitempty"`
-	RestoreExpiryDate   *time.Time `xml:"RestoreExpiryDate,omitempty"`
-}
-
-// ObjectVersion is a generated Smithy structure.
-type ObjectVersion struct {
-	ChecksumAlgorithm []ChecksumAlgorithm        `xml:"ChecksumAlgorithm,omitempty"`
-	ChecksumType      *ChecksumType              `xml:"ChecksumType,omitempty"`
-	ETag              *string                    `xml:"ETag,omitempty"`
-	IsLatest          *bool                      `xml:"IsLatest,omitempty"`
-	Key               *string                    `xml:"Key,omitempty"`
-	LastModified      *time.Time                 `xml:"LastModified,omitempty"`
-	Owner             *Owner                     `xml:"Owner,omitempty"`
-	RestoreStatus     *RestoreStatus             `xml:"RestoreStatus,omitempty"`
-	Size              *int64                     `xml:"Size,omitempty"`
-	StorageClass      *ObjectVersionStorageClass `xml:"StorageClass,omitempty"`
-	VersionId         *string                    `xml:"VersionId,omitempty"`
-}
-
-// ListObjectVersionsOutput is a generated Smithy structure.
-type ListObjectVersionsOutput struct {
-	XMLName             xml.Name            `xml:"ListVersionsResult"`
-	CommonPrefixes      []CommonPrefix      `xml:"CommonPrefix,omitempty"`
-	DeleteMarkers       []DeleteMarkerEntry `xml:"DeleteMarkerEntry,omitempty"`
-	Delimiter           *string             `xml:"Delimiter,omitempty"`
-	EncodingType        *EncodingType       `xml:"EncodingType,omitempty"`
-	IsTruncated         *bool               `xml:"IsTruncated,omitempty"`
-	KeyMarker           *string             `xml:"KeyMarker,omitempty"`
-	MaxKeys             *int32              `xml:"MaxKeys,omitempty"`
-	Name                *string             `xml:"Name,omitempty"`
-	NextKeyMarker       *string             `xml:"NextKeyMarker,omitempty"`
-	NextVersionIdMarker *string             `xml:"NextVersionIdMarker,omitempty"`
-	Prefix              *string             `xml:"Prefix,omitempty"`
-	RequestCharged      *RequestCharged     // bound to header=x-amz-request-charged
-	VersionIdMarker     *string             `xml:"VersionIdMarker,omitempty"`
-	Versions            []ObjectVersion     `xml:"ObjectVersion,omitempty"`
-}
-
-// ListObjectsRequest is a generated Smithy structure.
-type ListObjectsRequest struct {
-	Bucket                   string                       // bound to label=Bucket
-	Delimiter                *string                      // bound to query=delimiter
-	EncodingType             *EncodingType                // bound to query=encoding-type
-	ExpectedBucketOwner      *string                      // bound to header=x-amz-expected-bucket-owner
-	Marker                   *string                      // bound to query=marker
-	MaxKeys                  *int32                       // bound to query=max-keys
-	OptionalObjectAttributes OptionalObjectAttributesList // bound to header=x-amz-optional-object-attributes
-	Prefix                   *string                      // bound to query=prefix
-	RequestPayer             *RequestPayer                // bound to header=x-amz-request-payer
-}
-
-// Object is a generated Smithy structure.
-type Object struct {
-	ChecksumAlgorithm []ChecksumAlgorithm `xml:"ChecksumAlgorithm,omitempty"`
-	ChecksumType      *ChecksumType       `xml:"ChecksumType,omitempty"`
-	ETag              *string             `xml:"ETag,omitempty"`
-	Key               *string             `xml:"Key,omitempty"`
-	LastModified      *time.Time          `xml:"LastModified,omitempty"`
-	Owner             *Owner              `xml:"Owner,omitempty"`
-	RestoreStatus     *RestoreStatus      `xml:"RestoreStatus,omitempty"`
-	Size              *int64              `xml:"Size,omitempty"`
-	StorageClass      *ObjectStorageClass `xml:"StorageClass,omitempty"`
-}
-
-// ListObjectsOutput is a generated Smithy structure.
-type ListObjectsOutput struct {
-	XMLName        xml.Name        `xml:"ListBucketResult"`
-	CommonPrefixes []CommonPrefix  `xml:"CommonPrefix,omitempty"`
-	Contents       []Object        `xml:"Object,omitempty"`
-	Delimiter      *string         `xml:"Delimiter,omitempty"`
-	EncodingType   *EncodingType   `xml:"EncodingType,omitempty"`
-	IsTruncated    *bool           `xml:"IsTruncated,omitempty"`
-	Marker         *string         `xml:"Marker,omitempty"`
-	MaxKeys        *int32          `xml:"MaxKeys,omitempty"`
-	Name           *string         `xml:"Name,omitempty"`
-	NextMarker     *string         `xml:"NextMarker,omitempty"`
-	Prefix         *string         `xml:"Prefix,omitempty"`
+// GetObjectAclOutput is a generated Smithy structure.
+type GetObjectAclOutput struct {
+	XMLName        xml.Name        `xml:"AccessControlPolicy"`
+	Grants         Grants          `xml:"AccessControlList,omitempty"`
+	Owner          *Owner          `xml:"Owner,omitempty"`
 	RequestCharged *RequestCharged // bound to header=x-amz-request-charged
 }
 
-// ListObjectsV2Request is a generated Smithy structure.
-type ListObjectsV2Request struct {
-	Bucket                   string                       // bound to label=Bucket
-	ContinuationToken        *string                      // bound to query=continuation-token
-	Delimiter                *string                      // bound to query=delimiter
-	EncodingType             *EncodingType                // bound to query=encoding-type
-	ExpectedBucketOwner      *string                      // bound to header=x-amz-expected-bucket-owner
-	FetchOwner               *bool                        // bound to query=fetch-owner
-	MaxKeys                  *int32                       // bound to query=max-keys
-	OptionalObjectAttributes OptionalObjectAttributesList // bound to header=x-amz-optional-object-attributes
-	Prefix                   *string                      // bound to query=prefix
-	RequestPayer             *RequestPayer                // bound to header=x-amz-request-payer
-	StartAfter               *string                      // bound to query=start-after
-}
-
-// ListObjectsV2Output is a generated Smithy structure.
-type ListObjectsV2Output struct {
-	XMLName               xml.Name        `xml:"ListBucketResult"`
-	CommonPrefixes        []CommonPrefix  `xml:"CommonPrefix,omitempty"`
-	Contents              []Object        `xml:"Object,omitempty"`
-	ContinuationToken     *string         `xml:"ContinuationToken,omitempty"`
-	Delimiter             *string         `xml:"Delimiter,omitempty"`
-	EncodingType          *EncodingType   `xml:"EncodingType,omitempty"`
-	IsTruncated           *bool           `xml:"IsTruncated,omitempty"`
-	KeyCount              *int32          `xml:"KeyCount,omitempty"`
-	MaxKeys               *int32          `xml:"MaxKeys,omitempty"`
-	Name                  *string         `xml:"Name,omitempty"`
-	NextContinuationToken *string         `xml:"NextContinuationToken,omitempty"`
-	Prefix                *string         `xml:"Prefix,omitempty"`
-	RequestCharged        *RequestCharged // bound to header=x-amz-request-charged
-	StartAfter            *string         `xml:"StartAfter,omitempty"`
-}
-
-// ListPartsRequest is a generated Smithy structure.
-type ListPartsRequest struct {
-	Bucket               string        // bound to label=Bucket
-	ExpectedBucketOwner  *string       // bound to header=x-amz-expected-bucket-owner
-	Key                  string        // bound to label=Key
-	MaxParts             *int32        // bound to query=max-parts
-	PartNumberMarker     *string       // bound to query=part-number-marker
-	RequestPayer         *RequestPayer // bound to header=x-amz-request-payer
-	SSECustomerAlgorithm *string       // bound to header=x-amz-server-side-encryption-customer-algorithm
-	SSECustomerKey       *string       // bound to header=x-amz-server-side-encryption-customer-key
-	SSECustomerKeyMD5    *string       // bound to header=x-amz-server-side-encryption-customer-key-MD5
-	UploadId             string        // bound to query=uploadId
-}
-
-// Part is a generated Smithy structure.
-type Part struct {
-	ChecksumCRC32     *string    `xml:"ChecksumCRC32,omitempty"`
-	ChecksumCRC32C    *string    `xml:"ChecksumCRC32C,omitempty"`
-	ChecksumCRC64NVME *string    `xml:"ChecksumCRC64NVME,omitempty"`
-	ChecksumMD5       *string    `xml:"ChecksumMD5,omitempty"`
-	ChecksumSHA1      *string    `xml:"ChecksumSHA1,omitempty"`
-	ChecksumSHA256    *string    `xml:"ChecksumSHA256,omitempty"`
-	ChecksumSHA512    *string    `xml:"ChecksumSHA512,omitempty"`
-	ChecksumXXHASH128 *string    `xml:"ChecksumXXHASH128,omitempty"`
-	ChecksumXXHASH3   *string    `xml:"ChecksumXXHASH3,omitempty"`
-	ChecksumXXHASH64  *string    `xml:"ChecksumXXHASH64,omitempty"`
-	ETag              *string    `xml:"ETag,omitempty"`
-	LastModified      *time.Time `xml:"LastModified,omitempty"`
-	PartNumber        *int32     `xml:"PartNumber,omitempty"`
-	Size              *int64     `xml:"Size,omitempty"`
-}
-
-// ListPartsOutput is a generated Smithy structure.
-type ListPartsOutput struct {
-	XMLName              xml.Name           `xml:"ListPartsResult"`
-	AbortDate            *time.Time         // bound to header=x-amz-abort-date
-	AbortRuleId          *string            // bound to header=x-amz-abort-rule-id
-	Bucket               *string            `xml:"Bucket,omitempty"`
-	ChecksumAlgorithm    *ChecksumAlgorithm `xml:"ChecksumAlgorithm,omitempty"`
-	ChecksumType         *ChecksumType      `xml:"ChecksumType,omitempty"`
-	Initiator            *Initiator         `xml:"Initiator,omitempty"`
-	IsTruncated          *bool              `xml:"IsTruncated,omitempty"`
-	Key                  *string            `xml:"Key,omitempty"`
-	MaxParts             *int32             `xml:"MaxParts,omitempty"`
-	NextPartNumberMarker *string            `xml:"NextPartNumberMarker,omitempty"`
-	Owner                *Owner             `xml:"Owner,omitempty"`
-	PartNumberMarker     *string            `xml:"PartNumberMarker,omitempty"`
-	Parts                []Part             `xml:"Part,omitempty"`
-	RequestCharged       *RequestCharged    // bound to header=x-amz-request-charged
-	StorageClass         *StorageClass      `xml:"StorageClass,omitempty"`
-	UploadId             *string            `xml:"UploadId,omitempty"`
-}
-
-// PutBucketAbacRequest is a generated Smithy structure.
-type PutBucketAbacRequest struct {
-	AbacStatus          *AbacStatus        // bound to payload=
-	Bucket              string             // bound to label=Bucket
-	ChecksumAlgorithm   *ChecksumAlgorithm // bound to header=x-amz-sdk-checksum-algorithm
-	ContentMD5          *string            // bound to header=Content-MD5
-	ExpectedBucketOwner *string            // bound to header=x-amz-expected-bucket-owner
-}
-
-// AccelerateConfiguration is a generated Smithy structure.
-type AccelerateConfiguration struct {
-	Status *BucketAccelerateStatus `xml:"Status,omitempty"`
-}
-
-// PutBucketAccelerateConfigurationRequest is a generated Smithy structure.
-type PutBucketAccelerateConfigurationRequest struct {
-	AccelerateConfiguration *AccelerateConfiguration // bound to payload=
-	Bucket                  string                   // bound to label=Bucket
-	ChecksumAlgorithm       *ChecksumAlgorithm       // bound to header=x-amz-sdk-checksum-algorithm
-	ExpectedBucketOwner     *string                  // bound to header=x-amz-expected-bucket-owner
-}
-
-// AccessControlPolicy is a generated Smithy structure.
-type AccessControlPolicy struct {
-	Grants Grants `xml:"AccessControlList,omitempty"`
-	Owner  *Owner `xml:"Owner,omitempty"`
-}
-
-// PutBucketAclRequest is a generated Smithy structure.
-type PutBucketAclRequest struct {
-	ACL                 *BucketCannedACL     // bound to header=x-amz-acl
-	AccessControlPolicy *AccessControlPolicy // bound to payload=
-	Bucket              string               // bound to label=Bucket
-	ChecksumAlgorithm   *ChecksumAlgorithm   // bound to header=x-amz-sdk-checksum-algorithm
-	ContentMD5          *string              // bound to header=Content-MD5
-	ExpectedBucketOwner *string              // bound to header=x-amz-expected-bucket-owner
-	GrantFullControl    *string              // bound to header=x-amz-grant-full-control
-	GrantRead           *string              // bound to header=x-amz-grant-read
-	GrantReadACP        *string              // bound to header=x-amz-grant-read-acp
-	GrantWrite          *string              // bound to header=x-amz-grant-write
-	GrantWriteACP       *string              // bound to header=x-amz-grant-write-acp
-}
-
-// PutBucketAnalyticsConfigurationRequest is a generated Smithy structure.
-type PutBucketAnalyticsConfigurationRequest struct {
-	AnalyticsConfiguration *AnalyticsConfiguration // bound to payload=
-	Bucket                 string                  // bound to label=Bucket
-	ExpectedBucketOwner    *string                 // bound to header=x-amz-expected-bucket-owner
-	Id                     string                  // bound to query=id
-}
-
-// CORSConfiguration is a generated Smithy structure.
-type CORSConfiguration struct {
-	CORSRules []CORSRule `xml:"CORSRule,omitempty"`
-}
-
-// PutBucketCorsRequest is a generated Smithy structure.
-type PutBucketCorsRequest struct {
-	Bucket              string             // bound to label=Bucket
-	CORSConfiguration   *CORSConfiguration // bound to payload=
-	ChecksumAlgorithm   *ChecksumAlgorithm // bound to header=x-amz-sdk-checksum-algorithm
-	ContentMD5          *string            // bound to header=Content-MD5
-	ExpectedBucketOwner *string            // bound to header=x-amz-expected-bucket-owner
-}
-
-// PutBucketEncryptionRequest is a generated Smithy structure.
-type PutBucketEncryptionRequest struct {
-	Bucket                            string                             // bound to label=Bucket
-	ChecksumAlgorithm                 *ChecksumAlgorithm                 // bound to header=x-amz-sdk-checksum-algorithm
-	ContentMD5                        *string                            // bound to header=Content-MD5
-	ExpectedBucketOwner               *string                            // bound to header=x-amz-expected-bucket-owner
-	ServerSideEncryptionConfiguration *ServerSideEncryptionConfiguration // bound to payload=
-}
-
-// PutBucketIntelligentTieringConfigurationRequest is a generated Smithy structure.
-type PutBucketIntelligentTieringConfigurationRequest struct {
-	Bucket                          string                           // bound to label=Bucket
-	ExpectedBucketOwner             *string                          // bound to header=x-amz-expected-bucket-owner
-	Id                              string                           // bound to query=id
-	IntelligentTieringConfiguration *IntelligentTieringConfiguration // bound to payload=
-}
-
-// PutBucketInventoryConfigurationRequest is a generated Smithy structure.
-type PutBucketInventoryConfigurationRequest struct {
-	Bucket                 string                  // bound to label=Bucket
-	ExpectedBucketOwner    *string                 // bound to header=x-amz-expected-bucket-owner
-	Id                     string                  // bound to query=id
-	InventoryConfiguration *InventoryConfiguration // bound to payload=
-}
-
-// BucketLifecycleConfiguration is a generated Smithy structure.
-type BucketLifecycleConfiguration struct {
-	Rules []LifecycleRule `xml:"LifecycleRule,omitempty"`
-}
-
-// PutBucketLifecycleConfigurationRequest is a generated Smithy structure.
-type PutBucketLifecycleConfigurationRequest struct {
-	Bucket                             string                              // bound to label=Bucket
-	ChecksumAlgorithm                  *ChecksumAlgorithm                  // bound to header=x-amz-sdk-checksum-algorithm
-	ExpectedBucketOwner                *string                             // bound to header=x-amz-expected-bucket-owner
-	LifecycleConfiguration             *BucketLifecycleConfiguration       // bound to payload=
-	TransitionDefaultMinimumObjectSize *TransitionDefaultMinimumObjectSize // bound to header=x-amz-transition-default-minimum-object-size
-}
-
-// PutBucketLifecycleConfigurationOutput is a generated Smithy structure.
-type PutBucketLifecycleConfigurationOutput struct {
-	TransitionDefaultMinimumObjectSize *TransitionDefaultMinimumObjectSize // bound to header=x-amz-transition-default-minimum-object-size
-}
-
-// BucketLoggingStatus is a generated Smithy structure.
-type BucketLoggingStatus struct {
-	LoggingEnabled *LoggingEnabled `xml:"LoggingEnabled,omitempty"`
-}
-
-// PutBucketLoggingRequest is a generated Smithy structure.
-type PutBucketLoggingRequest struct {
-	Bucket              string               // bound to label=Bucket
-	BucketLoggingStatus *BucketLoggingStatus // bound to payload=
-	ChecksumAlgorithm   *ChecksumAlgorithm   // bound to header=x-amz-sdk-checksum-algorithm
-	ContentMD5          *string              // bound to header=Content-MD5
-	ExpectedBucketOwner *string              // bound to header=x-amz-expected-bucket-owner
-}
-
-// PutBucketMetricsConfigurationRequest is a generated Smithy structure.
-type PutBucketMetricsConfigurationRequest struct {
-	Bucket               string                // bound to label=Bucket
-	ExpectedBucketOwner  *string               // bound to header=x-amz-expected-bucket-owner
-	Id                   string                // bound to query=id
-	MetricsConfiguration *MetricsConfiguration // bound to payload=
-}
-
-// PutBucketNotificationConfigurationRequest is a generated Smithy structure.
-type PutBucketNotificationConfigurationRequest struct {
-	Bucket                    string                     // bound to label=Bucket
-	ExpectedBucketOwner       *string                    // bound to header=x-amz-expected-bucket-owner
-	NotificationConfiguration *NotificationConfiguration // bound to payload=
-	SkipDestinationValidation *bool                      // bound to header=x-amz-skip-destination-validation
-}
-
-// PutBucketOwnershipControlsRequest is a generated Smithy structure.
-type PutBucketOwnershipControlsRequest struct {
-	Bucket              string             // bound to label=Bucket
-	ChecksumAlgorithm   *ChecksumAlgorithm // bound to header=x-amz-sdk-checksum-algorithm
-	ContentMD5          *string            // bound to header=Content-MD5
-	ExpectedBucketOwner *string            // bound to header=x-amz-expected-bucket-owner
-	OwnershipControls   *OwnershipControls // bound to payload=
-}
-
-// PutBucketPolicyRequest is a generated Smithy structure.
-type PutBucketPolicyRequest struct {
-	Bucket                        string             // bound to label=Bucket
-	ChecksumAlgorithm             *ChecksumAlgorithm // bound to header=x-amz-sdk-checksum-algorithm
-	ConfirmRemoveSelfBucketAccess *bool              // bound to header=x-amz-confirm-remove-self-bucket-access
-	ContentMD5                    *string            // bound to header=Content-MD5
-	ExpectedBucketOwner           *string            // bound to header=x-amz-expected-bucket-owner
-	Policy                        string             // bound to payload=
-}
-
-// PutBucketReplicationRequest is a generated Smithy structure.
-type PutBucketReplicationRequest struct {
-	Bucket                   string                    // bound to label=Bucket
-	ChecksumAlgorithm        *ChecksumAlgorithm        // bound to header=x-amz-sdk-checksum-algorithm
-	ContentMD5               *string                   // bound to header=Content-MD5
-	ExpectedBucketOwner      *string                   // bound to header=x-amz-expected-bucket-owner
-	ReplicationConfiguration *ReplicationConfiguration // bound to payload=
-	Token                    *string                   // bound to header=x-amz-bucket-object-lock-token
-}
-
-// RequestPaymentConfiguration is a generated Smithy structure.
-type RequestPaymentConfiguration struct {
-	Payer Payer `xml:"Payer,omitempty"`
-}
-
-// PutBucketRequestPaymentRequest is a generated Smithy structure.
-type PutBucketRequestPaymentRequest struct {
-	Bucket                      string                       // bound to label=Bucket
-	ChecksumAlgorithm           *ChecksumAlgorithm           // bound to header=x-amz-sdk-checksum-algorithm
-	ContentMD5                  *string                      // bound to header=Content-MD5
-	ExpectedBucketOwner         *string                      // bound to header=x-amz-expected-bucket-owner
-	RequestPaymentConfiguration *RequestPaymentConfiguration // bound to payload=
-}
-
-// Tagging is a generated Smithy structure.
-type Tagging struct {
-	TagSet TagSet `xml:"TagSet,omitempty"`
-}
-
-// PutBucketTaggingRequest is a generated Smithy structure.
-type PutBucketTaggingRequest struct {
-	Bucket              string             // bound to label=Bucket
-	ChecksumAlgorithm   *ChecksumAlgorithm // bound to header=x-amz-sdk-checksum-algorithm
-	ContentMD5          *string            // bound to header=Content-MD5
-	ExpectedBucketOwner *string            // bound to header=x-amz-expected-bucket-owner
-	Tagging             *Tagging           // bound to payload=
-}
-
-// VersioningConfiguration is a generated Smithy structure.
-type VersioningConfiguration struct {
-	MFADelete *MFADelete              `xml:"MfaDelete,omitempty"`
-	Status    *BucketVersioningStatus `xml:"Status,omitempty"`
-}
-
-// PutBucketVersioningRequest is a generated Smithy structure.
-type PutBucketVersioningRequest struct {
-	Bucket                  string                   // bound to label=Bucket
-	ChecksumAlgorithm       *ChecksumAlgorithm       // bound to header=x-amz-sdk-checksum-algorithm
-	ContentMD5              *string                  // bound to header=Content-MD5
-	ExpectedBucketOwner     *string                  // bound to header=x-amz-expected-bucket-owner
-	MFA                     *string                  // bound to header=x-amz-mfa
-	VersioningConfiguration *VersioningConfiguration // bound to payload=
-}
-
-// WebsiteConfiguration is a generated Smithy structure.
-type WebsiteConfiguration struct {
-	ErrorDocument         *ErrorDocument         `xml:"ErrorDocument,omitempty"`
-	IndexDocument         *IndexDocument         `xml:"IndexDocument,omitempty"`
-	RedirectAllRequestsTo *RedirectAllRequestsTo `xml:"RedirectAllRequestsTo,omitempty"`
-	RoutingRules          RoutingRules           `xml:"RoutingRules,omitempty"`
-}
-
-// PutBucketWebsiteRequest is a generated Smithy structure.
-type PutBucketWebsiteRequest struct {
-	Bucket               string                // bound to label=Bucket
-	ChecksumAlgorithm    *ChecksumAlgorithm    // bound to header=x-amz-sdk-checksum-algorithm
-	ContentMD5           *string               // bound to header=Content-MD5
-	ExpectedBucketOwner  *string               // bound to header=x-amz-expected-bucket-owner
-	WebsiteConfiguration *WebsiteConfiguration // bound to payload=
-}
-
-// PutObjectRequest is a generated Smithy structure.
-type PutObjectRequest struct {
-	ACL                       *ObjectCannedACL           // bound to header=x-amz-acl
-	Body                      []byte                     // bound to payload=
-	Bucket                    string                     // bound to label=Bucket
-	BucketKeyEnabled          *bool                      // bound to header=x-amz-server-side-encryption-bucket-key-enabled
-	CacheControl              *string                    // bound to header=Cache-Control
-	ChecksumAlgorithm         *ChecksumAlgorithm         // bound to header=x-amz-sdk-checksum-algorithm
-	ChecksumCRC32             *string                    // bound to header=x-amz-checksum-crc32
-	ChecksumCRC32C            *string                    // bound to header=x-amz-checksum-crc32c
-	ChecksumCRC64NVME         *string                    // bound to header=x-amz-checksum-crc64nvme
-	ChecksumMD5               *string                    // bound to header=x-amz-checksum-md5
-	ChecksumSHA1              *string                    // bound to header=x-amz-checksum-sha1
-	ChecksumSHA256            *string                    // bound to header=x-amz-checksum-sha256
-	ChecksumSHA512            *string                    // bound to header=x-amz-checksum-sha512
-	ChecksumXXHASH128         *string                    // bound to header=x-amz-checksum-xxhash128
-	ChecksumXXHASH3           *string                    // bound to header=x-amz-checksum-xxhash3
-	ChecksumXXHASH64          *string                    // bound to header=x-amz-checksum-xxhash64
-	ContentDisposition        *string                    // bound to header=Content-Disposition
-	ContentEncoding           *string                    // bound to header=Content-Encoding
-	ContentLanguage           *string                    // bound to header=Content-Language
-	ContentLength             *int64                     // bound to header=Content-Length
-	ContentMD5                *string                    // bound to header=Content-MD5
-	ContentType               *string                    // bound to header=Content-Type
-	ExpectedBucketOwner       *string                    // bound to header=x-amz-expected-bucket-owner
-	Expires                   *string                    // bound to header=Expires
-	GrantFullControl          *string                    // bound to header=x-amz-grant-full-control
-	GrantRead                 *string                    // bound to header=x-amz-grant-read
-	GrantReadACP              *string                    // bound to header=x-amz-grant-read-acp
-	GrantWriteACP             *string                    // bound to header=x-amz-grant-write-acp
-	IfMatch                   *string                    // bound to header=If-Match
-	IfNoneMatch               *string                    // bound to header=If-None-Match
-	Key                       string                     // bound to label=Key
-	Metadata                  Metadata                   // bound to prefix-headers=x-amz-meta-
-	ObjectLockLegalHoldStatus *ObjectLockLegalHoldStatus // bound to header=x-amz-object-lock-legal-hold
-	ObjectLockMode            *ObjectLockMode            // bound to header=x-amz-object-lock-mode
-	ObjectLockRetainUntilDate *time.Time                 // bound to header=x-amz-object-lock-retain-until-date
-	RequestPayer              *RequestPayer              // bound to header=x-amz-request-payer
-	SSECustomerAlgorithm      *string                    // bound to header=x-amz-server-side-encryption-customer-algorithm
-	SSECustomerKey            *string                    // bound to header=x-amz-server-side-encryption-customer-key
-	SSECustomerKeyMD5         *string                    // bound to header=x-amz-server-side-encryption-customer-key-MD5
-	SSEKMSEncryptionContext   *string                    // bound to header=x-amz-server-side-encryption-context
-	SSEKMSKeyId               *string                    // bound to header=x-amz-server-side-encryption-aws-kms-key-id
-	ServerSideEncryption      *ServerSideEncryption      // bound to header=x-amz-server-side-encryption
-	StorageClass              *StorageClass              // bound to header=x-amz-storage-class
-	Tagging                   *string                    // bound to header=x-amz-tagging
-	WebsiteRedirectLocation   *string                    // bound to header=x-amz-website-redirect-location
-	WriteOffsetBytes          *int64                     // bound to header=x-amz-write-offset-bytes
-}
-
-// PutObjectOutput is a generated Smithy structure.
-type PutObjectOutput struct {
-	BucketKeyEnabled        *bool                 // bound to header=x-amz-server-side-encryption-bucket-key-enabled
-	ChecksumCRC32           *string               // bound to header=x-amz-checksum-crc32
-	ChecksumCRC32C          *string               // bound to header=x-amz-checksum-crc32c
-	ChecksumCRC64NVME       *string               // bound to header=x-amz-checksum-crc64nvme
-	ChecksumMD5             *string               // bound to header=x-amz-checksum-md5
-	ChecksumSHA1            *string               // bound to header=x-amz-checksum-sha1
-	ChecksumSHA256          *string               // bound to header=x-amz-checksum-sha256
-	ChecksumSHA512          *string               // bound to header=x-amz-checksum-sha512
-	ChecksumType            *ChecksumType         // bound to header=x-amz-checksum-type
-	ChecksumXXHASH128       *string               // bound to header=x-amz-checksum-xxhash128
-	ChecksumXXHASH3         *string               // bound to header=x-amz-checksum-xxhash3
-	ChecksumXXHASH64        *string               // bound to header=x-amz-checksum-xxhash64
-	ETag                    *string               // bound to header=ETag
-	Expiration              *string               // bound to header=x-amz-expiration
-	RequestCharged          *RequestCharged       // bound to header=x-amz-request-charged
-	SSECustomerAlgorithm    *string               // bound to header=x-amz-server-side-encryption-customer-algorithm
-	SSECustomerKeyMD5       *string               // bound to header=x-amz-server-side-encryption-customer-key-MD5
-	SSEKMSEncryptionContext *string               // bound to header=x-amz-server-side-encryption-context
-	SSEKMSKeyId             *string               // bound to header=x-amz-server-side-encryption-aws-kms-key-id
-	ServerSideEncryption    *ServerSideEncryption // bound to header=x-amz-server-side-encryption
-	Size                    *int64                // bound to header=x-amz-object-size
-	VersionId               *string               // bound to header=x-amz-version-id
-}
-
-// EncryptionTypeMismatch is a generated Smithy structure. It is an error response (HTTP 400).
-type EncryptionTypeMismatch struct {
-}
-
-// InvalidRequest is a generated Smithy structure. It is an error response (HTTP 400).
-type InvalidRequest struct {
-}
-
-// InvalidWriteOffset is a generated Smithy structure. It is an error response (HTTP 400).
-type InvalidWriteOffset struct {
-}
-
-// TooManyParts is a generated Smithy structure. It is an error response (HTTP 400).
-type TooManyParts struct {
-}
-
-// PutObjectAclRequest is a generated Smithy structure.
-type PutObjectAclRequest struct {
-	ACL                 *ObjectCannedACL     // bound to header=x-amz-acl
-	AccessControlPolicy *AccessControlPolicy // bound to payload=
-	Bucket              string               // bound to label=Bucket
-	ChecksumAlgorithm   *ChecksumAlgorithm   // bound to header=x-amz-sdk-checksum-algorithm
-	ContentMD5          *string              // bound to header=Content-MD5
-	ExpectedBucketOwner *string              // bound to header=x-amz-expected-bucket-owner
-	GrantFullControl    *string              // bound to header=x-amz-grant-full-control
-	GrantRead           *string              // bound to header=x-amz-grant-read
-	GrantReadACP        *string              // bound to header=x-amz-grant-read-acp
-	GrantWrite          *string              // bound to header=x-amz-grant-write
-	GrantWriteACP       *string              // bound to header=x-amz-grant-write-acp
-	Key                 string               // bound to label=Key
-	RequestPayer        *RequestPayer        // bound to header=x-amz-request-payer
-	VersionId           *string              // bound to query=versionId
-}
-
-// PutObjectAclOutput is a generated Smithy structure.
-type PutObjectAclOutput struct {
-	RequestCharged *RequestCharged // bound to header=x-amz-request-charged
-}
-
-// PutObjectLegalHoldRequest is a generated Smithy structure.
-type PutObjectLegalHoldRequest struct {
-	Bucket              string               // bound to label=Bucket
-	ChecksumAlgorithm   *ChecksumAlgorithm   // bound to header=x-amz-sdk-checksum-algorithm
-	ContentMD5          *string              // bound to header=Content-MD5
-	ExpectedBucketOwner *string              // bound to header=x-amz-expected-bucket-owner
-	Key                 string               // bound to label=Key
-	LegalHold           *ObjectLockLegalHold // bound to payload=
-	RequestPayer        *RequestPayer        // bound to header=x-amz-request-payer
-	VersionId           *string              // bound to query=versionId
-}
-
-// PutObjectLegalHoldOutput is a generated Smithy structure.
-type PutObjectLegalHoldOutput struct {
-	RequestCharged *RequestCharged // bound to header=x-amz-request-charged
-}
-
-// PutObjectLockConfigurationRequest is a generated Smithy structure.
-type PutObjectLockConfigurationRequest struct {
-	Bucket                  string                   // bound to label=Bucket
-	ChecksumAlgorithm       *ChecksumAlgorithm       // bound to header=x-amz-sdk-checksum-algorithm
-	ContentMD5              *string                  // bound to header=Content-MD5
-	ExpectedBucketOwner     *string                  // bound to header=x-amz-expected-bucket-owner
-	ObjectLockConfiguration *ObjectLockConfiguration // bound to payload=
-	RequestPayer            *RequestPayer            // bound to header=x-amz-request-payer
-	Token                   *string                  // bound to header=x-amz-bucket-object-lock-token
-}
-
-// PutObjectLockConfigurationOutput is a generated Smithy structure.
-type PutObjectLockConfigurationOutput struct {
-	RequestCharged *RequestCharged // bound to header=x-amz-request-charged
-}
-
-// PutObjectRetentionRequest is a generated Smithy structure.
-type PutObjectRetentionRequest struct {
-	Bucket                    string               // bound to label=Bucket
-	BypassGovernanceRetention *bool                // bound to header=x-amz-bypass-governance-retention
-	ChecksumAlgorithm         *ChecksumAlgorithm   // bound to header=x-amz-sdk-checksum-algorithm
-	ContentMD5                *string              // bound to header=Content-MD5
-	ExpectedBucketOwner       *string              // bound to header=x-amz-expected-bucket-owner
-	Key                       string               // bound to label=Key
-	RequestPayer              *RequestPayer        // bound to header=x-amz-request-payer
-	Retention                 *ObjectLockRetention // bound to payload=
-	VersionId                 *string              // bound to query=versionId
-}
-
-// PutObjectRetentionOutput is a generated Smithy structure.
-type PutObjectRetentionOutput struct {
-	RequestCharged *RequestCharged // bound to header=x-amz-request-charged
-}
-
-// PutObjectTaggingRequest is a generated Smithy structure.
-type PutObjectTaggingRequest struct {
-	Bucket              string             // bound to label=Bucket
-	ChecksumAlgorithm   *ChecksumAlgorithm // bound to header=x-amz-sdk-checksum-algorithm
-	ContentMD5          *string            // bound to header=Content-MD5
-	ExpectedBucketOwner *string            // bound to header=x-amz-expected-bucket-owner
-	Key                 string             // bound to label=Key
-	RequestPayer        *RequestPayer      // bound to header=x-amz-request-payer
-	Tagging             *Tagging           // bound to payload=
-	VersionId           *string            // bound to query=versionId
-}
-
-// PutObjectTaggingOutput is a generated Smithy structure.
-type PutObjectTaggingOutput struct {
-	VersionId *string // bound to header=x-amz-version-id
-}
-
-// PutPublicAccessBlockRequest is a generated Smithy structure.
-type PutPublicAccessBlockRequest struct {
-	Bucket                         string                          // bound to label=Bucket
-	ChecksumAlgorithm              *ChecksumAlgorithm              // bound to header=x-amz-sdk-checksum-algorithm
-	ContentMD5                     *string                         // bound to header=Content-MD5
-	ExpectedBucketOwner            *string                         // bound to header=x-amz-expected-bucket-owner
-	PublicAccessBlockConfiguration *PublicAccessBlockConfiguration // bound to payload=
-}
-
-// RenameObjectRequest is a generated Smithy structure.
-type RenameObjectRequest struct {
-	Bucket                       string     // bound to label=Bucket
-	ClientToken                  *string    // bound to header=x-amz-client-token
-	DestinationIfMatch           *string    // bound to header=If-Match
-	DestinationIfModifiedSince   *time.Time // bound to header=If-Modified-Since
-	DestinationIfNoneMatch       *string    // bound to header=If-None-Match
-	DestinationIfUnmodifiedSince *time.Time // bound to header=If-Unmodified-Since
-	Key                          string     // bound to label=Key
-	RenameSource                 string     // bound to header=x-amz-rename-source
-	SourceIfMatch                *string    // bound to header=x-amz-rename-source-if-match
-	SourceIfModifiedSince        *time.Time // bound to header=x-amz-rename-source-if-modified-since
-	SourceIfNoneMatch            *string    // bound to header=x-amz-rename-source-if-none-match
-	SourceIfUnmodifiedSince      *time.Time // bound to header=x-amz-rename-source-if-unmodified-since
-}
-
-// RenameObjectOutput is a generated Smithy structure.
-type RenameObjectOutput struct {
-}
-
-// IdempotencyParameterMismatch is a generated Smithy structure. It is an error response (HTTP 400).
-type IdempotencyParameterMismatch struct {
-}
-
-// GlacierJobParameters is a generated Smithy structure.
-type GlacierJobParameters struct {
-	Tier Tier `xml:"Tier,omitempty"`
-}
-
-// Encryption is a generated Smithy structure.
-type Encryption struct {
-	EncryptionType ServerSideEncryption `xml:"EncryptionType,omitempty"`
-	KMSContext     *string              `xml:"KMSContext,omitempty"`
-	KMSKeyId       *string              `xml:"KMSKeyId,omitempty"`
-}
-
-// MetadataEntry is a generated Smithy structure.
-type MetadataEntry struct {
-	Name  *string `xml:"Name,omitempty"`
-	Value *string `xml:"Value,omitempty"`
-}
-
-// S3Location is a generated Smithy structure.
-type S3Location struct {
-	AccessControlList Grants           `xml:"AccessControlList,omitempty"`
-	BucketName        string           `xml:"BucketName,omitempty"`
-	CannedACL         *ObjectCannedACL `xml:"CannedACL,omitempty"`
-	Encryption        *Encryption      `xml:"Encryption,omitempty"`
-	Prefix            string           `xml:"Prefix,omitempty"`
-	StorageClass      *StorageClass    `xml:"StorageClass,omitempty"`
-	Tagging           *Tagging         `xml:"Tagging,omitempty"`
-	UserMetadata      UserMetadata     `xml:"UserMetadata,omitempty"`
-}
-
-// OutputLocation is a generated Smithy structure.
-type OutputLocation struct {
-	S3 *S3Location `xml:"S3,omitempty"`
-}
-
-// CSVInput is a generated Smithy structure.
-type CSVInput struct {
-	AllowQuotedRecordDelimiter *bool           `xml:"AllowQuotedRecordDelimiter,omitempty"`
-	Comments                   *string         `xml:"Comments,omitempty"`
-	FieldDelimiter             *string         `xml:"FieldDelimiter,omitempty"`
-	FileHeaderInfo             *FileHeaderInfo `xml:"FileHeaderInfo,omitempty"`
-	QuoteCharacter             *string         `xml:"QuoteCharacter,omitempty"`
-	QuoteEscapeCharacter       *string         `xml:"QuoteEscapeCharacter,omitempty"`
-	RecordDelimiter            *string         `xml:"RecordDelimiter,omitempty"`
-}
-
-// JSONInput is a generated Smithy structure.
-type JSONInput struct {
-	Type *JSONType `xml:"Type,omitempty"`
-}
-
-// ParquetInput is a generated Smithy structure.
-type ParquetInput struct {
-}
-
-// InputSerialization is a generated Smithy structure.
-type InputSerialization struct {
-	CSV             *CSVInput        `xml:"CSV,omitempty"`
-	CompressionType *CompressionType `xml:"CompressionType,omitempty"`
-	JSON            *JSONInput       `xml:"JSON,omitempty"`
-	Parquet         *ParquetInput    `xml:"Parquet,omitempty"`
-}
-
-// CSVOutput is a generated Smithy structure.
-type CSVOutput struct {
-	FieldDelimiter       *string      `xml:"FieldDelimiter,omitempty"`
-	QuoteCharacter       *string      `xml:"QuoteCharacter,omitempty"`
-	QuoteEscapeCharacter *string      `xml:"QuoteEscapeCharacter,omitempty"`
-	QuoteFields          *QuoteFields `xml:"QuoteFields,omitempty"`
-	RecordDelimiter      *string      `xml:"RecordDelimiter,omitempty"`
-}
-
-// JSONOutput is a generated Smithy structure.
-type JSONOutput struct {
-	RecordDelimiter *string `xml:"RecordDelimiter,omitempty"`
-}
-
-// OutputSerialization is a generated Smithy structure.
-type OutputSerialization struct {
-	CSV  *CSVOutput  `xml:"CSV,omitempty"`
-	JSON *JSONOutput `xml:"JSON,omitempty"`
-}
-
-// SelectParameters is a generated Smithy structure.
-type SelectParameters struct {
-	Expression          string               `xml:"Expression,omitempty"`
-	ExpressionType      ExpressionType       `xml:"ExpressionType,omitempty"`
-	InputSerialization  *InputSerialization  `xml:"InputSerialization,omitempty"`
-	OutputSerialization *OutputSerialization `xml:"OutputSerialization,omitempty"`
-}
-
-// RestoreRequest is a generated Smithy structure.
-type RestoreRequest struct {
-	Days                 *int32                `xml:"Days,omitempty"`
-	Description          *string               `xml:"Description,omitempty"`
-	GlacierJobParameters *GlacierJobParameters `xml:"GlacierJobParameters,omitempty"`
-	OutputLocation       *OutputLocation       `xml:"OutputLocation,omitempty"`
-	SelectParameters     *SelectParameters     `xml:"SelectParameters,omitempty"`
-	Tier                 *Tier                 `xml:"Tier,omitempty"`
-	Type                 *RestoreRequestType   `xml:"Type,omitempty"`
-}
-
-// RestoreObjectRequest is a generated Smithy structure.
-type RestoreObjectRequest struct {
-	Bucket              string             // bound to label=Bucket
-	ChecksumAlgorithm   *ChecksumAlgorithm // bound to header=x-amz-sdk-checksum-algorithm
-	ExpectedBucketOwner *string            // bound to header=x-amz-expected-bucket-owner
-	Key                 string             // bound to label=Key
-	RequestPayer        *RequestPayer      // bound to header=x-amz-request-payer
-	RestoreRequest      *RestoreRequest    // bound to payload=
-	VersionId           *string            // bound to query=versionId
-}
-
-// RestoreObjectOutput is a generated Smithy structure.
-type RestoreObjectOutput struct {
-	RequestCharged    *RequestCharged // bound to header=x-amz-request-charged
-	RestoreOutputPath *string         // bound to header=x-amz-restore-output-path
-}
-
-// ObjectAlreadyInActiveTierError is a generated Smithy structure. It is an error response (HTTP 403).
-type ObjectAlreadyInActiveTierError struct {
-}
-
-// RequestProgress is a generated Smithy structure.
-type RequestProgress struct {
-	Enabled *bool `xml:"Enabled,omitempty"`
-}
-
-// ScanRange is a generated Smithy structure.
-type ScanRange struct {
-	End   *int64 `xml:"End,omitempty"`
-	Start *int64 `xml:"Start,omitempty"`
-}
-
-// SelectObjectContentRequest is a generated Smithy structure.
-type SelectObjectContentRequest struct {
-	Bucket               string               // bound to label=Bucket
-	ExpectedBucketOwner  *string              // bound to header=x-amz-expected-bucket-owner
-	Expression           string               `xml:"Expression,omitempty"`
-	ExpressionType       ExpressionType       `xml:"ExpressionType,omitempty"`
-	InputSerialization   *InputSerialization  `xml:"InputSerialization,omitempty"`
-	Key                  string               // bound to label=Key
-	OutputSerialization  *OutputSerialization `xml:"OutputSerialization,omitempty"`
-	RequestProgress      *RequestProgress     `xml:"RequestProgress,omitempty"`
-	SSECustomerAlgorithm *string              // bound to header=x-amz-server-side-encryption-customer-algorithm
-	SSECustomerKey       *string              // bound to header=x-amz-server-side-encryption-customer-key
-	SSECustomerKeyMD5    *string              // bound to header=x-amz-server-side-encryption-customer-key-MD5
-	ScanRange            *ScanRange           `xml:"ScanRange,omitempty"`
-}
-
-// ContinuationEvent is a generated Smithy structure.
-type ContinuationEvent struct {
-}
-
-// EndEvent is a generated Smithy structure.
-type EndEvent struct {
-}
-
-// Progress is a generated Smithy structure.
-type Progress struct {
-	BytesProcessed *int64 `xml:"BytesProcessed,omitempty"`
-	BytesReturned  *int64 `xml:"BytesReturned,omitempty"`
-	BytesScanned   *int64 `xml:"BytesScanned,omitempty"`
-}
-
-// ProgressEvent is a generated Smithy structure.
-type ProgressEvent struct {
-	Details *Progress `xml:"Details,omitempty"`
-}
-
-// RecordsEvent is a generated Smithy structure.
-type RecordsEvent struct {
-	Payload []byte `xml:"Payload,omitempty"`
-}
-
-// Stats is a generated Smithy structure.
-type Stats struct {
-	BytesProcessed *int64 `xml:"BytesProcessed,omitempty"`
-	BytesReturned  *int64 `xml:"BytesReturned,omitempty"`
-	BytesScanned   *int64 `xml:"BytesScanned,omitempty"`
-}
-
-// StatsEvent is a generated Smithy structure.
-type StatsEvent struct {
-	Details *Stats `xml:"Details,omitempty"`
-}
-
-// SelectObjectContentOutput is a generated Smithy structure.
-type SelectObjectContentOutput struct {
-	Payload *SelectObjectContentEventStream // bound to payload=
-}
-
-// InventoryTableConfigurationUpdates is a generated Smithy structure.
-type InventoryTableConfigurationUpdates struct {
-	ConfigurationState      InventoryConfigurationState           `xml:"ConfigurationState,omitempty"`
-	EncryptionConfiguration *MetadataTableEncryptionConfiguration `xml:"EncryptionConfiguration,omitempty"`
-}
-
-// UpdateBucketMetadataInventoryTableConfigurationRequest is a generated Smithy structure.
-type UpdateBucketMetadataInventoryTableConfigurationRequest struct {
-	Bucket                      string                              // bound to label=Bucket
-	ChecksumAlgorithm           *ChecksumAlgorithm                  // bound to header=x-amz-sdk-checksum-algorithm
-	ContentMD5                  *string                             // bound to header=Content-MD5
-	ExpectedBucketOwner         *string                             // bound to header=x-amz-expected-bucket-owner
-	InventoryTableConfiguration *InventoryTableConfigurationUpdates // bound to payload=
-}
-
-// JournalTableConfigurationUpdates is a generated Smithy structure.
-type JournalTableConfigurationUpdates struct {
-	RecordExpiration *RecordExpiration `xml:"RecordExpiration,omitempty"`
-}
-
-// UpdateBucketMetadataJournalTableConfigurationRequest is a generated Smithy structure.
-type UpdateBucketMetadataJournalTableConfigurationRequest struct {
-	Bucket                    string                            // bound to label=Bucket
-	ChecksumAlgorithm         *ChecksumAlgorithm                // bound to header=x-amz-sdk-checksum-algorithm
-	ContentMD5                *string                           // bound to header=Content-MD5
-	ExpectedBucketOwner       *string                           // bound to header=x-amz-expected-bucket-owner
-	JournalTableConfiguration *JournalTableConfigurationUpdates // bound to payload=
-}
-
-// SSEKMSEncryption is a generated Smithy structure.
-type SSEKMSEncryption struct {
-	XMLName          xml.Name `xml:"SSE-KMS"`
-	BucketKeyEnabled *bool    `xml:"BucketKeyEnabled,omitempty"`
-	KMSKeyArn        string   `xml:"KMSKeyArn,omitempty"`
-}
-
-// UpdateObjectEncryptionRequest is a generated Smithy structure.
-type UpdateObjectEncryptionRequest struct {
-	Bucket              string             // bound to label=Bucket
-	ChecksumAlgorithm   *ChecksumAlgorithm // bound to header=x-amz-sdk-checksum-algorithm
-	ContentMD5          *string            // bound to header=Content-MD5
-	ExpectedBucketOwner *string            // bound to header=x-amz-expected-bucket-owner
-	Key                 string             // bound to label=Key
-	ObjectEncryption    *ObjectEncryption  // bound to payload=
-	RequestPayer        *RequestPayer      // bound to header=x-amz-request-payer
-	VersionId           *string            // bound to query=versionId
-}
-
-// UpdateObjectEncryptionResponse is a generated Smithy structure.
-type UpdateObjectEncryptionResponse struct {
-	RequestCharged *RequestCharged // bound to header=x-amz-request-charged
-}
-
-// AccessDenied is a generated Smithy structure. It is an error response (HTTP 403).
-type AccessDenied struct {
-}
-
-// UploadPartRequest is a generated Smithy structure.
-type UploadPartRequest struct {
-	Body                 []byte             // bound to payload=
-	Bucket               string             // bound to label=Bucket
-	ChecksumAlgorithm    *ChecksumAlgorithm // bound to header=x-amz-sdk-checksum-algorithm
-	ChecksumCRC32        *string            // bound to header=x-amz-checksum-crc32
-	ChecksumCRC32C       *string            // bound to header=x-amz-checksum-crc32c
-	ChecksumCRC64NVME    *string            // bound to header=x-amz-checksum-crc64nvme
-	ChecksumMD5          *string            // bound to header=x-amz-checksum-md5
-	ChecksumSHA1         *string            // bound to header=x-amz-checksum-sha1
-	ChecksumSHA256       *string            // bound to header=x-amz-checksum-sha256
-	ChecksumSHA512       *string            // bound to header=x-amz-checksum-sha512
-	ChecksumXXHASH128    *string            // bound to header=x-amz-checksum-xxhash128
-	ChecksumXXHASH3      *string            // bound to header=x-amz-checksum-xxhash3
-	ChecksumXXHASH64     *string            // bound to header=x-amz-checksum-xxhash64
-	ContentLength        *int64             // bound to header=Content-Length
-	ContentMD5           *string            // bound to header=Content-MD5
-	ExpectedBucketOwner  *string            // bound to header=x-amz-expected-bucket-owner
-	Key                  string             // bound to label=Key
-	PartNumber           int32              // bound to query=partNumber
-	RequestPayer         *RequestPayer      // bound to header=x-amz-request-payer
-	SSECustomerAlgorithm *string            // bound to header=x-amz-server-side-encryption-customer-algorithm
-	SSECustomerKey       *string            // bound to header=x-amz-server-side-encryption-customer-key
-	SSECustomerKeyMD5    *string            // bound to header=x-amz-server-side-encryption-customer-key-MD5
-	UploadId             string             // bound to query=uploadId
-}
-
-// UploadPartOutput is a generated Smithy structure.
-type UploadPartOutput struct {
-	BucketKeyEnabled     *bool                 // bound to header=x-amz-server-side-encryption-bucket-key-enabled
-	ChecksumCRC32        *string               // bound to header=x-amz-checksum-crc32
-	ChecksumCRC32C       *string               // bound to header=x-amz-checksum-crc32c
-	ChecksumCRC64NVME    *string               // bound to header=x-amz-checksum-crc64nvme
-	ChecksumMD5          *string               // bound to header=x-amz-checksum-md5
-	ChecksumSHA1         *string               // bound to header=x-amz-checksum-sha1
-	ChecksumSHA256       *string               // bound to header=x-amz-checksum-sha256
-	ChecksumSHA512       *string               // bound to header=x-amz-checksum-sha512
-	ChecksumXXHASH128    *string               // bound to header=x-amz-checksum-xxhash128
-	ChecksumXXHASH3      *string               // bound to header=x-amz-checksum-xxhash3
-	ChecksumXXHASH64     *string               // bound to header=x-amz-checksum-xxhash64
-	ETag                 *string               // bound to header=ETag
-	RequestCharged       *RequestCharged       // bound to header=x-amz-request-charged
-	SSECustomerAlgorithm *string               // bound to header=x-amz-server-side-encryption-customer-algorithm
-	SSECustomerKeyMD5    *string               // bound to header=x-amz-server-side-encryption-customer-key-MD5
-	SSEKMSKeyId          *string               // bound to header=x-amz-server-side-encryption-aws-kms-key-id
-	ServerSideEncryption *ServerSideEncryption // bound to header=x-amz-server-side-encryption
-}
-
-// UploadPartCopyRequest is a generated Smithy structure.
-type UploadPartCopyRequest struct {
-	Bucket                         string        // bound to label=Bucket
-	CopySource                     string        // bound to header=x-amz-copy-source
-	CopySourceIfMatch              *string       // bound to header=x-amz-copy-source-if-match
-	CopySourceIfModifiedSince      *time.Time    // bound to header=x-amz-copy-source-if-modified-since
-	CopySourceIfNoneMatch          *string       // bound to header=x-amz-copy-source-if-none-match
-	CopySourceIfUnmodifiedSince    *time.Time    // bound to header=x-amz-copy-source-if-unmodified-since
-	CopySourceRange                *string       // bound to header=x-amz-copy-source-range
-	CopySourceSSECustomerAlgorithm *string       // bound to header=x-amz-copy-source-server-side-encryption-customer-algorithm
-	CopySourceSSECustomerKey       *string       // bound to header=x-amz-copy-source-server-side-encryption-customer-key
-	CopySourceSSECustomerKeyMD5    *string       // bound to header=x-amz-copy-source-server-side-encryption-customer-key-MD5
-	ExpectedBucketOwner            *string       // bound to header=x-amz-expected-bucket-owner
-	ExpectedSourceBucketOwner      *string       // bound to header=x-amz-source-expected-bucket-owner
-	Key                            string        // bound to label=Key
-	PartNumber                     int32         // bound to query=partNumber
-	RequestPayer                   *RequestPayer // bound to header=x-amz-request-payer
-	SSECustomerAlgorithm           *string       // bound to header=x-amz-server-side-encryption-customer-algorithm
-	SSECustomerKey                 *string       // bound to header=x-amz-server-side-encryption-customer-key
-	SSECustomerKeyMD5              *string       // bound to header=x-amz-server-side-encryption-customer-key-MD5
-	UploadId                       string        // bound to query=uploadId
-}
-
-// CopyPartResult is a generated Smithy structure.
-type CopyPartResult struct {
-	ChecksumCRC32     *string    `xml:"ChecksumCRC32,omitempty"`
-	ChecksumCRC32C    *string    `xml:"ChecksumCRC32C,omitempty"`
-	ChecksumCRC64NVME *string    `xml:"ChecksumCRC64NVME,omitempty"`
-	ChecksumMD5       *string    `xml:"ChecksumMD5,omitempty"`
-	ChecksumSHA1      *string    `xml:"ChecksumSHA1,omitempty"`
-	ChecksumSHA256    *string    `xml:"ChecksumSHA256,omitempty"`
-	ChecksumSHA512    *string    `xml:"ChecksumSHA512,omitempty"`
-	ChecksumXXHASH128 *string    `xml:"ChecksumXXHASH128,omitempty"`
-	ChecksumXXHASH3   *string    `xml:"ChecksumXXHASH3,omitempty"`
-	ChecksumXXHASH64  *string    `xml:"ChecksumXXHASH64,omitempty"`
-	ETag              *string    `xml:"ETag,omitempty"`
-	LastModified      *time.Time `xml:"LastModified,omitempty"`
-}
-
-// UploadPartCopyOutput is a generated Smithy structure.
-type UploadPartCopyOutput struct {
-	BucketKeyEnabled     *bool                 // bound to header=x-amz-server-side-encryption-bucket-key-enabled
-	CopyPartResult       *CopyPartResult       // bound to payload=
-	CopySourceVersionId  *string               // bound to header=x-amz-copy-source-version-id
-	RequestCharged       *RequestCharged       // bound to header=x-amz-request-charged
-	SSECustomerAlgorithm *string               // bound to header=x-amz-server-side-encryption-customer-algorithm
-	SSECustomerKeyMD5    *string               // bound to header=x-amz-server-side-encryption-customer-key-MD5
-	SSEKMSKeyId          *string               // bound to header=x-amz-server-side-encryption-aws-kms-key-id
-	ServerSideEncryption *ServerSideEncryption // bound to header=x-amz-server-side-encryption
-}
-
-// WriteGetObjectResponseRequest is a generated Smithy structure.
-type WriteGetObjectResponseRequest struct {
-	AcceptRanges              *string                    // bound to header=x-amz-fwd-header-accept-ranges
-	Body                      []byte                     // bound to payload=
-	BucketKeyEnabled          *bool                      // bound to header=x-amz-fwd-header-x-amz-server-side-encryption-bucket-key-enabled
-	CacheControl              *string                    // bound to header=x-amz-fwd-header-Cache-Control
-	ChecksumCRC32             *string                    // bound to header=x-amz-fwd-header-x-amz-checksum-crc32
-	ChecksumCRC32C            *string                    // bound to header=x-amz-fwd-header-x-amz-checksum-crc32c
-	ChecksumCRC64NVME         *string                    // bound to header=x-amz-fwd-header-x-amz-checksum-crc64nvme
-	ChecksumMD5               *string                    // bound to header=x-amz-fwd-header-x-amz-checksum-md5
-	ChecksumSHA1              *string                    // bound to header=x-amz-fwd-header-x-amz-checksum-sha1
-	ChecksumSHA256            *string                    // bound to header=x-amz-fwd-header-x-amz-checksum-sha256
-	ChecksumSHA512            *string                    // bound to header=x-amz-fwd-header-x-amz-checksum-sha512
-	ChecksumXXHASH128         *string                    // bound to header=x-amz-fwd-header-x-amz-checksum-xxhash128
-	ChecksumXXHASH3           *string                    // bound to header=x-amz-fwd-header-x-amz-checksum-xxhash3
-	ChecksumXXHASH64          *string                    // bound to header=x-amz-fwd-header-x-amz-checksum-xxhash64
-	ContentDisposition        *string                    // bound to header=x-amz-fwd-header-Content-Disposition
-	ContentEncoding           *string                    // bound to header=x-amz-fwd-header-Content-Encoding
-	ContentLanguage           *string                    // bound to header=x-amz-fwd-header-Content-Language
-	ContentLength             *int64                     // bound to header=Content-Length
-	ContentRange              *string                    // bound to header=x-amz-fwd-header-Content-Range
-	ContentType               *string                    // bound to header=x-amz-fwd-header-Content-Type
-	DeleteMarker              *bool                      // bound to header=x-amz-fwd-header-x-amz-delete-marker
-	ETag                      *string                    // bound to header=x-amz-fwd-header-ETag
-	ErrorCode                 *string                    // bound to header=x-amz-fwd-error-code
-	ErrorMessage              *string                    // bound to header=x-amz-fwd-error-message
-	Expiration                *string                    // bound to header=x-amz-fwd-header-x-amz-expiration
-	Expires                   *string                    // bound to header=x-amz-fwd-header-Expires
-	LastModified              *time.Time                 // bound to header=x-amz-fwd-header-Last-Modified
-	Metadata                  Metadata                   // bound to prefix-headers=x-amz-meta-
-	MissingMeta               *int32                     // bound to header=x-amz-fwd-header-x-amz-missing-meta
-	ObjectLockLegalHoldStatus *ObjectLockLegalHoldStatus // bound to header=x-amz-fwd-header-x-amz-object-lock-legal-hold
-	ObjectLockMode            *ObjectLockMode            // bound to header=x-amz-fwd-header-x-amz-object-lock-mode
-	ObjectLockRetainUntilDate *time.Time                 // bound to header=x-amz-fwd-header-x-amz-object-lock-retain-until-date
-	PartsCount                *int32                     // bound to header=x-amz-fwd-header-x-amz-mp-parts-count
-	ReplicationStatus         *ReplicationStatus         // bound to header=x-amz-fwd-header-x-amz-replication-status
-	RequestCharged            *RequestCharged            // bound to header=x-amz-fwd-header-x-amz-request-charged
-	RequestRoute              string                     // bound to header=x-amz-request-route
-	RequestToken              string                     // bound to header=x-amz-request-token
-	Restore                   *string                    // bound to header=x-amz-fwd-header-x-amz-restore
-	SSECustomerAlgorithm      *string                    // bound to header=x-amz-fwd-header-x-amz-server-side-encryption-customer-algorithm
-	SSECustomerKeyMD5         *string                    // bound to header=x-amz-fwd-header-x-amz-server-side-encryption-customer-key-MD5
-	SSEKMSKeyId               *string                    // bound to header=x-amz-fwd-header-x-amz-server-side-encryption-aws-kms-key-id
-	ServerSideEncryption      *ServerSideEncryption      // bound to header=x-amz-fwd-header-x-amz-server-side-encryption
-	StatusCode                *int32                     // bound to header=x-amz-fwd-status
-	StorageClass              *StorageClass              // bound to header=x-amz-fwd-header-x-amz-storage-class
-	TagCount                  *int32                     // bound to header=x-amz-fwd-header-x-amz-tagging-count
-	VersionId                 *string                    // bound to header=x-amz-fwd-header-x-amz-version-id
-}
-
-// AnalyticsFilter is a generated Smithy union; exactly one member is non-nil per value.
-type AnalyticsFilter struct {
-	And    *AnalyticsAndOperator `xml:"And,omitempty"`
-	Prefix *string               `xml:"Prefix,omitempty"`
-	Tag    *Tag                  `xml:"Tag,omitempty"`
-}
-
-// MetricsFilter is a generated Smithy union; exactly one member is non-nil per value.
-type MetricsFilter struct {
-	AccessPointArn *string             `xml:"AccessPointArn,omitempty"`
-	And            *MetricsAndOperator `xml:"And,omitempty"`
-	Prefix         *string             `xml:"Prefix,omitempty"`
-	Tag            *Tag                `xml:"Tag,omitempty"`
-}
-
-// SelectObjectContentEventStream is a generated Smithy union; exactly one member is non-nil per value.
-type SelectObjectContentEventStream struct {
-	Cont     *ContinuationEvent `xml:"Cont,omitempty"`
-	End      *EndEvent          `xml:"End,omitempty"`
-	Progress *ProgressEvent     `xml:"Progress,omitempty"`
-	Records  *RecordsEvent      `xml:"Records,omitempty"`
-	Stats    *StatsEvent        `xml:"Stats,omitempty"`
-}
-
-// ObjectEncryption is a generated Smithy union; exactly one member is non-nil per value.
-type ObjectEncryption struct {
-	SSEKMS *SSEKMSEncryption `xml:"SSE-KMS,omitempty"`
-}
-
-// AbortMultipartUploadBackend serves the AbortMultipartUpload operation.
-type AbortMultipartUploadBackend interface {
-	AbortMultipartUpload(ctx context.Context, in *AbortMultipartUploadRequest) (*AbortMultipartUploadOutput, error)
-}
-
-// AbortMultipartUploadURITemplate is the Smithy URI template for the operation.
-const AbortMultipartUploadURITemplate = "/{Bucket}/{Key+}?x-id=AbortMultipartUpload"
-
-// AbortMultipartUploadMethod is the HTTP method for the operation.
-const AbortMultipartUploadMethod = "DELETE"
-
-// AbortMultipartUploadHandler decodes a AbortMultipartUpload request, dispatches to
+// AmazonS3Backend is the union of every per-operation backend
+// interface emitted from the spec. A real backend implementation
+// satisfies this union; the harness's in-memory backend satisfies it
+// too. RegisterAmazonS3Routes wires every operation handler onto
+// a restxml.Router using this combined backend.
+type AmazonS3Backend interface {
+	ListBucketsBackend
+	CreateBucketBackend
+	DeleteBucketBackend
+	HeadBucketBackend
+	ListObjectsV2Backend
+	GetObjectBackend
+	PutObjectBackend
+	DeleteObjectBackend
+	HeadObjectBackend
+	CopyObjectBackend
+	CreateMultipartUploadBackend
+	UploadPartBackend
+	CompleteMultipartUploadBackend
+	AbortMultipartUploadBackend
+	ListMultipartUploadsBackend
+	ListPartsBackend
+	GetBucketLocationBackend
+	GetBucketPolicyBackend
+	GetBucketAclBackend
+	GetBucketVersioningBackend
+	GetBucketLoggingBackend
+	GetBucketCorsBackend
+	GetBucketLifecycleConfigurationBackend
+	GetBucketReplicationBackend
+	GetBucketRequestPaymentBackend
+	GetBucketTaggingBackend
+	GetBucketWebsiteBackend
+	GetBucketEncryptionBackend
+	GetBucketAccelerateConfigurationBackend
+	GetObjectLockConfigurationBackend
+	GetBucketNotificationConfigurationBackend
+	GetBucketOwnershipControlsBackend
+	GetBucketPolicyStatusBackend
+	GetPublicAccessBlockBackend
+	GetObjectTaggingBackend
+	GetObjectAclBackend
+}
+
+// RegisterAmazonS3Routes mounts every shimmed operation handler
+// onto the given router. Routes that need extra disambiguation
+// declare required headers and/or required query params; the router
+// prefers more-specific matches over less-specific shared-path ones.
+func RegisterAmazonS3Routes(router *restxml.Router, b AmazonS3Backend) {
+	router.Register(ListBucketsMethod, ListBucketsURITemplate, "ListBuckets", ListBucketsHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{},
+			ForbiddenQueries: []string{},
+		},
+	)
+	router.Register(CreateBucketMethod, CreateBucketURITemplate, "CreateBucket", CreateBucketHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{},
+			ForbiddenQueries: []string{},
+		},
+	)
+	router.Register(DeleteBucketMethod, DeleteBucketURITemplate, "DeleteBucket", DeleteBucketHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{},
+			ForbiddenQueries: []string{"acl", "accelerate", "analytics", "attributes", "cors", "encryption", "intelligent-tiering", "inventory", "legal-hold", "lifecycle", "logging", "metrics", "notification", "object-lock", "ownershipControls", "policy", "policyStatus", "publicAccessBlock", "replication", "requestPayment", "restore", "retention", "select", "tagging", "torrent", "versioning", "website"},
+		},
+	)
+	router.Register(HeadBucketMethod, HeadBucketURITemplate, "HeadBucket", HeadBucketHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{},
+			ForbiddenQueries: []string{"acl", "accelerate", "analytics", "attributes", "cors", "encryption", "intelligent-tiering", "inventory", "legal-hold", "lifecycle", "logging", "metrics", "notification", "object-lock", "ownershipControls", "policy", "policyStatus", "publicAccessBlock", "replication", "requestPayment", "restore", "retention", "select", "tagging", "torrent", "versioning", "website"},
+		},
+	)
+	router.Register(ListObjectsV2Method, ListObjectsV2URITemplate, "ListObjectsV2", ListObjectsV2Handler(b),
+		restxml.RouteOptions{
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{},
+			ForbiddenQueries: []string{"acl", "accelerate", "analytics", "attributes", "cors", "encryption", "intelligent-tiering", "inventory", "legal-hold", "lifecycle", "logging", "metrics", "notification", "object-lock", "ownershipControls", "policy", "policyStatus", "publicAccessBlock", "replication", "requestPayment", "restore", "retention", "select", "tagging", "torrent", "versioning", "website"},
+		},
+	)
+	router.Register(GetObjectMethod, GetObjectURITemplate, "GetObject", GetObjectHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{},
+			ForbiddenQueries: []string{"acl", "accelerate", "analytics", "attributes", "cors", "encryption", "intelligent-tiering", "inventory", "legal-hold", "lifecycle", "logging", "metrics", "notification", "object-lock", "ownershipControls", "policy", "policyStatus", "publicAccessBlock", "replication", "requestPayment", "restore", "retention", "select", "tagging", "torrent", "versioning", "website"},
+		},
+	)
+	router.Register(PutObjectMethod, PutObjectURITemplate, "PutObject", PutObjectHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{},
+			ForbiddenQueries: []string{"acl", "accelerate", "analytics", "attributes", "cors", "encryption", "intelligent-tiering", "inventory", "legal-hold", "lifecycle", "logging", "metrics", "notification", "object-lock", "ownershipControls", "policy", "policyStatus", "publicAccessBlock", "replication", "requestPayment", "restore", "retention", "select", "tagging", "torrent", "versioning", "website"},
+		},
+	)
+	router.Register(DeleteObjectMethod, DeleteObjectURITemplate, "DeleteObject", DeleteObjectHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{},
+			ForbiddenQueries: []string{"acl", "accelerate", "analytics", "attributes", "cors", "encryption", "intelligent-tiering", "inventory", "legal-hold", "lifecycle", "logging", "metrics", "notification", "object-lock", "ownershipControls", "policy", "policyStatus", "publicAccessBlock", "replication", "requestPayment", "restore", "retention", "select", "tagging", "torrent", "versioning", "website"},
+		},
+	)
+	router.Register(HeadObjectMethod, HeadObjectURITemplate, "HeadObject", HeadObjectHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{},
+			ForbiddenQueries: []string{"acl", "accelerate", "analytics", "attributes", "cors", "encryption", "intelligent-tiering", "inventory", "legal-hold", "lifecycle", "logging", "metrics", "notification", "object-lock", "ownershipControls", "policy", "policyStatus", "publicAccessBlock", "replication", "requestPayment", "restore", "retention", "select", "tagging", "torrent", "versioning", "website"},
+		},
+	)
+	router.Register(CopyObjectMethod, CopyObjectURITemplate, "CopyObject", CopyObjectHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders:  []string{"x-amz-copy-source"},
+			RequiredQueries:  []string{},
+			ForbiddenQueries: []string{"acl", "accelerate", "analytics", "attributes", "cors", "encryption", "intelligent-tiering", "inventory", "legal-hold", "lifecycle", "logging", "metrics", "notification", "object-lock", "ownershipControls", "policy", "policyStatus", "publicAccessBlock", "replication", "requestPayment", "restore", "retention", "select", "tagging", "torrent", "versioning", "website"},
+		},
+	)
+	router.Register(CreateMultipartUploadMethod, CreateMultipartUploadURITemplate, "CreateMultipartUpload", CreateMultipartUploadHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{},
+			ForbiddenQueries: []string{},
+		},
+	)
+	router.Register(UploadPartMethod, UploadPartURITemplate, "UploadPart", UploadPartHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{"partNumber", "uploadId"},
+			ForbiddenQueries: []string{},
+		},
+	)
+	router.Register(CompleteMultipartUploadMethod, CompleteMultipartUploadURITemplate, "CompleteMultipartUpload", CompleteMultipartUploadHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{"uploadId"},
+			ForbiddenQueries: []string{},
+		},
+	)
+	router.Register(AbortMultipartUploadMethod, AbortMultipartUploadURITemplate, "AbortMultipartUpload", AbortMultipartUploadHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{"uploadId"},
+			ForbiddenQueries: []string{},
+		},
+	)
+	router.Register(ListMultipartUploadsMethod, ListMultipartUploadsURITemplate, "ListMultipartUploads", ListMultipartUploadsHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{},
+			ForbiddenQueries: []string{},
+		},
+	)
+	router.Register(ListPartsMethod, ListPartsURITemplate, "ListParts", ListPartsHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{"uploadId"},
+			ForbiddenQueries: []string{},
+		},
+	)
+	router.Register(GetBucketLocationMethod, GetBucketLocationURITemplate, "GetBucketLocation", GetBucketLocationHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{},
+			ForbiddenQueries: []string{},
+		},
+	)
+	router.Register(GetBucketPolicyMethod, GetBucketPolicyURITemplate, "GetBucketPolicy", GetBucketPolicyHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{},
+			ForbiddenQueries: []string{},
+		},
+	)
+	router.Register(GetBucketAclMethod, GetBucketAclURITemplate, "GetBucketAcl", GetBucketAclHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{},
+			ForbiddenQueries: []string{},
+		},
+	)
+	router.Register(GetBucketVersioningMethod, GetBucketVersioningURITemplate, "GetBucketVersioning", GetBucketVersioningHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{},
+			ForbiddenQueries: []string{},
+		},
+	)
+	router.Register(GetBucketLoggingMethod, GetBucketLoggingURITemplate, "GetBucketLogging", GetBucketLoggingHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{},
+			ForbiddenQueries: []string{},
+		},
+	)
+	router.Register(GetBucketCorsMethod, GetBucketCorsURITemplate, "GetBucketCors", GetBucketCorsHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{},
+			ForbiddenQueries: []string{},
+		},
+	)
+	router.Register(GetBucketLifecycleConfigurationMethod, GetBucketLifecycleConfigurationURITemplate, "GetBucketLifecycleConfiguration", GetBucketLifecycleConfigurationHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{},
+			ForbiddenQueries: []string{},
+		},
+	)
+	router.Register(GetBucketReplicationMethod, GetBucketReplicationURITemplate, "GetBucketReplication", GetBucketReplicationHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{},
+			ForbiddenQueries: []string{},
+		},
+	)
+	router.Register(GetBucketRequestPaymentMethod, GetBucketRequestPaymentURITemplate, "GetBucketRequestPayment", GetBucketRequestPaymentHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{},
+			ForbiddenQueries: []string{},
+		},
+	)
+	router.Register(GetBucketTaggingMethod, GetBucketTaggingURITemplate, "GetBucketTagging", GetBucketTaggingHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{},
+			ForbiddenQueries: []string{},
+		},
+	)
+	router.Register(GetBucketWebsiteMethod, GetBucketWebsiteURITemplate, "GetBucketWebsite", GetBucketWebsiteHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{},
+			ForbiddenQueries: []string{},
+		},
+	)
+	router.Register(GetBucketEncryptionMethod, GetBucketEncryptionURITemplate, "GetBucketEncryption", GetBucketEncryptionHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{},
+			ForbiddenQueries: []string{},
+		},
+	)
+	router.Register(GetBucketAccelerateConfigurationMethod, GetBucketAccelerateConfigurationURITemplate, "GetBucketAccelerateConfiguration", GetBucketAccelerateConfigurationHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{},
+			ForbiddenQueries: []string{},
+		},
+	)
+	router.Register(GetObjectLockConfigurationMethod, GetObjectLockConfigurationURITemplate, "GetObjectLockConfiguration", GetObjectLockConfigurationHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{},
+			ForbiddenQueries: []string{},
+		},
+	)
+	router.Register(GetBucketNotificationConfigurationMethod, GetBucketNotificationConfigurationURITemplate, "GetBucketNotificationConfiguration", GetBucketNotificationConfigurationHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{},
+			ForbiddenQueries: []string{},
+		},
+	)
+	router.Register(GetBucketOwnershipControlsMethod, GetBucketOwnershipControlsURITemplate, "GetBucketOwnershipControls", GetBucketOwnershipControlsHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{},
+			ForbiddenQueries: []string{},
+		},
+	)
+	router.Register(GetBucketPolicyStatusMethod, GetBucketPolicyStatusURITemplate, "GetBucketPolicyStatus", GetBucketPolicyStatusHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{},
+			ForbiddenQueries: []string{},
+		},
+	)
+	router.Register(GetPublicAccessBlockMethod, GetPublicAccessBlockURITemplate, "GetPublicAccessBlock", GetPublicAccessBlockHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{},
+			ForbiddenQueries: []string{},
+		},
+	)
+	router.Register(GetObjectTaggingMethod, GetObjectTaggingURITemplate, "GetObjectTagging", GetObjectTaggingHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{},
+			ForbiddenQueries: []string{},
+		},
+	)
+	router.Register(GetObjectAclMethod, GetObjectAclURITemplate, "GetObjectAcl", GetObjectAclHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{},
+			ForbiddenQueries: []string{},
+		},
+	)
+}
+
+// ListBucketsBackend serves the ListBuckets operation.
+type ListBucketsBackend interface {
+	ListBuckets(ctx context.Context, in *ListBucketsRequest) (*ListBucketsOutput, error)
+}
+
+// ListBucketsURITemplate is the Smithy URI template for the operation.
+const ListBucketsURITemplate = "/?x-id=ListBuckets"
+
+// ListBucketsMethod is the HTTP method for the operation.
+const ListBucketsMethod = "GET"
+
+// ListBucketsHandler decodes a ListBuckets request, dispatches to
 // the backend, and encodes the response per AWS REST-XML semantics.
-func AbortMultipartUploadHandler(b AbortMultipartUploadBackend) http.Handler {
+func ListBucketsHandler(b ListBucketsBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
-		in := &AbortMultipartUploadRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, AbortMultipartUploadURITemplate)
+		in := &ListBucketsRequest{}
+		labels, ok := restxml.MatchURI(r.URL.Path, ListBucketsURITemplate)
+		if !ok {
+			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
+			return
+		}
+		_ = labels
+		q := r.URL.Query()
+		_ = q
+		if v := q.Get("bucket-region"); v != "" {
+			s := v
+			in.BucketRegion = &s
+		}
+		if v := q.Get("continuation-token"); v != "" {
+			s := v
+			in.ContinuationToken = &s
+		}
+		if v := q.Get("max-buckets"); v != "" {
+			if p, err := restxml.ParseInt32(v); err == nil && p != nil {
+				in.MaxBuckets = p
+			}
+		}
+		if v := q.Get("prefix"); v != "" {
+			s := v
+			in.Prefix = &s
+		}
+
+		out, err := b.ListBuckets(ctx, in)
+		if err != nil {
+			restxml.WriteBackendError(w, err)
+			return
+		}
+		_ = out
+
+		w.Header().Set("Content-Type", "application/xml")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(xml.Header))
+		_ = xml.NewEncoder(w).Encode(out)
+	})
+}
+
+// CreateBucketBackend serves the CreateBucket operation.
+type CreateBucketBackend interface {
+	CreateBucket(ctx context.Context, in *CreateBucketRequest) (*CreateBucketOutput, error)
+}
+
+// CreateBucketURITemplate is the Smithy URI template for the operation.
+const CreateBucketURITemplate = "/{Bucket}"
+
+// CreateBucketMethod is the HTTP method for the operation.
+const CreateBucketMethod = "PUT"
+
+// CreateBucketHandler decodes a CreateBucket request, dispatches to
+// the backend, and encodes the response per AWS REST-XML semantics.
+func CreateBucketHandler(b CreateBucketBackend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		in := &CreateBucketRequest{}
+		labels, ok := restxml.MatchURI(r.URL.Path, CreateBucketURITemplate)
+		if !ok {
+			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
+			return
+		}
+		_ = labels
+		q := r.URL.Query()
+		_ = q
+		if v := r.Header.Get("x-amz-acl"); v != "" {
+			// codegen: treats value as string-backed (custom string or enum)
+			_ = v
+		}
+		if v, ok := labels["Bucket"]; ok {
+			in.Bucket = v
+		}
+		if v := r.Header.Get("x-amz-bucket-namespace"); v != "" {
+			// codegen: treats value as string-backed (custom string or enum)
+			_ = v
+		}
+		if v := r.Header.Get("x-amz-grant-full-control"); v != "" {
+			s := v
+			in.GrantFullControl = &s
+		}
+		if v := r.Header.Get("x-amz-grant-read"); v != "" {
+			s := v
+			in.GrantRead = &s
+		}
+		if v := r.Header.Get("x-amz-grant-read-acp"); v != "" {
+			s := v
+			in.GrantReadACP = &s
+		}
+		if v := r.Header.Get("x-amz-grant-write"); v != "" {
+			s := v
+			in.GrantWrite = &s
+		}
+		if v := r.Header.Get("x-amz-grant-write-acp"); v != "" {
+			s := v
+			in.GrantWriteACP = &s
+		}
+		if v := r.Header.Get("x-amz-bucket-object-lock-enabled"); v != "" {
+			if p, err := restxml.ParseBool(v); err == nil && p != nil {
+				in.ObjectLockEnabledForBucket = p
+			}
+		}
+		if v := r.Header.Get("x-amz-object-ownership"); v != "" {
+			// codegen: treats value as string-backed (custom string or enum)
+			_ = v
+		}
+
+		_payload, _ := io.ReadAll(r.Body)
+		// Struct-shaped payload: XML-decode into the target.
+		if len(_payload) > 0 {
+			_val := &CreateBucketConfiguration{}
+			if err := xml.Unmarshal(_payload, _val); err == nil {
+				in.CreateBucketConfiguration = _val
+			}
+		}
+		out, err := b.CreateBucket(ctx, in)
+		if err != nil {
+			restxml.WriteBackendError(w, err)
+			return
+		}
+		_ = out
+		if out.BucketArn != nil {
+			w.Header().Set("x-amz-bucket-arn", *out.BucketArn)
+		}
+
+		if out.Location != nil {
+			w.Header().Set("Location", *out.Location)
+		}
+
+		w.WriteHeader(200)
+	})
+}
+
+// DeleteBucketBackend serves the DeleteBucket operation.
+type DeleteBucketBackend interface {
+	DeleteBucket(ctx context.Context, in *DeleteBucketRequest) (struct{}, error)
+}
+
+// DeleteBucketURITemplate is the Smithy URI template for the operation.
+const DeleteBucketURITemplate = "/{Bucket}"
+
+// DeleteBucketMethod is the HTTP method for the operation.
+const DeleteBucketMethod = "DELETE"
+
+// DeleteBucketHandler decodes a DeleteBucket request, dispatches to
+// the backend, and encodes the response per AWS REST-XML semantics.
+func DeleteBucketHandler(b DeleteBucketBackend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		in := &DeleteBucketRequest{}
+		labels, ok := restxml.MatchURI(r.URL.Path, DeleteBucketURITemplate)
 		if !ok {
 			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -3996,55 +2627,35 @@ func AbortMultipartUploadHandler(b AbortMultipartUploadBackend) http.Handler {
 			s := v
 			in.ExpectedBucketOwner = &s
 		}
-		if v := r.Header.Get("x-amz-if-match-initiated-time"); v != "" {
-			if t, err := restxml.ParseTime(v, ""); err == nil && t != nil {
-				in.IfMatchInitiatedTime = t
-			}
-		}
-		if v, ok := labels["Key"]; ok {
-			in.Key = v
-		}
-		if v := r.Header.Get("x-amz-request-payer"); v != "" {
-			// codegen: assign-from-string for *RequestPayer treats value as the underlying string; backend should validate.
-			_ = v
-		}
-		if v := q.Get("uploadId"); v != "" {
-			in.UploadId = v
-		}
 
-		out, err := b.AbortMultipartUpload(ctx, in)
+		out, err := b.DeleteBucket(ctx, in)
 		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
+			restxml.WriteBackendError(w, err)
 			return
 		}
 		_ = out
-		w.Header().Set("Content-Type", "application/xml")
 		w.WriteHeader(204)
-		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
 	})
 }
 
-// CompleteMultipartUploadBackend serves the CompleteMultipartUpload operation.
-type CompleteMultipartUploadBackend interface {
-	CompleteMultipartUpload(ctx context.Context, in *CompleteMultipartUploadRequest) (*CompleteMultipartUploadOutput, error)
+// HeadBucketBackend serves the HeadBucket operation.
+type HeadBucketBackend interface {
+	HeadBucket(ctx context.Context, in *HeadBucketRequest) (*HeadBucketOutput, error)
 }
 
-// CompleteMultipartUploadURITemplate is the Smithy URI template for the operation.
-const CompleteMultipartUploadURITemplate = "/{Bucket}/{Key+}"
+// HeadBucketURITemplate is the Smithy URI template for the operation.
+const HeadBucketURITemplate = "/{Bucket}"
 
-// CompleteMultipartUploadMethod is the HTTP method for the operation.
-const CompleteMultipartUploadMethod = "POST"
+// HeadBucketMethod is the HTTP method for the operation.
+const HeadBucketMethod = "HEAD"
 
-// CompleteMultipartUploadHandler decodes a CompleteMultipartUpload request, dispatches to
+// HeadBucketHandler decodes a HeadBucket request, dispatches to
 // the backend, and encodes the response per AWS REST-XML semantics.
-func CompleteMultipartUploadHandler(b CompleteMultipartUploadBackend) http.Handler {
+func HeadBucketHandler(b HeadBucketBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
-		in := &CompleteMultipartUploadRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, CompleteMultipartUploadURITemplate)
+		in := &HeadBucketRequest{}
+		labels, ok := restxml.MatchURI(r.URL.Path, HeadBucketURITemplate)
 		if !ok {
 			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -4054,6 +2665,479 @@ func CompleteMultipartUploadHandler(b CompleteMultipartUploadBackend) http.Handl
 		_ = q
 		if v, ok := labels["Bucket"]; ok {
 			in.Bucket = v
+		}
+		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
+			s := v
+			in.ExpectedBucketOwner = &s
+		}
+
+		out, err := b.HeadBucket(ctx, in)
+		if err != nil {
+			restxml.WriteBackendError(w, err)
+			return
+		}
+		_ = out
+		if out.AccessPointAlias != nil {
+			w.Header().Set("x-amz-access-point-alias", strconv.FormatBool(*out.AccessPointAlias))
+		}
+
+		if out.BucketArn != nil {
+			w.Header().Set("x-amz-bucket-arn", *out.BucketArn)
+		}
+
+		if out.BucketLocationName != nil {
+			w.Header().Set("x-amz-bucket-location-name", *out.BucketLocationName)
+		}
+
+		// codegen: header for *LocationType (BucketLocationType -> x-amz-bucket-location-type); falls back to string conversion if pointer to enum.
+		if out.BucketLocationType != nil {
+			w.Header().Set("x-amz-bucket-location-type", string(*out.BucketLocationType))
+		}
+
+		if out.BucketRegion != nil {
+			w.Header().Set("x-amz-bucket-region", *out.BucketRegion)
+		}
+
+		w.WriteHeader(200)
+	})
+}
+
+// ListObjectsV2Backend serves the ListObjectsV2 operation.
+type ListObjectsV2Backend interface {
+	ListObjectsV2(ctx context.Context, in *ListObjectsV2Request) (*ListObjectsV2Output, error)
+}
+
+// ListObjectsV2URITemplate is the Smithy URI template for the operation.
+const ListObjectsV2URITemplate = "/{Bucket}?list-type=2"
+
+// ListObjectsV2Method is the HTTP method for the operation.
+const ListObjectsV2Method = "GET"
+
+// ListObjectsV2Handler decodes a ListObjectsV2 request, dispatches to
+// the backend, and encodes the response per AWS REST-XML semantics.
+func ListObjectsV2Handler(b ListObjectsV2Backend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		in := &ListObjectsV2Request{}
+		labels, ok := restxml.MatchURI(r.URL.Path, ListObjectsV2URITemplate)
+		if !ok {
+			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
+			return
+		}
+		_ = labels
+		q := r.URL.Query()
+		_ = q
+		if v, ok := labels["Bucket"]; ok {
+			in.Bucket = v
+		}
+		if v := q.Get("continuation-token"); v != "" {
+			s := v
+			in.ContinuationToken = &s
+		}
+		if v := q.Get("delimiter"); v != "" {
+			s := v
+			in.Delimiter = &s
+		}
+		if v := q.Get("encoding-type"); v != "" {
+			// codegen: treats value as string-backed (custom string or enum)
+			_ = v
+		}
+		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
+			s := v
+			in.ExpectedBucketOwner = &s
+		}
+		if v := q.Get("fetch-owner"); v != "" {
+			if p, err := restxml.ParseBool(v); err == nil && p != nil {
+				in.FetchOwner = p
+			}
+		}
+		if v := q.Get("max-keys"); v != "" {
+			if p, err := restxml.ParseInt32(v); err == nil && p != nil {
+				in.MaxKeys = p
+			}
+		}
+		if v := r.Header.Get("x-amz-optional-object-attributes"); v != "" {
+			// codegen: treats value as string-backed (custom string or enum)
+			_ = v
+		}
+		if v := q.Get("prefix"); v != "" {
+			s := v
+			in.Prefix = &s
+		}
+		if v := r.Header.Get("x-amz-request-payer"); v != "" {
+			// codegen: treats value as string-backed (custom string or enum)
+			_ = v
+		}
+		if v := q.Get("start-after"); v != "" {
+			s := v
+			in.StartAfter = &s
+		}
+
+		out, err := b.ListObjectsV2(ctx, in)
+		if err != nil {
+			restxml.WriteBackendError(w, err)
+			return
+		}
+		_ = out
+		// codegen: header for *RequestCharged (RequestCharged -> x-amz-request-charged); falls back to string conversion if pointer to enum.
+		if out.RequestCharged != nil {
+			w.Header().Set("x-amz-request-charged", string(*out.RequestCharged))
+		}
+
+		w.Header().Set("Content-Type", "application/xml")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(xml.Header))
+		_ = xml.NewEncoder(w).Encode(out)
+	})
+}
+
+// GetObjectBackend serves the GetObject operation.
+type GetObjectBackend interface {
+	GetObject(ctx context.Context, in *GetObjectRequest) (*GetObjectOutput, error)
+}
+
+// GetObjectURITemplate is the Smithy URI template for the operation.
+const GetObjectURITemplate = "/{Bucket}/{Key+}?x-id=GetObject"
+
+// GetObjectMethod is the HTTP method for the operation.
+const GetObjectMethod = "GET"
+
+// GetObjectHandler decodes a GetObject request, dispatches to
+// the backend, and encodes the response per AWS REST-XML semantics.
+func GetObjectHandler(b GetObjectBackend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		in := &GetObjectRequest{}
+		labels, ok := restxml.MatchURI(r.URL.Path, GetObjectURITemplate)
+		if !ok {
+			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
+			return
+		}
+		_ = labels
+		q := r.URL.Query()
+		_ = q
+		if v, ok := labels["Bucket"]; ok {
+			in.Bucket = v
+		}
+		if v := r.Header.Get("x-amz-checksum-mode"); v != "" {
+			// codegen: treats value as string-backed (custom string or enum)
+			_ = v
+		}
+		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
+			s := v
+			in.ExpectedBucketOwner = &s
+		}
+		if v := r.Header.Get("If-Match"); v != "" {
+			s := v
+			in.IfMatch = &s
+		}
+		if v := r.Header.Get("If-Modified-Since"); v != "" {
+			if t, err := restxml.ParseTime(v, "http-date"); err == nil && t != nil {
+				in.IfModifiedSince = t
+			}
+		}
+		if v := r.Header.Get("If-None-Match"); v != "" {
+			s := v
+			in.IfNoneMatch = &s
+		}
+		if v := r.Header.Get("If-Unmodified-Since"); v != "" {
+			if t, err := restxml.ParseTime(v, "http-date"); err == nil && t != nil {
+				in.IfUnmodifiedSince = t
+			}
+		}
+		if v, ok := labels["Key"]; ok {
+			in.Key = v
+		}
+		if v := q.Get("partNumber"); v != "" {
+			if p, err := restxml.ParseInt32(v); err == nil && p != nil {
+				in.PartNumber = p
+			}
+		}
+		if v := r.Header.Get("Range"); v != "" {
+			s := v
+			in.Range = &s
+		}
+		if v := r.Header.Get("x-amz-request-payer"); v != "" {
+			// codegen: treats value as string-backed (custom string or enum)
+			_ = v
+		}
+		if v := q.Get("response-cache-control"); v != "" {
+			s := v
+			in.ResponseCacheControl = &s
+		}
+		if v := q.Get("response-content-disposition"); v != "" {
+			s := v
+			in.ResponseContentDisposition = &s
+		}
+		if v := q.Get("response-content-encoding"); v != "" {
+			s := v
+			in.ResponseContentEncoding = &s
+		}
+		if v := q.Get("response-content-language"); v != "" {
+			s := v
+			in.ResponseContentLanguage = &s
+		}
+		if v := q.Get("response-content-type"); v != "" {
+			s := v
+			in.ResponseContentType = &s
+		}
+		if v := q.Get("response-expires"); v != "" {
+			if t, err := restxml.ParseTime(v, ""); err == nil && t != nil {
+				in.ResponseExpires = t
+			}
+		}
+		if v := r.Header.Get("x-amz-server-side-encryption-customer-algorithm"); v != "" {
+			s := v
+			in.SSECustomerAlgorithm = &s
+		}
+		if v := r.Header.Get("x-amz-server-side-encryption-customer-key"); v != "" {
+			s := v
+			in.SSECustomerKey = &s
+		}
+		if v := r.Header.Get("x-amz-server-side-encryption-customer-key-MD5"); v != "" {
+			s := v
+			in.SSECustomerKeyMD5 = &s
+		}
+		if v := q.Get("versionId"); v != "" {
+			s := v
+			in.VersionId = &s
+		}
+
+		out, err := b.GetObject(ctx, in)
+		if err != nil {
+			restxml.WriteBackendError(w, err)
+			return
+		}
+		_ = out
+		if out.AcceptRanges != nil {
+			w.Header().Set("accept-ranges", *out.AcceptRanges)
+		}
+
+		if out.BucketKeyEnabled != nil {
+			w.Header().Set("x-amz-server-side-encryption-bucket-key-enabled", strconv.FormatBool(*out.BucketKeyEnabled))
+		}
+
+		if out.CacheControl != nil {
+			w.Header().Set("Cache-Control", *out.CacheControl)
+		}
+
+		if out.ChecksumCRC32 != nil {
+			w.Header().Set("x-amz-checksum-crc32", *out.ChecksumCRC32)
+		}
+
+		if out.ChecksumCRC32C != nil {
+			w.Header().Set("x-amz-checksum-crc32c", *out.ChecksumCRC32C)
+		}
+
+		if out.ChecksumCRC64NVME != nil {
+			w.Header().Set("x-amz-checksum-crc64nvme", *out.ChecksumCRC64NVME)
+		}
+
+		if out.ChecksumMD5 != nil {
+			w.Header().Set("x-amz-checksum-md5", *out.ChecksumMD5)
+		}
+
+		if out.ChecksumSHA1 != nil {
+			w.Header().Set("x-amz-checksum-sha1", *out.ChecksumSHA1)
+		}
+
+		if out.ChecksumSHA256 != nil {
+			w.Header().Set("x-amz-checksum-sha256", *out.ChecksumSHA256)
+		}
+
+		if out.ChecksumSHA512 != nil {
+			w.Header().Set("x-amz-checksum-sha512", *out.ChecksumSHA512)
+		}
+
+		// codegen: header for *ChecksumType (ChecksumType -> x-amz-checksum-type); falls back to string conversion if pointer to enum.
+		if out.ChecksumType != nil {
+			w.Header().Set("x-amz-checksum-type", string(*out.ChecksumType))
+		}
+
+		if out.ChecksumXXHASH128 != nil {
+			w.Header().Set("x-amz-checksum-xxhash128", *out.ChecksumXXHASH128)
+		}
+
+		if out.ChecksumXXHASH3 != nil {
+			w.Header().Set("x-amz-checksum-xxhash3", *out.ChecksumXXHASH3)
+		}
+
+		if out.ChecksumXXHASH64 != nil {
+			w.Header().Set("x-amz-checksum-xxhash64", *out.ChecksumXXHASH64)
+		}
+
+		if out.ContentDisposition != nil {
+			w.Header().Set("Content-Disposition", *out.ContentDisposition)
+		}
+
+		if out.ContentEncoding != nil {
+			w.Header().Set("Content-Encoding", *out.ContentEncoding)
+		}
+
+		if out.ContentLanguage != nil {
+			w.Header().Set("Content-Language", *out.ContentLanguage)
+		}
+
+		if out.ContentLength != nil {
+			w.Header().Set("Content-Length", strconv.FormatInt(*out.ContentLength, 10))
+		}
+
+		if out.ContentRange != nil {
+			w.Header().Set("Content-Range", *out.ContentRange)
+		}
+
+		if out.ContentType != nil {
+			w.Header().Set("Content-Type", *out.ContentType)
+		}
+
+		if out.DeleteMarker != nil {
+			w.Header().Set("x-amz-delete-marker", strconv.FormatBool(*out.DeleteMarker))
+		}
+
+		if out.ETag != nil {
+			w.Header().Set("ETag", *out.ETag)
+		}
+
+		if out.Expiration != nil {
+			w.Header().Set("x-amz-expiration", *out.Expiration)
+		}
+
+		if out.Expires != nil {
+			w.Header().Set("Expires", *out.Expires)
+		}
+
+		if out.LastModified != nil {
+			w.Header().Set("Last-Modified", restxml.FormatTime(*out.LastModified, "http-date"))
+		}
+
+		if out.MissingMeta != nil {
+			w.Header().Set("x-amz-missing-meta", strconv.FormatInt(int64(*out.MissingMeta), 10))
+		}
+
+		// codegen: header for *ObjectLockLegalHoldStatus (ObjectLockLegalHoldStatus -> x-amz-object-lock-legal-hold); falls back to string conversion if pointer to enum.
+		if out.ObjectLockLegalHoldStatus != nil {
+			w.Header().Set("x-amz-object-lock-legal-hold", string(*out.ObjectLockLegalHoldStatus))
+		}
+
+		// codegen: header for *ObjectLockMode (ObjectLockMode -> x-amz-object-lock-mode); falls back to string conversion if pointer to enum.
+		if out.ObjectLockMode != nil {
+			w.Header().Set("x-amz-object-lock-mode", string(*out.ObjectLockMode))
+		}
+
+		if out.ObjectLockRetainUntilDate != nil {
+			w.Header().Set("x-amz-object-lock-retain-until-date", restxml.FormatTime(*out.ObjectLockRetainUntilDate, "http-date"))
+		}
+
+		if out.PartsCount != nil {
+			w.Header().Set("x-amz-mp-parts-count", strconv.FormatInt(int64(*out.PartsCount), 10))
+		}
+
+		// codegen: header for *ReplicationStatus (ReplicationStatus -> x-amz-replication-status); falls back to string conversion if pointer to enum.
+		if out.ReplicationStatus != nil {
+			w.Header().Set("x-amz-replication-status", string(*out.ReplicationStatus))
+		}
+
+		// codegen: header for *RequestCharged (RequestCharged -> x-amz-request-charged); falls back to string conversion if pointer to enum.
+		if out.RequestCharged != nil {
+			w.Header().Set("x-amz-request-charged", string(*out.RequestCharged))
+		}
+
+		if out.Restore != nil {
+			w.Header().Set("x-amz-restore", *out.Restore)
+		}
+
+		if out.SSECustomerAlgorithm != nil {
+			w.Header().Set("x-amz-server-side-encryption-customer-algorithm", *out.SSECustomerAlgorithm)
+		}
+
+		if out.SSECustomerKeyMD5 != nil {
+			w.Header().Set("x-amz-server-side-encryption-customer-key-MD5", *out.SSECustomerKeyMD5)
+		}
+
+		if out.SSEKMSKeyId != nil {
+			w.Header().Set("x-amz-server-side-encryption-aws-kms-key-id", *out.SSEKMSKeyId)
+		}
+
+		// codegen: header for *ServerSideEncryption (ServerSideEncryption -> x-amz-server-side-encryption); falls back to string conversion if pointer to enum.
+		if out.ServerSideEncryption != nil {
+			w.Header().Set("x-amz-server-side-encryption", string(*out.ServerSideEncryption))
+		}
+
+		// codegen: header for *StorageClass (StorageClass -> x-amz-storage-class); falls back to string conversion if pointer to enum.
+		if out.StorageClass != nil {
+			w.Header().Set("x-amz-storage-class", string(*out.StorageClass))
+		}
+
+		if out.TagCount != nil {
+			w.Header().Set("x-amz-tagging-count", strconv.FormatInt(int64(*out.TagCount), 10))
+		}
+
+		if out.VersionId != nil {
+			w.Header().Set("x-amz-version-id", *out.VersionId)
+		}
+
+		if out.WebsiteRedirectLocation != nil {
+			w.Header().Set("x-amz-website-redirect-location", *out.WebsiteRedirectLocation)
+		}
+
+		for _k, _v := range out.Metadata {
+			w.Header().Set("x-amz-meta-"+_k, _v)
+		}
+
+		// Streaming payload: stream the backend's body straight
+		// through to the response writer. No buffering.
+		w.WriteHeader(200)
+		if out.Body != nil {
+			_, _ = io.Copy(w, out.Body)
+			_ = out.Body.Close()
+		}
+	})
+}
+
+// PutObjectBackend serves the PutObject operation.
+type PutObjectBackend interface {
+	PutObject(ctx context.Context, in *PutObjectRequest) (*PutObjectOutput, error)
+}
+
+// PutObjectURITemplate is the Smithy URI template for the operation.
+const PutObjectURITemplate = "/{Bucket}/{Key+}?x-id=PutObject"
+
+// PutObjectMethod is the HTTP method for the operation.
+const PutObjectMethod = "PUT"
+
+// PutObjectHandler decodes a PutObject request, dispatches to
+// the backend, and encodes the response per AWS REST-XML semantics.
+func PutObjectHandler(b PutObjectBackend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		in := &PutObjectRequest{}
+		labels, ok := restxml.MatchURI(r.URL.Path, PutObjectURITemplate)
+		if !ok {
+			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
+			return
+		}
+		_ = labels
+		q := r.URL.Query()
+		_ = q
+		if v := r.Header.Get("x-amz-acl"); v != "" {
+			// codegen: treats value as string-backed (custom string or enum)
+			_ = v
+		}
+		if v, ok := labels["Bucket"]; ok {
+			in.Bucket = v
+		}
+		if v := r.Header.Get("x-amz-server-side-encryption-bucket-key-enabled"); v != "" {
+			if p, err := restxml.ParseBool(v); err == nil && p != nil {
+				in.BucketKeyEnabled = p
+			}
+		}
+		if v := r.Header.Get("Cache-Control"); v != "" {
+			s := v
+			in.CacheControl = &s
+		}
+		if v := r.Header.Get("x-amz-sdk-checksum-algorithm"); v != "" {
+			// codegen: treats value as string-backed (custom string or enum)
+			_ = v
 		}
 		if v := r.Header.Get("x-amz-checksum-crc32"); v != "" {
 			s := v
@@ -4083,10 +3167,6 @@ func CompleteMultipartUploadHandler(b CompleteMultipartUploadBackend) http.Handl
 			s := v
 			in.ChecksumSHA512 = &s
 		}
-		if v := r.Header.Get("x-amz-checksum-type"); v != "" {
-			// codegen: assign-from-string for *ChecksumType treats value as the underlying string; backend should validate.
-			_ = v
-		}
 		if v := r.Header.Get("x-amz-checksum-xxhash128"); v != "" {
 			s := v
 			in.ChecksumXXHASH128 = &s
@@ -4099,9 +3179,54 @@ func CompleteMultipartUploadHandler(b CompleteMultipartUploadBackend) http.Handl
 			s := v
 			in.ChecksumXXHASH64 = &s
 		}
+		if v := r.Header.Get("Content-Disposition"); v != "" {
+			s := v
+			in.ContentDisposition = &s
+		}
+		if v := r.Header.Get("Content-Encoding"); v != "" {
+			s := v
+			in.ContentEncoding = &s
+		}
+		if v := r.Header.Get("Content-Language"); v != "" {
+			s := v
+			in.ContentLanguage = &s
+		}
+		if v := r.Header.Get("Content-Length"); v != "" {
+			if p, err := restxml.ParseInt64(v); err == nil && p != nil {
+				in.ContentLength = p
+			}
+		}
+		if v := r.Header.Get("Content-MD5"); v != "" {
+			s := v
+			in.ContentMD5 = &s
+		}
+		if v := r.Header.Get("Content-Type"); v != "" {
+			s := v
+			in.ContentType = &s
+		}
 		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
 			s := v
 			in.ExpectedBucketOwner = &s
+		}
+		if v := r.Header.Get("Expires"); v != "" {
+			s := v
+			in.Expires = &s
+		}
+		if v := r.Header.Get("x-amz-grant-full-control"); v != "" {
+			s := v
+			in.GrantFullControl = &s
+		}
+		if v := r.Header.Get("x-amz-grant-read"); v != "" {
+			s := v
+			in.GrantRead = &s
+		}
+		if v := r.Header.Get("x-amz-grant-read-acp"); v != "" {
+			s := v
+			in.GrantReadACP = &s
+		}
+		if v := r.Header.Get("x-amz-grant-write-acp"); v != "" {
+			s := v
+			in.GrantWriteACP = &s
 		}
 		if v := r.Header.Get("If-Match"); v != "" {
 			s := v
@@ -4114,16 +3239,29 @@ func CompleteMultipartUploadHandler(b CompleteMultipartUploadBackend) http.Handl
 		if v, ok := labels["Key"]; ok {
 			in.Key = v
 		}
-		if v := r.Header.Get("x-amz-mp-object-size"); v != "" {
-			if p, err := restxml.ParseInt64(v); err == nil && p != nil {
-				in.MpuObjectSize = p
+		for hk, hvs := range r.Header {
+			if strings.HasPrefix(strings.ToLower(hk), strings.ToLower("x-amz-meta-")) && len(hvs) > 0 {
+				if in.Metadata == nil {
+					in.Metadata = Metadata{}
+				}
+				in.Metadata[strings.TrimPrefix(strings.ToLower(hk), strings.ToLower("x-amz-meta-"))] = hvs[0]
 			}
 		}
-		// payload binding for MultipartUpload: read full body
-		_payload, _ := io.ReadAll(r.Body)
-		_ = _payload
+		if v := r.Header.Get("x-amz-object-lock-legal-hold"); v != "" {
+			// codegen: treats value as string-backed (custom string or enum)
+			_ = v
+		}
+		if v := r.Header.Get("x-amz-object-lock-mode"); v != "" {
+			// codegen: treats value as string-backed (custom string or enum)
+			_ = v
+		}
+		if v := r.Header.Get("x-amz-object-lock-retain-until-date"); v != "" {
+			if t, err := restxml.ParseTime(v, "http-date"); err == nil && t != nil {
+				in.ObjectLockRetainUntilDate = t
+			}
+		}
 		if v := r.Header.Get("x-amz-request-payer"); v != "" {
-			// codegen: assign-from-string for *RequestPayer treats value as the underlying string; backend should validate.
+			// codegen: treats value as string-backed (custom string or enum)
 			_ = v
 		}
 		if v := r.Header.Get("x-amz-server-side-encryption-customer-algorithm"); v != "" {
@@ -4138,22 +3276,530 @@ func CompleteMultipartUploadHandler(b CompleteMultipartUploadBackend) http.Handl
 			s := v
 			in.SSECustomerKeyMD5 = &s
 		}
-		if v := q.Get("uploadId"); v != "" {
-			in.UploadId = v
+		if v := r.Header.Get("x-amz-server-side-encryption-context"); v != "" {
+			s := v
+			in.SSEKMSEncryptionContext = &s
+		}
+		if v := r.Header.Get("x-amz-server-side-encryption-aws-kms-key-id"); v != "" {
+			s := v
+			in.SSEKMSKeyId = &s
+		}
+		if v := r.Header.Get("x-amz-server-side-encryption"); v != "" {
+			// codegen: treats value as string-backed (custom string or enum)
+			_ = v
+		}
+		if v := r.Header.Get("x-amz-storage-class"); v != "" {
+			// codegen: treats value as string-backed (custom string or enum)
+			_ = v
+		}
+		if v := r.Header.Get("x-amz-tagging"); v != "" {
+			s := v
+			in.Tagging = &s
+		}
+		if v := r.Header.Get("x-amz-website-redirect-location"); v != "" {
+			s := v
+			in.WebsiteRedirectLocation = &s
+		}
+		if v := r.Header.Get("x-amz-write-offset-bytes"); v != "" {
+			if p, err := restxml.ParseInt64(v); err == nil && p != nil {
+				in.WriteOffsetBytes = p
+			}
 		}
 
-		out, err := b.CompleteMultipartUpload(ctx, in)
+		// Streaming payload: hand the request body to the backend
+		// directly. The handler does not buffer; the backend owns
+		// closing r.Body via in.Body.
+		in.Body = r.Body
+		out, err := b.PutObject(ctx, in)
 		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
+			restxml.WriteBackendError(w, err)
 			return
 		}
 		_ = out
-		w.Header().Set("Content-Type", "application/xml")
+		if out.BucketKeyEnabled != nil {
+			w.Header().Set("x-amz-server-side-encryption-bucket-key-enabled", strconv.FormatBool(*out.BucketKeyEnabled))
+		}
+
+		if out.ChecksumCRC32 != nil {
+			w.Header().Set("x-amz-checksum-crc32", *out.ChecksumCRC32)
+		}
+
+		if out.ChecksumCRC32C != nil {
+			w.Header().Set("x-amz-checksum-crc32c", *out.ChecksumCRC32C)
+		}
+
+		if out.ChecksumCRC64NVME != nil {
+			w.Header().Set("x-amz-checksum-crc64nvme", *out.ChecksumCRC64NVME)
+		}
+
+		if out.ChecksumMD5 != nil {
+			w.Header().Set("x-amz-checksum-md5", *out.ChecksumMD5)
+		}
+
+		if out.ChecksumSHA1 != nil {
+			w.Header().Set("x-amz-checksum-sha1", *out.ChecksumSHA1)
+		}
+
+		if out.ChecksumSHA256 != nil {
+			w.Header().Set("x-amz-checksum-sha256", *out.ChecksumSHA256)
+		}
+
+		if out.ChecksumSHA512 != nil {
+			w.Header().Set("x-amz-checksum-sha512", *out.ChecksumSHA512)
+		}
+
+		// codegen: header for *ChecksumType (ChecksumType -> x-amz-checksum-type); falls back to string conversion if pointer to enum.
+		if out.ChecksumType != nil {
+			w.Header().Set("x-amz-checksum-type", string(*out.ChecksumType))
+		}
+
+		if out.ChecksumXXHASH128 != nil {
+			w.Header().Set("x-amz-checksum-xxhash128", *out.ChecksumXXHASH128)
+		}
+
+		if out.ChecksumXXHASH3 != nil {
+			w.Header().Set("x-amz-checksum-xxhash3", *out.ChecksumXXHASH3)
+		}
+
+		if out.ChecksumXXHASH64 != nil {
+			w.Header().Set("x-amz-checksum-xxhash64", *out.ChecksumXXHASH64)
+		}
+
+		if out.ETag != nil {
+			w.Header().Set("ETag", *out.ETag)
+		}
+
+		if out.Expiration != nil {
+			w.Header().Set("x-amz-expiration", *out.Expiration)
+		}
+
+		// codegen: header for *RequestCharged (RequestCharged -> x-amz-request-charged); falls back to string conversion if pointer to enum.
+		if out.RequestCharged != nil {
+			w.Header().Set("x-amz-request-charged", string(*out.RequestCharged))
+		}
+
+		if out.SSECustomerAlgorithm != nil {
+			w.Header().Set("x-amz-server-side-encryption-customer-algorithm", *out.SSECustomerAlgorithm)
+		}
+
+		if out.SSECustomerKeyMD5 != nil {
+			w.Header().Set("x-amz-server-side-encryption-customer-key-MD5", *out.SSECustomerKeyMD5)
+		}
+
+		if out.SSEKMSEncryptionContext != nil {
+			w.Header().Set("x-amz-server-side-encryption-context", *out.SSEKMSEncryptionContext)
+		}
+
+		if out.SSEKMSKeyId != nil {
+			w.Header().Set("x-amz-server-side-encryption-aws-kms-key-id", *out.SSEKMSKeyId)
+		}
+
+		// codegen: header for *ServerSideEncryption (ServerSideEncryption -> x-amz-server-side-encryption); falls back to string conversion if pointer to enum.
+		if out.ServerSideEncryption != nil {
+			w.Header().Set("x-amz-server-side-encryption", string(*out.ServerSideEncryption))
+		}
+
+		if out.Size != nil {
+			w.Header().Set("x-amz-object-size", strconv.FormatInt(*out.Size, 10))
+		}
+
+		if out.VersionId != nil {
+			w.Header().Set("x-amz-version-id", *out.VersionId)
+		}
+
 		w.WriteHeader(200)
-		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
+	})
+}
+
+// DeleteObjectBackend serves the DeleteObject operation.
+type DeleteObjectBackend interface {
+	DeleteObject(ctx context.Context, in *DeleteObjectRequest) (*DeleteObjectOutput, error)
+}
+
+// DeleteObjectURITemplate is the Smithy URI template for the operation.
+const DeleteObjectURITemplate = "/{Bucket}/{Key+}?x-id=DeleteObject"
+
+// DeleteObjectMethod is the HTTP method for the operation.
+const DeleteObjectMethod = "DELETE"
+
+// DeleteObjectHandler decodes a DeleteObject request, dispatches to
+// the backend, and encodes the response per AWS REST-XML semantics.
+func DeleteObjectHandler(b DeleteObjectBackend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		in := &DeleteObjectRequest{}
+		labels, ok := restxml.MatchURI(r.URL.Path, DeleteObjectURITemplate)
+		if !ok {
+			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
+			return
+		}
+		_ = labels
+		q := r.URL.Query()
+		_ = q
+		if v, ok := labels["Bucket"]; ok {
+			in.Bucket = v
+		}
+		if v := r.Header.Get("x-amz-bypass-governance-retention"); v != "" {
+			if p, err := restxml.ParseBool(v); err == nil && p != nil {
+				in.BypassGovernanceRetention = p
+			}
+		}
+		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
+			s := v
+			in.ExpectedBucketOwner = &s
+		}
+		if v := r.Header.Get("If-Match"); v != "" {
+			s := v
+			in.IfMatch = &s
+		}
+		if v := r.Header.Get("x-amz-if-match-last-modified-time"); v != "" {
+			if t, err := restxml.ParseTime(v, "http-date"); err == nil && t != nil {
+				in.IfMatchLastModifiedTime = t
+			}
+		}
+		if v := r.Header.Get("x-amz-if-match-size"); v != "" {
+			if p, err := restxml.ParseInt64(v); err == nil && p != nil {
+				in.IfMatchSize = p
+			}
+		}
+		if v, ok := labels["Key"]; ok {
+			in.Key = v
+		}
+		if v := r.Header.Get("x-amz-mfa"); v != "" {
+			s := v
+			in.MFA = &s
+		}
+		if v := r.Header.Get("x-amz-request-payer"); v != "" {
+			// codegen: treats value as string-backed (custom string or enum)
+			_ = v
+		}
+		if v := q.Get("versionId"); v != "" {
+			s := v
+			in.VersionId = &s
+		}
+
+		out, err := b.DeleteObject(ctx, in)
+		if err != nil {
+			restxml.WriteBackendError(w, err)
+			return
+		}
+		_ = out
+		if out.DeleteMarker != nil {
+			w.Header().Set("x-amz-delete-marker", strconv.FormatBool(*out.DeleteMarker))
+		}
+
+		// codegen: header for *RequestCharged (RequestCharged -> x-amz-request-charged); falls back to string conversion if pointer to enum.
+		if out.RequestCharged != nil {
+			w.Header().Set("x-amz-request-charged", string(*out.RequestCharged))
+		}
+
+		if out.VersionId != nil {
+			w.Header().Set("x-amz-version-id", *out.VersionId)
+		}
+
+		w.WriteHeader(204)
+	})
+}
+
+// HeadObjectBackend serves the HeadObject operation.
+type HeadObjectBackend interface {
+	HeadObject(ctx context.Context, in *HeadObjectRequest) (*HeadObjectOutput, error)
+}
+
+// HeadObjectURITemplate is the Smithy URI template for the operation.
+const HeadObjectURITemplate = "/{Bucket}/{Key+}"
+
+// HeadObjectMethod is the HTTP method for the operation.
+const HeadObjectMethod = "HEAD"
+
+// HeadObjectHandler decodes a HeadObject request, dispatches to
+// the backend, and encodes the response per AWS REST-XML semantics.
+func HeadObjectHandler(b HeadObjectBackend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		in := &HeadObjectRequest{}
+		labels, ok := restxml.MatchURI(r.URL.Path, HeadObjectURITemplate)
+		if !ok {
+			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
+			return
+		}
+		_ = labels
+		q := r.URL.Query()
+		_ = q
+		if v, ok := labels["Bucket"]; ok {
+			in.Bucket = v
+		}
+		if v := r.Header.Get("x-amz-checksum-mode"); v != "" {
+			// codegen: treats value as string-backed (custom string or enum)
+			_ = v
+		}
+		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
+			s := v
+			in.ExpectedBucketOwner = &s
+		}
+		if v := r.Header.Get("If-Match"); v != "" {
+			s := v
+			in.IfMatch = &s
+		}
+		if v := r.Header.Get("If-Modified-Since"); v != "" {
+			if t, err := restxml.ParseTime(v, "http-date"); err == nil && t != nil {
+				in.IfModifiedSince = t
+			}
+		}
+		if v := r.Header.Get("If-None-Match"); v != "" {
+			s := v
+			in.IfNoneMatch = &s
+		}
+		if v := r.Header.Get("If-Unmodified-Since"); v != "" {
+			if t, err := restxml.ParseTime(v, "http-date"); err == nil && t != nil {
+				in.IfUnmodifiedSince = t
+			}
+		}
+		if v, ok := labels["Key"]; ok {
+			in.Key = v
+		}
+		if v := q.Get("partNumber"); v != "" {
+			if p, err := restxml.ParseInt32(v); err == nil && p != nil {
+				in.PartNumber = p
+			}
+		}
+		if v := r.Header.Get("Range"); v != "" {
+			s := v
+			in.Range = &s
+		}
+		if v := r.Header.Get("x-amz-request-payer"); v != "" {
+			// codegen: treats value as string-backed (custom string or enum)
+			_ = v
+		}
+		if v := q.Get("response-cache-control"); v != "" {
+			s := v
+			in.ResponseCacheControl = &s
+		}
+		if v := q.Get("response-content-disposition"); v != "" {
+			s := v
+			in.ResponseContentDisposition = &s
+		}
+		if v := q.Get("response-content-encoding"); v != "" {
+			s := v
+			in.ResponseContentEncoding = &s
+		}
+		if v := q.Get("response-content-language"); v != "" {
+			s := v
+			in.ResponseContentLanguage = &s
+		}
+		if v := q.Get("response-content-type"); v != "" {
+			s := v
+			in.ResponseContentType = &s
+		}
+		if v := q.Get("response-expires"); v != "" {
+			if t, err := restxml.ParseTime(v, ""); err == nil && t != nil {
+				in.ResponseExpires = t
+			}
+		}
+		if v := r.Header.Get("x-amz-server-side-encryption-customer-algorithm"); v != "" {
+			s := v
+			in.SSECustomerAlgorithm = &s
+		}
+		if v := r.Header.Get("x-amz-server-side-encryption-customer-key"); v != "" {
+			s := v
+			in.SSECustomerKey = &s
+		}
+		if v := r.Header.Get("x-amz-server-side-encryption-customer-key-MD5"); v != "" {
+			s := v
+			in.SSECustomerKeyMD5 = &s
+		}
+		if v := q.Get("versionId"); v != "" {
+			s := v
+			in.VersionId = &s
+		}
+
+		out, err := b.HeadObject(ctx, in)
+		if err != nil {
+			restxml.WriteBackendError(w, err)
+			return
+		}
+		_ = out
+		if out.AcceptRanges != nil {
+			w.Header().Set("accept-ranges", *out.AcceptRanges)
+		}
+
+		// codegen: header for *ArchiveStatus (ArchiveStatus -> x-amz-archive-status); falls back to string conversion if pointer to enum.
+		if out.ArchiveStatus != nil {
+			w.Header().Set("x-amz-archive-status", string(*out.ArchiveStatus))
+		}
+
+		if out.BucketKeyEnabled != nil {
+			w.Header().Set("x-amz-server-side-encryption-bucket-key-enabled", strconv.FormatBool(*out.BucketKeyEnabled))
+		}
+
+		if out.CacheControl != nil {
+			w.Header().Set("Cache-Control", *out.CacheControl)
+		}
+
+		if out.ChecksumCRC32 != nil {
+			w.Header().Set("x-amz-checksum-crc32", *out.ChecksumCRC32)
+		}
+
+		if out.ChecksumCRC32C != nil {
+			w.Header().Set("x-amz-checksum-crc32c", *out.ChecksumCRC32C)
+		}
+
+		if out.ChecksumCRC64NVME != nil {
+			w.Header().Set("x-amz-checksum-crc64nvme", *out.ChecksumCRC64NVME)
+		}
+
+		if out.ChecksumMD5 != nil {
+			w.Header().Set("x-amz-checksum-md5", *out.ChecksumMD5)
+		}
+
+		if out.ChecksumSHA1 != nil {
+			w.Header().Set("x-amz-checksum-sha1", *out.ChecksumSHA1)
+		}
+
+		if out.ChecksumSHA256 != nil {
+			w.Header().Set("x-amz-checksum-sha256", *out.ChecksumSHA256)
+		}
+
+		if out.ChecksumSHA512 != nil {
+			w.Header().Set("x-amz-checksum-sha512", *out.ChecksumSHA512)
+		}
+
+		// codegen: header for *ChecksumType (ChecksumType -> x-amz-checksum-type); falls back to string conversion if pointer to enum.
+		if out.ChecksumType != nil {
+			w.Header().Set("x-amz-checksum-type", string(*out.ChecksumType))
+		}
+
+		if out.ChecksumXXHASH128 != nil {
+			w.Header().Set("x-amz-checksum-xxhash128", *out.ChecksumXXHASH128)
+		}
+
+		if out.ChecksumXXHASH3 != nil {
+			w.Header().Set("x-amz-checksum-xxhash3", *out.ChecksumXXHASH3)
+		}
+
+		if out.ChecksumXXHASH64 != nil {
+			w.Header().Set("x-amz-checksum-xxhash64", *out.ChecksumXXHASH64)
+		}
+
+		if out.ContentDisposition != nil {
+			w.Header().Set("Content-Disposition", *out.ContentDisposition)
+		}
+
+		if out.ContentEncoding != nil {
+			w.Header().Set("Content-Encoding", *out.ContentEncoding)
+		}
+
+		if out.ContentLanguage != nil {
+			w.Header().Set("Content-Language", *out.ContentLanguage)
+		}
+
+		if out.ContentLength != nil {
+			w.Header().Set("Content-Length", strconv.FormatInt(*out.ContentLength, 10))
+		}
+
+		if out.ContentRange != nil {
+			w.Header().Set("Content-Range", *out.ContentRange)
+		}
+
+		if out.ContentType != nil {
+			w.Header().Set("Content-Type", *out.ContentType)
+		}
+
+		if out.DeleteMarker != nil {
+			w.Header().Set("x-amz-delete-marker", strconv.FormatBool(*out.DeleteMarker))
+		}
+
+		if out.ETag != nil {
+			w.Header().Set("ETag", *out.ETag)
+		}
+
+		if out.Expiration != nil {
+			w.Header().Set("x-amz-expiration", *out.Expiration)
+		}
+
+		if out.Expires != nil {
+			w.Header().Set("Expires", *out.Expires)
+		}
+
+		if out.LastModified != nil {
+			w.Header().Set("Last-Modified", restxml.FormatTime(*out.LastModified, "http-date"))
+		}
+
+		if out.MissingMeta != nil {
+			w.Header().Set("x-amz-missing-meta", strconv.FormatInt(int64(*out.MissingMeta), 10))
+		}
+
+		// codegen: header for *ObjectLockLegalHoldStatus (ObjectLockLegalHoldStatus -> x-amz-object-lock-legal-hold); falls back to string conversion if pointer to enum.
+		if out.ObjectLockLegalHoldStatus != nil {
+			w.Header().Set("x-amz-object-lock-legal-hold", string(*out.ObjectLockLegalHoldStatus))
+		}
+
+		// codegen: header for *ObjectLockMode (ObjectLockMode -> x-amz-object-lock-mode); falls back to string conversion if pointer to enum.
+		if out.ObjectLockMode != nil {
+			w.Header().Set("x-amz-object-lock-mode", string(*out.ObjectLockMode))
+		}
+
+		if out.ObjectLockRetainUntilDate != nil {
+			w.Header().Set("x-amz-object-lock-retain-until-date", restxml.FormatTime(*out.ObjectLockRetainUntilDate, "http-date"))
+		}
+
+		if out.PartsCount != nil {
+			w.Header().Set("x-amz-mp-parts-count", strconv.FormatInt(int64(*out.PartsCount), 10))
+		}
+
+		// codegen: header for *ReplicationStatus (ReplicationStatus -> x-amz-replication-status); falls back to string conversion if pointer to enum.
+		if out.ReplicationStatus != nil {
+			w.Header().Set("x-amz-replication-status", string(*out.ReplicationStatus))
+		}
+
+		// codegen: header for *RequestCharged (RequestCharged -> x-amz-request-charged); falls back to string conversion if pointer to enum.
+		if out.RequestCharged != nil {
+			w.Header().Set("x-amz-request-charged", string(*out.RequestCharged))
+		}
+
+		if out.Restore != nil {
+			w.Header().Set("x-amz-restore", *out.Restore)
+		}
+
+		if out.SSECustomerAlgorithm != nil {
+			w.Header().Set("x-amz-server-side-encryption-customer-algorithm", *out.SSECustomerAlgorithm)
+		}
+
+		if out.SSECustomerKeyMD5 != nil {
+			w.Header().Set("x-amz-server-side-encryption-customer-key-MD5", *out.SSECustomerKeyMD5)
+		}
+
+		if out.SSEKMSKeyId != nil {
+			w.Header().Set("x-amz-server-side-encryption-aws-kms-key-id", *out.SSEKMSKeyId)
+		}
+
+		// codegen: header for *ServerSideEncryption (ServerSideEncryption -> x-amz-server-side-encryption); falls back to string conversion if pointer to enum.
+		if out.ServerSideEncryption != nil {
+			w.Header().Set("x-amz-server-side-encryption", string(*out.ServerSideEncryption))
+		}
+
+		// codegen: header for *StorageClass (StorageClass -> x-amz-storage-class); falls back to string conversion if pointer to enum.
+		if out.StorageClass != nil {
+			w.Header().Set("x-amz-storage-class", string(*out.StorageClass))
+		}
+
+		if out.TagCount != nil {
+			w.Header().Set("x-amz-tagging-count", strconv.FormatInt(int64(*out.TagCount), 10))
+		}
+
+		if out.VersionId != nil {
+			w.Header().Set("x-amz-version-id", *out.VersionId)
+		}
+
+		if out.WebsiteRedirectLocation != nil {
+			w.Header().Set("x-amz-website-redirect-location", *out.WebsiteRedirectLocation)
+		}
+
+		for _k, _v := range out.Metadata {
+			w.Header().Set("x-amz-meta-"+_k, _v)
+		}
+
+		w.WriteHeader(200)
 	})
 }
 
@@ -4183,7 +3829,7 @@ func CopyObjectHandler(b CopyObjectBackend) http.Handler {
 		q := r.URL.Query()
 		_ = q
 		if v := r.Header.Get("x-amz-acl"); v != "" {
-			// codegen: assign-from-string for *ObjectCannedACL treats value as the underlying string; backend should validate.
+			// codegen: treats value as string-backed (custom string or enum)
 			_ = v
 		}
 		if v, ok := labels["Bucket"]; ok {
@@ -4199,7 +3845,7 @@ func CopyObjectHandler(b CopyObjectBackend) http.Handler {
 			in.CacheControl = &s
 		}
 		if v := r.Header.Get("x-amz-checksum-algorithm"); v != "" {
-			// codegen: assign-from-string for *ChecksumAlgorithm treats value as the underlying string; backend should validate.
+			// codegen: treats value as string-backed (custom string or enum)
 			_ = v
 		}
 		if v := r.Header.Get("Content-Disposition"); v != "" {
@@ -4226,7 +3872,7 @@ func CopyObjectHandler(b CopyObjectBackend) http.Handler {
 			in.CopySourceIfMatch = &s
 		}
 		if v := r.Header.Get("x-amz-copy-source-if-modified-since"); v != "" {
-			if t, err := restxml.ParseTime(v, ""); err == nil && t != nil {
+			if t, err := restxml.ParseTime(v, "http-date"); err == nil && t != nil {
 				in.CopySourceIfModifiedSince = t
 			}
 		}
@@ -4235,7 +3881,7 @@ func CopyObjectHandler(b CopyObjectBackend) http.Handler {
 			in.CopySourceIfNoneMatch = &s
 		}
 		if v := r.Header.Get("x-amz-copy-source-if-unmodified-since"); v != "" {
-			if t, err := restxml.ParseTime(v, ""); err == nil && t != nil {
+			if t, err := restxml.ParseTime(v, "http-date"); err == nil && t != nil {
 				in.CopySourceIfUnmodifiedSince = t
 			}
 		}
@@ -4299,24 +3945,24 @@ func CopyObjectHandler(b CopyObjectBackend) http.Handler {
 			}
 		}
 		if v := r.Header.Get("x-amz-metadata-directive"); v != "" {
-			// codegen: assign-from-string for *MetadataDirective treats value as the underlying string; backend should validate.
+			// codegen: treats value as string-backed (custom string or enum)
 			_ = v
 		}
 		if v := r.Header.Get("x-amz-object-lock-legal-hold"); v != "" {
-			// codegen: assign-from-string for *ObjectLockLegalHoldStatus treats value as the underlying string; backend should validate.
+			// codegen: treats value as string-backed (custom string or enum)
 			_ = v
 		}
 		if v := r.Header.Get("x-amz-object-lock-mode"); v != "" {
-			// codegen: assign-from-string for *ObjectLockMode treats value as the underlying string; backend should validate.
+			// codegen: treats value as string-backed (custom string or enum)
 			_ = v
 		}
 		if v := r.Header.Get("x-amz-object-lock-retain-until-date"); v != "" {
-			if t, err := restxml.ParseTime(v, ""); err == nil && t != nil {
+			if t, err := restxml.ParseTime(v, "http-date"); err == nil && t != nil {
 				in.ObjectLockRetainUntilDate = t
 			}
 		}
 		if v := r.Header.Get("x-amz-request-payer"); v != "" {
-			// codegen: assign-from-string for *RequestPayer treats value as the underlying string; backend should validate.
+			// codegen: treats value as string-backed (custom string or enum)
 			_ = v
 		}
 		if v := r.Header.Get("x-amz-server-side-encryption-customer-algorithm"); v != "" {
@@ -4340,11 +3986,11 @@ func CopyObjectHandler(b CopyObjectBackend) http.Handler {
 			in.SSEKMSKeyId = &s
 		}
 		if v := r.Header.Get("x-amz-server-side-encryption"); v != "" {
-			// codegen: assign-from-string for *ServerSideEncryption treats value as the underlying string; backend should validate.
+			// codegen: treats value as string-backed (custom string or enum)
 			_ = v
 		}
 		if v := r.Header.Get("x-amz-storage-class"); v != "" {
-			// codegen: assign-from-string for *StorageClass treats value as the underlying string; backend should validate.
+			// codegen: treats value as string-backed (custom string or enum)
 			_ = v
 		}
 		if v := r.Header.Get("x-amz-tagging"); v != "" {
@@ -4352,7 +3998,7 @@ func CopyObjectHandler(b CopyObjectBackend) http.Handler {
 			in.Tagging = &s
 		}
 		if v := r.Header.Get("x-amz-tagging-directive"); v != "" {
-			// codegen: assign-from-string for *TaggingDirective treats value as the underlying string; backend should validate.
+			// codegen: treats value as string-backed (custom string or enum)
 			_ = v
 		}
 		if v := r.Header.Get("x-amz-website-redirect-location"); v != "" {
@@ -4362,208 +4008,58 @@ func CopyObjectHandler(b CopyObjectBackend) http.Handler {
 
 		out, err := b.CopyObject(ctx, in)
 		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
+			restxml.WriteBackendError(w, err)
 			return
 		}
 		_ = out
+		if out.BucketKeyEnabled != nil {
+			w.Header().Set("x-amz-server-side-encryption-bucket-key-enabled", strconv.FormatBool(*out.BucketKeyEnabled))
+		}
+
+		if out.CopySourceVersionId != nil {
+			w.Header().Set("x-amz-copy-source-version-id", *out.CopySourceVersionId)
+		}
+
+		if out.Expiration != nil {
+			w.Header().Set("x-amz-expiration", *out.Expiration)
+		}
+
+		// codegen: header for *RequestCharged (RequestCharged -> x-amz-request-charged); falls back to string conversion if pointer to enum.
+		if out.RequestCharged != nil {
+			w.Header().Set("x-amz-request-charged", string(*out.RequestCharged))
+		}
+
+		if out.SSECustomerAlgorithm != nil {
+			w.Header().Set("x-amz-server-side-encryption-customer-algorithm", *out.SSECustomerAlgorithm)
+		}
+
+		if out.SSECustomerKeyMD5 != nil {
+			w.Header().Set("x-amz-server-side-encryption-customer-key-MD5", *out.SSECustomerKeyMD5)
+		}
+
+		if out.SSEKMSEncryptionContext != nil {
+			w.Header().Set("x-amz-server-side-encryption-context", *out.SSEKMSEncryptionContext)
+		}
+
+		if out.SSEKMSKeyId != nil {
+			w.Header().Set("x-amz-server-side-encryption-aws-kms-key-id", *out.SSEKMSKeyId)
+		}
+
+		// codegen: header for *ServerSideEncryption (ServerSideEncryption -> x-amz-server-side-encryption); falls back to string conversion if pointer to enum.
+		if out.ServerSideEncryption != nil {
+			w.Header().Set("x-amz-server-side-encryption", string(*out.ServerSideEncryption))
+		}
+
+		if out.VersionId != nil {
+			w.Header().Set("x-amz-version-id", *out.VersionId)
+		}
+
 		w.Header().Set("Content-Type", "application/xml")
 		w.WriteHeader(200)
 		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
-	})
-}
-
-// CreateBucketBackend serves the CreateBucket operation.
-type CreateBucketBackend interface {
-	CreateBucket(ctx context.Context, in *CreateBucketRequest) (*CreateBucketOutput, error)
-}
-
-// CreateBucketURITemplate is the Smithy URI template for the operation.
-const CreateBucketURITemplate = "/{Bucket}"
-
-// CreateBucketMethod is the HTTP method for the operation.
-const CreateBucketMethod = "PUT"
-
-// CreateBucketHandler decodes a CreateBucket request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func CreateBucketHandler(b CreateBucketBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &CreateBucketRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, CreateBucketURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
+		if out.CopyObjectResult != nil {
+			_ = xml.NewEncoder(w).Encode(out.CopyObjectResult)
 		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v := r.Header.Get("x-amz-acl"); v != "" {
-			// codegen: assign-from-string for *BucketCannedACL treats value as the underlying string; backend should validate.
-			_ = v
-		}
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := r.Header.Get("x-amz-bucket-namespace"); v != "" {
-			// codegen: assign-from-string for *BucketNamespace treats value as the underlying string; backend should validate.
-			_ = v
-		}
-		// payload binding for CreateBucketConfiguration: read full body
-		_payload, _ := io.ReadAll(r.Body)
-		_ = _payload
-		if v := r.Header.Get("x-amz-grant-full-control"); v != "" {
-			s := v
-			in.GrantFullControl = &s
-		}
-		if v := r.Header.Get("x-amz-grant-read"); v != "" {
-			s := v
-			in.GrantRead = &s
-		}
-		if v := r.Header.Get("x-amz-grant-read-acp"); v != "" {
-			s := v
-			in.GrantReadACP = &s
-		}
-		if v := r.Header.Get("x-amz-grant-write"); v != "" {
-			s := v
-			in.GrantWrite = &s
-		}
-		if v := r.Header.Get("x-amz-grant-write-acp"); v != "" {
-			s := v
-			in.GrantWriteACP = &s
-		}
-		if v := r.Header.Get("x-amz-bucket-object-lock-enabled"); v != "" {
-			if p, err := restxml.ParseBool(v); err == nil && p != nil {
-				in.ObjectLockEnabledForBucket = p
-			}
-		}
-		if v := r.Header.Get("x-amz-object-ownership"); v != "" {
-			// codegen: assign-from-string for *ObjectOwnership treats value as the underlying string; backend should validate.
-			_ = v
-		}
-
-		out, err := b.CreateBucket(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.Header().Set("Content-Type", "application/xml")
-		w.WriteHeader(200)
-		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
-	})
-}
-
-// CreateBucketMetadataConfigurationBackend serves the CreateBucketMetadataConfiguration operation.
-type CreateBucketMetadataConfigurationBackend interface {
-	CreateBucketMetadataConfiguration(ctx context.Context, in *CreateBucketMetadataConfigurationRequest) (struct{}, error)
-}
-
-// CreateBucketMetadataConfigurationURITemplate is the Smithy URI template for the operation.
-const CreateBucketMetadataConfigurationURITemplate = "/{Bucket}?metadataConfiguration"
-
-// CreateBucketMetadataConfigurationMethod is the HTTP method for the operation.
-const CreateBucketMetadataConfigurationMethod = "POST"
-
-// CreateBucketMetadataConfigurationHandler decodes a CreateBucketMetadataConfiguration request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func CreateBucketMetadataConfigurationHandler(b CreateBucketMetadataConfigurationBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &CreateBucketMetadataConfigurationRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, CreateBucketMetadataConfigurationURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := r.Header.Get("x-amz-sdk-checksum-algorithm"); v != "" {
-			// codegen: assign-from-string for *ChecksumAlgorithm treats value as the underlying string; backend should validate.
-			_ = v
-		}
-		if v := r.Header.Get("Content-MD5"); v != "" {
-			s := v
-			in.ContentMD5 = &s
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-		// payload binding for MetadataConfiguration: read full body
-		_payload, _ := io.ReadAll(r.Body)
-		_ = _payload
-
-		out, err := b.CreateBucketMetadataConfiguration(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.WriteHeader(200)
-	})
-}
-
-// CreateBucketMetadataTableConfigurationBackend serves the CreateBucketMetadataTableConfiguration operation.
-type CreateBucketMetadataTableConfigurationBackend interface {
-	CreateBucketMetadataTableConfiguration(ctx context.Context, in *CreateBucketMetadataTableConfigurationRequest) (struct{}, error)
-}
-
-// CreateBucketMetadataTableConfigurationURITemplate is the Smithy URI template for the operation.
-const CreateBucketMetadataTableConfigurationURITemplate = "/{Bucket}?metadataTable"
-
-// CreateBucketMetadataTableConfigurationMethod is the HTTP method for the operation.
-const CreateBucketMetadataTableConfigurationMethod = "POST"
-
-// CreateBucketMetadataTableConfigurationHandler decodes a CreateBucketMetadataTableConfiguration request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func CreateBucketMetadataTableConfigurationHandler(b CreateBucketMetadataTableConfigurationBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &CreateBucketMetadataTableConfigurationRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, CreateBucketMetadataTableConfigurationURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := r.Header.Get("x-amz-sdk-checksum-algorithm"); v != "" {
-			// codegen: assign-from-string for *ChecksumAlgorithm treats value as the underlying string; backend should validate.
-			_ = v
-		}
-		if v := r.Header.Get("Content-MD5"); v != "" {
-			s := v
-			in.ContentMD5 = &s
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-		// payload binding for MetadataTableConfiguration: read full body
-		_payload, _ := io.ReadAll(r.Body)
-		_ = _payload
-
-		out, err := b.CreateBucketMetadataTableConfiguration(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.WriteHeader(200)
 	})
 }
 
@@ -4593,7 +4089,7 @@ func CreateMultipartUploadHandler(b CreateMultipartUploadBackend) http.Handler {
 		q := r.URL.Query()
 		_ = q
 		if v := r.Header.Get("x-amz-acl"); v != "" {
-			// codegen: assign-from-string for *ObjectCannedACL treats value as the underlying string; backend should validate.
+			// codegen: treats value as string-backed (custom string or enum)
 			_ = v
 		}
 		if v, ok := labels["Bucket"]; ok {
@@ -4609,11 +4105,11 @@ func CreateMultipartUploadHandler(b CreateMultipartUploadBackend) http.Handler {
 			in.CacheControl = &s
 		}
 		if v := r.Header.Get("x-amz-checksum-algorithm"); v != "" {
-			// codegen: assign-from-string for *ChecksumAlgorithm treats value as the underlying string; backend should validate.
+			// codegen: treats value as string-backed (custom string or enum)
 			_ = v
 		}
 		if v := r.Header.Get("x-amz-checksum-type"); v != "" {
-			// codegen: assign-from-string for *ChecksumType treats value as the underlying string; backend should validate.
+			// codegen: treats value as string-backed (custom string or enum)
 			_ = v
 		}
 		if v := r.Header.Get("Content-Disposition"); v != "" {
@@ -4668,20 +4164,20 @@ func CreateMultipartUploadHandler(b CreateMultipartUploadBackend) http.Handler {
 			}
 		}
 		if v := r.Header.Get("x-amz-object-lock-legal-hold"); v != "" {
-			// codegen: assign-from-string for *ObjectLockLegalHoldStatus treats value as the underlying string; backend should validate.
+			// codegen: treats value as string-backed (custom string or enum)
 			_ = v
 		}
 		if v := r.Header.Get("x-amz-object-lock-mode"); v != "" {
-			// codegen: assign-from-string for *ObjectLockMode treats value as the underlying string; backend should validate.
+			// codegen: treats value as string-backed (custom string or enum)
 			_ = v
 		}
 		if v := r.Header.Get("x-amz-object-lock-retain-until-date"); v != "" {
-			if t, err := restxml.ParseTime(v, ""); err == nil && t != nil {
+			if t, err := restxml.ParseTime(v, "http-date"); err == nil && t != nil {
 				in.ObjectLockRetainUntilDate = t
 			}
 		}
 		if v := r.Header.Get("x-amz-request-payer"); v != "" {
-			// codegen: assign-from-string for *RequestPayer treats value as the underlying string; backend should validate.
+			// codegen: treats value as string-backed (custom string or enum)
 			_ = v
 		}
 		if v := r.Header.Get("x-amz-server-side-encryption-customer-algorithm"); v != "" {
@@ -4705,11 +4201,11 @@ func CreateMultipartUploadHandler(b CreateMultipartUploadBackend) http.Handler {
 			in.SSEKMSKeyId = &s
 		}
 		if v := r.Header.Get("x-amz-server-side-encryption"); v != "" {
-			// codegen: assign-from-string for *ServerSideEncryption treats value as the underlying string; backend should validate.
+			// codegen: treats value as string-backed (custom string or enum)
 			_ = v
 		}
 		if v := r.Header.Get("x-amz-storage-class"); v != "" {
-			// codegen: assign-from-string for *StorageClass treats value as the underlying string; backend should validate.
+			// codegen: treats value as string-backed (custom string or enum)
 			_ = v
 		}
 		if v := r.Header.Get("x-amz-tagging"); v != "" {
@@ -4723,37 +4219,83 @@ func CreateMultipartUploadHandler(b CreateMultipartUploadBackend) http.Handler {
 
 		out, err := b.CreateMultipartUpload(ctx, in)
 		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
+			restxml.WriteBackendError(w, err)
 			return
 		}
 		_ = out
+		if out.AbortDate != nil {
+			w.Header().Set("x-amz-abort-date", restxml.FormatTime(*out.AbortDate, "http-date"))
+		}
+
+		if out.AbortRuleId != nil {
+			w.Header().Set("x-amz-abort-rule-id", *out.AbortRuleId)
+		}
+
+		if out.BucketKeyEnabled != nil {
+			w.Header().Set("x-amz-server-side-encryption-bucket-key-enabled", strconv.FormatBool(*out.BucketKeyEnabled))
+		}
+
+		// codegen: header for *ChecksumAlgorithm (ChecksumAlgorithm -> x-amz-checksum-algorithm); falls back to string conversion if pointer to enum.
+		if out.ChecksumAlgorithm != nil {
+			w.Header().Set("x-amz-checksum-algorithm", string(*out.ChecksumAlgorithm))
+		}
+
+		// codegen: header for *ChecksumType (ChecksumType -> x-amz-checksum-type); falls back to string conversion if pointer to enum.
+		if out.ChecksumType != nil {
+			w.Header().Set("x-amz-checksum-type", string(*out.ChecksumType))
+		}
+
+		// codegen: header for *RequestCharged (RequestCharged -> x-amz-request-charged); falls back to string conversion if pointer to enum.
+		if out.RequestCharged != nil {
+			w.Header().Set("x-amz-request-charged", string(*out.RequestCharged))
+		}
+
+		if out.SSECustomerAlgorithm != nil {
+			w.Header().Set("x-amz-server-side-encryption-customer-algorithm", *out.SSECustomerAlgorithm)
+		}
+
+		if out.SSECustomerKeyMD5 != nil {
+			w.Header().Set("x-amz-server-side-encryption-customer-key-MD5", *out.SSECustomerKeyMD5)
+		}
+
+		if out.SSEKMSEncryptionContext != nil {
+			w.Header().Set("x-amz-server-side-encryption-context", *out.SSEKMSEncryptionContext)
+		}
+
+		if out.SSEKMSKeyId != nil {
+			w.Header().Set("x-amz-server-side-encryption-aws-kms-key-id", *out.SSEKMSKeyId)
+		}
+
+		// codegen: header for *ServerSideEncryption (ServerSideEncryption -> x-amz-server-side-encryption); falls back to string conversion if pointer to enum.
+		if out.ServerSideEncryption != nil {
+			w.Header().Set("x-amz-server-side-encryption", string(*out.ServerSideEncryption))
+		}
+
 		w.Header().Set("Content-Type", "application/xml")
 		w.WriteHeader(200)
 		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
+		_ = xml.NewEncoder(w).Encode(out)
 	})
 }
 
-// CreateSessionBackend serves the CreateSession operation.
-type CreateSessionBackend interface {
-	CreateSession(ctx context.Context, in *CreateSessionRequest) (*CreateSessionOutput, error)
+// UploadPartBackend serves the UploadPart operation.
+type UploadPartBackend interface {
+	UploadPart(ctx context.Context, in *UploadPartRequest) (*UploadPartOutput, error)
 }
 
-// CreateSessionURITemplate is the Smithy URI template for the operation.
-const CreateSessionURITemplate = "/{Bucket}?session"
+// UploadPartURITemplate is the Smithy URI template for the operation.
+const UploadPartURITemplate = "/{Bucket}/{Key+}?x-id=UploadPart"
 
-// CreateSessionMethod is the HTTP method for the operation.
-const CreateSessionMethod = "GET"
+// UploadPartMethod is the HTTP method for the operation.
+const UploadPartMethod = "PUT"
 
-// CreateSessionHandler decodes a CreateSession request, dispatches to
+// UploadPartHandler decodes a UploadPart request, dispatches to
 // the backend, and encodes the response per AWS REST-XML semantics.
-func CreateSessionHandler(b CreateSessionBackend) http.Handler {
+func UploadPartHandler(b UploadPartBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
-		in := &CreateSessionRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, CreateSessionURITemplate)
+		in := &UploadPartRequest{}
+		labels, ok := restxml.MatchURI(r.URL.Path, UploadPartURITemplate)
 		if !ok {
 			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -4763,924 +4305,353 @@ func CreateSessionHandler(b CreateSessionBackend) http.Handler {
 		_ = q
 		if v, ok := labels["Bucket"]; ok {
 			in.Bucket = v
-		}
-		if v := r.Header.Get("x-amz-server-side-encryption-bucket-key-enabled"); v != "" {
-			if p, err := restxml.ParseBool(v); err == nil && p != nil {
-				in.BucketKeyEnabled = p
-			}
-		}
-		if v := r.Header.Get("x-amz-server-side-encryption-context"); v != "" {
-			s := v
-			in.SSEKMSEncryptionContext = &s
-		}
-		if v := r.Header.Get("x-amz-server-side-encryption-aws-kms-key-id"); v != "" {
-			s := v
-			in.SSEKMSKeyId = &s
-		}
-		if v := r.Header.Get("x-amz-server-side-encryption"); v != "" {
-			// codegen: assign-from-string for *ServerSideEncryption treats value as the underlying string; backend should validate.
-			_ = v
-		}
-		if v := r.Header.Get("x-amz-create-session-mode"); v != "" {
-			// codegen: assign-from-string for *SessionMode treats value as the underlying string; backend should validate.
-			_ = v
-		}
-
-		out, err := b.CreateSession(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.Header().Set("Content-Type", "application/xml")
-		w.WriteHeader(200)
-		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
-	})
-}
-
-// DeleteBucketBackend serves the DeleteBucket operation.
-type DeleteBucketBackend interface {
-	DeleteBucket(ctx context.Context, in *DeleteBucketRequest) (struct{}, error)
-}
-
-// DeleteBucketURITemplate is the Smithy URI template for the operation.
-const DeleteBucketURITemplate = "/{Bucket}"
-
-// DeleteBucketMethod is the HTTP method for the operation.
-const DeleteBucketMethod = "DELETE"
-
-// DeleteBucketHandler decodes a DeleteBucket request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func DeleteBucketHandler(b DeleteBucketBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &DeleteBucketRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, DeleteBucketURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-
-		out, err := b.DeleteBucket(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.WriteHeader(204)
-	})
-}
-
-// DeleteBucketAnalyticsConfigurationBackend serves the DeleteBucketAnalyticsConfiguration operation.
-type DeleteBucketAnalyticsConfigurationBackend interface {
-	DeleteBucketAnalyticsConfiguration(ctx context.Context, in *DeleteBucketAnalyticsConfigurationRequest) (struct{}, error)
-}
-
-// DeleteBucketAnalyticsConfigurationURITemplate is the Smithy URI template for the operation.
-const DeleteBucketAnalyticsConfigurationURITemplate = "/{Bucket}?analytics"
-
-// DeleteBucketAnalyticsConfigurationMethod is the HTTP method for the operation.
-const DeleteBucketAnalyticsConfigurationMethod = "DELETE"
-
-// DeleteBucketAnalyticsConfigurationHandler decodes a DeleteBucketAnalyticsConfiguration request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func DeleteBucketAnalyticsConfigurationHandler(b DeleteBucketAnalyticsConfigurationBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &DeleteBucketAnalyticsConfigurationRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, DeleteBucketAnalyticsConfigurationURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-		if v := q.Get("id"); v != "" {
-			in.Id = v
-		}
-
-		out, err := b.DeleteBucketAnalyticsConfiguration(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.WriteHeader(204)
-	})
-}
-
-// DeleteBucketCorsBackend serves the DeleteBucketCors operation.
-type DeleteBucketCorsBackend interface {
-	DeleteBucketCors(ctx context.Context, in *DeleteBucketCorsRequest) (struct{}, error)
-}
-
-// DeleteBucketCorsURITemplate is the Smithy URI template for the operation.
-const DeleteBucketCorsURITemplate = "/{Bucket}?cors"
-
-// DeleteBucketCorsMethod is the HTTP method for the operation.
-const DeleteBucketCorsMethod = "DELETE"
-
-// DeleteBucketCorsHandler decodes a DeleteBucketCors request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func DeleteBucketCorsHandler(b DeleteBucketCorsBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &DeleteBucketCorsRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, DeleteBucketCorsURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-
-		out, err := b.DeleteBucketCors(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.WriteHeader(204)
-	})
-}
-
-// DeleteBucketEncryptionBackend serves the DeleteBucketEncryption operation.
-type DeleteBucketEncryptionBackend interface {
-	DeleteBucketEncryption(ctx context.Context, in *DeleteBucketEncryptionRequest) (struct{}, error)
-}
-
-// DeleteBucketEncryptionURITemplate is the Smithy URI template for the operation.
-const DeleteBucketEncryptionURITemplate = "/{Bucket}?encryption"
-
-// DeleteBucketEncryptionMethod is the HTTP method for the operation.
-const DeleteBucketEncryptionMethod = "DELETE"
-
-// DeleteBucketEncryptionHandler decodes a DeleteBucketEncryption request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func DeleteBucketEncryptionHandler(b DeleteBucketEncryptionBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &DeleteBucketEncryptionRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, DeleteBucketEncryptionURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-
-		out, err := b.DeleteBucketEncryption(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.WriteHeader(204)
-	})
-}
-
-// DeleteBucketIntelligentTieringConfigurationBackend serves the DeleteBucketIntelligentTieringConfiguration operation.
-type DeleteBucketIntelligentTieringConfigurationBackend interface {
-	DeleteBucketIntelligentTieringConfiguration(ctx context.Context, in *DeleteBucketIntelligentTieringConfigurationRequest) (struct{}, error)
-}
-
-// DeleteBucketIntelligentTieringConfigurationURITemplate is the Smithy URI template for the operation.
-const DeleteBucketIntelligentTieringConfigurationURITemplate = "/{Bucket}?intelligent-tiering"
-
-// DeleteBucketIntelligentTieringConfigurationMethod is the HTTP method for the operation.
-const DeleteBucketIntelligentTieringConfigurationMethod = "DELETE"
-
-// DeleteBucketIntelligentTieringConfigurationHandler decodes a DeleteBucketIntelligentTieringConfiguration request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func DeleteBucketIntelligentTieringConfigurationHandler(b DeleteBucketIntelligentTieringConfigurationBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &DeleteBucketIntelligentTieringConfigurationRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, DeleteBucketIntelligentTieringConfigurationURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-		if v := q.Get("id"); v != "" {
-			in.Id = v
-		}
-
-		out, err := b.DeleteBucketIntelligentTieringConfiguration(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.WriteHeader(204)
-	})
-}
-
-// DeleteBucketInventoryConfigurationBackend serves the DeleteBucketInventoryConfiguration operation.
-type DeleteBucketInventoryConfigurationBackend interface {
-	DeleteBucketInventoryConfiguration(ctx context.Context, in *DeleteBucketInventoryConfigurationRequest) (struct{}, error)
-}
-
-// DeleteBucketInventoryConfigurationURITemplate is the Smithy URI template for the operation.
-const DeleteBucketInventoryConfigurationURITemplate = "/{Bucket}?inventory"
-
-// DeleteBucketInventoryConfigurationMethod is the HTTP method for the operation.
-const DeleteBucketInventoryConfigurationMethod = "DELETE"
-
-// DeleteBucketInventoryConfigurationHandler decodes a DeleteBucketInventoryConfiguration request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func DeleteBucketInventoryConfigurationHandler(b DeleteBucketInventoryConfigurationBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &DeleteBucketInventoryConfigurationRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, DeleteBucketInventoryConfigurationURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-		if v := q.Get("id"); v != "" {
-			in.Id = v
-		}
-
-		out, err := b.DeleteBucketInventoryConfiguration(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.WriteHeader(204)
-	})
-}
-
-// DeleteBucketLifecycleBackend serves the DeleteBucketLifecycle operation.
-type DeleteBucketLifecycleBackend interface {
-	DeleteBucketLifecycle(ctx context.Context, in *DeleteBucketLifecycleRequest) (struct{}, error)
-}
-
-// DeleteBucketLifecycleURITemplate is the Smithy URI template for the operation.
-const DeleteBucketLifecycleURITemplate = "/{Bucket}?lifecycle"
-
-// DeleteBucketLifecycleMethod is the HTTP method for the operation.
-const DeleteBucketLifecycleMethod = "DELETE"
-
-// DeleteBucketLifecycleHandler decodes a DeleteBucketLifecycle request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func DeleteBucketLifecycleHandler(b DeleteBucketLifecycleBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &DeleteBucketLifecycleRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, DeleteBucketLifecycleURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-
-		out, err := b.DeleteBucketLifecycle(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.WriteHeader(204)
-	})
-}
-
-// DeleteBucketMetadataConfigurationBackend serves the DeleteBucketMetadataConfiguration operation.
-type DeleteBucketMetadataConfigurationBackend interface {
-	DeleteBucketMetadataConfiguration(ctx context.Context, in *DeleteBucketMetadataConfigurationRequest) (struct{}, error)
-}
-
-// DeleteBucketMetadataConfigurationURITemplate is the Smithy URI template for the operation.
-const DeleteBucketMetadataConfigurationURITemplate = "/{Bucket}?metadataConfiguration"
-
-// DeleteBucketMetadataConfigurationMethod is the HTTP method for the operation.
-const DeleteBucketMetadataConfigurationMethod = "DELETE"
-
-// DeleteBucketMetadataConfigurationHandler decodes a DeleteBucketMetadataConfiguration request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func DeleteBucketMetadataConfigurationHandler(b DeleteBucketMetadataConfigurationBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &DeleteBucketMetadataConfigurationRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, DeleteBucketMetadataConfigurationURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-
-		out, err := b.DeleteBucketMetadataConfiguration(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.WriteHeader(204)
-	})
-}
-
-// DeleteBucketMetadataTableConfigurationBackend serves the DeleteBucketMetadataTableConfiguration operation.
-type DeleteBucketMetadataTableConfigurationBackend interface {
-	DeleteBucketMetadataTableConfiguration(ctx context.Context, in *DeleteBucketMetadataTableConfigurationRequest) (struct{}, error)
-}
-
-// DeleteBucketMetadataTableConfigurationURITemplate is the Smithy URI template for the operation.
-const DeleteBucketMetadataTableConfigurationURITemplate = "/{Bucket}?metadataTable"
-
-// DeleteBucketMetadataTableConfigurationMethod is the HTTP method for the operation.
-const DeleteBucketMetadataTableConfigurationMethod = "DELETE"
-
-// DeleteBucketMetadataTableConfigurationHandler decodes a DeleteBucketMetadataTableConfiguration request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func DeleteBucketMetadataTableConfigurationHandler(b DeleteBucketMetadataTableConfigurationBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &DeleteBucketMetadataTableConfigurationRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, DeleteBucketMetadataTableConfigurationURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-
-		out, err := b.DeleteBucketMetadataTableConfiguration(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.WriteHeader(204)
-	})
-}
-
-// DeleteBucketMetricsConfigurationBackend serves the DeleteBucketMetricsConfiguration operation.
-type DeleteBucketMetricsConfigurationBackend interface {
-	DeleteBucketMetricsConfiguration(ctx context.Context, in *DeleteBucketMetricsConfigurationRequest) (struct{}, error)
-}
-
-// DeleteBucketMetricsConfigurationURITemplate is the Smithy URI template for the operation.
-const DeleteBucketMetricsConfigurationURITemplate = "/{Bucket}?metrics"
-
-// DeleteBucketMetricsConfigurationMethod is the HTTP method for the operation.
-const DeleteBucketMetricsConfigurationMethod = "DELETE"
-
-// DeleteBucketMetricsConfigurationHandler decodes a DeleteBucketMetricsConfiguration request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func DeleteBucketMetricsConfigurationHandler(b DeleteBucketMetricsConfigurationBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &DeleteBucketMetricsConfigurationRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, DeleteBucketMetricsConfigurationURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-		if v := q.Get("id"); v != "" {
-			in.Id = v
-		}
-
-		out, err := b.DeleteBucketMetricsConfiguration(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.WriteHeader(204)
-	})
-}
-
-// DeleteBucketOwnershipControlsBackend serves the DeleteBucketOwnershipControls operation.
-type DeleteBucketOwnershipControlsBackend interface {
-	DeleteBucketOwnershipControls(ctx context.Context, in *DeleteBucketOwnershipControlsRequest) (struct{}, error)
-}
-
-// DeleteBucketOwnershipControlsURITemplate is the Smithy URI template for the operation.
-const DeleteBucketOwnershipControlsURITemplate = "/{Bucket}?ownershipControls"
-
-// DeleteBucketOwnershipControlsMethod is the HTTP method for the operation.
-const DeleteBucketOwnershipControlsMethod = "DELETE"
-
-// DeleteBucketOwnershipControlsHandler decodes a DeleteBucketOwnershipControls request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func DeleteBucketOwnershipControlsHandler(b DeleteBucketOwnershipControlsBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &DeleteBucketOwnershipControlsRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, DeleteBucketOwnershipControlsURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-
-		out, err := b.DeleteBucketOwnershipControls(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.WriteHeader(204)
-	})
-}
-
-// DeleteBucketPolicyBackend serves the DeleteBucketPolicy operation.
-type DeleteBucketPolicyBackend interface {
-	DeleteBucketPolicy(ctx context.Context, in *DeleteBucketPolicyRequest) (struct{}, error)
-}
-
-// DeleteBucketPolicyURITemplate is the Smithy URI template for the operation.
-const DeleteBucketPolicyURITemplate = "/{Bucket}?policy"
-
-// DeleteBucketPolicyMethod is the HTTP method for the operation.
-const DeleteBucketPolicyMethod = "DELETE"
-
-// DeleteBucketPolicyHandler decodes a DeleteBucketPolicy request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func DeleteBucketPolicyHandler(b DeleteBucketPolicyBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &DeleteBucketPolicyRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, DeleteBucketPolicyURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-
-		out, err := b.DeleteBucketPolicy(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.WriteHeader(204)
-	})
-}
-
-// DeleteBucketReplicationBackend serves the DeleteBucketReplication operation.
-type DeleteBucketReplicationBackend interface {
-	DeleteBucketReplication(ctx context.Context, in *DeleteBucketReplicationRequest) (struct{}, error)
-}
-
-// DeleteBucketReplicationURITemplate is the Smithy URI template for the operation.
-const DeleteBucketReplicationURITemplate = "/{Bucket}?replication"
-
-// DeleteBucketReplicationMethod is the HTTP method for the operation.
-const DeleteBucketReplicationMethod = "DELETE"
-
-// DeleteBucketReplicationHandler decodes a DeleteBucketReplication request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func DeleteBucketReplicationHandler(b DeleteBucketReplicationBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &DeleteBucketReplicationRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, DeleteBucketReplicationURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-
-		out, err := b.DeleteBucketReplication(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.WriteHeader(204)
-	})
-}
-
-// DeleteBucketTaggingBackend serves the DeleteBucketTagging operation.
-type DeleteBucketTaggingBackend interface {
-	DeleteBucketTagging(ctx context.Context, in *DeleteBucketTaggingRequest) (struct{}, error)
-}
-
-// DeleteBucketTaggingURITemplate is the Smithy URI template for the operation.
-const DeleteBucketTaggingURITemplate = "/{Bucket}?tagging"
-
-// DeleteBucketTaggingMethod is the HTTP method for the operation.
-const DeleteBucketTaggingMethod = "DELETE"
-
-// DeleteBucketTaggingHandler decodes a DeleteBucketTagging request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func DeleteBucketTaggingHandler(b DeleteBucketTaggingBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &DeleteBucketTaggingRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, DeleteBucketTaggingURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-
-		out, err := b.DeleteBucketTagging(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.WriteHeader(204)
-	})
-}
-
-// DeleteBucketWebsiteBackend serves the DeleteBucketWebsite operation.
-type DeleteBucketWebsiteBackend interface {
-	DeleteBucketWebsite(ctx context.Context, in *DeleteBucketWebsiteRequest) (struct{}, error)
-}
-
-// DeleteBucketWebsiteURITemplate is the Smithy URI template for the operation.
-const DeleteBucketWebsiteURITemplate = "/{Bucket}?website"
-
-// DeleteBucketWebsiteMethod is the HTTP method for the operation.
-const DeleteBucketWebsiteMethod = "DELETE"
-
-// DeleteBucketWebsiteHandler decodes a DeleteBucketWebsite request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func DeleteBucketWebsiteHandler(b DeleteBucketWebsiteBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &DeleteBucketWebsiteRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, DeleteBucketWebsiteURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-
-		out, err := b.DeleteBucketWebsite(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.WriteHeader(204)
-	})
-}
-
-// DeleteObjectBackend serves the DeleteObject operation.
-type DeleteObjectBackend interface {
-	DeleteObject(ctx context.Context, in *DeleteObjectRequest) (*DeleteObjectOutput, error)
-}
-
-// DeleteObjectURITemplate is the Smithy URI template for the operation.
-const DeleteObjectURITemplate = "/{Bucket}/{Key+}?x-id=DeleteObject"
-
-// DeleteObjectMethod is the HTTP method for the operation.
-const DeleteObjectMethod = "DELETE"
-
-// DeleteObjectHandler decodes a DeleteObject request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func DeleteObjectHandler(b DeleteObjectBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &DeleteObjectRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, DeleteObjectURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := r.Header.Get("x-amz-bypass-governance-retention"); v != "" {
-			if p, err := restxml.ParseBool(v); err == nil && p != nil {
-				in.BypassGovernanceRetention = p
-			}
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-		if v := r.Header.Get("If-Match"); v != "" {
-			s := v
-			in.IfMatch = &s
-		}
-		if v := r.Header.Get("x-amz-if-match-last-modified-time"); v != "" {
-			if t, err := restxml.ParseTime(v, ""); err == nil && t != nil {
-				in.IfMatchLastModifiedTime = t
-			}
-		}
-		if v := r.Header.Get("x-amz-if-match-size"); v != "" {
-			if p, err := restxml.ParseInt64(v); err == nil && p != nil {
-				in.IfMatchSize = p
-			}
-		}
-		if v, ok := labels["Key"]; ok {
-			in.Key = v
-		}
-		if v := r.Header.Get("x-amz-mfa"); v != "" {
-			s := v
-			in.MFA = &s
-		}
-		if v := r.Header.Get("x-amz-request-payer"); v != "" {
-			// codegen: assign-from-string for *RequestPayer treats value as the underlying string; backend should validate.
-			_ = v
-		}
-		if v := q.Get("versionId"); v != "" {
-			s := v
-			in.VersionId = &s
-		}
-
-		out, err := b.DeleteObject(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.Header().Set("Content-Type", "application/xml")
-		w.WriteHeader(204)
-		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
-	})
-}
-
-// DeleteObjectTaggingBackend serves the DeleteObjectTagging operation.
-type DeleteObjectTaggingBackend interface {
-	DeleteObjectTagging(ctx context.Context, in *DeleteObjectTaggingRequest) (*DeleteObjectTaggingOutput, error)
-}
-
-// DeleteObjectTaggingURITemplate is the Smithy URI template for the operation.
-const DeleteObjectTaggingURITemplate = "/{Bucket}/{Key+}?tagging"
-
-// DeleteObjectTaggingMethod is the HTTP method for the operation.
-const DeleteObjectTaggingMethod = "DELETE"
-
-// DeleteObjectTaggingHandler decodes a DeleteObjectTagging request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func DeleteObjectTaggingHandler(b DeleteObjectTaggingBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &DeleteObjectTaggingRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, DeleteObjectTaggingURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-		if v, ok := labels["Key"]; ok {
-			in.Key = v
-		}
-		if v := q.Get("versionId"); v != "" {
-			s := v
-			in.VersionId = &s
-		}
-
-		out, err := b.DeleteObjectTagging(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.Header().Set("Content-Type", "application/xml")
-		w.WriteHeader(204)
-		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
-	})
-}
-
-// DeleteObjectsBackend serves the DeleteObjects operation.
-type DeleteObjectsBackend interface {
-	DeleteObjects(ctx context.Context, in *DeleteObjectsRequest) (*DeleteObjectsOutput, error)
-}
-
-// DeleteObjectsURITemplate is the Smithy URI template for the operation.
-const DeleteObjectsURITemplate = "/{Bucket}?delete"
-
-// DeleteObjectsMethod is the HTTP method for the operation.
-const DeleteObjectsMethod = "POST"
-
-// DeleteObjectsHandler decodes a DeleteObjects request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func DeleteObjectsHandler(b DeleteObjectsBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &DeleteObjectsRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, DeleteObjectsURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := r.Header.Get("x-amz-bypass-governance-retention"); v != "" {
-			if p, err := restxml.ParseBool(v); err == nil && p != nil {
-				in.BypassGovernanceRetention = p
-			}
 		}
 		if v := r.Header.Get("x-amz-sdk-checksum-algorithm"); v != "" {
-			// codegen: assign-from-string for *ChecksumAlgorithm treats value as the underlying string; backend should validate.
+			// codegen: treats value as string-backed (custom string or enum)
 			_ = v
 		}
-		// payload binding for Delete: read full body
+		if v := r.Header.Get("x-amz-checksum-crc32"); v != "" {
+			s := v
+			in.ChecksumCRC32 = &s
+		}
+		if v := r.Header.Get("x-amz-checksum-crc32c"); v != "" {
+			s := v
+			in.ChecksumCRC32C = &s
+		}
+		if v := r.Header.Get("x-amz-checksum-crc64nvme"); v != "" {
+			s := v
+			in.ChecksumCRC64NVME = &s
+		}
+		if v := r.Header.Get("x-amz-checksum-md5"); v != "" {
+			s := v
+			in.ChecksumMD5 = &s
+		}
+		if v := r.Header.Get("x-amz-checksum-sha1"); v != "" {
+			s := v
+			in.ChecksumSHA1 = &s
+		}
+		if v := r.Header.Get("x-amz-checksum-sha256"); v != "" {
+			s := v
+			in.ChecksumSHA256 = &s
+		}
+		if v := r.Header.Get("x-amz-checksum-sha512"); v != "" {
+			s := v
+			in.ChecksumSHA512 = &s
+		}
+		if v := r.Header.Get("x-amz-checksum-xxhash128"); v != "" {
+			s := v
+			in.ChecksumXXHASH128 = &s
+		}
+		if v := r.Header.Get("x-amz-checksum-xxhash3"); v != "" {
+			s := v
+			in.ChecksumXXHASH3 = &s
+		}
+		if v := r.Header.Get("x-amz-checksum-xxhash64"); v != "" {
+			s := v
+			in.ChecksumXXHASH64 = &s
+		}
+		if v := r.Header.Get("Content-Length"); v != "" {
+			if p, err := restxml.ParseInt64(v); err == nil && p != nil {
+				in.ContentLength = p
+			}
+		}
+		if v := r.Header.Get("Content-MD5"); v != "" {
+			s := v
+			in.ContentMD5 = &s
+		}
+		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
+			s := v
+			in.ExpectedBucketOwner = &s
+		}
+		if v, ok := labels["Key"]; ok {
+			in.Key = v
+		}
+		if v := q.Get("partNumber"); v != "" {
+			if p, err := restxml.ParseInt32(v); err == nil && p != nil {
+				in.PartNumber = *p
+			}
+		}
+		if v := r.Header.Get("x-amz-request-payer"); v != "" {
+			// codegen: treats value as string-backed (custom string or enum)
+			_ = v
+		}
+		if v := r.Header.Get("x-amz-server-side-encryption-customer-algorithm"); v != "" {
+			s := v
+			in.SSECustomerAlgorithm = &s
+		}
+		if v := r.Header.Get("x-amz-server-side-encryption-customer-key"); v != "" {
+			s := v
+			in.SSECustomerKey = &s
+		}
+		if v := r.Header.Get("x-amz-server-side-encryption-customer-key-MD5"); v != "" {
+			s := v
+			in.SSECustomerKeyMD5 = &s
+		}
+		if v := q.Get("uploadId"); v != "" {
+			in.UploadId = v
+		}
+
+		// Streaming payload: hand the request body to the backend
+		// directly. The handler does not buffer; the backend owns
+		// closing r.Body via in.Body.
+		in.Body = r.Body
+		out, err := b.UploadPart(ctx, in)
+		if err != nil {
+			restxml.WriteBackendError(w, err)
+			return
+		}
+		_ = out
+		if out.BucketKeyEnabled != nil {
+			w.Header().Set("x-amz-server-side-encryption-bucket-key-enabled", strconv.FormatBool(*out.BucketKeyEnabled))
+		}
+
+		if out.ChecksumCRC32 != nil {
+			w.Header().Set("x-amz-checksum-crc32", *out.ChecksumCRC32)
+		}
+
+		if out.ChecksumCRC32C != nil {
+			w.Header().Set("x-amz-checksum-crc32c", *out.ChecksumCRC32C)
+		}
+
+		if out.ChecksumCRC64NVME != nil {
+			w.Header().Set("x-amz-checksum-crc64nvme", *out.ChecksumCRC64NVME)
+		}
+
+		if out.ChecksumMD5 != nil {
+			w.Header().Set("x-amz-checksum-md5", *out.ChecksumMD5)
+		}
+
+		if out.ChecksumSHA1 != nil {
+			w.Header().Set("x-amz-checksum-sha1", *out.ChecksumSHA1)
+		}
+
+		if out.ChecksumSHA256 != nil {
+			w.Header().Set("x-amz-checksum-sha256", *out.ChecksumSHA256)
+		}
+
+		if out.ChecksumSHA512 != nil {
+			w.Header().Set("x-amz-checksum-sha512", *out.ChecksumSHA512)
+		}
+
+		if out.ChecksumXXHASH128 != nil {
+			w.Header().Set("x-amz-checksum-xxhash128", *out.ChecksumXXHASH128)
+		}
+
+		if out.ChecksumXXHASH3 != nil {
+			w.Header().Set("x-amz-checksum-xxhash3", *out.ChecksumXXHASH3)
+		}
+
+		if out.ChecksumXXHASH64 != nil {
+			w.Header().Set("x-amz-checksum-xxhash64", *out.ChecksumXXHASH64)
+		}
+
+		if out.ETag != nil {
+			w.Header().Set("ETag", *out.ETag)
+		}
+
+		// codegen: header for *RequestCharged (RequestCharged -> x-amz-request-charged); falls back to string conversion if pointer to enum.
+		if out.RequestCharged != nil {
+			w.Header().Set("x-amz-request-charged", string(*out.RequestCharged))
+		}
+
+		if out.SSECustomerAlgorithm != nil {
+			w.Header().Set("x-amz-server-side-encryption-customer-algorithm", *out.SSECustomerAlgorithm)
+		}
+
+		if out.SSECustomerKeyMD5 != nil {
+			w.Header().Set("x-amz-server-side-encryption-customer-key-MD5", *out.SSECustomerKeyMD5)
+		}
+
+		if out.SSEKMSKeyId != nil {
+			w.Header().Set("x-amz-server-side-encryption-aws-kms-key-id", *out.SSEKMSKeyId)
+		}
+
+		// codegen: header for *ServerSideEncryption (ServerSideEncryption -> x-amz-server-side-encryption); falls back to string conversion if pointer to enum.
+		if out.ServerSideEncryption != nil {
+			w.Header().Set("x-amz-server-side-encryption", string(*out.ServerSideEncryption))
+		}
+
+		w.WriteHeader(200)
+	})
+}
+
+// CompleteMultipartUploadBackend serves the CompleteMultipartUpload operation.
+type CompleteMultipartUploadBackend interface {
+	CompleteMultipartUpload(ctx context.Context, in *CompleteMultipartUploadRequest) (*CompleteMultipartUploadOutput, error)
+}
+
+// CompleteMultipartUploadURITemplate is the Smithy URI template for the operation.
+const CompleteMultipartUploadURITemplate = "/{Bucket}/{Key+}"
+
+// CompleteMultipartUploadMethod is the HTTP method for the operation.
+const CompleteMultipartUploadMethod = "POST"
+
+// CompleteMultipartUploadHandler decodes a CompleteMultipartUpload request, dispatches to
+// the backend, and encodes the response per AWS REST-XML semantics.
+func CompleteMultipartUploadHandler(b CompleteMultipartUploadBackend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		in := &CompleteMultipartUploadRequest{}
+		labels, ok := restxml.MatchURI(r.URL.Path, CompleteMultipartUploadURITemplate)
+		if !ok {
+			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
+			return
+		}
+		_ = labels
+		q := r.URL.Query()
+		_ = q
+		if v, ok := labels["Bucket"]; ok {
+			in.Bucket = v
+		}
+		if v := r.Header.Get("x-amz-checksum-crc32"); v != "" {
+			s := v
+			in.ChecksumCRC32 = &s
+		}
+		if v := r.Header.Get("x-amz-checksum-crc32c"); v != "" {
+			s := v
+			in.ChecksumCRC32C = &s
+		}
+		if v := r.Header.Get("x-amz-checksum-crc64nvme"); v != "" {
+			s := v
+			in.ChecksumCRC64NVME = &s
+		}
+		if v := r.Header.Get("x-amz-checksum-md5"); v != "" {
+			s := v
+			in.ChecksumMD5 = &s
+		}
+		if v := r.Header.Get("x-amz-checksum-sha1"); v != "" {
+			s := v
+			in.ChecksumSHA1 = &s
+		}
+		if v := r.Header.Get("x-amz-checksum-sha256"); v != "" {
+			s := v
+			in.ChecksumSHA256 = &s
+		}
+		if v := r.Header.Get("x-amz-checksum-sha512"); v != "" {
+			s := v
+			in.ChecksumSHA512 = &s
+		}
+		if v := r.Header.Get("x-amz-checksum-type"); v != "" {
+			// codegen: treats value as string-backed (custom string or enum)
+			_ = v
+		}
+		if v := r.Header.Get("x-amz-checksum-xxhash128"); v != "" {
+			s := v
+			in.ChecksumXXHASH128 = &s
+		}
+		if v := r.Header.Get("x-amz-checksum-xxhash3"); v != "" {
+			s := v
+			in.ChecksumXXHASH3 = &s
+		}
+		if v := r.Header.Get("x-amz-checksum-xxhash64"); v != "" {
+			s := v
+			in.ChecksumXXHASH64 = &s
+		}
+		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
+			s := v
+			in.ExpectedBucketOwner = &s
+		}
+		if v := r.Header.Get("If-Match"); v != "" {
+			s := v
+			in.IfMatch = &s
+		}
+		if v := r.Header.Get("If-None-Match"); v != "" {
+			s := v
+			in.IfNoneMatch = &s
+		}
+		if v, ok := labels["Key"]; ok {
+			in.Key = v
+		}
+		if v := r.Header.Get("x-amz-mp-object-size"); v != "" {
+			if p, err := restxml.ParseInt64(v); err == nil && p != nil {
+				in.MpuObjectSize = p
+			}
+		}
+		if v := r.Header.Get("x-amz-request-payer"); v != "" {
+			// codegen: treats value as string-backed (custom string or enum)
+			_ = v
+		}
+		if v := r.Header.Get("x-amz-server-side-encryption-customer-algorithm"); v != "" {
+			s := v
+			in.SSECustomerAlgorithm = &s
+		}
+		if v := r.Header.Get("x-amz-server-side-encryption-customer-key"); v != "" {
+			s := v
+			in.SSECustomerKey = &s
+		}
+		if v := r.Header.Get("x-amz-server-side-encryption-customer-key-MD5"); v != "" {
+			s := v
+			in.SSECustomerKeyMD5 = &s
+		}
+		if v := q.Get("uploadId"); v != "" {
+			in.UploadId = v
+		}
+
 		_payload, _ := io.ReadAll(r.Body)
-		_ = _payload
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
+		// Struct-shaped payload: XML-decode into the target.
+		if len(_payload) > 0 {
+			_val := &CompletedMultipartUpload{}
+			if err := xml.Unmarshal(_payload, _val); err == nil {
+				in.MultipartUpload = _val
+			}
 		}
-		if v := r.Header.Get("x-amz-mfa"); v != "" {
-			s := v
-			in.MFA = &s
-		}
-		if v := r.Header.Get("x-amz-request-payer"); v != "" {
-			// codegen: assign-from-string for *RequestPayer treats value as the underlying string; backend should validate.
-			_ = v
-		}
-
-		out, err := b.DeleteObjects(ctx, in)
+		out, err := b.CompleteMultipartUpload(ctx, in)
 		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
+			restxml.WriteBackendError(w, err)
 			return
 		}
 		_ = out
+		if out.BucketKeyEnabled != nil {
+			w.Header().Set("x-amz-server-side-encryption-bucket-key-enabled", strconv.FormatBool(*out.BucketKeyEnabled))
+		}
+
+		if out.Expiration != nil {
+			w.Header().Set("x-amz-expiration", *out.Expiration)
+		}
+
+		// codegen: header for *RequestCharged (RequestCharged -> x-amz-request-charged); falls back to string conversion if pointer to enum.
+		if out.RequestCharged != nil {
+			w.Header().Set("x-amz-request-charged", string(*out.RequestCharged))
+		}
+
+		if out.SSEKMSKeyId != nil {
+			w.Header().Set("x-amz-server-side-encryption-aws-kms-key-id", *out.SSEKMSKeyId)
+		}
+
+		// codegen: header for *ServerSideEncryption (ServerSideEncryption -> x-amz-server-side-encryption); falls back to string conversion if pointer to enum.
+		if out.ServerSideEncryption != nil {
+			w.Header().Set("x-amz-server-side-encryption", string(*out.ServerSideEncryption))
+		}
+
+		if out.VersionId != nil {
+			w.Header().Set("x-amz-version-id", *out.VersionId)
+		}
+
 		w.Header().Set("Content-Type", "application/xml")
 		w.WriteHeader(200)
 		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
+		_ = xml.NewEncoder(w).Encode(out)
 	})
 }
 
-// DeletePublicAccessBlockBackend serves the DeletePublicAccessBlock operation.
-type DeletePublicAccessBlockBackend interface {
-	DeletePublicAccessBlock(ctx context.Context, in *DeletePublicAccessBlockRequest) (struct{}, error)
+// AbortMultipartUploadBackend serves the AbortMultipartUpload operation.
+type AbortMultipartUploadBackend interface {
+	AbortMultipartUpload(ctx context.Context, in *AbortMultipartUploadRequest) (*AbortMultipartUploadOutput, error)
 }
 
-// DeletePublicAccessBlockURITemplate is the Smithy URI template for the operation.
-const DeletePublicAccessBlockURITemplate = "/{Bucket}?publicAccessBlock"
+// AbortMultipartUploadURITemplate is the Smithy URI template for the operation.
+const AbortMultipartUploadURITemplate = "/{Bucket}/{Key+}?x-id=AbortMultipartUpload"
 
-// DeletePublicAccessBlockMethod is the HTTP method for the operation.
-const DeletePublicAccessBlockMethod = "DELETE"
+// AbortMultipartUploadMethod is the HTTP method for the operation.
+const AbortMultipartUploadMethod = "DELETE"
 
-// DeletePublicAccessBlockHandler decodes a DeletePublicAccessBlock request, dispatches to
+// AbortMultipartUploadHandler decodes a AbortMultipartUpload request, dispatches to
 // the backend, and encodes the response per AWS REST-XML semantics.
-func DeletePublicAccessBlockHandler(b DeletePublicAccessBlockBackend) http.Handler {
+func AbortMultipartUploadHandler(b AbortMultipartUploadBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
-		in := &DeletePublicAccessBlockRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, DeletePublicAccessBlockURITemplate)
+		in := &AbortMultipartUploadRequest{}
+		labels, ok := restxml.MatchURI(r.URL.Path, AbortMultipartUploadURITemplate)
 		if !ok {
 			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -5695,2223 +4666,34 @@ func DeletePublicAccessBlockHandler(b DeletePublicAccessBlockBackend) http.Handl
 			s := v
 			in.ExpectedBucketOwner = &s
 		}
+		if v := r.Header.Get("x-amz-if-match-initiated-time"); v != "" {
+			if t, err := restxml.ParseTime(v, "http-date"); err == nil && t != nil {
+				in.IfMatchInitiatedTime = t
+			}
+		}
+		if v, ok := labels["Key"]; ok {
+			in.Key = v
+		}
+		if v := r.Header.Get("x-amz-request-payer"); v != "" {
+			// codegen: treats value as string-backed (custom string or enum)
+			_ = v
+		}
+		if v := q.Get("uploadId"); v != "" {
+			in.UploadId = v
+		}
 
-		out, err := b.DeletePublicAccessBlock(ctx, in)
+		out, err := b.AbortMultipartUpload(ctx, in)
 		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
+			restxml.WriteBackendError(w, err)
 			return
 		}
 		_ = out
+		// codegen: header for *RequestCharged (RequestCharged -> x-amz-request-charged); falls back to string conversion if pointer to enum.
+		if out.RequestCharged != nil {
+			w.Header().Set("x-amz-request-charged", string(*out.RequestCharged))
+		}
+
 		w.WriteHeader(204)
-	})
-}
-
-// GetBucketAbacBackend serves the GetBucketAbac operation.
-type GetBucketAbacBackend interface {
-	GetBucketAbac(ctx context.Context, in *GetBucketAbacRequest) (*GetBucketAbacOutput, error)
-}
-
-// GetBucketAbacURITemplate is the Smithy URI template for the operation.
-const GetBucketAbacURITemplate = "/{Bucket}?abac"
-
-// GetBucketAbacMethod is the HTTP method for the operation.
-const GetBucketAbacMethod = "GET"
-
-// GetBucketAbacHandler decodes a GetBucketAbac request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func GetBucketAbacHandler(b GetBucketAbacBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &GetBucketAbacRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, GetBucketAbacURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-
-		out, err := b.GetBucketAbac(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.Header().Set("Content-Type", "application/xml")
-		w.WriteHeader(200)
-		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
-	})
-}
-
-// GetBucketAccelerateConfigurationBackend serves the GetBucketAccelerateConfiguration operation.
-type GetBucketAccelerateConfigurationBackend interface {
-	GetBucketAccelerateConfiguration(ctx context.Context, in *GetBucketAccelerateConfigurationRequest) (*GetBucketAccelerateConfigurationOutput, error)
-}
-
-// GetBucketAccelerateConfigurationURITemplate is the Smithy URI template for the operation.
-const GetBucketAccelerateConfigurationURITemplate = "/{Bucket}?accelerate"
-
-// GetBucketAccelerateConfigurationMethod is the HTTP method for the operation.
-const GetBucketAccelerateConfigurationMethod = "GET"
-
-// GetBucketAccelerateConfigurationHandler decodes a GetBucketAccelerateConfiguration request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func GetBucketAccelerateConfigurationHandler(b GetBucketAccelerateConfigurationBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &GetBucketAccelerateConfigurationRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, GetBucketAccelerateConfigurationURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-		if v := r.Header.Get("x-amz-request-payer"); v != "" {
-			// codegen: assign-from-string for *RequestPayer treats value as the underlying string; backend should validate.
-			_ = v
-		}
-
-		out, err := b.GetBucketAccelerateConfiguration(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.Header().Set("Content-Type", "application/xml")
-		w.WriteHeader(200)
-		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
-	})
-}
-
-// GetBucketAclBackend serves the GetBucketAcl operation.
-type GetBucketAclBackend interface {
-	GetBucketAcl(ctx context.Context, in *GetBucketAclRequest) (*GetBucketAclOutput, error)
-}
-
-// GetBucketAclURITemplate is the Smithy URI template for the operation.
-const GetBucketAclURITemplate = "/{Bucket}?acl"
-
-// GetBucketAclMethod is the HTTP method for the operation.
-const GetBucketAclMethod = "GET"
-
-// GetBucketAclHandler decodes a GetBucketAcl request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func GetBucketAclHandler(b GetBucketAclBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &GetBucketAclRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, GetBucketAclURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-
-		out, err := b.GetBucketAcl(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.Header().Set("Content-Type", "application/xml")
-		w.WriteHeader(200)
-		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
-	})
-}
-
-// GetBucketAnalyticsConfigurationBackend serves the GetBucketAnalyticsConfiguration operation.
-type GetBucketAnalyticsConfigurationBackend interface {
-	GetBucketAnalyticsConfiguration(ctx context.Context, in *GetBucketAnalyticsConfigurationRequest) (*GetBucketAnalyticsConfigurationOutput, error)
-}
-
-// GetBucketAnalyticsConfigurationURITemplate is the Smithy URI template for the operation.
-const GetBucketAnalyticsConfigurationURITemplate = "/{Bucket}?analytics&x-id=GetBucketAnalyticsConfiguration"
-
-// GetBucketAnalyticsConfigurationMethod is the HTTP method for the operation.
-const GetBucketAnalyticsConfigurationMethod = "GET"
-
-// GetBucketAnalyticsConfigurationHandler decodes a GetBucketAnalyticsConfiguration request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func GetBucketAnalyticsConfigurationHandler(b GetBucketAnalyticsConfigurationBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &GetBucketAnalyticsConfigurationRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, GetBucketAnalyticsConfigurationURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-		if v := q.Get("id"); v != "" {
-			in.Id = v
-		}
-
-		out, err := b.GetBucketAnalyticsConfiguration(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.Header().Set("Content-Type", "application/xml")
-		w.WriteHeader(200)
-		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
-	})
-}
-
-// GetBucketCorsBackend serves the GetBucketCors operation.
-type GetBucketCorsBackend interface {
-	GetBucketCors(ctx context.Context, in *GetBucketCorsRequest) (*GetBucketCorsOutput, error)
-}
-
-// GetBucketCorsURITemplate is the Smithy URI template for the operation.
-const GetBucketCorsURITemplate = "/{Bucket}?cors"
-
-// GetBucketCorsMethod is the HTTP method for the operation.
-const GetBucketCorsMethod = "GET"
-
-// GetBucketCorsHandler decodes a GetBucketCors request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func GetBucketCorsHandler(b GetBucketCorsBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &GetBucketCorsRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, GetBucketCorsURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-
-		out, err := b.GetBucketCors(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.Header().Set("Content-Type", "application/xml")
-		w.WriteHeader(200)
-		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
-	})
-}
-
-// GetBucketEncryptionBackend serves the GetBucketEncryption operation.
-type GetBucketEncryptionBackend interface {
-	GetBucketEncryption(ctx context.Context, in *GetBucketEncryptionRequest) (*GetBucketEncryptionOutput, error)
-}
-
-// GetBucketEncryptionURITemplate is the Smithy URI template for the operation.
-const GetBucketEncryptionURITemplate = "/{Bucket}?encryption"
-
-// GetBucketEncryptionMethod is the HTTP method for the operation.
-const GetBucketEncryptionMethod = "GET"
-
-// GetBucketEncryptionHandler decodes a GetBucketEncryption request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func GetBucketEncryptionHandler(b GetBucketEncryptionBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &GetBucketEncryptionRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, GetBucketEncryptionURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-
-		out, err := b.GetBucketEncryption(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.Header().Set("Content-Type", "application/xml")
-		w.WriteHeader(200)
-		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
-	})
-}
-
-// GetBucketIntelligentTieringConfigurationBackend serves the GetBucketIntelligentTieringConfiguration operation.
-type GetBucketIntelligentTieringConfigurationBackend interface {
-	GetBucketIntelligentTieringConfiguration(ctx context.Context, in *GetBucketIntelligentTieringConfigurationRequest) (*GetBucketIntelligentTieringConfigurationOutput, error)
-}
-
-// GetBucketIntelligentTieringConfigurationURITemplate is the Smithy URI template for the operation.
-const GetBucketIntelligentTieringConfigurationURITemplate = "/{Bucket}?intelligent-tiering&x-id=GetBucketIntelligentTieringConfiguration"
-
-// GetBucketIntelligentTieringConfigurationMethod is the HTTP method for the operation.
-const GetBucketIntelligentTieringConfigurationMethod = "GET"
-
-// GetBucketIntelligentTieringConfigurationHandler decodes a GetBucketIntelligentTieringConfiguration request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func GetBucketIntelligentTieringConfigurationHandler(b GetBucketIntelligentTieringConfigurationBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &GetBucketIntelligentTieringConfigurationRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, GetBucketIntelligentTieringConfigurationURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-		if v := q.Get("id"); v != "" {
-			in.Id = v
-		}
-
-		out, err := b.GetBucketIntelligentTieringConfiguration(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.Header().Set("Content-Type", "application/xml")
-		w.WriteHeader(200)
-		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
-	})
-}
-
-// GetBucketInventoryConfigurationBackend serves the GetBucketInventoryConfiguration operation.
-type GetBucketInventoryConfigurationBackend interface {
-	GetBucketInventoryConfiguration(ctx context.Context, in *GetBucketInventoryConfigurationRequest) (*GetBucketInventoryConfigurationOutput, error)
-}
-
-// GetBucketInventoryConfigurationURITemplate is the Smithy URI template for the operation.
-const GetBucketInventoryConfigurationURITemplate = "/{Bucket}?inventory&x-id=GetBucketInventoryConfiguration"
-
-// GetBucketInventoryConfigurationMethod is the HTTP method for the operation.
-const GetBucketInventoryConfigurationMethod = "GET"
-
-// GetBucketInventoryConfigurationHandler decodes a GetBucketInventoryConfiguration request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func GetBucketInventoryConfigurationHandler(b GetBucketInventoryConfigurationBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &GetBucketInventoryConfigurationRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, GetBucketInventoryConfigurationURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-		if v := q.Get("id"); v != "" {
-			in.Id = v
-		}
-
-		out, err := b.GetBucketInventoryConfiguration(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.Header().Set("Content-Type", "application/xml")
-		w.WriteHeader(200)
-		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
-	})
-}
-
-// GetBucketLifecycleConfigurationBackend serves the GetBucketLifecycleConfiguration operation.
-type GetBucketLifecycleConfigurationBackend interface {
-	GetBucketLifecycleConfiguration(ctx context.Context, in *GetBucketLifecycleConfigurationRequest) (*GetBucketLifecycleConfigurationOutput, error)
-}
-
-// GetBucketLifecycleConfigurationURITemplate is the Smithy URI template for the operation.
-const GetBucketLifecycleConfigurationURITemplate = "/{Bucket}?lifecycle"
-
-// GetBucketLifecycleConfigurationMethod is the HTTP method for the operation.
-const GetBucketLifecycleConfigurationMethod = "GET"
-
-// GetBucketLifecycleConfigurationHandler decodes a GetBucketLifecycleConfiguration request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func GetBucketLifecycleConfigurationHandler(b GetBucketLifecycleConfigurationBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &GetBucketLifecycleConfigurationRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, GetBucketLifecycleConfigurationURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-
-		out, err := b.GetBucketLifecycleConfiguration(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.Header().Set("Content-Type", "application/xml")
-		w.WriteHeader(200)
-		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
-	})
-}
-
-// GetBucketLocationBackend serves the GetBucketLocation operation.
-type GetBucketLocationBackend interface {
-	GetBucketLocation(ctx context.Context, in *GetBucketLocationRequest) (*GetBucketLocationOutput, error)
-}
-
-// GetBucketLocationURITemplate is the Smithy URI template for the operation.
-const GetBucketLocationURITemplate = "/{Bucket}?location"
-
-// GetBucketLocationMethod is the HTTP method for the operation.
-const GetBucketLocationMethod = "GET"
-
-// GetBucketLocationHandler decodes a GetBucketLocation request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func GetBucketLocationHandler(b GetBucketLocationBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &GetBucketLocationRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, GetBucketLocationURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-
-		out, err := b.GetBucketLocation(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.Header().Set("Content-Type", "application/xml")
-		w.WriteHeader(200)
-		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
-	})
-}
-
-// GetBucketLoggingBackend serves the GetBucketLogging operation.
-type GetBucketLoggingBackend interface {
-	GetBucketLogging(ctx context.Context, in *GetBucketLoggingRequest) (*GetBucketLoggingOutput, error)
-}
-
-// GetBucketLoggingURITemplate is the Smithy URI template for the operation.
-const GetBucketLoggingURITemplate = "/{Bucket}?logging"
-
-// GetBucketLoggingMethod is the HTTP method for the operation.
-const GetBucketLoggingMethod = "GET"
-
-// GetBucketLoggingHandler decodes a GetBucketLogging request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func GetBucketLoggingHandler(b GetBucketLoggingBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &GetBucketLoggingRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, GetBucketLoggingURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-
-		out, err := b.GetBucketLogging(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.Header().Set("Content-Type", "application/xml")
-		w.WriteHeader(200)
-		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
-	})
-}
-
-// GetBucketMetadataConfigurationBackend serves the GetBucketMetadataConfiguration operation.
-type GetBucketMetadataConfigurationBackend interface {
-	GetBucketMetadataConfiguration(ctx context.Context, in *GetBucketMetadataConfigurationRequest) (*GetBucketMetadataConfigurationOutput, error)
-}
-
-// GetBucketMetadataConfigurationURITemplate is the Smithy URI template for the operation.
-const GetBucketMetadataConfigurationURITemplate = "/{Bucket}?metadataConfiguration"
-
-// GetBucketMetadataConfigurationMethod is the HTTP method for the operation.
-const GetBucketMetadataConfigurationMethod = "GET"
-
-// GetBucketMetadataConfigurationHandler decodes a GetBucketMetadataConfiguration request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func GetBucketMetadataConfigurationHandler(b GetBucketMetadataConfigurationBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &GetBucketMetadataConfigurationRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, GetBucketMetadataConfigurationURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-
-		out, err := b.GetBucketMetadataConfiguration(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.Header().Set("Content-Type", "application/xml")
-		w.WriteHeader(200)
-		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
-	})
-}
-
-// GetBucketMetadataTableConfigurationBackend serves the GetBucketMetadataTableConfiguration operation.
-type GetBucketMetadataTableConfigurationBackend interface {
-	GetBucketMetadataTableConfiguration(ctx context.Context, in *GetBucketMetadataTableConfigurationRequest) (*GetBucketMetadataTableConfigurationOutput, error)
-}
-
-// GetBucketMetadataTableConfigurationURITemplate is the Smithy URI template for the operation.
-const GetBucketMetadataTableConfigurationURITemplate = "/{Bucket}?metadataTable"
-
-// GetBucketMetadataTableConfigurationMethod is the HTTP method for the operation.
-const GetBucketMetadataTableConfigurationMethod = "GET"
-
-// GetBucketMetadataTableConfigurationHandler decodes a GetBucketMetadataTableConfiguration request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func GetBucketMetadataTableConfigurationHandler(b GetBucketMetadataTableConfigurationBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &GetBucketMetadataTableConfigurationRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, GetBucketMetadataTableConfigurationURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-
-		out, err := b.GetBucketMetadataTableConfiguration(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.Header().Set("Content-Type", "application/xml")
-		w.WriteHeader(200)
-		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
-	})
-}
-
-// GetBucketMetricsConfigurationBackend serves the GetBucketMetricsConfiguration operation.
-type GetBucketMetricsConfigurationBackend interface {
-	GetBucketMetricsConfiguration(ctx context.Context, in *GetBucketMetricsConfigurationRequest) (*GetBucketMetricsConfigurationOutput, error)
-}
-
-// GetBucketMetricsConfigurationURITemplate is the Smithy URI template for the operation.
-const GetBucketMetricsConfigurationURITemplate = "/{Bucket}?metrics&x-id=GetBucketMetricsConfiguration"
-
-// GetBucketMetricsConfigurationMethod is the HTTP method for the operation.
-const GetBucketMetricsConfigurationMethod = "GET"
-
-// GetBucketMetricsConfigurationHandler decodes a GetBucketMetricsConfiguration request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func GetBucketMetricsConfigurationHandler(b GetBucketMetricsConfigurationBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &GetBucketMetricsConfigurationRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, GetBucketMetricsConfigurationURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-		if v := q.Get("id"); v != "" {
-			in.Id = v
-		}
-
-		out, err := b.GetBucketMetricsConfiguration(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.Header().Set("Content-Type", "application/xml")
-		w.WriteHeader(200)
-		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
-	})
-}
-
-// GetBucketNotificationConfigurationBackend serves the GetBucketNotificationConfiguration operation.
-type GetBucketNotificationConfigurationBackend interface {
-	GetBucketNotificationConfiguration(ctx context.Context, in *GetBucketNotificationConfigurationRequest) (*NotificationConfiguration, error)
-}
-
-// GetBucketNotificationConfigurationURITemplate is the Smithy URI template for the operation.
-const GetBucketNotificationConfigurationURITemplate = "/{Bucket}?notification"
-
-// GetBucketNotificationConfigurationMethod is the HTTP method for the operation.
-const GetBucketNotificationConfigurationMethod = "GET"
-
-// GetBucketNotificationConfigurationHandler decodes a GetBucketNotificationConfiguration request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func GetBucketNotificationConfigurationHandler(b GetBucketNotificationConfigurationBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &GetBucketNotificationConfigurationRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, GetBucketNotificationConfigurationURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-
-		out, err := b.GetBucketNotificationConfiguration(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.Header().Set("Content-Type", "application/xml")
-		w.WriteHeader(200)
-		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
-	})
-}
-
-// GetBucketOwnershipControlsBackend serves the GetBucketOwnershipControls operation.
-type GetBucketOwnershipControlsBackend interface {
-	GetBucketOwnershipControls(ctx context.Context, in *GetBucketOwnershipControlsRequest) (*GetBucketOwnershipControlsOutput, error)
-}
-
-// GetBucketOwnershipControlsURITemplate is the Smithy URI template for the operation.
-const GetBucketOwnershipControlsURITemplate = "/{Bucket}?ownershipControls"
-
-// GetBucketOwnershipControlsMethod is the HTTP method for the operation.
-const GetBucketOwnershipControlsMethod = "GET"
-
-// GetBucketOwnershipControlsHandler decodes a GetBucketOwnershipControls request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func GetBucketOwnershipControlsHandler(b GetBucketOwnershipControlsBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &GetBucketOwnershipControlsRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, GetBucketOwnershipControlsURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-
-		out, err := b.GetBucketOwnershipControls(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.Header().Set("Content-Type", "application/xml")
-		w.WriteHeader(200)
-		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
-	})
-}
-
-// GetBucketPolicyBackend serves the GetBucketPolicy operation.
-type GetBucketPolicyBackend interface {
-	GetBucketPolicy(ctx context.Context, in *GetBucketPolicyRequest) (*GetBucketPolicyOutput, error)
-}
-
-// GetBucketPolicyURITemplate is the Smithy URI template for the operation.
-const GetBucketPolicyURITemplate = "/{Bucket}?policy"
-
-// GetBucketPolicyMethod is the HTTP method for the operation.
-const GetBucketPolicyMethod = "GET"
-
-// GetBucketPolicyHandler decodes a GetBucketPolicy request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func GetBucketPolicyHandler(b GetBucketPolicyBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &GetBucketPolicyRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, GetBucketPolicyURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-
-		out, err := b.GetBucketPolicy(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.Header().Set("Content-Type", "application/xml")
-		w.WriteHeader(200)
-		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
-	})
-}
-
-// GetBucketPolicyStatusBackend serves the GetBucketPolicyStatus operation.
-type GetBucketPolicyStatusBackend interface {
-	GetBucketPolicyStatus(ctx context.Context, in *GetBucketPolicyStatusRequest) (*GetBucketPolicyStatusOutput, error)
-}
-
-// GetBucketPolicyStatusURITemplate is the Smithy URI template for the operation.
-const GetBucketPolicyStatusURITemplate = "/{Bucket}?policyStatus"
-
-// GetBucketPolicyStatusMethod is the HTTP method for the operation.
-const GetBucketPolicyStatusMethod = "GET"
-
-// GetBucketPolicyStatusHandler decodes a GetBucketPolicyStatus request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func GetBucketPolicyStatusHandler(b GetBucketPolicyStatusBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &GetBucketPolicyStatusRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, GetBucketPolicyStatusURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-
-		out, err := b.GetBucketPolicyStatus(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.Header().Set("Content-Type", "application/xml")
-		w.WriteHeader(200)
-		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
-	})
-}
-
-// GetBucketReplicationBackend serves the GetBucketReplication operation.
-type GetBucketReplicationBackend interface {
-	GetBucketReplication(ctx context.Context, in *GetBucketReplicationRequest) (*GetBucketReplicationOutput, error)
-}
-
-// GetBucketReplicationURITemplate is the Smithy URI template for the operation.
-const GetBucketReplicationURITemplate = "/{Bucket}?replication"
-
-// GetBucketReplicationMethod is the HTTP method for the operation.
-const GetBucketReplicationMethod = "GET"
-
-// GetBucketReplicationHandler decodes a GetBucketReplication request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func GetBucketReplicationHandler(b GetBucketReplicationBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &GetBucketReplicationRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, GetBucketReplicationURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-
-		out, err := b.GetBucketReplication(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.Header().Set("Content-Type", "application/xml")
-		w.WriteHeader(200)
-		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
-	})
-}
-
-// GetBucketRequestPaymentBackend serves the GetBucketRequestPayment operation.
-type GetBucketRequestPaymentBackend interface {
-	GetBucketRequestPayment(ctx context.Context, in *GetBucketRequestPaymentRequest) (*GetBucketRequestPaymentOutput, error)
-}
-
-// GetBucketRequestPaymentURITemplate is the Smithy URI template for the operation.
-const GetBucketRequestPaymentURITemplate = "/{Bucket}?requestPayment"
-
-// GetBucketRequestPaymentMethod is the HTTP method for the operation.
-const GetBucketRequestPaymentMethod = "GET"
-
-// GetBucketRequestPaymentHandler decodes a GetBucketRequestPayment request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func GetBucketRequestPaymentHandler(b GetBucketRequestPaymentBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &GetBucketRequestPaymentRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, GetBucketRequestPaymentURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-
-		out, err := b.GetBucketRequestPayment(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.Header().Set("Content-Type", "application/xml")
-		w.WriteHeader(200)
-		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
-	})
-}
-
-// GetBucketTaggingBackend serves the GetBucketTagging operation.
-type GetBucketTaggingBackend interface {
-	GetBucketTagging(ctx context.Context, in *GetBucketTaggingRequest) (*GetBucketTaggingOutput, error)
-}
-
-// GetBucketTaggingURITemplate is the Smithy URI template for the operation.
-const GetBucketTaggingURITemplate = "/{Bucket}?tagging"
-
-// GetBucketTaggingMethod is the HTTP method for the operation.
-const GetBucketTaggingMethod = "GET"
-
-// GetBucketTaggingHandler decodes a GetBucketTagging request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func GetBucketTaggingHandler(b GetBucketTaggingBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &GetBucketTaggingRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, GetBucketTaggingURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-
-		out, err := b.GetBucketTagging(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.Header().Set("Content-Type", "application/xml")
-		w.WriteHeader(200)
-		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
-	})
-}
-
-// GetBucketVersioningBackend serves the GetBucketVersioning operation.
-type GetBucketVersioningBackend interface {
-	GetBucketVersioning(ctx context.Context, in *GetBucketVersioningRequest) (*GetBucketVersioningOutput, error)
-}
-
-// GetBucketVersioningURITemplate is the Smithy URI template for the operation.
-const GetBucketVersioningURITemplate = "/{Bucket}?versioning"
-
-// GetBucketVersioningMethod is the HTTP method for the operation.
-const GetBucketVersioningMethod = "GET"
-
-// GetBucketVersioningHandler decodes a GetBucketVersioning request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func GetBucketVersioningHandler(b GetBucketVersioningBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &GetBucketVersioningRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, GetBucketVersioningURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-
-		out, err := b.GetBucketVersioning(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.Header().Set("Content-Type", "application/xml")
-		w.WriteHeader(200)
-		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
-	})
-}
-
-// GetBucketWebsiteBackend serves the GetBucketWebsite operation.
-type GetBucketWebsiteBackend interface {
-	GetBucketWebsite(ctx context.Context, in *GetBucketWebsiteRequest) (*GetBucketWebsiteOutput, error)
-}
-
-// GetBucketWebsiteURITemplate is the Smithy URI template for the operation.
-const GetBucketWebsiteURITemplate = "/{Bucket}?website"
-
-// GetBucketWebsiteMethod is the HTTP method for the operation.
-const GetBucketWebsiteMethod = "GET"
-
-// GetBucketWebsiteHandler decodes a GetBucketWebsite request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func GetBucketWebsiteHandler(b GetBucketWebsiteBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &GetBucketWebsiteRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, GetBucketWebsiteURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-
-		out, err := b.GetBucketWebsite(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.Header().Set("Content-Type", "application/xml")
-		w.WriteHeader(200)
-		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
-	})
-}
-
-// GetObjectBackend serves the GetObject operation.
-type GetObjectBackend interface {
-	GetObject(ctx context.Context, in *GetObjectRequest) (*GetObjectOutput, error)
-}
-
-// GetObjectURITemplate is the Smithy URI template for the operation.
-const GetObjectURITemplate = "/{Bucket}/{Key+}?x-id=GetObject"
-
-// GetObjectMethod is the HTTP method for the operation.
-const GetObjectMethod = "GET"
-
-// GetObjectHandler decodes a GetObject request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func GetObjectHandler(b GetObjectBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &GetObjectRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, GetObjectURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := r.Header.Get("x-amz-checksum-mode"); v != "" {
-			// codegen: assign-from-string for *ChecksumMode treats value as the underlying string; backend should validate.
-			_ = v
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-		if v := r.Header.Get("If-Match"); v != "" {
-			s := v
-			in.IfMatch = &s
-		}
-		if v := r.Header.Get("If-Modified-Since"); v != "" {
-			if t, err := restxml.ParseTime(v, ""); err == nil && t != nil {
-				in.IfModifiedSince = t
-			}
-		}
-		if v := r.Header.Get("If-None-Match"); v != "" {
-			s := v
-			in.IfNoneMatch = &s
-		}
-		if v := r.Header.Get("If-Unmodified-Since"); v != "" {
-			if t, err := restxml.ParseTime(v, ""); err == nil && t != nil {
-				in.IfUnmodifiedSince = t
-			}
-		}
-		if v, ok := labels["Key"]; ok {
-			in.Key = v
-		}
-		if v := q.Get("partNumber"); v != "" {
-			if p, err := restxml.ParseInt32(v); err == nil && p != nil {
-				in.PartNumber = p
-			}
-		}
-		if v := r.Header.Get("Range"); v != "" {
-			s := v
-			in.Range = &s
-		}
-		if v := r.Header.Get("x-amz-request-payer"); v != "" {
-			// codegen: assign-from-string for *RequestPayer treats value as the underlying string; backend should validate.
-			_ = v
-		}
-		if v := q.Get("response-cache-control"); v != "" {
-			s := v
-			in.ResponseCacheControl = &s
-		}
-		if v := q.Get("response-content-disposition"); v != "" {
-			s := v
-			in.ResponseContentDisposition = &s
-		}
-		if v := q.Get("response-content-encoding"); v != "" {
-			s := v
-			in.ResponseContentEncoding = &s
-		}
-		if v := q.Get("response-content-language"); v != "" {
-			s := v
-			in.ResponseContentLanguage = &s
-		}
-		if v := q.Get("response-content-type"); v != "" {
-			s := v
-			in.ResponseContentType = &s
-		}
-		if v := q.Get("response-expires"); v != "" {
-			if t, err := restxml.ParseTime(v, ""); err == nil && t != nil {
-				in.ResponseExpires = t
-			}
-		}
-		if v := r.Header.Get("x-amz-server-side-encryption-customer-algorithm"); v != "" {
-			s := v
-			in.SSECustomerAlgorithm = &s
-		}
-		if v := r.Header.Get("x-amz-server-side-encryption-customer-key"); v != "" {
-			s := v
-			in.SSECustomerKey = &s
-		}
-		if v := r.Header.Get("x-amz-server-side-encryption-customer-key-MD5"); v != "" {
-			s := v
-			in.SSECustomerKeyMD5 = &s
-		}
-		if v := q.Get("versionId"); v != "" {
-			s := v
-			in.VersionId = &s
-		}
-
-		out, err := b.GetObject(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.Header().Set("Content-Type", "application/xml")
-		w.WriteHeader(200)
-		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
-	})
-}
-
-// GetObjectAclBackend serves the GetObjectAcl operation.
-type GetObjectAclBackend interface {
-	GetObjectAcl(ctx context.Context, in *GetObjectAclRequest) (*GetObjectAclOutput, error)
-}
-
-// GetObjectAclURITemplate is the Smithy URI template for the operation.
-const GetObjectAclURITemplate = "/{Bucket}/{Key+}?acl"
-
-// GetObjectAclMethod is the HTTP method for the operation.
-const GetObjectAclMethod = "GET"
-
-// GetObjectAclHandler decodes a GetObjectAcl request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func GetObjectAclHandler(b GetObjectAclBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &GetObjectAclRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, GetObjectAclURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-		if v, ok := labels["Key"]; ok {
-			in.Key = v
-		}
-		if v := r.Header.Get("x-amz-request-payer"); v != "" {
-			// codegen: assign-from-string for *RequestPayer treats value as the underlying string; backend should validate.
-			_ = v
-		}
-		if v := q.Get("versionId"); v != "" {
-			s := v
-			in.VersionId = &s
-		}
-
-		out, err := b.GetObjectAcl(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.Header().Set("Content-Type", "application/xml")
-		w.WriteHeader(200)
-		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
-	})
-}
-
-// GetObjectAttributesBackend serves the GetObjectAttributes operation.
-type GetObjectAttributesBackend interface {
-	GetObjectAttributes(ctx context.Context, in *GetObjectAttributesRequest) (*GetObjectAttributesOutput, error)
-}
-
-// GetObjectAttributesURITemplate is the Smithy URI template for the operation.
-const GetObjectAttributesURITemplate = "/{Bucket}/{Key+}?attributes"
-
-// GetObjectAttributesMethod is the HTTP method for the operation.
-const GetObjectAttributesMethod = "GET"
-
-// GetObjectAttributesHandler decodes a GetObjectAttributes request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func GetObjectAttributesHandler(b GetObjectAttributesBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &GetObjectAttributesRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, GetObjectAttributesURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-		if v, ok := labels["Key"]; ok {
-			in.Key = v
-		}
-		if v := r.Header.Get("x-amz-max-parts"); v != "" {
-			if p, err := restxml.ParseInt32(v); err == nil && p != nil {
-				in.MaxParts = p
-			}
-		}
-		if v := r.Header.Get("x-amz-object-attributes"); v != "" {
-			// codegen: assign-from-string for ObjectAttributesList treats value as the underlying string; backend should validate.
-			_ = v
-		}
-		if v := r.Header.Get("x-amz-part-number-marker"); v != "" {
-			s := v
-			in.PartNumberMarker = &s
-		}
-		if v := r.Header.Get("x-amz-request-payer"); v != "" {
-			// codegen: assign-from-string for *RequestPayer treats value as the underlying string; backend should validate.
-			_ = v
-		}
-		if v := r.Header.Get("x-amz-server-side-encryption-customer-algorithm"); v != "" {
-			s := v
-			in.SSECustomerAlgorithm = &s
-		}
-		if v := r.Header.Get("x-amz-server-side-encryption-customer-key"); v != "" {
-			s := v
-			in.SSECustomerKey = &s
-		}
-		if v := r.Header.Get("x-amz-server-side-encryption-customer-key-MD5"); v != "" {
-			s := v
-			in.SSECustomerKeyMD5 = &s
-		}
-		if v := q.Get("versionId"); v != "" {
-			s := v
-			in.VersionId = &s
-		}
-
-		out, err := b.GetObjectAttributes(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.Header().Set("Content-Type", "application/xml")
-		w.WriteHeader(200)
-		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
-	})
-}
-
-// GetObjectLegalHoldBackend serves the GetObjectLegalHold operation.
-type GetObjectLegalHoldBackend interface {
-	GetObjectLegalHold(ctx context.Context, in *GetObjectLegalHoldRequest) (*GetObjectLegalHoldOutput, error)
-}
-
-// GetObjectLegalHoldURITemplate is the Smithy URI template for the operation.
-const GetObjectLegalHoldURITemplate = "/{Bucket}/{Key+}?legal-hold"
-
-// GetObjectLegalHoldMethod is the HTTP method for the operation.
-const GetObjectLegalHoldMethod = "GET"
-
-// GetObjectLegalHoldHandler decodes a GetObjectLegalHold request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func GetObjectLegalHoldHandler(b GetObjectLegalHoldBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &GetObjectLegalHoldRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, GetObjectLegalHoldURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-		if v, ok := labels["Key"]; ok {
-			in.Key = v
-		}
-		if v := r.Header.Get("x-amz-request-payer"); v != "" {
-			// codegen: assign-from-string for *RequestPayer treats value as the underlying string; backend should validate.
-			_ = v
-		}
-		if v := q.Get("versionId"); v != "" {
-			s := v
-			in.VersionId = &s
-		}
-
-		out, err := b.GetObjectLegalHold(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.Header().Set("Content-Type", "application/xml")
-		w.WriteHeader(200)
-		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
-	})
-}
-
-// GetObjectLockConfigurationBackend serves the GetObjectLockConfiguration operation.
-type GetObjectLockConfigurationBackend interface {
-	GetObjectLockConfiguration(ctx context.Context, in *GetObjectLockConfigurationRequest) (*GetObjectLockConfigurationOutput, error)
-}
-
-// GetObjectLockConfigurationURITemplate is the Smithy URI template for the operation.
-const GetObjectLockConfigurationURITemplate = "/{Bucket}?object-lock"
-
-// GetObjectLockConfigurationMethod is the HTTP method for the operation.
-const GetObjectLockConfigurationMethod = "GET"
-
-// GetObjectLockConfigurationHandler decodes a GetObjectLockConfiguration request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func GetObjectLockConfigurationHandler(b GetObjectLockConfigurationBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &GetObjectLockConfigurationRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, GetObjectLockConfigurationURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-
-		out, err := b.GetObjectLockConfiguration(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.Header().Set("Content-Type", "application/xml")
-		w.WriteHeader(200)
-		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
-	})
-}
-
-// GetObjectRetentionBackend serves the GetObjectRetention operation.
-type GetObjectRetentionBackend interface {
-	GetObjectRetention(ctx context.Context, in *GetObjectRetentionRequest) (*GetObjectRetentionOutput, error)
-}
-
-// GetObjectRetentionURITemplate is the Smithy URI template for the operation.
-const GetObjectRetentionURITemplate = "/{Bucket}/{Key+}?retention"
-
-// GetObjectRetentionMethod is the HTTP method for the operation.
-const GetObjectRetentionMethod = "GET"
-
-// GetObjectRetentionHandler decodes a GetObjectRetention request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func GetObjectRetentionHandler(b GetObjectRetentionBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &GetObjectRetentionRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, GetObjectRetentionURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-		if v, ok := labels["Key"]; ok {
-			in.Key = v
-		}
-		if v := r.Header.Get("x-amz-request-payer"); v != "" {
-			// codegen: assign-from-string for *RequestPayer treats value as the underlying string; backend should validate.
-			_ = v
-		}
-		if v := q.Get("versionId"); v != "" {
-			s := v
-			in.VersionId = &s
-		}
-
-		out, err := b.GetObjectRetention(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.Header().Set("Content-Type", "application/xml")
-		w.WriteHeader(200)
-		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
-	})
-}
-
-// GetObjectTaggingBackend serves the GetObjectTagging operation.
-type GetObjectTaggingBackend interface {
-	GetObjectTagging(ctx context.Context, in *GetObjectTaggingRequest) (*GetObjectTaggingOutput, error)
-}
-
-// GetObjectTaggingURITemplate is the Smithy URI template for the operation.
-const GetObjectTaggingURITemplate = "/{Bucket}/{Key+}?tagging"
-
-// GetObjectTaggingMethod is the HTTP method for the operation.
-const GetObjectTaggingMethod = "GET"
-
-// GetObjectTaggingHandler decodes a GetObjectTagging request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func GetObjectTaggingHandler(b GetObjectTaggingBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &GetObjectTaggingRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, GetObjectTaggingURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-		if v, ok := labels["Key"]; ok {
-			in.Key = v
-		}
-		if v := r.Header.Get("x-amz-request-payer"); v != "" {
-			// codegen: assign-from-string for *RequestPayer treats value as the underlying string; backend should validate.
-			_ = v
-		}
-		if v := q.Get("versionId"); v != "" {
-			s := v
-			in.VersionId = &s
-		}
-
-		out, err := b.GetObjectTagging(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.Header().Set("Content-Type", "application/xml")
-		w.WriteHeader(200)
-		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
-	})
-}
-
-// GetObjectTorrentBackend serves the GetObjectTorrent operation.
-type GetObjectTorrentBackend interface {
-	GetObjectTorrent(ctx context.Context, in *GetObjectTorrentRequest) (*GetObjectTorrentOutput, error)
-}
-
-// GetObjectTorrentURITemplate is the Smithy URI template for the operation.
-const GetObjectTorrentURITemplate = "/{Bucket}/{Key+}?torrent"
-
-// GetObjectTorrentMethod is the HTTP method for the operation.
-const GetObjectTorrentMethod = "GET"
-
-// GetObjectTorrentHandler decodes a GetObjectTorrent request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func GetObjectTorrentHandler(b GetObjectTorrentBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &GetObjectTorrentRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, GetObjectTorrentURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-		if v, ok := labels["Key"]; ok {
-			in.Key = v
-		}
-		if v := r.Header.Get("x-amz-request-payer"); v != "" {
-			// codegen: assign-from-string for *RequestPayer treats value as the underlying string; backend should validate.
-			_ = v
-		}
-
-		out, err := b.GetObjectTorrent(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.Header().Set("Content-Type", "application/xml")
-		w.WriteHeader(200)
-		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
-	})
-}
-
-// GetPublicAccessBlockBackend serves the GetPublicAccessBlock operation.
-type GetPublicAccessBlockBackend interface {
-	GetPublicAccessBlock(ctx context.Context, in *GetPublicAccessBlockRequest) (*GetPublicAccessBlockOutput, error)
-}
-
-// GetPublicAccessBlockURITemplate is the Smithy URI template for the operation.
-const GetPublicAccessBlockURITemplate = "/{Bucket}?publicAccessBlock"
-
-// GetPublicAccessBlockMethod is the HTTP method for the operation.
-const GetPublicAccessBlockMethod = "GET"
-
-// GetPublicAccessBlockHandler decodes a GetPublicAccessBlock request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func GetPublicAccessBlockHandler(b GetPublicAccessBlockBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &GetPublicAccessBlockRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, GetPublicAccessBlockURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-
-		out, err := b.GetPublicAccessBlock(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.Header().Set("Content-Type", "application/xml")
-		w.WriteHeader(200)
-		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
-	})
-}
-
-// HeadBucketBackend serves the HeadBucket operation.
-type HeadBucketBackend interface {
-	HeadBucket(ctx context.Context, in *HeadBucketRequest) (*HeadBucketOutput, error)
-}
-
-// HeadBucketURITemplate is the Smithy URI template for the operation.
-const HeadBucketURITemplate = "/{Bucket}"
-
-// HeadBucketMethod is the HTTP method for the operation.
-const HeadBucketMethod = "HEAD"
-
-// HeadBucketHandler decodes a HeadBucket request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func HeadBucketHandler(b HeadBucketBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &HeadBucketRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, HeadBucketURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-
-		out, err := b.HeadBucket(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.Header().Set("Content-Type", "application/xml")
-		w.WriteHeader(200)
-		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
-	})
-}
-
-// HeadObjectBackend serves the HeadObject operation.
-type HeadObjectBackend interface {
-	HeadObject(ctx context.Context, in *HeadObjectRequest) (*HeadObjectOutput, error)
-}
-
-// HeadObjectURITemplate is the Smithy URI template for the operation.
-const HeadObjectURITemplate = "/{Bucket}/{Key+}"
-
-// HeadObjectMethod is the HTTP method for the operation.
-const HeadObjectMethod = "HEAD"
-
-// HeadObjectHandler decodes a HeadObject request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func HeadObjectHandler(b HeadObjectBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &HeadObjectRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, HeadObjectURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := r.Header.Get("x-amz-checksum-mode"); v != "" {
-			// codegen: assign-from-string for *ChecksumMode treats value as the underlying string; backend should validate.
-			_ = v
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-		if v := r.Header.Get("If-Match"); v != "" {
-			s := v
-			in.IfMatch = &s
-		}
-		if v := r.Header.Get("If-Modified-Since"); v != "" {
-			if t, err := restxml.ParseTime(v, ""); err == nil && t != nil {
-				in.IfModifiedSince = t
-			}
-		}
-		if v := r.Header.Get("If-None-Match"); v != "" {
-			s := v
-			in.IfNoneMatch = &s
-		}
-		if v := r.Header.Get("If-Unmodified-Since"); v != "" {
-			if t, err := restxml.ParseTime(v, ""); err == nil && t != nil {
-				in.IfUnmodifiedSince = t
-			}
-		}
-		if v, ok := labels["Key"]; ok {
-			in.Key = v
-		}
-		if v := q.Get("partNumber"); v != "" {
-			if p, err := restxml.ParseInt32(v); err == nil && p != nil {
-				in.PartNumber = p
-			}
-		}
-		if v := r.Header.Get("Range"); v != "" {
-			s := v
-			in.Range = &s
-		}
-		if v := r.Header.Get("x-amz-request-payer"); v != "" {
-			// codegen: assign-from-string for *RequestPayer treats value as the underlying string; backend should validate.
-			_ = v
-		}
-		if v := q.Get("response-cache-control"); v != "" {
-			s := v
-			in.ResponseCacheControl = &s
-		}
-		if v := q.Get("response-content-disposition"); v != "" {
-			s := v
-			in.ResponseContentDisposition = &s
-		}
-		if v := q.Get("response-content-encoding"); v != "" {
-			s := v
-			in.ResponseContentEncoding = &s
-		}
-		if v := q.Get("response-content-language"); v != "" {
-			s := v
-			in.ResponseContentLanguage = &s
-		}
-		if v := q.Get("response-content-type"); v != "" {
-			s := v
-			in.ResponseContentType = &s
-		}
-		if v := q.Get("response-expires"); v != "" {
-			if t, err := restxml.ParseTime(v, ""); err == nil && t != nil {
-				in.ResponseExpires = t
-			}
-		}
-		if v := r.Header.Get("x-amz-server-side-encryption-customer-algorithm"); v != "" {
-			s := v
-			in.SSECustomerAlgorithm = &s
-		}
-		if v := r.Header.Get("x-amz-server-side-encryption-customer-key"); v != "" {
-			s := v
-			in.SSECustomerKey = &s
-		}
-		if v := r.Header.Get("x-amz-server-side-encryption-customer-key-MD5"); v != "" {
-			s := v
-			in.SSECustomerKeyMD5 = &s
-		}
-		if v := q.Get("versionId"); v != "" {
-			s := v
-			in.VersionId = &s
-		}
-
-		out, err := b.HeadObject(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.Header().Set("Content-Type", "application/xml")
-		w.WriteHeader(200)
-		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
-	})
-}
-
-// ListBucketAnalyticsConfigurationsBackend serves the ListBucketAnalyticsConfigurations operation.
-type ListBucketAnalyticsConfigurationsBackend interface {
-	ListBucketAnalyticsConfigurations(ctx context.Context, in *ListBucketAnalyticsConfigurationsRequest) (*ListBucketAnalyticsConfigurationsOutput, error)
-}
-
-// ListBucketAnalyticsConfigurationsURITemplate is the Smithy URI template for the operation.
-const ListBucketAnalyticsConfigurationsURITemplate = "/{Bucket}?analytics&x-id=ListBucketAnalyticsConfigurations"
-
-// ListBucketAnalyticsConfigurationsMethod is the HTTP method for the operation.
-const ListBucketAnalyticsConfigurationsMethod = "GET"
-
-// ListBucketAnalyticsConfigurationsHandler decodes a ListBucketAnalyticsConfigurations request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func ListBucketAnalyticsConfigurationsHandler(b ListBucketAnalyticsConfigurationsBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &ListBucketAnalyticsConfigurationsRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, ListBucketAnalyticsConfigurationsURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := q.Get("continuation-token"); v != "" {
-			s := v
-			in.ContinuationToken = &s
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-
-		out, err := b.ListBucketAnalyticsConfigurations(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.Header().Set("Content-Type", "application/xml")
-		w.WriteHeader(200)
-		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
-	})
-}
-
-// ListBucketIntelligentTieringConfigurationsBackend serves the ListBucketIntelligentTieringConfigurations operation.
-type ListBucketIntelligentTieringConfigurationsBackend interface {
-	ListBucketIntelligentTieringConfigurations(ctx context.Context, in *ListBucketIntelligentTieringConfigurationsRequest) (*ListBucketIntelligentTieringConfigurationsOutput, error)
-}
-
-// ListBucketIntelligentTieringConfigurationsURITemplate is the Smithy URI template for the operation.
-const ListBucketIntelligentTieringConfigurationsURITemplate = "/{Bucket}?intelligent-tiering&x-id=ListBucketIntelligentTieringConfigurations"
-
-// ListBucketIntelligentTieringConfigurationsMethod is the HTTP method for the operation.
-const ListBucketIntelligentTieringConfigurationsMethod = "GET"
-
-// ListBucketIntelligentTieringConfigurationsHandler decodes a ListBucketIntelligentTieringConfigurations request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func ListBucketIntelligentTieringConfigurationsHandler(b ListBucketIntelligentTieringConfigurationsBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &ListBucketIntelligentTieringConfigurationsRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, ListBucketIntelligentTieringConfigurationsURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := q.Get("continuation-token"); v != "" {
-			s := v
-			in.ContinuationToken = &s
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-
-		out, err := b.ListBucketIntelligentTieringConfigurations(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.Header().Set("Content-Type", "application/xml")
-		w.WriteHeader(200)
-		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
-	})
-}
-
-// ListBucketInventoryConfigurationsBackend serves the ListBucketInventoryConfigurations operation.
-type ListBucketInventoryConfigurationsBackend interface {
-	ListBucketInventoryConfigurations(ctx context.Context, in *ListBucketInventoryConfigurationsRequest) (*ListBucketInventoryConfigurationsOutput, error)
-}
-
-// ListBucketInventoryConfigurationsURITemplate is the Smithy URI template for the operation.
-const ListBucketInventoryConfigurationsURITemplate = "/{Bucket}?inventory&x-id=ListBucketInventoryConfigurations"
-
-// ListBucketInventoryConfigurationsMethod is the HTTP method for the operation.
-const ListBucketInventoryConfigurationsMethod = "GET"
-
-// ListBucketInventoryConfigurationsHandler decodes a ListBucketInventoryConfigurations request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func ListBucketInventoryConfigurationsHandler(b ListBucketInventoryConfigurationsBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &ListBucketInventoryConfigurationsRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, ListBucketInventoryConfigurationsURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := q.Get("continuation-token"); v != "" {
-			s := v
-			in.ContinuationToken = &s
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-
-		out, err := b.ListBucketInventoryConfigurations(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.Header().Set("Content-Type", "application/xml")
-		w.WriteHeader(200)
-		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
-	})
-}
-
-// ListBucketMetricsConfigurationsBackend serves the ListBucketMetricsConfigurations operation.
-type ListBucketMetricsConfigurationsBackend interface {
-	ListBucketMetricsConfigurations(ctx context.Context, in *ListBucketMetricsConfigurationsRequest) (*ListBucketMetricsConfigurationsOutput, error)
-}
-
-// ListBucketMetricsConfigurationsURITemplate is the Smithy URI template for the operation.
-const ListBucketMetricsConfigurationsURITemplate = "/{Bucket}?metrics&x-id=ListBucketMetricsConfigurations"
-
-// ListBucketMetricsConfigurationsMethod is the HTTP method for the operation.
-const ListBucketMetricsConfigurationsMethod = "GET"
-
-// ListBucketMetricsConfigurationsHandler decodes a ListBucketMetricsConfigurations request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func ListBucketMetricsConfigurationsHandler(b ListBucketMetricsConfigurationsBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &ListBucketMetricsConfigurationsRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, ListBucketMetricsConfigurationsURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := q.Get("continuation-token"); v != "" {
-			s := v
-			in.ContinuationToken = &s
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-
-		out, err := b.ListBucketMetricsConfigurations(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.Header().Set("Content-Type", "application/xml")
-		w.WriteHeader(200)
-		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
-	})
-}
-
-// ListBucketsBackend serves the ListBuckets operation.
-type ListBucketsBackend interface {
-	ListBuckets(ctx context.Context, in *ListBucketsRequest) (*ListBucketsOutput, error)
-}
-
-// ListBucketsURITemplate is the Smithy URI template for the operation.
-const ListBucketsURITemplate = "/?x-id=ListBuckets"
-
-// ListBucketsMethod is the HTTP method for the operation.
-const ListBucketsMethod = "GET"
-
-// ListBucketsHandler decodes a ListBuckets request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func ListBucketsHandler(b ListBucketsBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &ListBucketsRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, ListBucketsURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v := q.Get("bucket-region"); v != "" {
-			s := v
-			in.BucketRegion = &s
-		}
-		if v := q.Get("continuation-token"); v != "" {
-			s := v
-			in.ContinuationToken = &s
-		}
-		if v := q.Get("max-buckets"); v != "" {
-			if p, err := restxml.ParseInt32(v); err == nil && p != nil {
-				in.MaxBuckets = p
-			}
-		}
-		if v := q.Get("prefix"); v != "" {
-			s := v
-			in.Prefix = &s
-		}
-
-		out, err := b.ListBuckets(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.Header().Set("Content-Type", "application/xml")
-		w.WriteHeader(200)
-		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
-	})
-}
-
-// ListDirectoryBucketsBackend serves the ListDirectoryBuckets operation.
-type ListDirectoryBucketsBackend interface {
-	ListDirectoryBuckets(ctx context.Context, in *ListDirectoryBucketsRequest) (*ListDirectoryBucketsOutput, error)
-}
-
-// ListDirectoryBucketsURITemplate is the Smithy URI template for the operation.
-const ListDirectoryBucketsURITemplate = "/?x-id=ListDirectoryBuckets"
-
-// ListDirectoryBucketsMethod is the HTTP method for the operation.
-const ListDirectoryBucketsMethod = "GET"
-
-// ListDirectoryBucketsHandler decodes a ListDirectoryBuckets request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func ListDirectoryBucketsHandler(b ListDirectoryBucketsBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &ListDirectoryBucketsRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, ListDirectoryBucketsURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v := q.Get("continuation-token"); v != "" {
-			s := v
-			in.ContinuationToken = &s
-		}
-		if v := q.Get("max-directory-buckets"); v != "" {
-			if p, err := restxml.ParseInt32(v); err == nil && p != nil {
-				in.MaxDirectoryBuckets = p
-			}
-		}
-
-		out, err := b.ListDirectoryBuckets(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.Header().Set("Content-Type", "application/xml")
-		w.WriteHeader(200)
-		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
 	})
 }
 
@@ -7948,7 +4730,7 @@ func ListMultipartUploadsHandler(b ListMultipartUploadsBackend) http.Handler {
 			in.Delimiter = &s
 		}
 		if v := q.Get("encoding-type"); v != "" {
-			// codegen: assign-from-string for *EncodingType treats value as the underlying string; backend should validate.
+			// codegen: treats value as string-backed (custom string or enum)
 			_ = v
 		}
 		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
@@ -7969,7 +4751,7 @@ func ListMultipartUploadsHandler(b ListMultipartUploadsBackend) http.Handler {
 			in.Prefix = &s
 		}
 		if v := r.Header.Get("x-amz-request-payer"); v != "" {
-			// codegen: assign-from-string for *RequestPayer treats value as the underlying string; backend should validate.
+			// codegen: treats value as string-backed (custom string or enum)
 			_ = v
 		}
 		if v := q.Get("upload-id-marker"); v != "" {
@@ -7979,260 +4761,19 @@ func ListMultipartUploadsHandler(b ListMultipartUploadsBackend) http.Handler {
 
 		out, err := b.ListMultipartUploads(ctx, in)
 		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
+			restxml.WriteBackendError(w, err)
 			return
 		}
 		_ = out
+		// codegen: header for *RequestCharged (RequestCharged -> x-amz-request-charged); falls back to string conversion if pointer to enum.
+		if out.RequestCharged != nil {
+			w.Header().Set("x-amz-request-charged", string(*out.RequestCharged))
+		}
+
 		w.Header().Set("Content-Type", "application/xml")
 		w.WriteHeader(200)
 		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
-	})
-}
-
-// ListObjectVersionsBackend serves the ListObjectVersions operation.
-type ListObjectVersionsBackend interface {
-	ListObjectVersions(ctx context.Context, in *ListObjectVersionsRequest) (*ListObjectVersionsOutput, error)
-}
-
-// ListObjectVersionsURITemplate is the Smithy URI template for the operation.
-const ListObjectVersionsURITemplate = "/{Bucket}?versions"
-
-// ListObjectVersionsMethod is the HTTP method for the operation.
-const ListObjectVersionsMethod = "GET"
-
-// ListObjectVersionsHandler decodes a ListObjectVersions request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func ListObjectVersionsHandler(b ListObjectVersionsBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &ListObjectVersionsRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, ListObjectVersionsURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := q.Get("delimiter"); v != "" {
-			s := v
-			in.Delimiter = &s
-		}
-		if v := q.Get("encoding-type"); v != "" {
-			// codegen: assign-from-string for *EncodingType treats value as the underlying string; backend should validate.
-			_ = v
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-		if v := q.Get("key-marker"); v != "" {
-			s := v
-			in.KeyMarker = &s
-		}
-		if v := q.Get("max-keys"); v != "" {
-			if p, err := restxml.ParseInt32(v); err == nil && p != nil {
-				in.MaxKeys = p
-			}
-		}
-		if v := r.Header.Get("x-amz-optional-object-attributes"); v != "" {
-			// codegen: assign-from-string for OptionalObjectAttributesList treats value as the underlying string; backend should validate.
-			_ = v
-		}
-		if v := q.Get("prefix"); v != "" {
-			s := v
-			in.Prefix = &s
-		}
-		if v := r.Header.Get("x-amz-request-payer"); v != "" {
-			// codegen: assign-from-string for *RequestPayer treats value as the underlying string; backend should validate.
-			_ = v
-		}
-		if v := q.Get("version-id-marker"); v != "" {
-			s := v
-			in.VersionIdMarker = &s
-		}
-
-		out, err := b.ListObjectVersions(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.Header().Set("Content-Type", "application/xml")
-		w.WriteHeader(200)
-		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
-	})
-}
-
-// ListObjectsBackend serves the ListObjects operation.
-type ListObjectsBackend interface {
-	ListObjects(ctx context.Context, in *ListObjectsRequest) (*ListObjectsOutput, error)
-}
-
-// ListObjectsURITemplate is the Smithy URI template for the operation.
-const ListObjectsURITemplate = "/{Bucket}"
-
-// ListObjectsMethod is the HTTP method for the operation.
-const ListObjectsMethod = "GET"
-
-// ListObjectsHandler decodes a ListObjects request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func ListObjectsHandler(b ListObjectsBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &ListObjectsRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, ListObjectsURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := q.Get("delimiter"); v != "" {
-			s := v
-			in.Delimiter = &s
-		}
-		if v := q.Get("encoding-type"); v != "" {
-			// codegen: assign-from-string for *EncodingType treats value as the underlying string; backend should validate.
-			_ = v
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-		if v := q.Get("marker"); v != "" {
-			s := v
-			in.Marker = &s
-		}
-		if v := q.Get("max-keys"); v != "" {
-			if p, err := restxml.ParseInt32(v); err == nil && p != nil {
-				in.MaxKeys = p
-			}
-		}
-		if v := r.Header.Get("x-amz-optional-object-attributes"); v != "" {
-			// codegen: assign-from-string for OptionalObjectAttributesList treats value as the underlying string; backend should validate.
-			_ = v
-		}
-		if v := q.Get("prefix"); v != "" {
-			s := v
-			in.Prefix = &s
-		}
-		if v := r.Header.Get("x-amz-request-payer"); v != "" {
-			// codegen: assign-from-string for *RequestPayer treats value as the underlying string; backend should validate.
-			_ = v
-		}
-
-		out, err := b.ListObjects(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.Header().Set("Content-Type", "application/xml")
-		w.WriteHeader(200)
-		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
-	})
-}
-
-// ListObjectsV2Backend serves the ListObjectsV2 operation.
-type ListObjectsV2Backend interface {
-	ListObjectsV2(ctx context.Context, in *ListObjectsV2Request) (*ListObjectsV2Output, error)
-}
-
-// ListObjectsV2URITemplate is the Smithy URI template for the operation.
-const ListObjectsV2URITemplate = "/{Bucket}?list-type=2"
-
-// ListObjectsV2Method is the HTTP method for the operation.
-const ListObjectsV2Method = "GET"
-
-// ListObjectsV2Handler decodes a ListObjectsV2 request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func ListObjectsV2Handler(b ListObjectsV2Backend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &ListObjectsV2Request{}
-		labels, ok := restxml.MatchURI(r.URL.Path, ListObjectsV2URITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := q.Get("continuation-token"); v != "" {
-			s := v
-			in.ContinuationToken = &s
-		}
-		if v := q.Get("delimiter"); v != "" {
-			s := v
-			in.Delimiter = &s
-		}
-		if v := q.Get("encoding-type"); v != "" {
-			// codegen: assign-from-string for *EncodingType treats value as the underlying string; backend should validate.
-			_ = v
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-		if v := q.Get("fetch-owner"); v != "" {
-			if p, err := restxml.ParseBool(v); err == nil && p != nil {
-				in.FetchOwner = p
-			}
-		}
-		if v := q.Get("max-keys"); v != "" {
-			if p, err := restxml.ParseInt32(v); err == nil && p != nil {
-				in.MaxKeys = p
-			}
-		}
-		if v := r.Header.Get("x-amz-optional-object-attributes"); v != "" {
-			// codegen: assign-from-string for OptionalObjectAttributesList treats value as the underlying string; backend should validate.
-			_ = v
-		}
-		if v := q.Get("prefix"); v != "" {
-			s := v
-			in.Prefix = &s
-		}
-		if v := r.Header.Get("x-amz-request-payer"); v != "" {
-			// codegen: assign-from-string for *RequestPayer treats value as the underlying string; backend should validate.
-			_ = v
-		}
-		if v := q.Get("start-after"); v != "" {
-			s := v
-			in.StartAfter = &s
-		}
-
-		out, err := b.ListObjectsV2(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.Header().Set("Content-Type", "application/xml")
-		w.WriteHeader(200)
-		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
+		_ = xml.NewEncoder(w).Encode(out)
 	})
 }
 
@@ -8281,7 +4822,7 @@ func ListPartsHandler(b ListPartsBackend) http.Handler {
 			in.PartNumberMarker = &s
 		}
 		if v := r.Header.Get("x-amz-request-payer"); v != "" {
-			// codegen: assign-from-string for *RequestPayer treats value as the underlying string; backend should validate.
+			// codegen: treats value as string-backed (custom string or enum)
 			_ = v
 		}
 		if v := r.Header.Get("x-amz-server-side-encryption-customer-algorithm"); v != "" {
@@ -8302,376 +4843,48 @@ func ListPartsHandler(b ListPartsBackend) http.Handler {
 
 		out, err := b.ListParts(ctx, in)
 		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
+			restxml.WriteBackendError(w, err)
 			return
 		}
 		_ = out
+		if out.AbortDate != nil {
+			w.Header().Set("x-amz-abort-date", restxml.FormatTime(*out.AbortDate, "http-date"))
+		}
+
+		if out.AbortRuleId != nil {
+			w.Header().Set("x-amz-abort-rule-id", *out.AbortRuleId)
+		}
+
+		// codegen: header for *RequestCharged (RequestCharged -> x-amz-request-charged); falls back to string conversion if pointer to enum.
+		if out.RequestCharged != nil {
+			w.Header().Set("x-amz-request-charged", string(*out.RequestCharged))
+		}
+
 		w.Header().Set("Content-Type", "application/xml")
 		w.WriteHeader(200)
 		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
+		_ = xml.NewEncoder(w).Encode(out)
 	})
 }
 
-// PutBucketAbacBackend serves the PutBucketAbac operation.
-type PutBucketAbacBackend interface {
-	PutBucketAbac(ctx context.Context, in *PutBucketAbacRequest) (struct{}, error)
+// GetBucketLocationBackend serves the GetBucketLocation operation.
+type GetBucketLocationBackend interface {
+	GetBucketLocation(ctx context.Context, in *GetBucketLocationRequest) (*GetBucketLocationOutput, error)
 }
 
-// PutBucketAbacURITemplate is the Smithy URI template for the operation.
-const PutBucketAbacURITemplate = "/{Bucket}?abac"
+// GetBucketLocationURITemplate is the Smithy URI template for the operation.
+const GetBucketLocationURITemplate = "/{Bucket}?location"
 
-// PutBucketAbacMethod is the HTTP method for the operation.
-const PutBucketAbacMethod = "PUT"
+// GetBucketLocationMethod is the HTTP method for the operation.
+const GetBucketLocationMethod = "GET"
 
-// PutBucketAbacHandler decodes a PutBucketAbac request, dispatches to
+// GetBucketLocationHandler decodes a GetBucketLocation request, dispatches to
 // the backend, and encodes the response per AWS REST-XML semantics.
-func PutBucketAbacHandler(b PutBucketAbacBackend) http.Handler {
+func GetBucketLocationHandler(b GetBucketLocationBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
-		in := &PutBucketAbacRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, PutBucketAbacURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		// payload binding for AbacStatus: read full body
-		_payload, _ := io.ReadAll(r.Body)
-		_ = _payload
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := r.Header.Get("x-amz-sdk-checksum-algorithm"); v != "" {
-			// codegen: assign-from-string for *ChecksumAlgorithm treats value as the underlying string; backend should validate.
-			_ = v
-		}
-		if v := r.Header.Get("Content-MD5"); v != "" {
-			s := v
-			in.ContentMD5 = &s
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-
-		out, err := b.PutBucketAbac(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.WriteHeader(200)
-	})
-}
-
-// PutBucketAccelerateConfigurationBackend serves the PutBucketAccelerateConfiguration operation.
-type PutBucketAccelerateConfigurationBackend interface {
-	PutBucketAccelerateConfiguration(ctx context.Context, in *PutBucketAccelerateConfigurationRequest) (struct{}, error)
-}
-
-// PutBucketAccelerateConfigurationURITemplate is the Smithy URI template for the operation.
-const PutBucketAccelerateConfigurationURITemplate = "/{Bucket}?accelerate"
-
-// PutBucketAccelerateConfigurationMethod is the HTTP method for the operation.
-const PutBucketAccelerateConfigurationMethod = "PUT"
-
-// PutBucketAccelerateConfigurationHandler decodes a PutBucketAccelerateConfiguration request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func PutBucketAccelerateConfigurationHandler(b PutBucketAccelerateConfigurationBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &PutBucketAccelerateConfigurationRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, PutBucketAccelerateConfigurationURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		// payload binding for AccelerateConfiguration: read full body
-		_payload, _ := io.ReadAll(r.Body)
-		_ = _payload
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := r.Header.Get("x-amz-sdk-checksum-algorithm"); v != "" {
-			// codegen: assign-from-string for *ChecksumAlgorithm treats value as the underlying string; backend should validate.
-			_ = v
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-
-		out, err := b.PutBucketAccelerateConfiguration(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.WriteHeader(200)
-	})
-}
-
-// PutBucketAclBackend serves the PutBucketAcl operation.
-type PutBucketAclBackend interface {
-	PutBucketAcl(ctx context.Context, in *PutBucketAclRequest) (struct{}, error)
-}
-
-// PutBucketAclURITemplate is the Smithy URI template for the operation.
-const PutBucketAclURITemplate = "/{Bucket}?acl"
-
-// PutBucketAclMethod is the HTTP method for the operation.
-const PutBucketAclMethod = "PUT"
-
-// PutBucketAclHandler decodes a PutBucketAcl request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func PutBucketAclHandler(b PutBucketAclBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &PutBucketAclRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, PutBucketAclURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v := r.Header.Get("x-amz-acl"); v != "" {
-			// codegen: assign-from-string for *BucketCannedACL treats value as the underlying string; backend should validate.
-			_ = v
-		}
-		// payload binding for AccessControlPolicy: read full body
-		_payload, _ := io.ReadAll(r.Body)
-		_ = _payload
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := r.Header.Get("x-amz-sdk-checksum-algorithm"); v != "" {
-			// codegen: assign-from-string for *ChecksumAlgorithm treats value as the underlying string; backend should validate.
-			_ = v
-		}
-		if v := r.Header.Get("Content-MD5"); v != "" {
-			s := v
-			in.ContentMD5 = &s
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-		if v := r.Header.Get("x-amz-grant-full-control"); v != "" {
-			s := v
-			in.GrantFullControl = &s
-		}
-		if v := r.Header.Get("x-amz-grant-read"); v != "" {
-			s := v
-			in.GrantRead = &s
-		}
-		if v := r.Header.Get("x-amz-grant-read-acp"); v != "" {
-			s := v
-			in.GrantReadACP = &s
-		}
-		if v := r.Header.Get("x-amz-grant-write"); v != "" {
-			s := v
-			in.GrantWrite = &s
-		}
-		if v := r.Header.Get("x-amz-grant-write-acp"); v != "" {
-			s := v
-			in.GrantWriteACP = &s
-		}
-
-		out, err := b.PutBucketAcl(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.WriteHeader(200)
-	})
-}
-
-// PutBucketAnalyticsConfigurationBackend serves the PutBucketAnalyticsConfiguration operation.
-type PutBucketAnalyticsConfigurationBackend interface {
-	PutBucketAnalyticsConfiguration(ctx context.Context, in *PutBucketAnalyticsConfigurationRequest) (struct{}, error)
-}
-
-// PutBucketAnalyticsConfigurationURITemplate is the Smithy URI template for the operation.
-const PutBucketAnalyticsConfigurationURITemplate = "/{Bucket}?analytics"
-
-// PutBucketAnalyticsConfigurationMethod is the HTTP method for the operation.
-const PutBucketAnalyticsConfigurationMethod = "PUT"
-
-// PutBucketAnalyticsConfigurationHandler decodes a PutBucketAnalyticsConfiguration request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func PutBucketAnalyticsConfigurationHandler(b PutBucketAnalyticsConfigurationBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &PutBucketAnalyticsConfigurationRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, PutBucketAnalyticsConfigurationURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		// payload binding for AnalyticsConfiguration: read full body
-		_payload, _ := io.ReadAll(r.Body)
-		_ = _payload
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-		if v := q.Get("id"); v != "" {
-			in.Id = v
-		}
-
-		out, err := b.PutBucketAnalyticsConfiguration(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.WriteHeader(200)
-	})
-}
-
-// PutBucketCorsBackend serves the PutBucketCors operation.
-type PutBucketCorsBackend interface {
-	PutBucketCors(ctx context.Context, in *PutBucketCorsRequest) (struct{}, error)
-}
-
-// PutBucketCorsURITemplate is the Smithy URI template for the operation.
-const PutBucketCorsURITemplate = "/{Bucket}?cors"
-
-// PutBucketCorsMethod is the HTTP method for the operation.
-const PutBucketCorsMethod = "PUT"
-
-// PutBucketCorsHandler decodes a PutBucketCors request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func PutBucketCorsHandler(b PutBucketCorsBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &PutBucketCorsRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, PutBucketCorsURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		// payload binding for CORSConfiguration: read full body
-		_payload, _ := io.ReadAll(r.Body)
-		_ = _payload
-		if v := r.Header.Get("x-amz-sdk-checksum-algorithm"); v != "" {
-			// codegen: assign-from-string for *ChecksumAlgorithm treats value as the underlying string; backend should validate.
-			_ = v
-		}
-		if v := r.Header.Get("Content-MD5"); v != "" {
-			s := v
-			in.ContentMD5 = &s
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-
-		out, err := b.PutBucketCors(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.WriteHeader(200)
-	})
-}
-
-// PutBucketEncryptionBackend serves the PutBucketEncryption operation.
-type PutBucketEncryptionBackend interface {
-	PutBucketEncryption(ctx context.Context, in *PutBucketEncryptionRequest) (struct{}, error)
-}
-
-// PutBucketEncryptionURITemplate is the Smithy URI template for the operation.
-const PutBucketEncryptionURITemplate = "/{Bucket}?encryption"
-
-// PutBucketEncryptionMethod is the HTTP method for the operation.
-const PutBucketEncryptionMethod = "PUT"
-
-// PutBucketEncryptionHandler decodes a PutBucketEncryption request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func PutBucketEncryptionHandler(b PutBucketEncryptionBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &PutBucketEncryptionRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, PutBucketEncryptionURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := r.Header.Get("x-amz-sdk-checksum-algorithm"); v != "" {
-			// codegen: assign-from-string for *ChecksumAlgorithm treats value as the underlying string; backend should validate.
-			_ = v
-		}
-		if v := r.Header.Get("Content-MD5"); v != "" {
-			s := v
-			in.ContentMD5 = &s
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-		// payload binding for ServerSideEncryptionConfiguration: read full body
-		_payload, _ := io.ReadAll(r.Body)
-		_ = _payload
-
-		out, err := b.PutBucketEncryption(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.WriteHeader(200)
-	})
-}
-
-// PutBucketIntelligentTieringConfigurationBackend serves the PutBucketIntelligentTieringConfiguration operation.
-type PutBucketIntelligentTieringConfigurationBackend interface {
-	PutBucketIntelligentTieringConfiguration(ctx context.Context, in *PutBucketIntelligentTieringConfigurationRequest) (struct{}, error)
-}
-
-// PutBucketIntelligentTieringConfigurationURITemplate is the Smithy URI template for the operation.
-const PutBucketIntelligentTieringConfigurationURITemplate = "/{Bucket}?intelligent-tiering"
-
-// PutBucketIntelligentTieringConfigurationMethod is the HTTP method for the operation.
-const PutBucketIntelligentTieringConfigurationMethod = "PUT"
-
-// PutBucketIntelligentTieringConfigurationHandler decodes a PutBucketIntelligentTieringConfiguration request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func PutBucketIntelligentTieringConfigurationHandler(b PutBucketIntelligentTieringConfigurationBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &PutBucketIntelligentTieringConfigurationRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, PutBucketIntelligentTieringConfigurationURITemplate)
+		in := &GetBucketLocationRequest{}
+		labels, ok := restxml.MatchURI(r.URL.Path, GetBucketLocationURITemplate)
 		if !ok {
 			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -8686,149 +4899,39 @@ func PutBucketIntelligentTieringConfigurationHandler(b PutBucketIntelligentTieri
 			s := v
 			in.ExpectedBucketOwner = &s
 		}
-		if v := q.Get("id"); v != "" {
-			in.Id = v
-		}
-		// payload binding for IntelligentTieringConfiguration: read full body
-		_payload, _ := io.ReadAll(r.Body)
-		_ = _payload
 
-		out, err := b.PutBucketIntelligentTieringConfiguration(ctx, in)
+		out, err := b.GetBucketLocation(ctx, in)
 		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
+			restxml.WriteBackendError(w, err)
 			return
 		}
 		_ = out
-		w.WriteHeader(200)
-	})
-}
 
-// PutBucketInventoryConfigurationBackend serves the PutBucketInventoryConfiguration operation.
-type PutBucketInventoryConfigurationBackend interface {
-	PutBucketInventoryConfiguration(ctx context.Context, in *PutBucketInventoryConfigurationRequest) (struct{}, error)
-}
-
-// PutBucketInventoryConfigurationURITemplate is the Smithy URI template for the operation.
-const PutBucketInventoryConfigurationURITemplate = "/{Bucket}?inventory"
-
-// PutBucketInventoryConfigurationMethod is the HTTP method for the operation.
-const PutBucketInventoryConfigurationMethod = "PUT"
-
-// PutBucketInventoryConfigurationHandler decodes a PutBucketInventoryConfiguration request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func PutBucketInventoryConfigurationHandler(b PutBucketInventoryConfigurationBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &PutBucketInventoryConfigurationRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, PutBucketInventoryConfigurationURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-		if v := q.Get("id"); v != "" {
-			in.Id = v
-		}
-		// payload binding for InventoryConfiguration: read full body
-		_payload, _ := io.ReadAll(r.Body)
-		_ = _payload
-
-		out, err := b.PutBucketInventoryConfiguration(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.WriteHeader(200)
-	})
-}
-
-// PutBucketLifecycleConfigurationBackend serves the PutBucketLifecycleConfiguration operation.
-type PutBucketLifecycleConfigurationBackend interface {
-	PutBucketLifecycleConfiguration(ctx context.Context, in *PutBucketLifecycleConfigurationRequest) (*PutBucketLifecycleConfigurationOutput, error)
-}
-
-// PutBucketLifecycleConfigurationURITemplate is the Smithy URI template for the operation.
-const PutBucketLifecycleConfigurationURITemplate = "/{Bucket}?lifecycle"
-
-// PutBucketLifecycleConfigurationMethod is the HTTP method for the operation.
-const PutBucketLifecycleConfigurationMethod = "PUT"
-
-// PutBucketLifecycleConfigurationHandler decodes a PutBucketLifecycleConfiguration request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func PutBucketLifecycleConfigurationHandler(b PutBucketLifecycleConfigurationBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &PutBucketLifecycleConfigurationRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, PutBucketLifecycleConfigurationURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := r.Header.Get("x-amz-sdk-checksum-algorithm"); v != "" {
-			// codegen: assign-from-string for *ChecksumAlgorithm treats value as the underlying string; backend should validate.
-			_ = v
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-		// payload binding for LifecycleConfiguration: read full body
-		_payload, _ := io.ReadAll(r.Body)
-		_ = _payload
-		if v := r.Header.Get("x-amz-transition-default-minimum-object-size"); v != "" {
-			// codegen: assign-from-string for *TransitionDefaultMinimumObjectSize treats value as the underlying string; backend should validate.
-			_ = v
-		}
-
-		out, err := b.PutBucketLifecycleConfiguration(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
 		w.Header().Set("Content-Type", "application/xml")
 		w.WriteHeader(200)
 		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
+		_ = xml.NewEncoder(w).Encode(out)
 	})
 }
 
-// PutBucketLoggingBackend serves the PutBucketLogging operation.
-type PutBucketLoggingBackend interface {
-	PutBucketLogging(ctx context.Context, in *PutBucketLoggingRequest) (struct{}, error)
+// GetBucketPolicyBackend serves the GetBucketPolicy operation.
+type GetBucketPolicyBackend interface {
+	GetBucketPolicy(ctx context.Context, in *GetBucketPolicyRequest) (*GetBucketPolicyOutput, error)
 }
 
-// PutBucketLoggingURITemplate is the Smithy URI template for the operation.
-const PutBucketLoggingURITemplate = "/{Bucket}?logging"
+// GetBucketPolicyURITemplate is the Smithy URI template for the operation.
+const GetBucketPolicyURITemplate = "/{Bucket}?policy"
 
-// PutBucketLoggingMethod is the HTTP method for the operation.
-const PutBucketLoggingMethod = "PUT"
+// GetBucketPolicyMethod is the HTTP method for the operation.
+const GetBucketPolicyMethod = "GET"
 
-// PutBucketLoggingHandler decodes a PutBucketLogging request, dispatches to
+// GetBucketPolicyHandler decodes a GetBucketPolicy request, dispatches to
 // the backend, and encodes the response per AWS REST-XML semantics.
-func PutBucketLoggingHandler(b PutBucketLoggingBackend) http.Handler {
+func GetBucketPolicyHandler(b GetBucketPolicyBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
-		in := &PutBucketLoggingRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, PutBucketLoggingURITemplate)
+		in := &GetBucketPolicyRequest{}
+		labels, ok := restxml.MatchURI(r.URL.Path, GetBucketPolicyURITemplate)
 		if !ok {
 			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -8839,50 +4942,46 @@ func PutBucketLoggingHandler(b PutBucketLoggingBackend) http.Handler {
 		if v, ok := labels["Bucket"]; ok {
 			in.Bucket = v
 		}
-		// payload binding for BucketLoggingStatus: read full body
-		_payload, _ := io.ReadAll(r.Body)
-		_ = _payload
-		if v := r.Header.Get("x-amz-sdk-checksum-algorithm"); v != "" {
-			// codegen: assign-from-string for *ChecksumAlgorithm treats value as the underlying string; backend should validate.
-			_ = v
-		}
-		if v := r.Header.Get("Content-MD5"); v != "" {
-			s := v
-			in.ContentMD5 = &s
-		}
 		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
 			s := v
 			in.ExpectedBucketOwner = &s
 		}
 
-		out, err := b.PutBucketLogging(ctx, in)
+		out, err := b.GetBucketPolicy(ctx, in)
 		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
+			restxml.WriteBackendError(w, err)
 			return
 		}
 		_ = out
-		w.WriteHeader(200)
+
+		if out.Policy != nil {
+			w.Header().Set("Content-Length", strconv.Itoa(len(*out.Policy)))
+			w.WriteHeader(200)
+			_, _ = w.Write([]byte(*out.Policy))
+		} else {
+			w.WriteHeader(200)
+		}
 	})
 }
 
-// PutBucketMetricsConfigurationBackend serves the PutBucketMetricsConfiguration operation.
-type PutBucketMetricsConfigurationBackend interface {
-	PutBucketMetricsConfiguration(ctx context.Context, in *PutBucketMetricsConfigurationRequest) (struct{}, error)
+// GetBucketAclBackend serves the GetBucketAcl operation.
+type GetBucketAclBackend interface {
+	GetBucketAcl(ctx context.Context, in *GetBucketAclRequest) (*GetBucketAclOutput, error)
 }
 
-// PutBucketMetricsConfigurationURITemplate is the Smithy URI template for the operation.
-const PutBucketMetricsConfigurationURITemplate = "/{Bucket}?metrics"
+// GetBucketAclURITemplate is the Smithy URI template for the operation.
+const GetBucketAclURITemplate = "/{Bucket}?acl"
 
-// PutBucketMetricsConfigurationMethod is the HTTP method for the operation.
-const PutBucketMetricsConfigurationMethod = "PUT"
+// GetBucketAclMethod is the HTTP method for the operation.
+const GetBucketAclMethod = "GET"
 
-// PutBucketMetricsConfigurationHandler decodes a PutBucketMetricsConfiguration request, dispatches to
+// GetBucketAclHandler decodes a GetBucketAcl request, dispatches to
 // the backend, and encodes the response per AWS REST-XML semantics.
-func PutBucketMetricsConfigurationHandler(b PutBucketMetricsConfigurationBackend) http.Handler {
+func GetBucketAclHandler(b GetBucketAclBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
-		in := &PutBucketMetricsConfigurationRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, PutBucketMetricsConfigurationURITemplate)
+		in := &GetBucketAclRequest{}
+		labels, ok := restxml.MatchURI(r.URL.Path, GetBucketAclURITemplate)
 		if !ok {
 			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -8897,41 +4996,39 @@ func PutBucketMetricsConfigurationHandler(b PutBucketMetricsConfigurationBackend
 			s := v
 			in.ExpectedBucketOwner = &s
 		}
-		if v := q.Get("id"); v != "" {
-			in.Id = v
-		}
-		// payload binding for MetricsConfiguration: read full body
-		_payload, _ := io.ReadAll(r.Body)
-		_ = _payload
 
-		out, err := b.PutBucketMetricsConfiguration(ctx, in)
+		out, err := b.GetBucketAcl(ctx, in)
 		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
+			restxml.WriteBackendError(w, err)
 			return
 		}
 		_ = out
+
+		w.Header().Set("Content-Type", "application/xml")
 		w.WriteHeader(200)
+		_, _ = w.Write([]byte(xml.Header))
+		_ = xml.NewEncoder(w).Encode(out)
 	})
 }
 
-// PutBucketNotificationConfigurationBackend serves the PutBucketNotificationConfiguration operation.
-type PutBucketNotificationConfigurationBackend interface {
-	PutBucketNotificationConfiguration(ctx context.Context, in *PutBucketNotificationConfigurationRequest) (struct{}, error)
+// GetBucketVersioningBackend serves the GetBucketVersioning operation.
+type GetBucketVersioningBackend interface {
+	GetBucketVersioning(ctx context.Context, in *GetBucketVersioningRequest) (*GetBucketVersioningOutput, error)
 }
 
-// PutBucketNotificationConfigurationURITemplate is the Smithy URI template for the operation.
-const PutBucketNotificationConfigurationURITemplate = "/{Bucket}?notification"
+// GetBucketVersioningURITemplate is the Smithy URI template for the operation.
+const GetBucketVersioningURITemplate = "/{Bucket}?versioning"
 
-// PutBucketNotificationConfigurationMethod is the HTTP method for the operation.
-const PutBucketNotificationConfigurationMethod = "PUT"
+// GetBucketVersioningMethod is the HTTP method for the operation.
+const GetBucketVersioningMethod = "GET"
 
-// PutBucketNotificationConfigurationHandler decodes a PutBucketNotificationConfiguration request, dispatches to
+// GetBucketVersioningHandler decodes a GetBucketVersioning request, dispatches to
 // the backend, and encodes the response per AWS REST-XML semantics.
-func PutBucketNotificationConfigurationHandler(b PutBucketNotificationConfigurationBackend) http.Handler {
+func GetBucketVersioningHandler(b GetBucketVersioningBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
-		in := &PutBucketNotificationConfigurationRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, PutBucketNotificationConfigurationURITemplate)
+		in := &GetBucketVersioningRequest{}
+		labels, ok := restxml.MatchURI(r.URL.Path, GetBucketVersioningURITemplate)
 		if !ok {
 			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -8946,43 +5043,39 @@ func PutBucketNotificationConfigurationHandler(b PutBucketNotificationConfigurat
 			s := v
 			in.ExpectedBucketOwner = &s
 		}
-		// payload binding for NotificationConfiguration: read full body
-		_payload, _ := io.ReadAll(r.Body)
-		_ = _payload
-		if v := r.Header.Get("x-amz-skip-destination-validation"); v != "" {
-			if p, err := restxml.ParseBool(v); err == nil && p != nil {
-				in.SkipDestinationValidation = p
-			}
-		}
 
-		out, err := b.PutBucketNotificationConfiguration(ctx, in)
+		out, err := b.GetBucketVersioning(ctx, in)
 		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
+			restxml.WriteBackendError(w, err)
 			return
 		}
 		_ = out
+
+		w.Header().Set("Content-Type", "application/xml")
 		w.WriteHeader(200)
+		_, _ = w.Write([]byte(xml.Header))
+		_ = xml.NewEncoder(w).Encode(out)
 	})
 }
 
-// PutBucketOwnershipControlsBackend serves the PutBucketOwnershipControls operation.
-type PutBucketOwnershipControlsBackend interface {
-	PutBucketOwnershipControls(ctx context.Context, in *PutBucketOwnershipControlsRequest) (struct{}, error)
+// GetBucketLoggingBackend serves the GetBucketLogging operation.
+type GetBucketLoggingBackend interface {
+	GetBucketLogging(ctx context.Context, in *GetBucketLoggingRequest) (*GetBucketLoggingOutput, error)
 }
 
-// PutBucketOwnershipControlsURITemplate is the Smithy URI template for the operation.
-const PutBucketOwnershipControlsURITemplate = "/{Bucket}?ownershipControls"
+// GetBucketLoggingURITemplate is the Smithy URI template for the operation.
+const GetBucketLoggingURITemplate = "/{Bucket}?logging"
 
-// PutBucketOwnershipControlsMethod is the HTTP method for the operation.
-const PutBucketOwnershipControlsMethod = "PUT"
+// GetBucketLoggingMethod is the HTTP method for the operation.
+const GetBucketLoggingMethod = "GET"
 
-// PutBucketOwnershipControlsHandler decodes a PutBucketOwnershipControls request, dispatches to
+// GetBucketLoggingHandler decodes a GetBucketLogging request, dispatches to
 // the backend, and encodes the response per AWS REST-XML semantics.
-func PutBucketOwnershipControlsHandler(b PutBucketOwnershipControlsBackend) http.Handler {
+func GetBucketLoggingHandler(b GetBucketLoggingBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
-		in := &PutBucketOwnershipControlsRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, PutBucketOwnershipControlsURITemplate)
+		in := &GetBucketLoggingRequest{}
+		labels, ok := restxml.MatchURI(r.URL.Path, GetBucketLoggingURITemplate)
 		if !ok {
 			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -8993,50 +5086,43 @@ func PutBucketOwnershipControlsHandler(b PutBucketOwnershipControlsBackend) http
 		if v, ok := labels["Bucket"]; ok {
 			in.Bucket = v
 		}
-		if v := r.Header.Get("x-amz-sdk-checksum-algorithm"); v != "" {
-			// codegen: assign-from-string for *ChecksumAlgorithm treats value as the underlying string; backend should validate.
-			_ = v
-		}
-		if v := r.Header.Get("Content-MD5"); v != "" {
-			s := v
-			in.ContentMD5 = &s
-		}
 		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
 			s := v
 			in.ExpectedBucketOwner = &s
 		}
-		// payload binding for OwnershipControls: read full body
-		_payload, _ := io.ReadAll(r.Body)
-		_ = _payload
 
-		out, err := b.PutBucketOwnershipControls(ctx, in)
+		out, err := b.GetBucketLogging(ctx, in)
 		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
+			restxml.WriteBackendError(w, err)
 			return
 		}
 		_ = out
+
+		w.Header().Set("Content-Type", "application/xml")
 		w.WriteHeader(200)
+		_, _ = w.Write([]byte(xml.Header))
+		_ = xml.NewEncoder(w).Encode(out)
 	})
 }
 
-// PutBucketPolicyBackend serves the PutBucketPolicy operation.
-type PutBucketPolicyBackend interface {
-	PutBucketPolicy(ctx context.Context, in *PutBucketPolicyRequest) (struct{}, error)
+// GetBucketCorsBackend serves the GetBucketCors operation.
+type GetBucketCorsBackend interface {
+	GetBucketCors(ctx context.Context, in *GetBucketCorsRequest) (*GetBucketCorsOutput, error)
 }
 
-// PutBucketPolicyURITemplate is the Smithy URI template for the operation.
-const PutBucketPolicyURITemplate = "/{Bucket}?policy"
+// GetBucketCorsURITemplate is the Smithy URI template for the operation.
+const GetBucketCorsURITemplate = "/{Bucket}?cors"
 
-// PutBucketPolicyMethod is the HTTP method for the operation.
-const PutBucketPolicyMethod = "PUT"
+// GetBucketCorsMethod is the HTTP method for the operation.
+const GetBucketCorsMethod = "GET"
 
-// PutBucketPolicyHandler decodes a PutBucketPolicy request, dispatches to
+// GetBucketCorsHandler decodes a GetBucketCors request, dispatches to
 // the backend, and encodes the response per AWS REST-XML semantics.
-func PutBucketPolicyHandler(b PutBucketPolicyBackend) http.Handler {
+func GetBucketCorsHandler(b GetBucketCorsBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
-		in := &PutBucketPolicyRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, PutBucketPolicyURITemplate)
+		in := &GetBucketCorsRequest{}
+		labels, ok := restxml.MatchURI(r.URL.Path, GetBucketCorsURITemplate)
 		if !ok {
 			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -9047,55 +5133,43 @@ func PutBucketPolicyHandler(b PutBucketPolicyBackend) http.Handler {
 		if v, ok := labels["Bucket"]; ok {
 			in.Bucket = v
 		}
-		if v := r.Header.Get("x-amz-sdk-checksum-algorithm"); v != "" {
-			// codegen: assign-from-string for *ChecksumAlgorithm treats value as the underlying string; backend should validate.
-			_ = v
-		}
-		if v := r.Header.Get("x-amz-confirm-remove-self-bucket-access"); v != "" {
-			if p, err := restxml.ParseBool(v); err == nil && p != nil {
-				in.ConfirmRemoveSelfBucketAccess = p
-			}
-		}
-		if v := r.Header.Get("Content-MD5"); v != "" {
-			s := v
-			in.ContentMD5 = &s
-		}
 		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
 			s := v
 			in.ExpectedBucketOwner = &s
 		}
-		// payload binding for Policy: read full body
-		_payload, _ := io.ReadAll(r.Body)
-		_ = _payload
 
-		out, err := b.PutBucketPolicy(ctx, in)
+		out, err := b.GetBucketCors(ctx, in)
 		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
+			restxml.WriteBackendError(w, err)
 			return
 		}
 		_ = out
+
+		w.Header().Set("Content-Type", "application/xml")
 		w.WriteHeader(200)
+		_, _ = w.Write([]byte(xml.Header))
+		_ = xml.NewEncoder(w).Encode(out)
 	})
 }
 
-// PutBucketReplicationBackend serves the PutBucketReplication operation.
-type PutBucketReplicationBackend interface {
-	PutBucketReplication(ctx context.Context, in *PutBucketReplicationRequest) (struct{}, error)
+// GetBucketLifecycleConfigurationBackend serves the GetBucketLifecycleConfiguration operation.
+type GetBucketLifecycleConfigurationBackend interface {
+	GetBucketLifecycleConfiguration(ctx context.Context, in *GetBucketLifecycleConfigurationRequest) (*GetBucketLifecycleConfigurationOutput, error)
 }
 
-// PutBucketReplicationURITemplate is the Smithy URI template for the operation.
-const PutBucketReplicationURITemplate = "/{Bucket}?replication"
+// GetBucketLifecycleConfigurationURITemplate is the Smithy URI template for the operation.
+const GetBucketLifecycleConfigurationURITemplate = "/{Bucket}?lifecycle"
 
-// PutBucketReplicationMethod is the HTTP method for the operation.
-const PutBucketReplicationMethod = "PUT"
+// GetBucketLifecycleConfigurationMethod is the HTTP method for the operation.
+const GetBucketLifecycleConfigurationMethod = "GET"
 
-// PutBucketReplicationHandler decodes a PutBucketReplication request, dispatches to
+// GetBucketLifecycleConfigurationHandler decodes a GetBucketLifecycleConfiguration request, dispatches to
 // the backend, and encodes the response per AWS REST-XML semantics.
-func PutBucketReplicationHandler(b PutBucketReplicationBackend) http.Handler {
+func GetBucketLifecycleConfigurationHandler(b GetBucketLifecycleConfigurationBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
-		in := &PutBucketReplicationRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, PutBucketReplicationURITemplate)
+		in := &GetBucketLifecycleConfigurationRequest{}
+		labels, ok := restxml.MatchURI(r.URL.Path, GetBucketLifecycleConfigurationURITemplate)
 		if !ok {
 			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -9106,54 +5180,47 @@ func PutBucketReplicationHandler(b PutBucketReplicationBackend) http.Handler {
 		if v, ok := labels["Bucket"]; ok {
 			in.Bucket = v
 		}
-		if v := r.Header.Get("x-amz-sdk-checksum-algorithm"); v != "" {
-			// codegen: assign-from-string for *ChecksumAlgorithm treats value as the underlying string; backend should validate.
-			_ = v
-		}
-		if v := r.Header.Get("Content-MD5"); v != "" {
-			s := v
-			in.ContentMD5 = &s
-		}
 		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
 			s := v
 			in.ExpectedBucketOwner = &s
 		}
-		// payload binding for ReplicationConfiguration: read full body
-		_payload, _ := io.ReadAll(r.Body)
-		_ = _payload
-		if v := r.Header.Get("x-amz-bucket-object-lock-token"); v != "" {
-			s := v
-			in.Token = &s
-		}
 
-		out, err := b.PutBucketReplication(ctx, in)
+		out, err := b.GetBucketLifecycleConfiguration(ctx, in)
 		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
+			restxml.WriteBackendError(w, err)
 			return
 		}
 		_ = out
+		// codegen: header for *TransitionDefaultMinimumObjectSize (TransitionDefaultMinimumObjectSize -> x-amz-transition-default-minimum-object-size); falls back to string conversion if pointer to enum.
+		if out.TransitionDefaultMinimumObjectSize != nil {
+			w.Header().Set("x-amz-transition-default-minimum-object-size", string(*out.TransitionDefaultMinimumObjectSize))
+		}
+
+		w.Header().Set("Content-Type", "application/xml")
 		w.WriteHeader(200)
+		_, _ = w.Write([]byte(xml.Header))
+		_ = xml.NewEncoder(w).Encode(out)
 	})
 }
 
-// PutBucketRequestPaymentBackend serves the PutBucketRequestPayment operation.
-type PutBucketRequestPaymentBackend interface {
-	PutBucketRequestPayment(ctx context.Context, in *PutBucketRequestPaymentRequest) (struct{}, error)
+// GetBucketReplicationBackend serves the GetBucketReplication operation.
+type GetBucketReplicationBackend interface {
+	GetBucketReplication(ctx context.Context, in *GetBucketReplicationRequest) (*GetBucketReplicationOutput, error)
 }
 
-// PutBucketRequestPaymentURITemplate is the Smithy URI template for the operation.
-const PutBucketRequestPaymentURITemplate = "/{Bucket}?requestPayment"
+// GetBucketReplicationURITemplate is the Smithy URI template for the operation.
+const GetBucketReplicationURITemplate = "/{Bucket}?replication"
 
-// PutBucketRequestPaymentMethod is the HTTP method for the operation.
-const PutBucketRequestPaymentMethod = "PUT"
+// GetBucketReplicationMethod is the HTTP method for the operation.
+const GetBucketReplicationMethod = "GET"
 
-// PutBucketRequestPaymentHandler decodes a PutBucketRequestPayment request, dispatches to
+// GetBucketReplicationHandler decodes a GetBucketReplication request, dispatches to
 // the backend, and encodes the response per AWS REST-XML semantics.
-func PutBucketRequestPaymentHandler(b PutBucketRequestPaymentBackend) http.Handler {
+func GetBucketReplicationHandler(b GetBucketReplicationBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
-		in := &PutBucketRequestPaymentRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, PutBucketRequestPaymentURITemplate)
+		in := &GetBucketReplicationRequest{}
+		labels, ok := restxml.MatchURI(r.URL.Path, GetBucketReplicationURITemplate)
 		if !ok {
 			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -9164,50 +5231,45 @@ func PutBucketRequestPaymentHandler(b PutBucketRequestPaymentBackend) http.Handl
 		if v, ok := labels["Bucket"]; ok {
 			in.Bucket = v
 		}
-		if v := r.Header.Get("x-amz-sdk-checksum-algorithm"); v != "" {
-			// codegen: assign-from-string for *ChecksumAlgorithm treats value as the underlying string; backend should validate.
-			_ = v
-		}
-		if v := r.Header.Get("Content-MD5"); v != "" {
-			s := v
-			in.ContentMD5 = &s
-		}
 		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
 			s := v
 			in.ExpectedBucketOwner = &s
 		}
-		// payload binding for RequestPaymentConfiguration: read full body
-		_payload, _ := io.ReadAll(r.Body)
-		_ = _payload
 
-		out, err := b.PutBucketRequestPayment(ctx, in)
+		out, err := b.GetBucketReplication(ctx, in)
 		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
+			restxml.WriteBackendError(w, err)
 			return
 		}
 		_ = out
+
+		w.Header().Set("Content-Type", "application/xml")
 		w.WriteHeader(200)
+		_, _ = w.Write([]byte(xml.Header))
+		if out.ReplicationConfiguration != nil {
+			_ = xml.NewEncoder(w).Encode(out.ReplicationConfiguration)
+		}
 	})
 }
 
-// PutBucketTaggingBackend serves the PutBucketTagging operation.
-type PutBucketTaggingBackend interface {
-	PutBucketTagging(ctx context.Context, in *PutBucketTaggingRequest) (struct{}, error)
+// GetBucketRequestPaymentBackend serves the GetBucketRequestPayment operation.
+type GetBucketRequestPaymentBackend interface {
+	GetBucketRequestPayment(ctx context.Context, in *GetBucketRequestPaymentRequest) (*GetBucketRequestPaymentOutput, error)
 }
 
-// PutBucketTaggingURITemplate is the Smithy URI template for the operation.
-const PutBucketTaggingURITemplate = "/{Bucket}?tagging"
+// GetBucketRequestPaymentURITemplate is the Smithy URI template for the operation.
+const GetBucketRequestPaymentURITemplate = "/{Bucket}?requestPayment"
 
-// PutBucketTaggingMethod is the HTTP method for the operation.
-const PutBucketTaggingMethod = "PUT"
+// GetBucketRequestPaymentMethod is the HTTP method for the operation.
+const GetBucketRequestPaymentMethod = "GET"
 
-// PutBucketTaggingHandler decodes a PutBucketTagging request, dispatches to
+// GetBucketRequestPaymentHandler decodes a GetBucketRequestPayment request, dispatches to
 // the backend, and encodes the response per AWS REST-XML semantics.
-func PutBucketTaggingHandler(b PutBucketTaggingBackend) http.Handler {
+func GetBucketRequestPaymentHandler(b GetBucketRequestPaymentBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
-		in := &PutBucketTaggingRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, PutBucketTaggingURITemplate)
+		in := &GetBucketRequestPaymentRequest{}
+		labels, ok := restxml.MatchURI(r.URL.Path, GetBucketRequestPaymentURITemplate)
 		if !ok {
 			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -9218,50 +5280,43 @@ func PutBucketTaggingHandler(b PutBucketTaggingBackend) http.Handler {
 		if v, ok := labels["Bucket"]; ok {
 			in.Bucket = v
 		}
-		if v := r.Header.Get("x-amz-sdk-checksum-algorithm"); v != "" {
-			// codegen: assign-from-string for *ChecksumAlgorithm treats value as the underlying string; backend should validate.
-			_ = v
-		}
-		if v := r.Header.Get("Content-MD5"); v != "" {
-			s := v
-			in.ContentMD5 = &s
-		}
 		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
 			s := v
 			in.ExpectedBucketOwner = &s
 		}
-		// payload binding for Tagging: read full body
-		_payload, _ := io.ReadAll(r.Body)
-		_ = _payload
 
-		out, err := b.PutBucketTagging(ctx, in)
+		out, err := b.GetBucketRequestPayment(ctx, in)
 		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
+			restxml.WriteBackendError(w, err)
 			return
 		}
 		_ = out
+
+		w.Header().Set("Content-Type", "application/xml")
 		w.WriteHeader(200)
+		_, _ = w.Write([]byte(xml.Header))
+		_ = xml.NewEncoder(w).Encode(out)
 	})
 }
 
-// PutBucketVersioningBackend serves the PutBucketVersioning operation.
-type PutBucketVersioningBackend interface {
-	PutBucketVersioning(ctx context.Context, in *PutBucketVersioningRequest) (struct{}, error)
+// GetBucketTaggingBackend serves the GetBucketTagging operation.
+type GetBucketTaggingBackend interface {
+	GetBucketTagging(ctx context.Context, in *GetBucketTaggingRequest) (*GetBucketTaggingOutput, error)
 }
 
-// PutBucketVersioningURITemplate is the Smithy URI template for the operation.
-const PutBucketVersioningURITemplate = "/{Bucket}?versioning"
+// GetBucketTaggingURITemplate is the Smithy URI template for the operation.
+const GetBucketTaggingURITemplate = "/{Bucket}?tagging"
 
-// PutBucketVersioningMethod is the HTTP method for the operation.
-const PutBucketVersioningMethod = "PUT"
+// GetBucketTaggingMethod is the HTTP method for the operation.
+const GetBucketTaggingMethod = "GET"
 
-// PutBucketVersioningHandler decodes a PutBucketVersioning request, dispatches to
+// GetBucketTaggingHandler decodes a GetBucketTagging request, dispatches to
 // the backend, and encodes the response per AWS REST-XML semantics.
-func PutBucketVersioningHandler(b PutBucketVersioningBackend) http.Handler {
+func GetBucketTaggingHandler(b GetBucketTaggingBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
-		in := &PutBucketVersioningRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, PutBucketVersioningURITemplate)
+		in := &GetBucketTaggingRequest{}
+		labels, ok := restxml.MatchURI(r.URL.Path, GetBucketTaggingURITemplate)
 		if !ok {
 			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -9272,54 +5327,43 @@ func PutBucketVersioningHandler(b PutBucketVersioningBackend) http.Handler {
 		if v, ok := labels["Bucket"]; ok {
 			in.Bucket = v
 		}
-		if v := r.Header.Get("x-amz-sdk-checksum-algorithm"); v != "" {
-			// codegen: assign-from-string for *ChecksumAlgorithm treats value as the underlying string; backend should validate.
-			_ = v
-		}
-		if v := r.Header.Get("Content-MD5"); v != "" {
-			s := v
-			in.ContentMD5 = &s
-		}
 		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
 			s := v
 			in.ExpectedBucketOwner = &s
 		}
-		if v := r.Header.Get("x-amz-mfa"); v != "" {
-			s := v
-			in.MFA = &s
-		}
-		// payload binding for VersioningConfiguration: read full body
-		_payload, _ := io.ReadAll(r.Body)
-		_ = _payload
 
-		out, err := b.PutBucketVersioning(ctx, in)
+		out, err := b.GetBucketTagging(ctx, in)
 		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
+			restxml.WriteBackendError(w, err)
 			return
 		}
 		_ = out
+
+		w.Header().Set("Content-Type", "application/xml")
 		w.WriteHeader(200)
+		_, _ = w.Write([]byte(xml.Header))
+		_ = xml.NewEncoder(w).Encode(out)
 	})
 }
 
-// PutBucketWebsiteBackend serves the PutBucketWebsite operation.
-type PutBucketWebsiteBackend interface {
-	PutBucketWebsite(ctx context.Context, in *PutBucketWebsiteRequest) (struct{}, error)
+// GetBucketWebsiteBackend serves the GetBucketWebsite operation.
+type GetBucketWebsiteBackend interface {
+	GetBucketWebsite(ctx context.Context, in *GetBucketWebsiteRequest) (*GetBucketWebsiteOutput, error)
 }
 
-// PutBucketWebsiteURITemplate is the Smithy URI template for the operation.
-const PutBucketWebsiteURITemplate = "/{Bucket}?website"
+// GetBucketWebsiteURITemplate is the Smithy URI template for the operation.
+const GetBucketWebsiteURITemplate = "/{Bucket}?website"
 
-// PutBucketWebsiteMethod is the HTTP method for the operation.
-const PutBucketWebsiteMethod = "PUT"
+// GetBucketWebsiteMethod is the HTTP method for the operation.
+const GetBucketWebsiteMethod = "GET"
 
-// PutBucketWebsiteHandler decodes a PutBucketWebsite request, dispatches to
+// GetBucketWebsiteHandler decodes a GetBucketWebsite request, dispatches to
 // the backend, and encodes the response per AWS REST-XML semantics.
-func PutBucketWebsiteHandler(b PutBucketWebsiteBackend) http.Handler {
+func GetBucketWebsiteHandler(b GetBucketWebsiteBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
-		in := &PutBucketWebsiteRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, PutBucketWebsiteURITemplate)
+		in := &GetBucketWebsiteRequest{}
+		labels, ok := restxml.MatchURI(r.URL.Path, GetBucketWebsiteURITemplate)
 		if !ok {
 			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -9330,50 +5374,43 @@ func PutBucketWebsiteHandler(b PutBucketWebsiteBackend) http.Handler {
 		if v, ok := labels["Bucket"]; ok {
 			in.Bucket = v
 		}
-		if v := r.Header.Get("x-amz-sdk-checksum-algorithm"); v != "" {
-			// codegen: assign-from-string for *ChecksumAlgorithm treats value as the underlying string; backend should validate.
-			_ = v
-		}
-		if v := r.Header.Get("Content-MD5"); v != "" {
-			s := v
-			in.ContentMD5 = &s
-		}
 		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
 			s := v
 			in.ExpectedBucketOwner = &s
 		}
-		// payload binding for WebsiteConfiguration: read full body
-		_payload, _ := io.ReadAll(r.Body)
-		_ = _payload
 
-		out, err := b.PutBucketWebsite(ctx, in)
+		out, err := b.GetBucketWebsite(ctx, in)
 		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
+			restxml.WriteBackendError(w, err)
 			return
 		}
 		_ = out
+
+		w.Header().Set("Content-Type", "application/xml")
 		w.WriteHeader(200)
+		_, _ = w.Write([]byte(xml.Header))
+		_ = xml.NewEncoder(w).Encode(out)
 	})
 }
 
-// PutObjectBackend serves the PutObject operation.
-type PutObjectBackend interface {
-	PutObject(ctx context.Context, in *PutObjectRequest) (*PutObjectOutput, error)
+// GetBucketEncryptionBackend serves the GetBucketEncryption operation.
+type GetBucketEncryptionBackend interface {
+	GetBucketEncryption(ctx context.Context, in *GetBucketEncryptionRequest) (*GetBucketEncryptionOutput, error)
 }
 
-// PutObjectURITemplate is the Smithy URI template for the operation.
-const PutObjectURITemplate = "/{Bucket}/{Key+}?x-id=PutObject"
+// GetBucketEncryptionURITemplate is the Smithy URI template for the operation.
+const GetBucketEncryptionURITemplate = "/{Bucket}?encryption"
 
-// PutObjectMethod is the HTTP method for the operation.
-const PutObjectMethod = "PUT"
+// GetBucketEncryptionMethod is the HTTP method for the operation.
+const GetBucketEncryptionMethod = "GET"
 
-// PutObjectHandler decodes a PutObject request, dispatches to
+// GetBucketEncryptionHandler decodes a GetBucketEncryption request, dispatches to
 // the backend, and encodes the response per AWS REST-XML semantics.
-func PutObjectHandler(b PutObjectBackend) http.Handler {
+func GetBucketEncryptionHandler(b GetBucketEncryptionBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
-		in := &PutObjectRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, PutObjectURITemplate)
+		in := &GetBucketEncryptionRequest{}
+		labels, ok := restxml.MatchURI(r.URL.Path, GetBucketEncryptionURITemplate)
 		if !ok {
 			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -9381,229 +5418,103 @@ func PutObjectHandler(b PutObjectBackend) http.Handler {
 		_ = labels
 		q := r.URL.Query()
 		_ = q
-		if v := r.Header.Get("x-amz-acl"); v != "" {
-			// codegen: assign-from-string for *ObjectCannedACL treats value as the underlying string; backend should validate.
-			_ = v
-		}
-		// payload binding for Body: read full body
-		_payload, _ := io.ReadAll(r.Body)
-		_ = _payload
 		if v, ok := labels["Bucket"]; ok {
 			in.Bucket = v
-		}
-		if v := r.Header.Get("x-amz-server-side-encryption-bucket-key-enabled"); v != "" {
-			if p, err := restxml.ParseBool(v); err == nil && p != nil {
-				in.BucketKeyEnabled = p
-			}
-		}
-		if v := r.Header.Get("Cache-Control"); v != "" {
-			s := v
-			in.CacheControl = &s
-		}
-		if v := r.Header.Get("x-amz-sdk-checksum-algorithm"); v != "" {
-			// codegen: assign-from-string for *ChecksumAlgorithm treats value as the underlying string; backend should validate.
-			_ = v
-		}
-		if v := r.Header.Get("x-amz-checksum-crc32"); v != "" {
-			s := v
-			in.ChecksumCRC32 = &s
-		}
-		if v := r.Header.Get("x-amz-checksum-crc32c"); v != "" {
-			s := v
-			in.ChecksumCRC32C = &s
-		}
-		if v := r.Header.Get("x-amz-checksum-crc64nvme"); v != "" {
-			s := v
-			in.ChecksumCRC64NVME = &s
-		}
-		if v := r.Header.Get("x-amz-checksum-md5"); v != "" {
-			s := v
-			in.ChecksumMD5 = &s
-		}
-		if v := r.Header.Get("x-amz-checksum-sha1"); v != "" {
-			s := v
-			in.ChecksumSHA1 = &s
-		}
-		if v := r.Header.Get("x-amz-checksum-sha256"); v != "" {
-			s := v
-			in.ChecksumSHA256 = &s
-		}
-		if v := r.Header.Get("x-amz-checksum-sha512"); v != "" {
-			s := v
-			in.ChecksumSHA512 = &s
-		}
-		if v := r.Header.Get("x-amz-checksum-xxhash128"); v != "" {
-			s := v
-			in.ChecksumXXHASH128 = &s
-		}
-		if v := r.Header.Get("x-amz-checksum-xxhash3"); v != "" {
-			s := v
-			in.ChecksumXXHASH3 = &s
-		}
-		if v := r.Header.Get("x-amz-checksum-xxhash64"); v != "" {
-			s := v
-			in.ChecksumXXHASH64 = &s
-		}
-		if v := r.Header.Get("Content-Disposition"); v != "" {
-			s := v
-			in.ContentDisposition = &s
-		}
-		if v := r.Header.Get("Content-Encoding"); v != "" {
-			s := v
-			in.ContentEncoding = &s
-		}
-		if v := r.Header.Get("Content-Language"); v != "" {
-			s := v
-			in.ContentLanguage = &s
-		}
-		if v := r.Header.Get("Content-Length"); v != "" {
-			if p, err := restxml.ParseInt64(v); err == nil && p != nil {
-				in.ContentLength = p
-			}
-		}
-		if v := r.Header.Get("Content-MD5"); v != "" {
-			s := v
-			in.ContentMD5 = &s
-		}
-		if v := r.Header.Get("Content-Type"); v != "" {
-			s := v
-			in.ContentType = &s
 		}
 		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
 			s := v
 			in.ExpectedBucketOwner = &s
 		}
-		if v := r.Header.Get("Expires"); v != "" {
+
+		out, err := b.GetBucketEncryption(ctx, in)
+		if err != nil {
+			restxml.WriteBackendError(w, err)
+			return
+		}
+		_ = out
+
+		w.Header().Set("Content-Type", "application/xml")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(xml.Header))
+		if out.ServerSideEncryptionConfiguration != nil {
+			_ = xml.NewEncoder(w).Encode(out.ServerSideEncryptionConfiguration)
+		}
+	})
+}
+
+// GetBucketAccelerateConfigurationBackend serves the GetBucketAccelerateConfiguration operation.
+type GetBucketAccelerateConfigurationBackend interface {
+	GetBucketAccelerateConfiguration(ctx context.Context, in *GetBucketAccelerateConfigurationRequest) (*GetBucketAccelerateConfigurationOutput, error)
+}
+
+// GetBucketAccelerateConfigurationURITemplate is the Smithy URI template for the operation.
+const GetBucketAccelerateConfigurationURITemplate = "/{Bucket}?accelerate"
+
+// GetBucketAccelerateConfigurationMethod is the HTTP method for the operation.
+const GetBucketAccelerateConfigurationMethod = "GET"
+
+// GetBucketAccelerateConfigurationHandler decodes a GetBucketAccelerateConfiguration request, dispatches to
+// the backend, and encodes the response per AWS REST-XML semantics.
+func GetBucketAccelerateConfigurationHandler(b GetBucketAccelerateConfigurationBackend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		in := &GetBucketAccelerateConfigurationRequest{}
+		labels, ok := restxml.MatchURI(r.URL.Path, GetBucketAccelerateConfigurationURITemplate)
+		if !ok {
+			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
+			return
+		}
+		_ = labels
+		q := r.URL.Query()
+		_ = q
+		if v, ok := labels["Bucket"]; ok {
+			in.Bucket = v
+		}
+		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
 			s := v
-			in.Expires = &s
-		}
-		if v := r.Header.Get("x-amz-grant-full-control"); v != "" {
-			s := v
-			in.GrantFullControl = &s
-		}
-		if v := r.Header.Get("x-amz-grant-read"); v != "" {
-			s := v
-			in.GrantRead = &s
-		}
-		if v := r.Header.Get("x-amz-grant-read-acp"); v != "" {
-			s := v
-			in.GrantReadACP = &s
-		}
-		if v := r.Header.Get("x-amz-grant-write-acp"); v != "" {
-			s := v
-			in.GrantWriteACP = &s
-		}
-		if v := r.Header.Get("If-Match"); v != "" {
-			s := v
-			in.IfMatch = &s
-		}
-		if v := r.Header.Get("If-None-Match"); v != "" {
-			s := v
-			in.IfNoneMatch = &s
-		}
-		if v, ok := labels["Key"]; ok {
-			in.Key = v
-		}
-		for hk, hvs := range r.Header {
-			if strings.HasPrefix(strings.ToLower(hk), strings.ToLower("x-amz-meta-")) && len(hvs) > 0 {
-				if in.Metadata == nil {
-					in.Metadata = Metadata{}
-				}
-				in.Metadata[strings.TrimPrefix(strings.ToLower(hk), strings.ToLower("x-amz-meta-"))] = hvs[0]
-			}
-		}
-		if v := r.Header.Get("x-amz-object-lock-legal-hold"); v != "" {
-			// codegen: assign-from-string for *ObjectLockLegalHoldStatus treats value as the underlying string; backend should validate.
-			_ = v
-		}
-		if v := r.Header.Get("x-amz-object-lock-mode"); v != "" {
-			// codegen: assign-from-string for *ObjectLockMode treats value as the underlying string; backend should validate.
-			_ = v
-		}
-		if v := r.Header.Get("x-amz-object-lock-retain-until-date"); v != "" {
-			if t, err := restxml.ParseTime(v, ""); err == nil && t != nil {
-				in.ObjectLockRetainUntilDate = t
-			}
+			in.ExpectedBucketOwner = &s
 		}
 		if v := r.Header.Get("x-amz-request-payer"); v != "" {
-			// codegen: assign-from-string for *RequestPayer treats value as the underlying string; backend should validate.
+			// codegen: treats value as string-backed (custom string or enum)
 			_ = v
-		}
-		if v := r.Header.Get("x-amz-server-side-encryption-customer-algorithm"); v != "" {
-			s := v
-			in.SSECustomerAlgorithm = &s
-		}
-		if v := r.Header.Get("x-amz-server-side-encryption-customer-key"); v != "" {
-			s := v
-			in.SSECustomerKey = &s
-		}
-		if v := r.Header.Get("x-amz-server-side-encryption-customer-key-MD5"); v != "" {
-			s := v
-			in.SSECustomerKeyMD5 = &s
-		}
-		if v := r.Header.Get("x-amz-server-side-encryption-context"); v != "" {
-			s := v
-			in.SSEKMSEncryptionContext = &s
-		}
-		if v := r.Header.Get("x-amz-server-side-encryption-aws-kms-key-id"); v != "" {
-			s := v
-			in.SSEKMSKeyId = &s
-		}
-		if v := r.Header.Get("x-amz-server-side-encryption"); v != "" {
-			// codegen: assign-from-string for *ServerSideEncryption treats value as the underlying string; backend should validate.
-			_ = v
-		}
-		if v := r.Header.Get("x-amz-storage-class"); v != "" {
-			// codegen: assign-from-string for *StorageClass treats value as the underlying string; backend should validate.
-			_ = v
-		}
-		if v := r.Header.Get("x-amz-tagging"); v != "" {
-			s := v
-			in.Tagging = &s
-		}
-		if v := r.Header.Get("x-amz-website-redirect-location"); v != "" {
-			s := v
-			in.WebsiteRedirectLocation = &s
-		}
-		if v := r.Header.Get("x-amz-write-offset-bytes"); v != "" {
-			if p, err := restxml.ParseInt64(v); err == nil && p != nil {
-				in.WriteOffsetBytes = p
-			}
 		}
 
-		out, err := b.PutObject(ctx, in)
+		out, err := b.GetBucketAccelerateConfiguration(ctx, in)
 		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
+			restxml.WriteBackendError(w, err)
 			return
 		}
 		_ = out
+		// codegen: header for *RequestCharged (RequestCharged -> x-amz-request-charged); falls back to string conversion if pointer to enum.
+		if out.RequestCharged != nil {
+			w.Header().Set("x-amz-request-charged", string(*out.RequestCharged))
+		}
+
 		w.Header().Set("Content-Type", "application/xml")
 		w.WriteHeader(200)
 		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
+		_ = xml.NewEncoder(w).Encode(out)
 	})
 }
 
-// PutObjectAclBackend serves the PutObjectAcl operation.
-type PutObjectAclBackend interface {
-	PutObjectAcl(ctx context.Context, in *PutObjectAclRequest) (*PutObjectAclOutput, error)
+// GetObjectLockConfigurationBackend serves the GetObjectLockConfiguration operation.
+type GetObjectLockConfigurationBackend interface {
+	GetObjectLockConfiguration(ctx context.Context, in *GetObjectLockConfigurationRequest) (*GetObjectLockConfigurationOutput, error)
 }
 
-// PutObjectAclURITemplate is the Smithy URI template for the operation.
-const PutObjectAclURITemplate = "/{Bucket}/{Key+}?acl"
+// GetObjectLockConfigurationURITemplate is the Smithy URI template for the operation.
+const GetObjectLockConfigurationURITemplate = "/{Bucket}?object-lock"
 
-// PutObjectAclMethod is the HTTP method for the operation.
-const PutObjectAclMethod = "PUT"
+// GetObjectLockConfigurationMethod is the HTTP method for the operation.
+const GetObjectLockConfigurationMethod = "GET"
 
-// PutObjectAclHandler decodes a PutObjectAcl request, dispatches to
+// GetObjectLockConfigurationHandler decodes a GetObjectLockConfiguration request, dispatches to
 // the backend, and encodes the response per AWS REST-XML semantics.
-func PutObjectAclHandler(b PutObjectAclBackend) http.Handler {
+func GetObjectLockConfigurationHandler(b GetObjectLockConfigurationBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
-		in := &PutObjectAclRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, PutObjectAclURITemplate)
+		in := &GetObjectLockConfigurationRequest{}
+		labels, ok := restxml.MatchURI(r.URL.Path, GetObjectLockConfigurationURITemplate)
 		if !ok {
 			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -9611,53 +5522,261 @@ func PutObjectAclHandler(b PutObjectAclBackend) http.Handler {
 		_ = labels
 		q := r.URL.Query()
 		_ = q
-		if v := r.Header.Get("x-amz-acl"); v != "" {
-			// codegen: assign-from-string for *ObjectCannedACL treats value as the underlying string; backend should validate.
-			_ = v
-		}
-		// payload binding for AccessControlPolicy: read full body
-		_payload, _ := io.ReadAll(r.Body)
-		_ = _payload
 		if v, ok := labels["Bucket"]; ok {
 			in.Bucket = v
-		}
-		if v := r.Header.Get("x-amz-sdk-checksum-algorithm"); v != "" {
-			// codegen: assign-from-string for *ChecksumAlgorithm treats value as the underlying string; backend should validate.
-			_ = v
-		}
-		if v := r.Header.Get("Content-MD5"); v != "" {
-			s := v
-			in.ContentMD5 = &s
 		}
 		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
 			s := v
 			in.ExpectedBucketOwner = &s
 		}
-		if v := r.Header.Get("x-amz-grant-full-control"); v != "" {
-			s := v
-			in.GrantFullControl = &s
+
+		out, err := b.GetObjectLockConfiguration(ctx, in)
+		if err != nil {
+			restxml.WriteBackendError(w, err)
+			return
 		}
-		if v := r.Header.Get("x-amz-grant-read"); v != "" {
-			s := v
-			in.GrantRead = &s
+		_ = out
+
+		w.Header().Set("Content-Type", "application/xml")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(xml.Header))
+		if out.ObjectLockConfiguration != nil {
+			_ = xml.NewEncoder(w).Encode(out.ObjectLockConfiguration)
 		}
-		if v := r.Header.Get("x-amz-grant-read-acp"); v != "" {
-			s := v
-			in.GrantReadACP = &s
+	})
+}
+
+// GetBucketNotificationConfigurationBackend serves the GetBucketNotificationConfiguration operation.
+type GetBucketNotificationConfigurationBackend interface {
+	GetBucketNotificationConfiguration(ctx context.Context, in *GetBucketNotificationConfigurationRequest) (*NotificationConfiguration, error)
+}
+
+// GetBucketNotificationConfigurationURITemplate is the Smithy URI template for the operation.
+const GetBucketNotificationConfigurationURITemplate = "/{Bucket}?notification"
+
+// GetBucketNotificationConfigurationMethod is the HTTP method for the operation.
+const GetBucketNotificationConfigurationMethod = "GET"
+
+// GetBucketNotificationConfigurationHandler decodes a GetBucketNotificationConfiguration request, dispatches to
+// the backend, and encodes the response per AWS REST-XML semantics.
+func GetBucketNotificationConfigurationHandler(b GetBucketNotificationConfigurationBackend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		in := &GetBucketNotificationConfigurationRequest{}
+		labels, ok := restxml.MatchURI(r.URL.Path, GetBucketNotificationConfigurationURITemplate)
+		if !ok {
+			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
+			return
 		}
-		if v := r.Header.Get("x-amz-grant-write"); v != "" {
-			s := v
-			in.GrantWrite = &s
+		_ = labels
+		q := r.URL.Query()
+		_ = q
+		if v, ok := labels["Bucket"]; ok {
+			in.Bucket = v
 		}
-		if v := r.Header.Get("x-amz-grant-write-acp"); v != "" {
+		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
 			s := v
-			in.GrantWriteACP = &s
+			in.ExpectedBucketOwner = &s
+		}
+
+		out, err := b.GetBucketNotificationConfiguration(ctx, in)
+		if err != nil {
+			restxml.WriteBackendError(w, err)
+			return
+		}
+		_ = out
+
+		w.Header().Set("Content-Type", "application/xml")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(xml.Header))
+		_ = xml.NewEncoder(w).Encode(out)
+	})
+}
+
+// GetBucketOwnershipControlsBackend serves the GetBucketOwnershipControls operation.
+type GetBucketOwnershipControlsBackend interface {
+	GetBucketOwnershipControls(ctx context.Context, in *GetBucketOwnershipControlsRequest) (*GetBucketOwnershipControlsOutput, error)
+}
+
+// GetBucketOwnershipControlsURITemplate is the Smithy URI template for the operation.
+const GetBucketOwnershipControlsURITemplate = "/{Bucket}?ownershipControls"
+
+// GetBucketOwnershipControlsMethod is the HTTP method for the operation.
+const GetBucketOwnershipControlsMethod = "GET"
+
+// GetBucketOwnershipControlsHandler decodes a GetBucketOwnershipControls request, dispatches to
+// the backend, and encodes the response per AWS REST-XML semantics.
+func GetBucketOwnershipControlsHandler(b GetBucketOwnershipControlsBackend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		in := &GetBucketOwnershipControlsRequest{}
+		labels, ok := restxml.MatchURI(r.URL.Path, GetBucketOwnershipControlsURITemplate)
+		if !ok {
+			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
+			return
+		}
+		_ = labels
+		q := r.URL.Query()
+		_ = q
+		if v, ok := labels["Bucket"]; ok {
+			in.Bucket = v
+		}
+		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
+			s := v
+			in.ExpectedBucketOwner = &s
+		}
+
+		out, err := b.GetBucketOwnershipControls(ctx, in)
+		if err != nil {
+			restxml.WriteBackendError(w, err)
+			return
+		}
+		_ = out
+
+		w.Header().Set("Content-Type", "application/xml")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(xml.Header))
+		if out.OwnershipControls != nil {
+			_ = xml.NewEncoder(w).Encode(out.OwnershipControls)
+		}
+	})
+}
+
+// GetBucketPolicyStatusBackend serves the GetBucketPolicyStatus operation.
+type GetBucketPolicyStatusBackend interface {
+	GetBucketPolicyStatus(ctx context.Context, in *GetBucketPolicyStatusRequest) (*GetBucketPolicyStatusOutput, error)
+}
+
+// GetBucketPolicyStatusURITemplate is the Smithy URI template for the operation.
+const GetBucketPolicyStatusURITemplate = "/{Bucket}?policyStatus"
+
+// GetBucketPolicyStatusMethod is the HTTP method for the operation.
+const GetBucketPolicyStatusMethod = "GET"
+
+// GetBucketPolicyStatusHandler decodes a GetBucketPolicyStatus request, dispatches to
+// the backend, and encodes the response per AWS REST-XML semantics.
+func GetBucketPolicyStatusHandler(b GetBucketPolicyStatusBackend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		in := &GetBucketPolicyStatusRequest{}
+		labels, ok := restxml.MatchURI(r.URL.Path, GetBucketPolicyStatusURITemplate)
+		if !ok {
+			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
+			return
+		}
+		_ = labels
+		q := r.URL.Query()
+		_ = q
+		if v, ok := labels["Bucket"]; ok {
+			in.Bucket = v
+		}
+		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
+			s := v
+			in.ExpectedBucketOwner = &s
+		}
+
+		out, err := b.GetBucketPolicyStatus(ctx, in)
+		if err != nil {
+			restxml.WriteBackendError(w, err)
+			return
+		}
+		_ = out
+
+		w.Header().Set("Content-Type", "application/xml")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(xml.Header))
+		if out.PolicyStatus != nil {
+			_ = xml.NewEncoder(w).Encode(out.PolicyStatus)
+		}
+	})
+}
+
+// GetPublicAccessBlockBackend serves the GetPublicAccessBlock operation.
+type GetPublicAccessBlockBackend interface {
+	GetPublicAccessBlock(ctx context.Context, in *GetPublicAccessBlockRequest) (*GetPublicAccessBlockOutput, error)
+}
+
+// GetPublicAccessBlockURITemplate is the Smithy URI template for the operation.
+const GetPublicAccessBlockURITemplate = "/{Bucket}?publicAccessBlock"
+
+// GetPublicAccessBlockMethod is the HTTP method for the operation.
+const GetPublicAccessBlockMethod = "GET"
+
+// GetPublicAccessBlockHandler decodes a GetPublicAccessBlock request, dispatches to
+// the backend, and encodes the response per AWS REST-XML semantics.
+func GetPublicAccessBlockHandler(b GetPublicAccessBlockBackend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		in := &GetPublicAccessBlockRequest{}
+		labels, ok := restxml.MatchURI(r.URL.Path, GetPublicAccessBlockURITemplate)
+		if !ok {
+			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
+			return
+		}
+		_ = labels
+		q := r.URL.Query()
+		_ = q
+		if v, ok := labels["Bucket"]; ok {
+			in.Bucket = v
+		}
+		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
+			s := v
+			in.ExpectedBucketOwner = &s
+		}
+
+		out, err := b.GetPublicAccessBlock(ctx, in)
+		if err != nil {
+			restxml.WriteBackendError(w, err)
+			return
+		}
+		_ = out
+
+		w.Header().Set("Content-Type", "application/xml")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(xml.Header))
+		if out.PublicAccessBlockConfiguration != nil {
+			_ = xml.NewEncoder(w).Encode(out.PublicAccessBlockConfiguration)
+		}
+	})
+}
+
+// GetObjectTaggingBackend serves the GetObjectTagging operation.
+type GetObjectTaggingBackend interface {
+	GetObjectTagging(ctx context.Context, in *GetObjectTaggingRequest) (*GetObjectTaggingOutput, error)
+}
+
+// GetObjectTaggingURITemplate is the Smithy URI template for the operation.
+const GetObjectTaggingURITemplate = "/{Bucket}/{Key+}?tagging"
+
+// GetObjectTaggingMethod is the HTTP method for the operation.
+const GetObjectTaggingMethod = "GET"
+
+// GetObjectTaggingHandler decodes a GetObjectTagging request, dispatches to
+// the backend, and encodes the response per AWS REST-XML semantics.
+func GetObjectTaggingHandler(b GetObjectTaggingBackend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		in := &GetObjectTaggingRequest{}
+		labels, ok := restxml.MatchURI(r.URL.Path, GetObjectTaggingURITemplate)
+		if !ok {
+			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
+			return
+		}
+		_ = labels
+		q := r.URL.Query()
+		_ = q
+		if v, ok := labels["Bucket"]; ok {
+			in.Bucket = v
+		}
+		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
+			s := v
+			in.ExpectedBucketOwner = &s
 		}
 		if v, ok := labels["Key"]; ok {
 			in.Key = v
 		}
 		if v := r.Header.Get("x-amz-request-payer"); v != "" {
-			// codegen: assign-from-string for *RequestPayer treats value as the underlying string; backend should validate.
+			// codegen: treats value as string-backed (custom string or enum)
 			_ = v
 		}
 		if v := q.Get("versionId"); v != "" {
@@ -9665,39 +5784,41 @@ func PutObjectAclHandler(b PutObjectAclBackend) http.Handler {
 			in.VersionId = &s
 		}
 
-		out, err := b.PutObjectAcl(ctx, in)
+		out, err := b.GetObjectTagging(ctx, in)
 		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
+			restxml.WriteBackendError(w, err)
 			return
 		}
 		_ = out
+		if out.VersionId != nil {
+			w.Header().Set("x-amz-version-id", *out.VersionId)
+		}
+
 		w.Header().Set("Content-Type", "application/xml")
 		w.WriteHeader(200)
 		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
+		_ = xml.NewEncoder(w).Encode(out)
 	})
 }
 
-// PutObjectLegalHoldBackend serves the PutObjectLegalHold operation.
-type PutObjectLegalHoldBackend interface {
-	PutObjectLegalHold(ctx context.Context, in *PutObjectLegalHoldRequest) (*PutObjectLegalHoldOutput, error)
+// GetObjectAclBackend serves the GetObjectAcl operation.
+type GetObjectAclBackend interface {
+	GetObjectAcl(ctx context.Context, in *GetObjectAclRequest) (*GetObjectAclOutput, error)
 }
 
-// PutObjectLegalHoldURITemplate is the Smithy URI template for the operation.
-const PutObjectLegalHoldURITemplate = "/{Bucket}/{Key+}?legal-hold"
+// GetObjectAclURITemplate is the Smithy URI template for the operation.
+const GetObjectAclURITemplate = "/{Bucket}/{Key+}?acl"
 
-// PutObjectLegalHoldMethod is the HTTP method for the operation.
-const PutObjectLegalHoldMethod = "PUT"
+// GetObjectAclMethod is the HTTP method for the operation.
+const GetObjectAclMethod = "GET"
 
-// PutObjectLegalHoldHandler decodes a PutObjectLegalHold request, dispatches to
+// GetObjectAclHandler decodes a GetObjectAcl request, dispatches to
 // the backend, and encodes the response per AWS REST-XML semantics.
-func PutObjectLegalHoldHandler(b PutObjectLegalHoldBackend) http.Handler {
+func GetObjectAclHandler(b GetObjectAclBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
-		in := &PutObjectLegalHoldRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, PutObjectLegalHoldURITemplate)
+		in := &GetObjectAclRequest{}
+		labels, ok := restxml.MatchURI(r.URL.Path, GetObjectAclURITemplate)
 		if !ok {
 			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -9708,14 +5829,6 @@ func PutObjectLegalHoldHandler(b PutObjectLegalHoldBackend) http.Handler {
 		if v, ok := labels["Bucket"]; ok {
 			in.Bucket = v
 		}
-		if v := r.Header.Get("x-amz-sdk-checksum-algorithm"); v != "" {
-			// codegen: assign-from-string for *ChecksumAlgorithm treats value as the underlying string; backend should validate.
-			_ = v
-		}
-		if v := r.Header.Get("Content-MD5"); v != "" {
-			s := v
-			in.ContentMD5 = &s
-		}
 		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
 			s := v
 			in.ExpectedBucketOwner = &s
@@ -9723,11 +5836,8 @@ func PutObjectLegalHoldHandler(b PutObjectLegalHoldBackend) http.Handler {
 		if v, ok := labels["Key"]; ok {
 			in.Key = v
 		}
-		// payload binding for LegalHold: read full body
-		_payload, _ := io.ReadAll(r.Body)
-		_ = _payload
 		if v := r.Header.Get("x-amz-request-payer"); v != "" {
-			// codegen: assign-from-string for *RequestPayer treats value as the underlying string; backend should validate.
+			// codegen: treats value as string-backed (custom string or enum)
 			_ = v
 		}
 		if v := q.Get("versionId"); v != "" {
@@ -9735,1157 +5845,20 @@ func PutObjectLegalHoldHandler(b PutObjectLegalHoldBackend) http.Handler {
 			in.VersionId = &s
 		}
 
-		out, err := b.PutObjectLegalHold(ctx, in)
+		out, err := b.GetObjectAcl(ctx, in)
 		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
+			restxml.WriteBackendError(w, err)
 			return
 		}
 		_ = out
+		// codegen: header for *RequestCharged (RequestCharged -> x-amz-request-charged); falls back to string conversion if pointer to enum.
+		if out.RequestCharged != nil {
+			w.Header().Set("x-amz-request-charged", string(*out.RequestCharged))
+		}
+
 		w.Header().Set("Content-Type", "application/xml")
 		w.WriteHeader(200)
 		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
-	})
-}
-
-// PutObjectLockConfigurationBackend serves the PutObjectLockConfiguration operation.
-type PutObjectLockConfigurationBackend interface {
-	PutObjectLockConfiguration(ctx context.Context, in *PutObjectLockConfigurationRequest) (*PutObjectLockConfigurationOutput, error)
-}
-
-// PutObjectLockConfigurationURITemplate is the Smithy URI template for the operation.
-const PutObjectLockConfigurationURITemplate = "/{Bucket}?object-lock"
-
-// PutObjectLockConfigurationMethod is the HTTP method for the operation.
-const PutObjectLockConfigurationMethod = "PUT"
-
-// PutObjectLockConfigurationHandler decodes a PutObjectLockConfiguration request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func PutObjectLockConfigurationHandler(b PutObjectLockConfigurationBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &PutObjectLockConfigurationRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, PutObjectLockConfigurationURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := r.Header.Get("x-amz-sdk-checksum-algorithm"); v != "" {
-			// codegen: assign-from-string for *ChecksumAlgorithm treats value as the underlying string; backend should validate.
-			_ = v
-		}
-		if v := r.Header.Get("Content-MD5"); v != "" {
-			s := v
-			in.ContentMD5 = &s
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-		// payload binding for ObjectLockConfiguration: read full body
-		_payload, _ := io.ReadAll(r.Body)
-		_ = _payload
-		if v := r.Header.Get("x-amz-request-payer"); v != "" {
-			// codegen: assign-from-string for *RequestPayer treats value as the underlying string; backend should validate.
-			_ = v
-		}
-		if v := r.Header.Get("x-amz-bucket-object-lock-token"); v != "" {
-			s := v
-			in.Token = &s
-		}
-
-		out, err := b.PutObjectLockConfiguration(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.Header().Set("Content-Type", "application/xml")
-		w.WriteHeader(200)
-		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
-	})
-}
-
-// PutObjectRetentionBackend serves the PutObjectRetention operation.
-type PutObjectRetentionBackend interface {
-	PutObjectRetention(ctx context.Context, in *PutObjectRetentionRequest) (*PutObjectRetentionOutput, error)
-}
-
-// PutObjectRetentionURITemplate is the Smithy URI template for the operation.
-const PutObjectRetentionURITemplate = "/{Bucket}/{Key+}?retention"
-
-// PutObjectRetentionMethod is the HTTP method for the operation.
-const PutObjectRetentionMethod = "PUT"
-
-// PutObjectRetentionHandler decodes a PutObjectRetention request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func PutObjectRetentionHandler(b PutObjectRetentionBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &PutObjectRetentionRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, PutObjectRetentionURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := r.Header.Get("x-amz-bypass-governance-retention"); v != "" {
-			if p, err := restxml.ParseBool(v); err == nil && p != nil {
-				in.BypassGovernanceRetention = p
-			}
-		}
-		if v := r.Header.Get("x-amz-sdk-checksum-algorithm"); v != "" {
-			// codegen: assign-from-string for *ChecksumAlgorithm treats value as the underlying string; backend should validate.
-			_ = v
-		}
-		if v := r.Header.Get("Content-MD5"); v != "" {
-			s := v
-			in.ContentMD5 = &s
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-		if v, ok := labels["Key"]; ok {
-			in.Key = v
-		}
-		if v := r.Header.Get("x-amz-request-payer"); v != "" {
-			// codegen: assign-from-string for *RequestPayer treats value as the underlying string; backend should validate.
-			_ = v
-		}
-		// payload binding for Retention: read full body
-		_payload, _ := io.ReadAll(r.Body)
-		_ = _payload
-		if v := q.Get("versionId"); v != "" {
-			s := v
-			in.VersionId = &s
-		}
-
-		out, err := b.PutObjectRetention(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.Header().Set("Content-Type", "application/xml")
-		w.WriteHeader(200)
-		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
-	})
-}
-
-// PutObjectTaggingBackend serves the PutObjectTagging operation.
-type PutObjectTaggingBackend interface {
-	PutObjectTagging(ctx context.Context, in *PutObjectTaggingRequest) (*PutObjectTaggingOutput, error)
-}
-
-// PutObjectTaggingURITemplate is the Smithy URI template for the operation.
-const PutObjectTaggingURITemplate = "/{Bucket}/{Key+}?tagging"
-
-// PutObjectTaggingMethod is the HTTP method for the operation.
-const PutObjectTaggingMethod = "PUT"
-
-// PutObjectTaggingHandler decodes a PutObjectTagging request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func PutObjectTaggingHandler(b PutObjectTaggingBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &PutObjectTaggingRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, PutObjectTaggingURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := r.Header.Get("x-amz-sdk-checksum-algorithm"); v != "" {
-			// codegen: assign-from-string for *ChecksumAlgorithm treats value as the underlying string; backend should validate.
-			_ = v
-		}
-		if v := r.Header.Get("Content-MD5"); v != "" {
-			s := v
-			in.ContentMD5 = &s
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-		if v, ok := labels["Key"]; ok {
-			in.Key = v
-		}
-		if v := r.Header.Get("x-amz-request-payer"); v != "" {
-			// codegen: assign-from-string for *RequestPayer treats value as the underlying string; backend should validate.
-			_ = v
-		}
-		// payload binding for Tagging: read full body
-		_payload, _ := io.ReadAll(r.Body)
-		_ = _payload
-		if v := q.Get("versionId"); v != "" {
-			s := v
-			in.VersionId = &s
-		}
-
-		out, err := b.PutObjectTagging(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.Header().Set("Content-Type", "application/xml")
-		w.WriteHeader(200)
-		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
-	})
-}
-
-// PutPublicAccessBlockBackend serves the PutPublicAccessBlock operation.
-type PutPublicAccessBlockBackend interface {
-	PutPublicAccessBlock(ctx context.Context, in *PutPublicAccessBlockRequest) (struct{}, error)
-}
-
-// PutPublicAccessBlockURITemplate is the Smithy URI template for the operation.
-const PutPublicAccessBlockURITemplate = "/{Bucket}?publicAccessBlock"
-
-// PutPublicAccessBlockMethod is the HTTP method for the operation.
-const PutPublicAccessBlockMethod = "PUT"
-
-// PutPublicAccessBlockHandler decodes a PutPublicAccessBlock request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func PutPublicAccessBlockHandler(b PutPublicAccessBlockBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &PutPublicAccessBlockRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, PutPublicAccessBlockURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := r.Header.Get("x-amz-sdk-checksum-algorithm"); v != "" {
-			// codegen: assign-from-string for *ChecksumAlgorithm treats value as the underlying string; backend should validate.
-			_ = v
-		}
-		if v := r.Header.Get("Content-MD5"); v != "" {
-			s := v
-			in.ContentMD5 = &s
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-		// payload binding for PublicAccessBlockConfiguration: read full body
-		_payload, _ := io.ReadAll(r.Body)
-		_ = _payload
-
-		out, err := b.PutPublicAccessBlock(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.WriteHeader(200)
-	})
-}
-
-// RenameObjectBackend serves the RenameObject operation.
-type RenameObjectBackend interface {
-	RenameObject(ctx context.Context, in *RenameObjectRequest) (*RenameObjectOutput, error)
-}
-
-// RenameObjectURITemplate is the Smithy URI template for the operation.
-const RenameObjectURITemplate = "/{Bucket}/{Key+}?renameObject"
-
-// RenameObjectMethod is the HTTP method for the operation.
-const RenameObjectMethod = "PUT"
-
-// RenameObjectHandler decodes a RenameObject request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func RenameObjectHandler(b RenameObjectBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &RenameObjectRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, RenameObjectURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := r.Header.Get("x-amz-client-token"); v != "" {
-			s := v
-			in.ClientToken = &s
-		}
-		if v := r.Header.Get("If-Match"); v != "" {
-			s := v
-			in.DestinationIfMatch = &s
-		}
-		if v := r.Header.Get("If-Modified-Since"); v != "" {
-			if t, err := restxml.ParseTime(v, ""); err == nil && t != nil {
-				in.DestinationIfModifiedSince = t
-			}
-		}
-		if v := r.Header.Get("If-None-Match"); v != "" {
-			s := v
-			in.DestinationIfNoneMatch = &s
-		}
-		if v := r.Header.Get("If-Unmodified-Since"); v != "" {
-			if t, err := restxml.ParseTime(v, ""); err == nil && t != nil {
-				in.DestinationIfUnmodifiedSince = t
-			}
-		}
-		if v, ok := labels["Key"]; ok {
-			in.Key = v
-		}
-		if v := r.Header.Get("x-amz-rename-source"); v != "" {
-			in.RenameSource = v
-		}
-		if v := r.Header.Get("x-amz-rename-source-if-match"); v != "" {
-			s := v
-			in.SourceIfMatch = &s
-		}
-		if v := r.Header.Get("x-amz-rename-source-if-modified-since"); v != "" {
-			if t, err := restxml.ParseTime(v, ""); err == nil && t != nil {
-				in.SourceIfModifiedSince = t
-			}
-		}
-		if v := r.Header.Get("x-amz-rename-source-if-none-match"); v != "" {
-			s := v
-			in.SourceIfNoneMatch = &s
-		}
-		if v := r.Header.Get("x-amz-rename-source-if-unmodified-since"); v != "" {
-			if t, err := restxml.ParseTime(v, ""); err == nil && t != nil {
-				in.SourceIfUnmodifiedSince = t
-			}
-		}
-
-		out, err := b.RenameObject(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.Header().Set("Content-Type", "application/xml")
-		w.WriteHeader(200)
-		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
-	})
-}
-
-// RestoreObjectBackend serves the RestoreObject operation.
-type RestoreObjectBackend interface {
-	RestoreObject(ctx context.Context, in *RestoreObjectRequest) (*RestoreObjectOutput, error)
-}
-
-// RestoreObjectURITemplate is the Smithy URI template for the operation.
-const RestoreObjectURITemplate = "/{Bucket}/{Key+}?restore"
-
-// RestoreObjectMethod is the HTTP method for the operation.
-const RestoreObjectMethod = "POST"
-
-// RestoreObjectHandler decodes a RestoreObject request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func RestoreObjectHandler(b RestoreObjectBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &RestoreObjectRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, RestoreObjectURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := r.Header.Get("x-amz-sdk-checksum-algorithm"); v != "" {
-			// codegen: assign-from-string for *ChecksumAlgorithm treats value as the underlying string; backend should validate.
-			_ = v
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-		if v, ok := labels["Key"]; ok {
-			in.Key = v
-		}
-		if v := r.Header.Get("x-amz-request-payer"); v != "" {
-			// codegen: assign-from-string for *RequestPayer treats value as the underlying string; backend should validate.
-			_ = v
-		}
-		// payload binding for RestoreRequest: read full body
-		_payload, _ := io.ReadAll(r.Body)
-		_ = _payload
-		if v := q.Get("versionId"); v != "" {
-			s := v
-			in.VersionId = &s
-		}
-
-		out, err := b.RestoreObject(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.Header().Set("Content-Type", "application/xml")
-		w.WriteHeader(200)
-		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
-	})
-}
-
-// SelectObjectContentBackend serves the SelectObjectContent operation.
-type SelectObjectContentBackend interface {
-	SelectObjectContent(ctx context.Context, in *SelectObjectContentRequest) (*SelectObjectContentOutput, error)
-}
-
-// SelectObjectContentURITemplate is the Smithy URI template for the operation.
-const SelectObjectContentURITemplate = "/{Bucket}/{Key+}?select&select-type=2"
-
-// SelectObjectContentMethod is the HTTP method for the operation.
-const SelectObjectContentMethod = "POST"
-
-// SelectObjectContentHandler decodes a SelectObjectContent request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func SelectObjectContentHandler(b SelectObjectContentBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &SelectObjectContentRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, SelectObjectContentURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-		if v, ok := labels["Key"]; ok {
-			in.Key = v
-		}
-		if v := r.Header.Get("x-amz-server-side-encryption-customer-algorithm"); v != "" {
-			s := v
-			in.SSECustomerAlgorithm = &s
-		}
-		if v := r.Header.Get("x-amz-server-side-encryption-customer-key"); v != "" {
-			s := v
-			in.SSECustomerKey = &s
-		}
-		if v := r.Header.Get("x-amz-server-side-encryption-customer-key-MD5"); v != "" {
-			s := v
-			in.SSECustomerKeyMD5 = &s
-		}
-
-		out, err := b.SelectObjectContent(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.Header().Set("Content-Type", "application/xml")
-		w.WriteHeader(200)
-		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
-	})
-}
-
-// UpdateBucketMetadataInventoryTableConfigurationBackend serves the UpdateBucketMetadataInventoryTableConfiguration operation.
-type UpdateBucketMetadataInventoryTableConfigurationBackend interface {
-	UpdateBucketMetadataInventoryTableConfiguration(ctx context.Context, in *UpdateBucketMetadataInventoryTableConfigurationRequest) (struct{}, error)
-}
-
-// UpdateBucketMetadataInventoryTableConfigurationURITemplate is the Smithy URI template for the operation.
-const UpdateBucketMetadataInventoryTableConfigurationURITemplate = "/{Bucket}?metadataInventoryTable"
-
-// UpdateBucketMetadataInventoryTableConfigurationMethod is the HTTP method for the operation.
-const UpdateBucketMetadataInventoryTableConfigurationMethod = "PUT"
-
-// UpdateBucketMetadataInventoryTableConfigurationHandler decodes a UpdateBucketMetadataInventoryTableConfiguration request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func UpdateBucketMetadataInventoryTableConfigurationHandler(b UpdateBucketMetadataInventoryTableConfigurationBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &UpdateBucketMetadataInventoryTableConfigurationRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, UpdateBucketMetadataInventoryTableConfigurationURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := r.Header.Get("x-amz-sdk-checksum-algorithm"); v != "" {
-			// codegen: assign-from-string for *ChecksumAlgorithm treats value as the underlying string; backend should validate.
-			_ = v
-		}
-		if v := r.Header.Get("Content-MD5"); v != "" {
-			s := v
-			in.ContentMD5 = &s
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-		// payload binding for InventoryTableConfiguration: read full body
-		_payload, _ := io.ReadAll(r.Body)
-		_ = _payload
-
-		out, err := b.UpdateBucketMetadataInventoryTableConfiguration(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.WriteHeader(200)
-	})
-}
-
-// UpdateBucketMetadataJournalTableConfigurationBackend serves the UpdateBucketMetadataJournalTableConfiguration operation.
-type UpdateBucketMetadataJournalTableConfigurationBackend interface {
-	UpdateBucketMetadataJournalTableConfiguration(ctx context.Context, in *UpdateBucketMetadataJournalTableConfigurationRequest) (struct{}, error)
-}
-
-// UpdateBucketMetadataJournalTableConfigurationURITemplate is the Smithy URI template for the operation.
-const UpdateBucketMetadataJournalTableConfigurationURITemplate = "/{Bucket}?metadataJournalTable"
-
-// UpdateBucketMetadataJournalTableConfigurationMethod is the HTTP method for the operation.
-const UpdateBucketMetadataJournalTableConfigurationMethod = "PUT"
-
-// UpdateBucketMetadataJournalTableConfigurationHandler decodes a UpdateBucketMetadataJournalTableConfiguration request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func UpdateBucketMetadataJournalTableConfigurationHandler(b UpdateBucketMetadataJournalTableConfigurationBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &UpdateBucketMetadataJournalTableConfigurationRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, UpdateBucketMetadataJournalTableConfigurationURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := r.Header.Get("x-amz-sdk-checksum-algorithm"); v != "" {
-			// codegen: assign-from-string for *ChecksumAlgorithm treats value as the underlying string; backend should validate.
-			_ = v
-		}
-		if v := r.Header.Get("Content-MD5"); v != "" {
-			s := v
-			in.ContentMD5 = &s
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-		// payload binding for JournalTableConfiguration: read full body
-		_payload, _ := io.ReadAll(r.Body)
-		_ = _payload
-
-		out, err := b.UpdateBucketMetadataJournalTableConfiguration(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.WriteHeader(200)
-	})
-}
-
-// UpdateObjectEncryptionBackend serves the UpdateObjectEncryption operation.
-type UpdateObjectEncryptionBackend interface {
-	UpdateObjectEncryption(ctx context.Context, in *UpdateObjectEncryptionRequest) (*UpdateObjectEncryptionResponse, error)
-}
-
-// UpdateObjectEncryptionURITemplate is the Smithy URI template for the operation.
-const UpdateObjectEncryptionURITemplate = "/{Bucket}/{Key+}?encryption"
-
-// UpdateObjectEncryptionMethod is the HTTP method for the operation.
-const UpdateObjectEncryptionMethod = "PUT"
-
-// UpdateObjectEncryptionHandler decodes a UpdateObjectEncryption request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func UpdateObjectEncryptionHandler(b UpdateObjectEncryptionBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &UpdateObjectEncryptionRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, UpdateObjectEncryptionURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := r.Header.Get("x-amz-sdk-checksum-algorithm"); v != "" {
-			// codegen: assign-from-string for *ChecksumAlgorithm treats value as the underlying string; backend should validate.
-			_ = v
-		}
-		if v := r.Header.Get("Content-MD5"); v != "" {
-			s := v
-			in.ContentMD5 = &s
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-		if v, ok := labels["Key"]; ok {
-			in.Key = v
-		}
-		// payload binding for ObjectEncryption: read full body
-		_payload, _ := io.ReadAll(r.Body)
-		_ = _payload
-		if v := r.Header.Get("x-amz-request-payer"); v != "" {
-			// codegen: assign-from-string for *RequestPayer treats value as the underlying string; backend should validate.
-			_ = v
-		}
-		if v := q.Get("versionId"); v != "" {
-			s := v
-			in.VersionId = &s
-		}
-
-		out, err := b.UpdateObjectEncryption(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.Header().Set("Content-Type", "application/xml")
-		w.WriteHeader(200)
-		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
-	})
-}
-
-// UploadPartBackend serves the UploadPart operation.
-type UploadPartBackend interface {
-	UploadPart(ctx context.Context, in *UploadPartRequest) (*UploadPartOutput, error)
-}
-
-// UploadPartURITemplate is the Smithy URI template for the operation.
-const UploadPartURITemplate = "/{Bucket}/{Key+}?x-id=UploadPart"
-
-// UploadPartMethod is the HTTP method for the operation.
-const UploadPartMethod = "PUT"
-
-// UploadPartHandler decodes a UploadPart request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func UploadPartHandler(b UploadPartBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &UploadPartRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, UploadPartURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		// payload binding for Body: read full body
-		_payload, _ := io.ReadAll(r.Body)
-		_ = _payload
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := r.Header.Get("x-amz-sdk-checksum-algorithm"); v != "" {
-			// codegen: assign-from-string for *ChecksumAlgorithm treats value as the underlying string; backend should validate.
-			_ = v
-		}
-		if v := r.Header.Get("x-amz-checksum-crc32"); v != "" {
-			s := v
-			in.ChecksumCRC32 = &s
-		}
-		if v := r.Header.Get("x-amz-checksum-crc32c"); v != "" {
-			s := v
-			in.ChecksumCRC32C = &s
-		}
-		if v := r.Header.Get("x-amz-checksum-crc64nvme"); v != "" {
-			s := v
-			in.ChecksumCRC64NVME = &s
-		}
-		if v := r.Header.Get("x-amz-checksum-md5"); v != "" {
-			s := v
-			in.ChecksumMD5 = &s
-		}
-		if v := r.Header.Get("x-amz-checksum-sha1"); v != "" {
-			s := v
-			in.ChecksumSHA1 = &s
-		}
-		if v := r.Header.Get("x-amz-checksum-sha256"); v != "" {
-			s := v
-			in.ChecksumSHA256 = &s
-		}
-		if v := r.Header.Get("x-amz-checksum-sha512"); v != "" {
-			s := v
-			in.ChecksumSHA512 = &s
-		}
-		if v := r.Header.Get("x-amz-checksum-xxhash128"); v != "" {
-			s := v
-			in.ChecksumXXHASH128 = &s
-		}
-		if v := r.Header.Get("x-amz-checksum-xxhash3"); v != "" {
-			s := v
-			in.ChecksumXXHASH3 = &s
-		}
-		if v := r.Header.Get("x-amz-checksum-xxhash64"); v != "" {
-			s := v
-			in.ChecksumXXHASH64 = &s
-		}
-		if v := r.Header.Get("Content-Length"); v != "" {
-			if p, err := restxml.ParseInt64(v); err == nil && p != nil {
-				in.ContentLength = p
-			}
-		}
-		if v := r.Header.Get("Content-MD5"); v != "" {
-			s := v
-			in.ContentMD5 = &s
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-		if v, ok := labels["Key"]; ok {
-			in.Key = v
-		}
-		if v := q.Get("partNumber"); v != "" {
-			if p, err := restxml.ParseInt32(v); err == nil && p != nil {
-				in.PartNumber = *p
-			}
-		}
-		if v := r.Header.Get("x-amz-request-payer"); v != "" {
-			// codegen: assign-from-string for *RequestPayer treats value as the underlying string; backend should validate.
-			_ = v
-		}
-		if v := r.Header.Get("x-amz-server-side-encryption-customer-algorithm"); v != "" {
-			s := v
-			in.SSECustomerAlgorithm = &s
-		}
-		if v := r.Header.Get("x-amz-server-side-encryption-customer-key"); v != "" {
-			s := v
-			in.SSECustomerKey = &s
-		}
-		if v := r.Header.Get("x-amz-server-side-encryption-customer-key-MD5"); v != "" {
-			s := v
-			in.SSECustomerKeyMD5 = &s
-		}
-		if v := q.Get("uploadId"); v != "" {
-			in.UploadId = v
-		}
-
-		out, err := b.UploadPart(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.Header().Set("Content-Type", "application/xml")
-		w.WriteHeader(200)
-		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
-	})
-}
-
-// UploadPartCopyBackend serves the UploadPartCopy operation.
-type UploadPartCopyBackend interface {
-	UploadPartCopy(ctx context.Context, in *UploadPartCopyRequest) (*UploadPartCopyOutput, error)
-}
-
-// UploadPartCopyURITemplate is the Smithy URI template for the operation.
-const UploadPartCopyURITemplate = "/{Bucket}/{Key+}?x-id=UploadPartCopy"
-
-// UploadPartCopyMethod is the HTTP method for the operation.
-const UploadPartCopyMethod = "PUT"
-
-// UploadPartCopyHandler decodes a UploadPartCopy request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func UploadPartCopyHandler(b UploadPartCopyBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &UploadPartCopyRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, UploadPartCopyURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v, ok := labels["Bucket"]; ok {
-			in.Bucket = v
-		}
-		if v := r.Header.Get("x-amz-copy-source"); v != "" {
-			in.CopySource = v
-		}
-		if v := r.Header.Get("x-amz-copy-source-if-match"); v != "" {
-			s := v
-			in.CopySourceIfMatch = &s
-		}
-		if v := r.Header.Get("x-amz-copy-source-if-modified-since"); v != "" {
-			if t, err := restxml.ParseTime(v, ""); err == nil && t != nil {
-				in.CopySourceIfModifiedSince = t
-			}
-		}
-		if v := r.Header.Get("x-amz-copy-source-if-none-match"); v != "" {
-			s := v
-			in.CopySourceIfNoneMatch = &s
-		}
-		if v := r.Header.Get("x-amz-copy-source-if-unmodified-since"); v != "" {
-			if t, err := restxml.ParseTime(v, ""); err == nil && t != nil {
-				in.CopySourceIfUnmodifiedSince = t
-			}
-		}
-		if v := r.Header.Get("x-amz-copy-source-range"); v != "" {
-			s := v
-			in.CopySourceRange = &s
-		}
-		if v := r.Header.Get("x-amz-copy-source-server-side-encryption-customer-algorithm"); v != "" {
-			s := v
-			in.CopySourceSSECustomerAlgorithm = &s
-		}
-		if v := r.Header.Get("x-amz-copy-source-server-side-encryption-customer-key"); v != "" {
-			s := v
-			in.CopySourceSSECustomerKey = &s
-		}
-		if v := r.Header.Get("x-amz-copy-source-server-side-encryption-customer-key-MD5"); v != "" {
-			s := v
-			in.CopySourceSSECustomerKeyMD5 = &s
-		}
-		if v := r.Header.Get("x-amz-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedBucketOwner = &s
-		}
-		if v := r.Header.Get("x-amz-source-expected-bucket-owner"); v != "" {
-			s := v
-			in.ExpectedSourceBucketOwner = &s
-		}
-		if v, ok := labels["Key"]; ok {
-			in.Key = v
-		}
-		if v := q.Get("partNumber"); v != "" {
-			if p, err := restxml.ParseInt32(v); err == nil && p != nil {
-				in.PartNumber = *p
-			}
-		}
-		if v := r.Header.Get("x-amz-request-payer"); v != "" {
-			// codegen: assign-from-string for *RequestPayer treats value as the underlying string; backend should validate.
-			_ = v
-		}
-		if v := r.Header.Get("x-amz-server-side-encryption-customer-algorithm"); v != "" {
-			s := v
-			in.SSECustomerAlgorithm = &s
-		}
-		if v := r.Header.Get("x-amz-server-side-encryption-customer-key"); v != "" {
-			s := v
-			in.SSECustomerKey = &s
-		}
-		if v := r.Header.Get("x-amz-server-side-encryption-customer-key-MD5"); v != "" {
-			s := v
-			in.SSECustomerKeyMD5 = &s
-		}
-		if v := q.Get("uploadId"); v != "" {
-			in.UploadId = v
-		}
-
-		out, err := b.UploadPartCopy(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.Header().Set("Content-Type", "application/xml")
-		w.WriteHeader(200)
-		_, _ = w.Write([]byte(xml.Header))
-		enc := xml.NewEncoder(w)
-		_ = enc.Encode(out)
-		_ = enc.Flush()
-	})
-}
-
-// WriteGetObjectResponseBackend serves the WriteGetObjectResponse operation.
-type WriteGetObjectResponseBackend interface {
-	WriteGetObjectResponse(ctx context.Context, in *WriteGetObjectResponseRequest) (struct{}, error)
-}
-
-// WriteGetObjectResponseURITemplate is the Smithy URI template for the operation.
-const WriteGetObjectResponseURITemplate = "/WriteGetObjectResponse"
-
-// WriteGetObjectResponseMethod is the HTTP method for the operation.
-const WriteGetObjectResponseMethod = "POST"
-
-// WriteGetObjectResponseHandler decodes a WriteGetObjectResponse request, dispatches to
-// the backend, and encodes the response per AWS REST-XML semantics.
-func WriteGetObjectResponseHandler(b WriteGetObjectResponseBackend) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		in := &WriteGetObjectResponseRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, WriteGetObjectResponseURITemplate)
-		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
-			return
-		}
-		_ = labels
-		q := r.URL.Query()
-		_ = q
-		if v := r.Header.Get("x-amz-fwd-header-accept-ranges"); v != "" {
-			s := v
-			in.AcceptRanges = &s
-		}
-		// payload binding for Body: read full body
-		_payload, _ := io.ReadAll(r.Body)
-		_ = _payload
-		if v := r.Header.Get("x-amz-fwd-header-x-amz-server-side-encryption-bucket-key-enabled"); v != "" {
-			if p, err := restxml.ParseBool(v); err == nil && p != nil {
-				in.BucketKeyEnabled = p
-			}
-		}
-		if v := r.Header.Get("x-amz-fwd-header-Cache-Control"); v != "" {
-			s := v
-			in.CacheControl = &s
-		}
-		if v := r.Header.Get("x-amz-fwd-header-x-amz-checksum-crc32"); v != "" {
-			s := v
-			in.ChecksumCRC32 = &s
-		}
-		if v := r.Header.Get("x-amz-fwd-header-x-amz-checksum-crc32c"); v != "" {
-			s := v
-			in.ChecksumCRC32C = &s
-		}
-		if v := r.Header.Get("x-amz-fwd-header-x-amz-checksum-crc64nvme"); v != "" {
-			s := v
-			in.ChecksumCRC64NVME = &s
-		}
-		if v := r.Header.Get("x-amz-fwd-header-x-amz-checksum-md5"); v != "" {
-			s := v
-			in.ChecksumMD5 = &s
-		}
-		if v := r.Header.Get("x-amz-fwd-header-x-amz-checksum-sha1"); v != "" {
-			s := v
-			in.ChecksumSHA1 = &s
-		}
-		if v := r.Header.Get("x-amz-fwd-header-x-amz-checksum-sha256"); v != "" {
-			s := v
-			in.ChecksumSHA256 = &s
-		}
-		if v := r.Header.Get("x-amz-fwd-header-x-amz-checksum-sha512"); v != "" {
-			s := v
-			in.ChecksumSHA512 = &s
-		}
-		if v := r.Header.Get("x-amz-fwd-header-x-amz-checksum-xxhash128"); v != "" {
-			s := v
-			in.ChecksumXXHASH128 = &s
-		}
-		if v := r.Header.Get("x-amz-fwd-header-x-amz-checksum-xxhash3"); v != "" {
-			s := v
-			in.ChecksumXXHASH3 = &s
-		}
-		if v := r.Header.Get("x-amz-fwd-header-x-amz-checksum-xxhash64"); v != "" {
-			s := v
-			in.ChecksumXXHASH64 = &s
-		}
-		if v := r.Header.Get("x-amz-fwd-header-Content-Disposition"); v != "" {
-			s := v
-			in.ContentDisposition = &s
-		}
-		if v := r.Header.Get("x-amz-fwd-header-Content-Encoding"); v != "" {
-			s := v
-			in.ContentEncoding = &s
-		}
-		if v := r.Header.Get("x-amz-fwd-header-Content-Language"); v != "" {
-			s := v
-			in.ContentLanguage = &s
-		}
-		if v := r.Header.Get("Content-Length"); v != "" {
-			if p, err := restxml.ParseInt64(v); err == nil && p != nil {
-				in.ContentLength = p
-			}
-		}
-		if v := r.Header.Get("x-amz-fwd-header-Content-Range"); v != "" {
-			s := v
-			in.ContentRange = &s
-		}
-		if v := r.Header.Get("x-amz-fwd-header-Content-Type"); v != "" {
-			s := v
-			in.ContentType = &s
-		}
-		if v := r.Header.Get("x-amz-fwd-header-x-amz-delete-marker"); v != "" {
-			if p, err := restxml.ParseBool(v); err == nil && p != nil {
-				in.DeleteMarker = p
-			}
-		}
-		if v := r.Header.Get("x-amz-fwd-header-ETag"); v != "" {
-			s := v
-			in.ETag = &s
-		}
-		if v := r.Header.Get("x-amz-fwd-error-code"); v != "" {
-			s := v
-			in.ErrorCode = &s
-		}
-		if v := r.Header.Get("x-amz-fwd-error-message"); v != "" {
-			s := v
-			in.ErrorMessage = &s
-		}
-		if v := r.Header.Get("x-amz-fwd-header-x-amz-expiration"); v != "" {
-			s := v
-			in.Expiration = &s
-		}
-		if v := r.Header.Get("x-amz-fwd-header-Expires"); v != "" {
-			s := v
-			in.Expires = &s
-		}
-		if v := r.Header.Get("x-amz-fwd-header-Last-Modified"); v != "" {
-			if t, err := restxml.ParseTime(v, ""); err == nil && t != nil {
-				in.LastModified = t
-			}
-		}
-		for hk, hvs := range r.Header {
-			if strings.HasPrefix(strings.ToLower(hk), strings.ToLower("x-amz-meta-")) && len(hvs) > 0 {
-				if in.Metadata == nil {
-					in.Metadata = Metadata{}
-				}
-				in.Metadata[strings.TrimPrefix(strings.ToLower(hk), strings.ToLower("x-amz-meta-"))] = hvs[0]
-			}
-		}
-		if v := r.Header.Get("x-amz-fwd-header-x-amz-missing-meta"); v != "" {
-			if p, err := restxml.ParseInt32(v); err == nil && p != nil {
-				in.MissingMeta = p
-			}
-		}
-		if v := r.Header.Get("x-amz-fwd-header-x-amz-object-lock-legal-hold"); v != "" {
-			// codegen: assign-from-string for *ObjectLockLegalHoldStatus treats value as the underlying string; backend should validate.
-			_ = v
-		}
-		if v := r.Header.Get("x-amz-fwd-header-x-amz-object-lock-mode"); v != "" {
-			// codegen: assign-from-string for *ObjectLockMode treats value as the underlying string; backend should validate.
-			_ = v
-		}
-		if v := r.Header.Get("x-amz-fwd-header-x-amz-object-lock-retain-until-date"); v != "" {
-			if t, err := restxml.ParseTime(v, ""); err == nil && t != nil {
-				in.ObjectLockRetainUntilDate = t
-			}
-		}
-		if v := r.Header.Get("x-amz-fwd-header-x-amz-mp-parts-count"); v != "" {
-			if p, err := restxml.ParseInt32(v); err == nil && p != nil {
-				in.PartsCount = p
-			}
-		}
-		if v := r.Header.Get("x-amz-fwd-header-x-amz-replication-status"); v != "" {
-			// codegen: assign-from-string for *ReplicationStatus treats value as the underlying string; backend should validate.
-			_ = v
-		}
-		if v := r.Header.Get("x-amz-fwd-header-x-amz-request-charged"); v != "" {
-			// codegen: assign-from-string for *RequestCharged treats value as the underlying string; backend should validate.
-			_ = v
-		}
-		if v := r.Header.Get("x-amz-request-route"); v != "" {
-			in.RequestRoute = v
-		}
-		if v := r.Header.Get("x-amz-request-token"); v != "" {
-			in.RequestToken = v
-		}
-		if v := r.Header.Get("x-amz-fwd-header-x-amz-restore"); v != "" {
-			s := v
-			in.Restore = &s
-		}
-		if v := r.Header.Get("x-amz-fwd-header-x-amz-server-side-encryption-customer-algorithm"); v != "" {
-			s := v
-			in.SSECustomerAlgorithm = &s
-		}
-		if v := r.Header.Get("x-amz-fwd-header-x-amz-server-side-encryption-customer-key-MD5"); v != "" {
-			s := v
-			in.SSECustomerKeyMD5 = &s
-		}
-		if v := r.Header.Get("x-amz-fwd-header-x-amz-server-side-encryption-aws-kms-key-id"); v != "" {
-			s := v
-			in.SSEKMSKeyId = &s
-		}
-		if v := r.Header.Get("x-amz-fwd-header-x-amz-server-side-encryption"); v != "" {
-			// codegen: assign-from-string for *ServerSideEncryption treats value as the underlying string; backend should validate.
-			_ = v
-		}
-		if v := r.Header.Get("x-amz-fwd-status"); v != "" {
-			if p, err := restxml.ParseInt32(v); err == nil && p != nil {
-				in.StatusCode = p
-			}
-		}
-		if v := r.Header.Get("x-amz-fwd-header-x-amz-storage-class"); v != "" {
-			// codegen: assign-from-string for *StorageClass treats value as the underlying string; backend should validate.
-			_ = v
-		}
-		if v := r.Header.Get("x-amz-fwd-header-x-amz-tagging-count"); v != "" {
-			if p, err := restxml.ParseInt32(v); err == nil && p != nil {
-				in.TagCount = p
-			}
-		}
-		if v := r.Header.Get("x-amz-fwd-header-x-amz-version-id"); v != "" {
-			s := v
-			in.VersionId = &s
-		}
-
-		out, err := b.WriteGetObjectResponse(ctx, in)
-		if err != nil {
-			restxml.WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
-			return
-		}
-		_ = out
-		w.WriteHeader(200)
+		_ = xml.NewEncoder(w).Encode(out)
 	})
 }

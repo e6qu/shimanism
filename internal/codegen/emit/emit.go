@@ -82,6 +82,19 @@ func newGen(model *smithy.Model, opts Options) *gen {
 	return &gen{model: model, opts: opts, shapeSeen: map[string]bool{}}
 }
 
+// serviceShortName returns the short name of the single service shape
+// in the model. Spec-conformant Smithy models for an AWS service
+// declare exactly one service. Returns "Service" as a generic fallback
+// for unusual spec layouts.
+func (g *gen) serviceShortName() string {
+	for id, sh := range g.model.Shapes {
+		if sh.Type == "service" {
+			return smithy.ShortName(id)
+		}
+	}
+	return "Service"
+}
+
 func (g *gen) collectOperation(opName string) error {
 	opID, opShape, err := g.model.LookupOperation(opName)
 	if err != nil {
@@ -184,6 +197,9 @@ type fileData struct {
 	Maps    []mapView
 	Ops     []opView
 	Errors  []errorView
+	// Service is the Smithy service short name, used to name the
+	// generated RegisterRoutes helper (e.g. RegisterAmazonS3).
+	Service string
 }
 
 type enumView struct {
@@ -192,8 +208,9 @@ type enumView struct {
 }
 
 type enumMember struct {
-	GoName string
-	Value  string
+	GoName     string
+	Value      string
+	ParentType string // the enum's Go name, used to type the const
 }
 
 type structView struct {
@@ -206,8 +223,8 @@ type structView struct {
 }
 
 type fieldView struct {
-	GoName  string
-	GoType  string
+	GoName string
+	GoType string
 	// Binding is one of:
 	//   "body"           appears in the XML body (default)
 	//   "header"         single header value
@@ -249,7 +266,34 @@ type opView struct {
 	URIPath    string
 	HTTPStatus int
 	Errors     []errorRef
-	Bindings   []fieldView // collected from the input struct
+	Bindings   []fieldView // input bindings (one per input member)
+
+	// Input body-handling.
+	InputPayload        *fieldView  // single member with httpPayload (or nil)
+	InputHasBodyFields  bool        // input struct has any XML-body fields
+	OutputPayload       *fieldView  // single member with httpPayload on the output (or nil)
+	OutputHasBodyFields bool        // output has any XML-body fields
+	OutputHeaders       []fieldView // header-bound output fields
+	OutputPrefixHeaders []fieldView // prefix-headers-bound output fields (Metadata)
+
+	// RequiredInputHeaders are HTTP header names the input declares as
+	// required + header-bound. Used by Register() to disambiguate
+	// operations that share method + path + query.
+	RequiredInputHeaders []string
+	// RequiredInputQueries are URL query parameter names the input
+	// declares as required + query-bound. Same disambiguation role as
+	// RequiredInputHeaders, but for query params (e.g. UploadPart's
+	// partNumber + uploadId).
+	RequiredInputQueries []string
+	// ForbiddenQueries are query parameter names that, if present,
+	// disqualify this route. Used by base object/bucket operations
+	// (GetObject, PutObject, HeadObject, DeleteObject) to reject S3
+	// feature-config queries (`?tagging`, `?acl`, …) that name
+	// out-of-intersection sibling operations not in the manifest.
+	// Without this, a request like `GET /bucket/key?tagging` falls
+	// through to GetObject and the shim silently returns the object
+	// body — a fidelity break. See BUGS.md BUG-1.
+	ForbiddenQueries []string
 }
 
 type errorRef struct {
@@ -263,7 +307,12 @@ type errorView struct {
 }
 
 func (g *gen) render() ([]byte, error) {
-	data := fileData{Pkg: g.opts.PackageName, Source: g.opts.SourceFile, Commit: g.opts.SourceCommit}
+	data := fileData{
+		Pkg:     g.opts.PackageName,
+		Source:  g.opts.SourceFile,
+		Commit:  g.opts.SourceCommit,
+		Service: g.serviceShortName(),
+	}
 
 	for _, id := range g.shapeOrder {
 		sh := g.model.Shapes[id]
@@ -328,8 +377,9 @@ func (g *gen) enumView(id string, sh *smithy.Shape) enumView {
 			val = name
 		}
 		v.Members = append(v.Members, enumMember{
-			GoName: v.GoName + exportName(name),
-			Value:  val,
+			GoName:     v.GoName + exportName(name),
+			Value:      val,
+			ParentType: v.GoName,
 		})
 	}
 	return v
@@ -407,6 +457,17 @@ func (g *gen) fieldView(name string, m smithy.Member) (fieldView, error) {
 		TSFormat: m.TimestampFormat(),
 	}
 	required := m.Required()
+	// The AWS REST-XML protocol defaults timestampFormat by binding
+	// location: "http-date" for header bindings, "date-time" for body
+	// bindings. Apply that default here if the member doesn't declare
+	// one explicitly. The runtime helpers honor an empty format as
+	// "date-time", so only header bindings need an override.
+	tsDefault := func(binding string) {
+		if fv.TSFormat == "" && binding == "header" {
+			fv.TSFormat = "http-date"
+		}
+	}
+	_ = tsDefault
 
 	// Decide binding first; that determines whether the field appears
 	// in XML at all.
@@ -420,6 +481,7 @@ func (g *gen) fieldView(name string, m smithy.Member) (fieldView, error) {
 	case m.HTTPHeader() != "":
 		fv.Binding = "header"
 		fv.BindKey = m.HTTPHeader()
+		tsDefault("header")
 	case m.HTTPPrefixHeaders() != "":
 		fv.Binding = "prefix-headers"
 		fv.BindKey = m.HTTPPrefixHeaders()
@@ -452,6 +514,14 @@ func (g *gen) fieldView(name string, m smithy.Member) (fieldView, error) {
 			}
 		}
 		fv.XMLTag = xml + ",omitempty"
+	}
+
+	// Streaming for httpPayload + blob: the handler should not
+	// buffer the body. Generate `io.ReadCloser` for both input (set
+	// to r.Body) and output (the caller streams + closes).
+	if fv.Binding == "payload" && g.isBlobTarget(m.Target) {
+		fv.GoType = "io.ReadCloser"
+		return fv, nil
 	}
 
 	// Compute the Go type. For body fields targeting a flattened list,
@@ -490,11 +560,44 @@ func (g *gen) opView(op operation) (opView, error) {
 					return opView{}, err
 				}
 				v.Bindings = append(v.Bindings, fv)
+				if fv.Binding == "payload" {
+					fvCopy := fv
+					v.InputPayload = &fvCopy
+				}
+				if fv.Binding == "body" {
+					v.InputHasBodyFields = true
+				}
+				if fv.Binding == "header" && fv.Required {
+					v.RequiredInputHeaders = append(v.RequiredInputHeaders, fv.BindKey)
+				}
+				if fv.Binding == "query" && fv.Required {
+					v.RequiredInputQueries = append(v.RequiredInputQueries, fv.BindKey)
+				}
 			}
 		}
 	}
 	if op.OutputID != "" && op.OutputID != "smithy.api#Unit" {
 		v.OutputType = smithy.ShortName(op.OutputID)
+		out, err := g.model.LookupShape(op.OutputID)
+		if err == nil && out.Type == "structure" {
+			for _, name := range sortedKeys(out.Members) {
+				fv, err := g.fieldView(name, out.Members[name])
+				if err != nil {
+					return opView{}, err
+				}
+				switch fv.Binding {
+				case "payload":
+					fvCopy := fv
+					v.OutputPayload = &fvCopy
+				case "body":
+					v.OutputHasBodyFields = true
+				case "header":
+					v.OutputHeaders = append(v.OutputHeaders, fv)
+				case "prefix-headers":
+					v.OutputPrefixHeaders = append(v.OutputPrefixHeaders, fv)
+				}
+			}
+		}
 	}
 	for _, eid := range op.ErrorIDs {
 		esh, err := g.model.LookupShape(eid)
@@ -511,7 +614,62 @@ func (g *gen) opView(op operation) (opView, error) {
 			v.HTTPStatus = 200
 		}
 	}
+	v.ForbiddenQueries = forbiddenQueriesFor(v.GoName)
 	return v, nil
+}
+
+// s3FeatureQueries lists every S3 query parameter that names a
+// per-object or per-bucket *feature* operation in S3's REST API. Any
+// of these on a base GET/PUT/HEAD/DELETE object/bucket request
+// signals an out-of-intersection sibling operation (GetObjectAcl,
+// GetObjectTagging, GetBucketPolicy, etc.). The base operation
+// declares all of these as forbidden so the router doesn't fall
+// through and silently serve the wrong response shape.
+//
+// The list intentionally **excludes** parameters that are legitimate
+// arguments to the base operations themselves: `versionId`,
+// `partNumber`, `uploadId`, `response-*` (response-header
+// overrides), `x-id` (the SDK's disambiguator we already strip).
+var s3FeatureQueries = []string{
+	"acl",
+	"accelerate",
+	"analytics",
+	"attributes",
+	"cors",
+	"encryption",
+	"intelligent-tiering",
+	"inventory",
+	"legal-hold",
+	"lifecycle",
+	"logging",
+	"metrics",
+	"notification",
+	"object-lock",
+	"ownershipControls",
+	"policy",
+	"policyStatus",
+	"publicAccessBlock",
+	"replication",
+	"requestPayment",
+	"restore",
+	"retention",
+	"select",
+	"tagging",
+	"torrent",
+	"versioning",
+	"website",
+}
+
+func forbiddenQueriesFor(opName string) []string {
+	switch opName {
+	case "GetObject", "PutObject", "HeadObject", "DeleteObject", "CopyObject":
+		// Object-level base ops: any feature query names a sibling.
+		return append([]string(nil), s3FeatureQueries...)
+	case "ListObjectsV2", "HeadBucket", "DeleteBucket":
+		// Bucket-level base ops: same set applies.
+		return append([]string(nil), s3FeatureQueries...)
+	}
+	return nil
 }
 
 // goTypeForRef returns the Go type expression for a member targeting
@@ -605,6 +763,19 @@ func (g *gen) goTypeForRef(id string, required bool) (string, error) {
 }
 
 func isReferenceType(t string) bool { return t == "[]byte" }
+
+// isBlobTarget reports whether the given shape ID resolves to a blob
+// (either smithy.api#Blob directly or a user-defined alias of blob).
+func (g *gen) isBlobTarget(id string) bool {
+	if id == "smithy.api#Blob" {
+		return true
+	}
+	sh, err := g.model.LookupShape(id)
+	if err != nil {
+		return false
+	}
+	return sh.Type == "blob"
+}
 
 func isPrimitiveID(id string) bool { return strings.HasPrefix(id, "smithy.api#") }
 

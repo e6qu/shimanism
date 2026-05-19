@@ -8,14 +8,16 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 
 | | |
 |---|---|
-| Active branch | `phase-1.3-codegen-pilot` — PR open. Codegen tool emits Go server stub for `ListBuckets` from the vendored Smithy JSON. |
-| In-flight | **Phase 1.3: Codegen for the full S3 surface.** `internal/codegen/{smithy,emit}` + `cmd/codegen` handle every shape kind, HTTP binding, and XML trait S3 uses. `internal/restxml` provides URI / scalar / time / error runtime helpers. `make codegen -all` emits all 107 operations; determinism test asserts the committed file matches re-emit byte-for-byte. |
-| Last merged | PR #4 — Phase 1.2 (spec + license + Renovate + dep policy + bumps) (`98e6ce9`, 2026-05-18). |
+| Active branch | `phase-1.4-conformance-harness` — PR open. Intersection scoping correction + conformance harness skeleton. |
+| In-flight | **Phase 1 complete on PR #6, all 11 CI checks green.** Three real frontends (AWS S3 / GCS / Azure Blob) × five backends (inmem / minio / aws / gcs / azureblob) wired through `domain.Storage`. SDK matrix drives every (frontend, backend) cell via TestConformanceMatrix_*; CLI rows cover AWS + gcloud bucket-lifecycle + az (with Range support fixes for the Python azure-storage validator); Terraform rows cover hashicorp/aws + hashicorp/google. Engineering hygiene: golangci-lint v2.10.1, pre-commit framework, type-check + lint + pre-commit CI jobs (inspired by e6qu/sockerless). |
+| CI baseline | 11 required checks: branch-rebased, symlinks, continuity-docs, lint (golangci-lint), type-check, pre-commit, go vet+test+build, dependency-licenses, conformance-minio, conformance-gcs, conformance-azureblob. All passing on PR #6 at `597965b`. |
+| Scope rule (2026-05-18) | **Each phase ships the full N × N matrix.** Previous PLAN.md had Phases 9 and 10 as "GCP source row" and "Azure source row" of horizontal expansion across all 8 services; user reversed this. Each service phase now includes all 3 frontends + all 4 backends + SDK / CLI / Terraform for each, before moving to the next service. Phases 9 and 10 deleted; their work is absorbed into Phases 1-8. |
+| Last merged | PR #5 — Phase 1.3 (codegen, originally all 107 ops) (`03b0ebb`, 2026-05-18). |
 | Standing merge auth | **None.** User merges every PR. |
 | CI | Five required checks: `branch rebased on origin/main`, `tracked symlinks resolve`, `continuity docs present`, `go vet + test + build`, `dependency licenses AGPL-compatible`. |
 | Renovate | Config committed (48h minimum release age, weekly batches, pinned GitHub Actions SHAs); **user must install the Renovate GitHub App** at https://github.com/apps/renovate. |
 | Dep policy | [`doc/DEPENDENCY_POLICY.md`](doc/DEPENDENCY_POLICY.md): min release age 48h, prefer pure-Go over cgo, pnpm + no lifecycle scripts when JS lands. |
-| Bugs | 0 filed · 0 fixed · 0 open. |
+| Bugs | 1 filed · 1 fixed · 0 open. |
 | Live infra | None. |
 
 ## Invariants (carry across compactions / fresh sessions)
@@ -48,7 +50,7 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 
 Phase 1 carries the foundation work alongside its first real consumer. The codegen pipeline, conformance harness, and Go CI matrix are built inside Phase 1 sub-phases rather than as standalone infrastructure.
 
-Sub-phase table is in [DO_NEXT.md](DO_NEXT.md) and [PLAN.md § Phase 1](PLAN.md#phase-1--object-storage-s3-source). Currently at 1.1.
+Sub-phase table is in [DO_NEXT.md](DO_NEXT.md) and [PLAN.md § Phase 1](PLAN.md#phase-1--object-storage-s3-source). PR #6 piles sub-phases 1.4 through 1.7.
 
 ## Recently closed phases (last 5)
 

@@ -1,0 +1,72 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]
+      - id: end-of-file-fixer
+      - id: check-merge-conflict
+      - id: check-yaml
+        args: [--allow-multiple-documents]
+      - id: check-added-large-files
+
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.10.0.1
+    hooks:
+      - id: shellcheck
+        args: [-x, -s, bash]
+        files: ^scripts/
+
+  - repo: local
+    hooks:
+      # Pre-commit (file-scoped): format, lint, type-check.
+      - id: gofmt
+        name: Go format
+        entry: gofmt -l -w
+        language: system
+        types: [go]
+
+      - id: golangci-lint
+        name: Go lint
+        entry: bash scripts/lint-changed.sh
+        language: system
+        types: [go]
+        require_serial: true
+
+      - id: typecheck
+        name: Go type-check + vet
+        entry: make typecheck
+        language: system
+        pass_filenames: false
+        types: [go]
+
+      - id: continuity-docs-present
+        name: Continuity docs present
+        entry: bash scripts/check-continuity-docs.sh
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      - id: symlinks-resolve
+        name: Tracked symlinks resolve
+        entry: bash scripts/check-symlinks.sh
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      # Commit-msg: strip AI attribution before committing.
+      - id: strip-ai-attribution
+        name: Strip AI attribution from commit messages
+        entry: bash scripts/strip-ai-attribution.sh
+        language: system
+        stages: [commit-msg]
+        always_run: true
+
+      # Pre-push: verify the branch is rebased on origin/main.
+      - id: check-rebased
+        name: Check branch is rebased on origin/main
+        entry: bash scripts/check-rebased.sh
+        language: system
+        always_run: true
+        pass_filenames: false
+        stages: [pre-push]

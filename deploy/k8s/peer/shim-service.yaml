@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: shim
+spec:
+  selector:
+    app.kubernetes.io/name: shim
+  ports:
+    - name: s3
+      port: 9000
+      targetPort: s3
+  type: ClusterIP
