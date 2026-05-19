@@ -176,13 +176,17 @@ func portForwardKnativeService(t *testing.T, ctx context.Context, name string) (
 	localPort := lst.Addr().(*net.TCPAddr).Port
 	lst.Close()
 
-	// kourier-system is the namespace the Knative operator installs
-	// kourier into when KnativeServing.spec.ingress.kourier.enabled
-	// is true. The Service is named `kourier` and listens on :80.
+	// Knative emits ksvc URLs as `<name>.<ns>.svc.cluster.local`
+	// when no external domain is configured. Cluster-local Hosts
+	// route through `kourier-internal` (ClusterIP); the external
+	// `kourier` Service only handles routes for the external
+	// `config-domain` (default example.com). Use kourier-internal
+	// so the Host header from ksvc.status.url matches a registered
+	// route.
 	cmd := exec.CommandContext(ctx, "kubectl",
 		"-n", "kourier-system",
 		"port-forward",
-		"svc/kourier",
+		"svc/kourier-internal",
 		fmt.Sprintf("%d:80", localPort),
 	)
 	// Capture stderr so failures (kourier not installed, wrong name)
