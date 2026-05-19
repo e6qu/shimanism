@@ -319,6 +319,54 @@ jobs:
           export KUBECONFIG="${HOME}/.kube/config"
           go test -timeout 15m -run "TestCacheMatrix_AWSFrontend/redisop|TestPingConnectivity_RedisOp" ./services/cache/conformance/...
 
+  conformance-knative:
+    name: conformance knative
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.26'
+          cache: true
+      - name: Create kind cluster
+        uses: helm/kind-action@v1
+        with:
+          cluster_name: shim-knative
+      - name: Install Knative Serving
+        run: |
+          # Knative Serving operator. Pin to a known 1.x release.
+          kubectl apply -f https://github.com/knative/operator/releases/download/knative-v1.15.7/operator.yaml
+          kubectl -n default rollout status deployment/knative-operator --timeout=180s
+          # Create a KnativeServing CR with kourier as the network layer.
+          cat <<EOF | kubectl apply -f -
+          apiVersion: operator.knative.dev/v1beta1
+          kind: KnativeServing
+          metadata:
+            name: knative-serving
+            namespace: knative-serving
+          spec:
+            ingress:
+              kourier:
+                enabled: true
+            config:
+              network:
+                ingress-class: "kourier.ingress.networking.knative.dev"
+          EOF
+          for i in $(seq 1 60); do
+            if kubectl -n knative-serving get deployment controller >/dev/null 2>&1; then break; fi
+            sleep 5
+          done
+          kubectl -n knative-serving rollout status deployment/controller --timeout=180s
+          kubectl -n knative-serving rollout status deployment/activator --timeout=180s
+          kubectl -n knative-serving rollout status deployment/autoscaler --timeout=180s
+      - name: Run knative conformance
+        env:
+          KNATIVE_CONFORMANCE: '1'
+          KNATIVE_NAMESPACE: default
+        run: |
+          export KUBECONFIG="${HOME}/.kube/config"
+          go test -timeout 20m -run "TestFunctionsMatrix_AWSFrontend/knative|TestInvokeConnectivity_Knative" ./services/functions/conformance/...
+
   conformance-azureblob:
     name: conformance azureblob
     runs-on: ubuntu-latest

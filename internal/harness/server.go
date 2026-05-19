@@ -19,6 +19,8 @@ import (
 	gcpmsfront "github.com/e6qu/shimanism/internal/cache/frontends/gcp_memorystore"
 	functionsdomain "github.com/e6qu/shimanism/internal/functions/domain"
 	awslambdafront "github.com/e6qu/shimanism/internal/functions/frontends/aws_lambda"
+	azurecafront "github.com/e6qu/shimanism/internal/functions/frontends/azure_containerapps"
+	gcpcrfront "github.com/e6qu/shimanism/internal/functions/frontends/gcp_cloudrun"
 	pubsubdomain "github.com/e6qu/shimanism/internal/pubsub/domain"
 	awssnsfront "github.com/e6qu/shimanism/internal/pubsub/frontends/aws_sns"
 	awssqsreceivefront "github.com/e6qu/shimanism/internal/pubsub/frontends/aws_sqs_receive"
@@ -328,6 +330,26 @@ type FunctionsServer struct {
 func StartFunctionsServerAWS(t *testing.T, backend functionsdomain.Functions) *FunctionsServer {
 	t.Helper()
 	srv := awslambdafront.New(backend)
+	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
+	t.Cleanup(ts.Close)
+	return &FunctionsServer{URL: ts.URL, Close: ts.Close}
+}
+
+// StartFunctionsServerGCP starts a shim instance with the GCP
+// Cloud Run REST frontend.
+func StartFunctionsServerGCP(t *testing.T, backend functionsdomain.Functions) *FunctionsServer {
+	t.Helper()
+	srv := gcpcrfront.New(backend)
+	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
+	t.Cleanup(ts.Close)
+	return &FunctionsServer{URL: ts.URL, Close: ts.Close}
+}
+
+// StartFunctionsServerAzure starts a shim instance with the Azure
+// Container Apps REST frontend.
+func StartFunctionsServerAzure(t *testing.T, backend functionsdomain.Functions) *FunctionsServer {
+	t.Helper()
+	srv := azurecafront.New(backend)
 	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
 	t.Cleanup(ts.Close)
 	return &FunctionsServer{URL: ts.URL, Close: ts.Close}

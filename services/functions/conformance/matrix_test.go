@@ -1,0 +1,80 @@
+// Matrix conformance for the functions service. inmem cell green;
+// other cells gated on env vars.
+package conformance_test
+
+import (
+	"context"
+	"fmt"
+	"testing"
+	"time"
+
+	awsapi "github.com/aws/aws-sdk-go-v2/aws"
+	awsconfig "github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/lambda"
+	lambdatypes "github.com/aws/aws-sdk-go-v2/service/lambda/types"
+
+	"github.com/e6qu/shimanism/internal/harness"
+	"github.com/e6qu/shimanism/services/functions/conformance"
+)
+
+func TestFunctionsMatrix_AWSFrontend(t *testing.T) {
+	ctx := context.Background()
+	for _, f := range conformance.ActiveBackends() {
+		t.Run(f.Name, func(t *testing.T) {
+			be := f.Fn(t)
+			srv := harness.StartFunctionsServerAWS(t, be)
+			cfg, err := awsconfig.LoadDefaultConfig(ctx,
+				awsconfig.WithRegion("us-east-1"),
+				awsconfig.WithCredentialsProvider(awsapi.AnonymousCredentials{}),
+			)
+			if err != nil {
+				t.Fatalf("aws config: %v", err)
+			}
+			client := lambda.NewFromConfig(cfg, func(o *lambda.Options) {
+				o.BaseEndpoint = awsapi.String(srv.URL)
+			})
+
+			name := fmt.Sprintf("matrix-aws-%s", f.Name)
+			if _, err := client.CreateFunction(ctx, &lambda.CreateFunctionInput{
+				FunctionName: awsapi.String(name),
+				PackageType:  lambdatypes.PackageTypeImage,
+				Code: &lambdatypes.FunctionCode{
+					ImageUri: awsapi.String("docker.io/library/hello-world:latest"),
+				},
+				Role:       awsapi.String("arn:aws:iam::000000000000:role/lambda"),
+				MemorySize: awsapi.Int32(128),
+				Timeout:    awsapi.Int32(3),
+			}); err != nil {
+				t.Fatalf("CreateFunction: %v", err)
+			}
+			t.Cleanup(func() {
+				_, _ = client.DeleteFunction(ctx, &lambda.DeleteFunctionInput{
+					FunctionName: awsapi.String(name),
+				})
+			})
+
+			budget := 2 * time.Second
+			if f.Name != "inmem" {
+				budget = 10 * time.Minute
+			}
+			deadline := time.Now().Add(budget)
+			var active bool
+			for time.Now().Before(deadline) {
+				out, err := client.GetFunctionConfiguration(ctx, &lambda.GetFunctionConfigurationInput{
+					FunctionName: awsapi.String(name),
+				})
+				if err != nil {
+					t.Fatalf("GetFunctionConfiguration: %v", err)
+				}
+				if out.State == lambdatypes.StateActive {
+					active = true
+					break
+				}
+				time.Sleep(time.Second)
+			}
+			if !active {
+				t.Fatalf("%s: function never reached Active state", f.Name)
+			}
+		})
+	}
+}

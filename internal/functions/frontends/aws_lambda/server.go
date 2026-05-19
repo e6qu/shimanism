@@ -20,10 +20,10 @@ type Server struct {
 func New(s domain.Functions) *Server { return &Server{s: s} }
 
 var (
-	reFunctions          = regexp.MustCompile(`^/2015-03-31/functions/?$`)
-	reFunction           = regexp.MustCompile(`^/2015-03-31/functions/([^/]+)$`)
-	reFunctionConfig     = regexp.MustCompile(`^/2015-03-31/functions/([^/]+)/configuration$`)
-	reFunctionCode       = regexp.MustCompile(`^/2015-03-31/functions/([^/]+)/code$`)
+	reFunctions      = regexp.MustCompile(`^/2015-03-31/functions/?$`)
+	reFunction       = regexp.MustCompile(`^/2015-03-31/functions/([^/]+)$`)
+	reFunctionConfig = regexp.MustCompile(`^/2015-03-31/functions/([^/]+)/configuration$`)
+	reFunctionCode   = regexp.MustCompile(`^/2015-03-31/functions/([^/]+)/code$`)
 )
 
 func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -76,12 +76,12 @@ func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // ----------------------------------------------------------------------
 
 type createFunctionRequest struct {
-	FunctionName string                `json:"FunctionName"`
-	Code         *functionCode         `json:"Code,omitempty"`
-	PackageType  string                `json:"PackageType,omitempty"`
-	MemorySize   int                   `json:"MemorySize,omitempty"`
-	Timeout      int                   `json:"Timeout,omitempty"`
-	Environment  *environmentConfig    `json:"Environment,omitempty"`
+	FunctionName string             `json:"FunctionName"`
+	Code         *functionCode      `json:"Code,omitempty"`
+	PackageType  string             `json:"PackageType,omitempty"`
+	MemorySize   int                `json:"MemorySize,omitempty"`
+	Timeout      int                `json:"Timeout,omitempty"`
+	Environment  *environmentConfig `json:"Environment,omitempty"`
 }
 
 type functionCode struct {
@@ -103,17 +103,17 @@ type updateFunctionCodeRequest struct {
 }
 
 type functionConfiguration struct {
-	FunctionName     string                 `json:"FunctionName"`
-	FunctionArn      string                 `json:"FunctionArn"`
-	PackageType      string                 `json:"PackageType"`
-	State            string                 `json:"State"`
-	LastUpdateStatus string                 `json:"LastUpdateStatus,omitempty"`
-	MemorySize       int                    `json:"MemorySize,omitempty"`
-	Timeout          int                    `json:"Timeout,omitempty"`
-	Environment      *environmentResponse   `json:"Environment,omitempty"`
-	Code             *functionCodeLocation  `json:"Code,omitempty"`
-	CodeSha256       string                 `json:"CodeSha256,omitempty"`
-	LastModified     string                 `json:"LastModified,omitempty"`
+	FunctionName     string                `json:"FunctionName"`
+	FunctionArn      string                `json:"FunctionArn"`
+	PackageType      string                `json:"PackageType"`
+	State            string                `json:"State"`
+	LastUpdateStatus string                `json:"LastUpdateStatus,omitempty"`
+	MemorySize       int                   `json:"MemorySize,omitempty"`
+	Timeout          int                   `json:"Timeout,omitempty"`
+	Environment      *environmentResponse  `json:"Environment,omitempty"`
+	Code             *functionCodeLocation `json:"Code,omitempty"`
+	CodeSha256       string                `json:"CodeSha256,omitempty"`
+	LastModified     string                `json:"LastModified,omitempty"`
 }
 
 type environmentResponse struct {

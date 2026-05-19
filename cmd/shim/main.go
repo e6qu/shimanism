@@ -13,6 +13,7 @@
 //	shim pubsub  [flags]   — run the pubsub (topic fanout) service.
 //	shim rdbms   [flags]   — run the rdbms (managed-DB control plane) service.
 //	shim cache   [flags]   — run the cache (managed-Redis control plane) service.
+//	shim functions [flags] — run the functions (container-image deploy) service.
 //
 // Each service subcommand selects a backend via -backend=<name> and a
 // frontend via -frontend=<name>. Storage backends: inmem, minio, aws,
@@ -52,7 +53,7 @@ import (
 	storagegen "github.com/e6qu/shimanism/services/storage/gen"
 )
 
-const version = "0.7.0-phase-6"
+const version = "0.8.0-phase-7"
 
 func main() {
 	if len(os.Args) < 2 {
@@ -92,6 +93,11 @@ func main() {
 			fmt.Fprintln(os.Stderr, "shim cache:", err)
 			os.Exit(1)
 		}
+	case "functions":
+		if err := runFunctions(os.Args[2:]); err != nil {
+			fmt.Fprintln(os.Stderr, "shim functions:", err)
+			os.Exit(1)
+		}
 	case "help", "-h", "--help":
 		usage()
 	default:
@@ -112,6 +118,7 @@ func usage() {
 	fmt.Fprintln(os.Stderr, "  pubsub  [flags]    Run the pubsub (topic fanout) service.")
 	fmt.Fprintln(os.Stderr, "  rdbms   [flags]    Run the rdbms (managed-DB control plane) service.")
 	fmt.Fprintln(os.Stderr, "  cache   [flags]    Run the cache (managed-Redis control plane) service.")
+	fmt.Fprintln(os.Stderr, "  functions [flags]  Run the functions (container-image deploy) service.")
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Run `shim <subcommand> -h` for per-service flags.")
 }
