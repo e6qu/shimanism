@@ -201,15 +201,21 @@ func (srv *Server) getBlob(w http.ResponseWriter, r *http.Request, container, bl
 	}
 	defer func() { _ = obj.Body.Close() }()
 
-	// Range support. `az storage blob download` chunks via Range
-	// requests and refuses the response if Content-Range is missing
-	// (`ValueError: Required Content-Range response header is missing
-	// or malformed.`). For full-body requests we still return 200 +
-	// Content-Length; for ranged requests we read up to the requested
-	// suffix, write 206 + Content-Range.
+	// Range support. The Python Azure Storage SDK (used by both
+	// `az storage blob download` and any other Python client)
+	// unconditionally validates Content-Range on the response and
+	// errors out with `ValueError: Required Content-Range response
+	// header is missing or malformed.` when it isn't there — even
+	// when the request didn't carry a Range header. So we always
+	// emit Content-Range on a successful blob GET.
 	rng := r.Header.Get("Range")
 	if rng == "" {
 		writeBlobHeaders(w, obj)
+		if obj.Size > 0 {
+			w.Header().Set("Content-Range", fmt.Sprintf("bytes 0-%d/%d", obj.Size-1, obj.Size))
+		} else {
+			w.Header().Set("Content-Range", "bytes 0-0/0")
+		}
 		w.WriteHeader(http.StatusOK)
 		_, _ = io.Copy(w, obj.Body)
 		return
