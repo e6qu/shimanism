@@ -13,6 +13,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	queuedomain "github.com/e6qu/shimanism/internal/queue/domain"
+	awssqsfront "github.com/e6qu/shimanism/internal/queue/frontends/aws_sqs"
 	"github.com/e6qu/shimanism/internal/restxml"
 	secretsdomain "github.com/e6qu/shimanism/internal/secrets/domain"
 	awssmfront "github.com/e6qu/shimanism/internal/secrets/frontends/aws_secretsmanager"
@@ -128,6 +130,22 @@ func StartSecretsServerAzure(t *testing.T, backend secretsdomain.Secrets) *Secre
 	ts := httptest.NewTLSServer(&logRoundTrip{t: t, mux: srv})
 	t.Cleanup(ts.Close)
 	return &SecretsServer{URL: ts.URL, Close: ts.Close}
+}
+
+// QueueServer is a started queue-shim instance.
+type QueueServer struct {
+	URL   string
+	Close func()
+}
+
+// StartQueueServerAWS starts a shim instance with the AWS SQS
+// frontend backed by the given queue implementation.
+func StartQueueServerAWS(t *testing.T, backend queuedomain.Queues) *QueueServer {
+	t.Helper()
+	srv := awssqsfront.New(backend)
+	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
+	t.Cleanup(ts.Close)
+	return &QueueServer{URL: ts.URL, Close: ts.Close}
 }
 
 // logRoundTrip logs each request through the harness. Lightweight —
