@@ -92,7 +92,9 @@ func TestInvokeConnectivity_Knative(t *testing.T) {
 	dst := fmt.Sprintf("http://%s:%d/", host, port)
 
 	var lastErr error
-	for i := 0; i < 30; i++ {
+	var lastStatus int
+	var lastBody string
+	for i := 0; i < 60; i++ {
 		req, _ := http.NewRequestWithContext(ctx, http.MethodGet, dst, nil)
 		// Knative routes by Host header. Strip the URL prefix from the
 		// returned URL to compute the expected Host.
@@ -100,21 +102,42 @@ func TestInvokeConnectivity_Knative(t *testing.T) {
 		hostHeader = strings.TrimPrefix(hostHeader, "https://")
 		req.Host = hostHeader
 		resp, err := httpClient.Do(req)
-		if err == nil && resp.StatusCode == 200 {
+		if err == nil {
 			body, _ := io.ReadAll(resp.Body)
 			resp.Body.Close()
-			if !strings.Contains(string(body), "Hello") {
-				t.Errorf("body = %q, want it to contain 'Hello'", body)
+			lastStatus = resp.StatusCode
+			lastBody = string(body)
+			if resp.StatusCode == 200 {
+				if !strings.Contains(lastBody, "Hello") {
+					t.Errorf("body = %q, want it to contain 'Hello'", body)
+				}
+				return
 			}
-			return
+		} else {
+			lastErr = err
 		}
-		if resp != nil {
-			resp.Body.Close()
-		}
-		lastErr = err
 		time.Sleep(2 * time.Second)
 	}
-	t.Fatalf("invoke never succeeded: %v", lastErr)
+	// Dump the kourier-system + ksvc state on failure to make
+	// diagnosis easier next time.
+	dumpKnativeState(t, ctx)
+	t.Fatalf("invoke never succeeded: lastErr=%v lastStatus=%d lastBody=%q",
+		lastErr, lastStatus, lastBody)
+}
+
+// dumpKnativeState emits a snapshot of the cluster's Knative state
+// when the connectivity test fails.
+func dumpKnativeState(t *testing.T, ctx context.Context) {
+	t.Helper()
+	for _, args := range [][]string{
+		{"get", "ksvc", "-A"},
+		{"get", "pods", "-A"},
+		{"-n", "kourier-system", "get", "all"},
+		{"-n", "knative-serving", "get", "all"},
+	} {
+		out, _ := exec.CommandContext(ctx, "kubectl", args...).CombinedOutput()
+		t.Logf("kubectl %s:\n%s", strings.Join(args, " "), out)
+	}
 }
 
 // waitForKnativeURL polls `kubectl get ksvc <name> -o jsonpath` until
