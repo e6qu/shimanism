@@ -15,6 +15,8 @@ import (
 
 	queuedomain "github.com/e6qu/shimanism/internal/queue/domain"
 	awssqsfront "github.com/e6qu/shimanism/internal/queue/frontends/aws_sqs"
+	azuresbfront "github.com/e6qu/shimanism/internal/queue/frontends/azure_servicebus"
+	gcpsubfront "github.com/e6qu/shimanism/internal/queue/frontends/gcp_pubsub"
 	"github.com/e6qu/shimanism/internal/restxml"
 	secretsdomain "github.com/e6qu/shimanism/internal/secrets/domain"
 	awssmfront "github.com/e6qu/shimanism/internal/secrets/frontends/aws_secretsmanager"
@@ -143,6 +145,29 @@ type QueueServer struct {
 func StartQueueServerAWS(t *testing.T, backend queuedomain.Queues) *QueueServer {
 	t.Helper()
 	srv := awssqsfront.New(backend)
+	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
+	t.Cleanup(ts.Close)
+	return &QueueServer{URL: ts.URL, Close: ts.Close}
+}
+
+// StartQueueServerGCP starts a shim instance with the GCP Pub/Sub
+// frontend backed by the given queue implementation.
+func StartQueueServerGCP(t *testing.T, backend queuedomain.Queues) *QueueServer {
+	t.Helper()
+	srv := gcpsubfront.New(backend)
+	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
+	t.Cleanup(ts.Close)
+	return &QueueServer{URL: ts.URL, Close: ts.Close}
+}
+
+// StartQueueServerAzure starts a shim instance with the Azure
+// Service Bus REST frontend. The Azure SDK uses AMQP (not REST)
+// for the data plane, so the official azservicebus SDK cannot
+// drive this frontend — see frontends/azure_servicebus/server.go
+// for the AMQP open question.
+func StartQueueServerAzure(t *testing.T, backend queuedomain.Queues) *QueueServer {
+	t.Helper()
+	srv := azuresbfront.New(backend)
 	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
 	t.Cleanup(ts.Close)
 	return &QueueServer{URL: ts.URL, Close: ts.Close}
