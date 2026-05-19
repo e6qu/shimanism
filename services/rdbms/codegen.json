@@ -1,0 +1,17 @@
+{
+  "_comment": "The intersection operation set for the rdbms shim's AWS RDS frontend. See OPERATIONS.md for the per-cloud equivalence table. RDS uses the awsQuery wire protocol (form-encoded request + XML response).",
+  "spec": "services/rdbms/spec/aws-rds.smithy.json",
+  "package": "gen",
+  "out": "services/rdbms/gen/aws_rds.gen.go",
+  "operations": [
+    "CreateDBInstance",
+    "DeleteDBInstance",
+    "DescribeDBInstances",
+    "ModifyDBInstance",
+    "RebootDBInstance",
+    "CreateDBSnapshot",
+    "DeleteDBSnapshot",
+    "DescribeDBSnapshots",
+    "RestoreDBInstanceFromDBSnapshot"
+  ]
+}
