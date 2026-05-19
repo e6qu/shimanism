@@ -17,6 +17,8 @@ import (
 	awsecfront "github.com/e6qu/shimanism/internal/cache/frontends/aws_elasticache"
 	azureredisfront "github.com/e6qu/shimanism/internal/cache/frontends/azure_redis"
 	gcpmsfront "github.com/e6qu/shimanism/internal/cache/frontends/gcp_memorystore"
+	functionsdomain "github.com/e6qu/shimanism/internal/functions/domain"
+	awslambdafront "github.com/e6qu/shimanism/internal/functions/frontends/aws_lambda"
 	pubsubdomain "github.com/e6qu/shimanism/internal/pubsub/domain"
 	awssnsfront "github.com/e6qu/shimanism/internal/pubsub/frontends/aws_sns"
 	awssqsreceivefront "github.com/e6qu/shimanism/internal/pubsub/frontends/aws_sqs_receive"
@@ -312,6 +314,23 @@ func StartCacheServerAzure(t *testing.T, backend cachedomain.Cache) *CacheServer
 	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
 	t.Cleanup(ts.Close)
 	return &CacheServer{URL: ts.URL, Close: ts.Close}
+}
+
+// FunctionsServer is a started functions-shim instance.
+type FunctionsServer struct {
+	URL   string
+	Close func()
+}
+
+// StartFunctionsServerAWS starts a shim instance with the AWS
+// Lambda restJson1 frontend backed by the given functions
+// implementation.
+func StartFunctionsServerAWS(t *testing.T, backend functionsdomain.Functions) *FunctionsServer {
+	t.Helper()
+	srv := awslambdafront.New(backend)
+	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
+	t.Cleanup(ts.Close)
+	return &FunctionsServer{URL: ts.URL, Close: ts.Close}
 }
 
 // logRoundTrip logs each request through the harness. Lightweight —
