@@ -61,9 +61,9 @@ Why: a stateless shim scales horizontally (any replica answers any request), res
 
 If a feature can't be implemented statelessly, **it's out of intersection** — return the source cloud's "not supported" error. Don't add state to make it work.
 
-## In-tree K8s peer: one package, common denominator
+## In-tree K8s peer: one framework, named concrete peers
 
-When a shimmed service's K8s-peer slot doesn't have a clean third-party OSS fit, the in-tree [`peers/shimanism/`](peers/shimanism/) package fills it. **One** package, **one** binary, **one** Store interface — not a fleet of per-service shim peers.
+When a shimmed service's K8s-peer slot doesn't have a clean third-party OSS fit, the in-tree framework at [`peers/shimakit/`](peers/shimakit/) provides the **common-denominator primitives**. Concrete peers built on top of the framework are named **`shima<service>`** — e.g. `shimasecret` for a secrets peer, `shimastore` for an object-storage peer, `shimaqueue` for a queues peer. Each concrete peer is its own Go module under `peers/shima<service>/`, depends on `shimakit`, and composes the framework's primitives into a service-shaped HTTP front.
 
 The common denominator every shimmed service reduces to:
 
@@ -71,11 +71,11 @@ The common denominator every shimmed service reduces to:
 - Per-object structured metadata (`map[string]string`).
 - Soft-delete + force-delete lifecycle.
 - List with prefix + pagination.
-- Multi-namespace addressing so one deployment serves many shim services.
+- Multi-namespace addressing so one underlying storage layer serves many `shima<service>` deployments.
 
-That's the whole `peers/shimanism/peer.go` interface. The shim service's frontend handles the per-cloud shape (S3 / Vault / SQS / Lambda / …); the peer just stores the bytes. Don't add service-specific knowledge to the peer.
+That's the whole `peers/shimakit/peer.go` interface. The shim service's frontend handles the per-cloud shape (S3 / Vault / SQS / Lambda / …); concrete peers built on shimakit just store the bytes. Don't add service-specific knowledge to `shimakit` itself; it stays generic.
 
-The peer lives in its own Go module so it can be deployed and upgraded on its own cadence; importing it from `services/<svc>/backends/` is optional and only happens when a phase actually surfaces the gap. Phase 1 (storage) and Phase 2 (secrets) used MinIO and Vault — the peer module didn't ship code, only the interface contract.
+The framework lives in its own Go module so it can be deployed and upgraded on its own cadence; importing it from `services/<svc>/backends/` is optional and only happens when a phase actually surfaces the gap. Phase 1 (storage) and Phase 2 (secrets) used MinIO and Vault — no `shima<service>` peer has shipped yet, and `shimakit` itself ships only the interface contract today.
 
 ## Fidelity to the source cloud's API is P0
 

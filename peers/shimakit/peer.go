@@ -1,20 +1,24 @@
-// Package shimanism is the in-tree K8s-peer for shimmed services
-// whose OSS-peer slot doesn't have a good third-party fit. It
-// exposes the common-denominator API every cloud-service phase
-// reduces to: versioned, named binary objects with structured
-// metadata and a soft-delete lifecycle, multi-namespace addressing
-// so one peer serves many shim services. See README.md.
+// Package shimakit is the in-tree K8s-peer framework for shimmed
+// services whose OSS-peer slot doesn't have a good third-party
+// fit. It exposes the common-denominator API every cloud-service
+// phase reduces to: versioned, named binary objects with
+// structured metadata and a soft-delete lifecycle, multi-namespace
+// addressing so one peer serves many shim services. See README.md.
 //
-// This file defines the Store contract. The first implementation
-// lands when a shim service phase actually needs it — Phase 1
-// (storage) used MinIO and Phase 2 (secrets) used Vault, both
-// real OSS projects that didn't need an in-tree alternative.
+// Naming convention: this is the **framework**. Concrete per-service
+// peers built on top of shimakit are named `shima<service>` —
+// `shimasecret` for a secrets peer, `shimastore` for an object-
+// storage peer, etc. Phase 1 (storage) and Phase 2 (secrets) used
+// MinIO and Vault respectively; no `shima<service>` peer has
+// shipped yet. The framework will get its first user when a phase
+// surfaces a real gap.
 //
-// The contract is intentionally minimal: any operation that can't be
-// reduced to a list-versioned-objects + read-bytes + write-bytes +
-// delete pair doesn't belong here. The shim service's frontend does
-// the per-cloud shape translation; this peer holds the bytes.
-package shimanism
+// The contract is intentionally minimal: any operation that can't
+// be reduced to a list-versioned-objects + read-bytes + write-bytes
+// + delete pair doesn't belong here. The shim service's frontend
+// handles the per-cloud shape translation; this peer holds the
+// bytes.
+package shimakit
 
 import (
 	"context"
@@ -23,10 +27,10 @@ import (
 )
 
 // Store is the common denominator every shim-built K8s peer
-// exposes. Implementations may be in-process (for tests), file-system
-// backed (single-node deployments), object-storage backed (when the
-// peer is fronting a different backing layer), or anything else that
-// satisfies the contract.
+// exposes. Implementations may be in-process (for tests),
+// filesystem-backed (single-node deployments), object-storage-
+// backed (when the peer is fronting a different backing layer), or
+// anything else that satisfies the contract.
 //
 // Implementations must be safe for concurrent use across goroutines.
 // All operations are namespace-scoped: one peer instance serves
@@ -58,8 +62,8 @@ type Store interface {
 	// name prefix.
 	List(ctx context.Context, ns string, opt ListOptions) (ListResult, error)
 
-	// ListVersions enumerates every version of one object in ascending
-	// monotonic-version order.
+	// ListVersions enumerates every version of one object in
+	// ascending monotonic-version order.
 	ListVersions(ctx context.Context, ns, name string) ([]Version, error)
 }
 
