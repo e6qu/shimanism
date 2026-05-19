@@ -16,6 +16,8 @@ import (
 	"github.com/e6qu/shimanism/internal/restxml"
 	secretsdomain "github.com/e6qu/shimanism/internal/secrets/domain"
 	awssmfront "github.com/e6qu/shimanism/internal/secrets/frontends/aws_secretsmanager"
+	azurekvfront "github.com/e6qu/shimanism/internal/secrets/frontends/azure_keyvault"
+	gcpsmfront "github.com/e6qu/shimanism/internal/secrets/frontends/gcp_secretmanager"
 	"github.com/e6qu/shimanism/internal/storage/domain"
 	awsfront "github.com/e6qu/shimanism/internal/storage/frontends/aws_s3"
 	azurefront "github.com/e6qu/shimanism/internal/storage/frontends/azure_blob"
@@ -93,6 +95,37 @@ func StartSecretsServerAWS(t *testing.T, backend secretsdomain.Secrets) *Secrets
 	t.Helper()
 	srv := awssmfront.New(backend)
 	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
+	t.Cleanup(ts.Close)
+	return &SecretsServer{URL: ts.URL, Close: ts.Close}
+}
+
+// StartSecretsServerGCP starts a shim instance with the GCP Secret
+// Manager frontend backed by the given secrets implementation.
+// GCP-shaped clients (google.golang.org/api/secretmanager/v1,
+// gcloud secrets, hashicorp/google Terraform provider) drive it
+// via the endpoint-override path.
+func StartSecretsServerGCP(t *testing.T, backend secretsdomain.Secrets) *SecretsServer {
+	t.Helper()
+	srv := gcpsmfront.New(backend)
+	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
+	t.Cleanup(ts.Close)
+	return &SecretsServer{URL: ts.URL, Close: ts.Close}
+}
+
+// StartSecretsServerAzure starts a shim instance with the Azure
+// Key Vault secrets-surface frontend backed by the given secrets
+// implementation. The httptest server uses TLS so the Azure SDK
+// will send auth headers — the SDK refuses to attach a bearer
+// token to a plain-http request.
+//
+// Azure-shaped clients
+// (azure-sdk-for-go/sdk/security/keyvault/azsecrets,
+// az keyvault secret CLI, hashicorp/azurerm Terraform provider)
+// drive it via the endpoint-override path.
+func StartSecretsServerAzure(t *testing.T, backend secretsdomain.Secrets) *SecretsServer {
+	t.Helper()
+	srv := azurekvfront.New(backend)
+	ts := httptest.NewTLSServer(&logRoundTrip{t: t, mux: srv})
 	t.Cleanup(ts.Close)
 	return &SecretsServer{URL: ts.URL, Close: ts.Close}
 }
