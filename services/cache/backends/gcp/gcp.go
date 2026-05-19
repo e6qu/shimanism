@@ -99,10 +99,10 @@ func (b *Backend) CreateInstance(ctx context.Context, name string, opt domain.Cr
 		revealed = newToken()
 	}
 	in := &redisapi.Instance{
-		Tier:          tier,
-		RedisVersion:  redisVersionToGCP(opt.EngineVersion),
-		MemorySizeGb:  1,
-		AuthEnabled:   true,
+		Tier:         tier,
+		RedisVersion: redisVersionToGCP(opt.EngineVersion),
+		MemorySizeGb: 1,
+		AuthEnabled:  true,
 	}
 	if _, err := b.svc.Projects.Locations.Instances.Create(b.parent(), in).InstanceId(name).Context(ctx).Do(); err != nil {
 		return domain.CreateInstanceResult{}, translateErr(err, name)

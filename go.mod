@@ -26,6 +26,7 @@ require (
 	github.com/jackc/pgx/v5 v5.9.2
 	github.com/minio/minio-go/v7 v7.1.0
 	github.com/nats-io/nats.go v1.52.0
+	github.com/redis/go-redis/v9 v9.19.0
 	google.golang.org/api v0.279.0
 	google.golang.org/grpc v1.80.0
 	k8s.io/api v0.36.1
@@ -131,6 +132,7 @@ require (
 	go.opentelemetry.io/otel/sdk v1.43.0 // indirect
 	go.opentelemetry.io/otel/sdk/metric v1.43.0 // indirect
 	go.opentelemetry.io/otel/trace v1.43.0 // indirect
+	go.uber.org/atomic v1.11.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.3 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/crypto v0.51.0 // indirect

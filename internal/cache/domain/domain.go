@@ -78,7 +78,7 @@ type CreateInstanceOptions struct {
 
 // CreateInstanceResult is the CreateInstance response.
 type CreateInstanceResult struct {
-	Instance  Instance
+	Instance Instance
 	// AuthToken is the auth secret — present iff the caller didn't
 	// supply one. Surfaced exactly once at create time.
 	AuthToken string
