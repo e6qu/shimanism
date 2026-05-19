@@ -16,6 +16,7 @@ import (
 	pubsubdomain "github.com/e6qu/shimanism/internal/pubsub/domain"
 	awssnsfront "github.com/e6qu/shimanism/internal/pubsub/frontends/aws_sns"
 	awssqsreceivefront "github.com/e6qu/shimanism/internal/pubsub/frontends/aws_sqs_receive"
+	gcppubsubpsfront "github.com/e6qu/shimanism/internal/pubsub/frontends/gcp_pubsub"
 	queuedomain "github.com/e6qu/shimanism/internal/queue/domain"
 	awssqsfront "github.com/e6qu/shimanism/internal/queue/frontends/aws_sqs"
 	azuresbfront "github.com/e6qu/shimanism/internal/queue/frontends/azure_servicebus"
@@ -206,6 +207,16 @@ func StartPubsubServerAWS(t *testing.T, backend pubsubdomain.Pubsub) *PubsubServ
 		SqsURL: sqsTs.URL,
 		Close:  func() { snsTs.Close(); sqsTs.Close() },
 	}
+}
+
+// StartPubsubServerGCP starts a shim instance with the GCP Pub/Sub
+// fanout frontend.
+func StartPubsubServerGCP(t *testing.T, backend pubsubdomain.Pubsub) *PubsubServer {
+	t.Helper()
+	srv := gcppubsubpsfront.New(backend)
+	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
+	t.Cleanup(ts.Close)
+	return &PubsubServer{URL: ts.URL, Close: ts.Close}
 }
 
 // logRoundTrip logs each request through the harness. Lightweight —
