@@ -42,9 +42,9 @@ type appConfiguration struct {
 }
 
 type appIngress struct {
-	External bool   `json:"external,omitempty"`
-	Fqdn     string `json:"fqdn,omitempty"`
-	TargetPort int  `json:"targetPort,omitempty"`
+	External   bool   `json:"external,omitempty"`
+	Fqdn       string `json:"fqdn,omitempty"`
+	TargetPort int    `json:"targetPort,omitempty"`
 }
 
 type appTemplate struct {
@@ -52,10 +52,10 @@ type appTemplate struct {
 }
 
 type appContainer struct {
-	Name      string           `json:"name,omitempty"`
-	Image     string           `json:"image,omitempty"`
-	Env       []*appEnv        `json:"env,omitempty"`
-	Resources *appResources    `json:"resources,omitempty"`
+	Name      string        `json:"name,omitempty"`
+	Image     string        `json:"image,omitempty"`
+	Env       []*appEnv     `json:"env,omitempty"`
+	Resources *appResources `json:"resources,omitempty"`
 }
 
 type appEnv struct {
