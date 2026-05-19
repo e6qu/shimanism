@@ -14,9 +14,9 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 
 | Sub | Status | Headline |
 |---|---|---|
-| **6.0** | ◐ | Scope + design baseline. `services/cache/OPERATIONS.md` captures the 6-op intersection (Create/Delete/Describe/List/Modify/Reboot Instance). Snapshot/restore deferred (AWS S3 vs GCP GCS export vs Azure backup containers vs Redis Operator BackupRestore CRs — too divergent). Same async / stateless / control-plane-only rules as Phase 5. |
-| **6.1** | ◻ | Spec ingest. AWS ElastiCache Smithy 2.0 JSON vendored. GCP Memorystore + Azure Cache reused via official SDKs' wire-type packages. |
-| **6.2** | ◻ | `internal/cache/domain/` neutral interface — `Cache` (7 methods: 6 ops + HeadInstance probe), Instance, Connection (host, port, auth token, engine version), Status enum (reused shape from Phase 5). |
+| **6.0** | ✅ | Scope + design baseline. `services/cache/OPERATIONS.md` captures the 6-op intersection (Create/Delete/Describe/List/Modify/Reboot Instance). Snapshot/restore deferred (AWS S3 vs GCP GCS export vs Azure backup containers vs Redis Operator BackupRestore CRs — too divergent). Same async / stateless / control-plane-only rules as Phase 5. |
+| **6.1** | ✅ | Spec ingest. AWS ElastiCache Smithy 2.0 JSON vendored at `services/cache/spec/aws-elasticache.smithy.json` (965 KB) pinned to `aws/aws-sdk-go-v2@2517fe9f`. awsQuery wire protocol (same family as SNS + RDS). GCP Memorystore reused via `google.golang.org/api/redis/v1`; Azure via `armredis`. Manifest in `services/cache/codegen.json`. |
+| **6.2** | ✅ | `internal/cache/domain/` neutral interface — `Cache` (6 methods: CreateInstance, DeleteInstance, DescribeInstance, ListInstances, ModifyInstance, RebootInstance) + types (`Instance`, `Connection`, `Status`). Reuses the Status enum shape from Phase 5 rdbms (Creating/Available/Modifying/Rebooting/Deleting). AuthToken surfaced once at create time via `CreateInstanceResult.AuthToken`; never re-emitted in Connection block (matches AWS/GCP/Azure published behaviour). |
 | **6.3** | ◻ | inmem backend + AWS ElastiCache frontend (awsQuery) + SDK conformance via `aws-sdk-go-v2/service/elasticache`. |
 | **6.4** | ◻ | **Redis Operator backend** (K8s peer) via dynamic client + unstructured `Redis` CRs. Same pattern as Phase 5's cnpg backend. |
 | **6.5** | ◻ | **AWS ElastiCache passthrough backend** via `aws-sdk-go-v2/service/elasticache`. |
