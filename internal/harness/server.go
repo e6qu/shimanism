@@ -14,6 +14,8 @@ import (
 	"testing"
 
 	"github.com/e6qu/shimanism/internal/restxml"
+	secretsdomain "github.com/e6qu/shimanism/internal/secrets/domain"
+	awssmfront "github.com/e6qu/shimanism/internal/secrets/frontends/aws_secretsmanager"
 	"github.com/e6qu/shimanism/internal/storage/domain"
 	awsfront "github.com/e6qu/shimanism/internal/storage/frontends/aws_s3"
 	azurefront "github.com/e6qu/shimanism/internal/storage/frontends/azure_blob"
@@ -72,6 +74,27 @@ func StartStorageServerAzureBlob(t *testing.T, backend domain.Storage) *StorageS
 	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
 	t.Cleanup(ts.Close)
 	return &StorageServer{URL: ts.URL, Close: ts.Close}
+}
+
+// SecretsServer is a started secrets-shim instance with its
+// addressable URL. Same shape as StorageServer; the URL goes to
+// SDK / CLI / Terraform clients via their endpoint-override path.
+type SecretsServer struct {
+	URL   string
+	Close func()
+}
+
+// StartSecretsServerAWS starts a shim instance with the AWS Secrets
+// Manager frontend backed by the given secrets implementation.
+// AWS-shaped clients (aws-sdk-go-v2/service/secretsmanager,
+// aws secretsmanager CLI, hashicorp/aws Terraform provider) drive
+// it via the standard endpoint-override path.
+func StartSecretsServerAWS(t *testing.T, backend secretsdomain.Secrets) *SecretsServer {
+	t.Helper()
+	srv := awssmfront.New(backend)
+	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
+	t.Cleanup(ts.Close)
+	return &SecretsServer{URL: ts.URL, Close: ts.Close}
 }
 
 // logRoundTrip logs each request through the harness. Lightweight —
