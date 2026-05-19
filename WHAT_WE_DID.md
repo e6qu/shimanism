@@ -4,6 +4,30 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 
 > Reverse chronological. One section per phase. The *why*, the surprises, the root causes — not per-PR detail. For commit-level history, `git log`. For per-bug detail, [BUGS.md](BUGS.md).
 
+## Phase 6 — Managed Redis (in-flight on `phase-6-cache`)
+
+A near-mirror of Phase 5 — control plane only, K8s peer is Redis Operator instead of CloudNativePG, exit criterion is `redis-cli PING → PONG` through the shim-returned Connection block. Mostly mechanical re-application of the Phase 5 architecture.
+
+### Same shape, smaller intersection
+
+The 11-op rdbms intersection collapses to 6 ops for cache (Create/Delete/Describe/List/Modify/Reboot Instance). Snapshot/restore deferred — cross-cloud Redis snapshot semantics are too divergent (AWS → S3, GCP → GCS export, Azure → backup containers, Redis Operator → BackupRestore CRs). Too lossy to be honest at this phase.
+
+### awsQuery thrice in a row
+
+ElastiCache, RDS, and SNS all use awsQuery — by the third instance, a new awsQuery frontend is essentially dispatch + struct shapes. The envelope plumbing carried over verbatim from Phase 4 (SNS) + Phase 5 (RDS).
+
+### Redis Operator via dynamic client
+
+Same pattern as Phase 5's cnpg backend: `k8s.io/client-go/dynamic` + `unstructured.Unstructured` instead of importing the operator's Go API module. The OT-CONTAINER-KIT operator's `Redis` CR (`redis.redis.opstreelabs.in/v1beta2`) provides single-node deployments; the shim stores the auth token in a Kubernetes Secret and the operator emits a `<name>.<ns>.svc.cluster.local:6379` Service.
+
+### Auth token surfacing differs slightly from RDBMS
+
+Phase 5: master password returned once at create time, never re-emitted. Phase 6 carries that forward for AWS and Azure. GCP Memorystore differs — AUTH is fetched via a separate `GetAuthString` endpoint, but the shim deliberately doesn't call that on every Describe to keep the op cheap. Auth is exclusively at create time, matching AWS.
+
+### Exit criterion: PING
+
+`TestPingConnectivity_RedisOp` is structurally a clone of Phase 5's `TestPsqlConnectivity_CNPG`. Provision via the AWS ElastiCache frontend → Redis Operator backend. Poll until status=available. `kubectl port-forward` to the operator-emitted Service. Open a real RESP connection via `github.com/redis/go-redis/v9`. `rdb.Ping(ctx)` returns `"PONG"`. The shim is invisible to the PING — that's what makes the test honest.
+
 ## Phase 5 — Managed RDBMS (in-flight on `phase-5-rdbms`)
 
 Control-plane only — the load-bearing shape change versus Phases 1-4.

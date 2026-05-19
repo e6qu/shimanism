@@ -13,6 +13,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	cachedomain "github.com/e6qu/shimanism/internal/cache/domain"
+	awsecfront "github.com/e6qu/shimanism/internal/cache/frontends/aws_elasticache"
+	azureredisfront "github.com/e6qu/shimanism/internal/cache/frontends/azure_redis"
+	gcpmsfront "github.com/e6qu/shimanism/internal/cache/frontends/gcp_memorystore"
 	pubsubdomain "github.com/e6qu/shimanism/internal/pubsub/domain"
 	awssnsfront "github.com/e6qu/shimanism/internal/pubsub/frontends/aws_sns"
 	awssqsreceivefront "github.com/e6qu/shimanism/internal/pubsub/frontends/aws_sqs_receive"
@@ -271,6 +275,43 @@ func StartRDBMSServerAzure(t *testing.T, backend rdbmsdomain.RDBMS) *RDBMSServer
 	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
 	t.Cleanup(ts.Close)
 	return &RDBMSServer{URL: ts.URL, Close: ts.Close}
+}
+
+// CacheServer is a started cache-shim instance.
+type CacheServer struct {
+	URL   string
+	Close func()
+}
+
+// StartCacheServerAWS starts a shim instance with the AWS
+// ElastiCache awsQuery frontend backed by the given cache
+// implementation.
+func StartCacheServerAWS(t *testing.T, backend cachedomain.Cache) *CacheServer {
+	t.Helper()
+	srv := awsecfront.New(backend)
+	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
+	t.Cleanup(ts.Close)
+	return &CacheServer{URL: ts.URL, Close: ts.Close}
+}
+
+// StartCacheServerGCP starts a shim instance with the GCP
+// Memorystore Admin REST frontend.
+func StartCacheServerGCP(t *testing.T, backend cachedomain.Cache) *CacheServer {
+	t.Helper()
+	srv := gcpmsfront.New(backend)
+	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
+	t.Cleanup(ts.Close)
+	return &CacheServer{URL: ts.URL, Close: ts.Close}
+}
+
+// StartCacheServerAzure starts a shim instance with the Azure
+// Cache for Redis REST frontend.
+func StartCacheServerAzure(t *testing.T, backend cachedomain.Cache) *CacheServer {
+	t.Helper()
+	srv := azureredisfront.New(backend)
+	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
+	t.Cleanup(ts.Close)
+	return &CacheServer{URL: ts.URL, Close: ts.Close}
 }
 
 // logRoundTrip logs each request through the harness. Lightweight —

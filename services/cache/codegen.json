@@ -1,0 +1,13 @@
+{
+  "_comment": "The intersection operation set for the cache shim's AWS ElastiCache frontend. See OPERATIONS.md.",
+  "spec": "services/cache/spec/aws-elasticache.smithy.json",
+  "package": "gen",
+  "out": "services/cache/gen/aws_elasticache.gen.go",
+  "operations": [
+    "CreateCacheCluster",
+    "DeleteCacheCluster",
+    "DescribeCacheClusters",
+    "ModifyCacheCluster",
+    "RebootCacheCluster"
+  ]
+}
