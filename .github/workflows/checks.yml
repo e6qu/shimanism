@@ -366,6 +366,35 @@ jobs:
           export KUBECONFIG="${HOME}/.kube/config"
           go test -timeout 20m -run "TestFunctionsMatrix_AWSFrontend/knative|TestInvokeConnectivity_Knative" ./services/functions/conformance/...
 
+  conformance-envoy:
+    name: conformance envoy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.26'
+          cache: true
+      - name: Create kind cluster
+        uses: helm/kind-action@v1
+        with:
+          cluster_name: shim-envoy
+      - name: Install Envoy Gateway
+        run: |
+          # Pin to Envoy Gateway v1.2.4. The shim's envoy backend
+          # only needs Gateway API CRDs + the eg GatewayClass; the
+          # default install ships both.
+          kubectl apply --server-side -f https://github.com/envoyproxy/gateway/releases/download/v1.2.4/install.yaml
+          kubectl -n envoy-gateway-system rollout status deployment/envoy-gateway --timeout=180s
+          kubectl get gatewayclass eg
+      - name: Run envoy conformance
+        env:
+          ENVOY_CONFORMANCE: '1'
+          ENVOY_NAMESPACE: default
+        run: |
+          export KUBECONFIG="${HOME}/.kube/config"
+          go test -timeout 15m -run "TestAPIGatewayMatrix_AWSFrontend/envoy|TestRouteServes_Envoy" ./services/apigateway/conformance/...
+
   conformance-azureblob:
     name: conformance azureblob
     runs-on: ubuntu-latest

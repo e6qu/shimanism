@@ -14,23 +14,23 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 
 | Sub | Status | Headline |
 |---|---|---|
-| **8.0** | ◐ | Scope + design baseline. `services/apigateway/OPERATIONS.md` captures the 5-op intersection. Declarative-replace via `DeployGateway`. Route shape: method + path + backend URL only — per-route auth/throttling/transforms deferred. |
-| **8.1** | ◻ | Vendor AWS API Gateway v2 Smithy. GCP via `google.golang.org/api/apigateway/v1`; Azure via `armapimanagement`. |
-| **8.2** | ◻ | Domain interface `internal/apigateway/domain/`. |
-| **8.3** | ◻ | inmem + AWS API Gateway v2 frontend (restJson1) + SDK conformance. |
-| **8.4** | ◻ | **Envoy Gateway backend** (K8s peer) via dynamic client + unstructured `Gateway` / `HTTPRoute` CRs. |
-| **8.5** | ◻ | AWS API Gateway v2 passthrough. |
-| **8.6** | ◻ | GCP API Gateway backend. |
-| **8.7** | ◻ | Azure API Management backend. |
-| **8.8** | ◻ | GCP API Gateway frontend. |
-| **8.9** | ◻ | Azure API Management REST frontend. |
-| **8.10** | ◻ | Matrix conformance. |
-| **8.11** | ◻ | CLI conformance. |
-| **8.12** | ◻ | Terraform conformance. |
-| **8.13** | ◻ | `cmd/shim apigateway` subcommand. Default `:9700`. |
-| **8.14** | ◻ | CI lane `conformance-envoy`: kind + Envoy Gateway. |
-| **8.15** | ◻ | **HTTP-route exit criterion test**. Phase-8 exit criterion. |
-| **8.16** | ◻ | Phase 8 closer. |
+| **8.0** | ✅ | Scope + design baseline. `services/apigateway/OPERATIONS.md` captures the 5-op intersection. Declarative-replace via `DeployGateway`. Route shape: method + path + backend URL only — per-route auth/throttling/transforms deferred. |
+| **8.1** | ✅ | Vendor AWS API Gateway v2 Smithy. GCP via `google.golang.org/api/apigateway/v1`; Azure via `armapimanagement`. |
+| **8.2** | ✅ | Domain interface `internal/apigateway/domain/`. |
+| **8.3** | ✅ | inmem + AWS API Gateway v2 frontend (restJson1) + SDK conformance. |
+| **8.4** | ✅ | **Envoy Gateway backend** (K8s peer) via dynamic client + unstructured `Gateway` / `HTTPRoute` CRs. |
+| **8.5** | ✅ | AWS API Gateway v2 passthrough. |
+| **8.6** | ✅ | GCP API Gateway backend. |
+| **8.7** | ✅ | Azure API Management backend. (DeleteGateway returns InvalidArgument until Track A; armapimanagement/v3 delete signature requires version-specific etag handling — see BUGS.md.) |
+| **8.8** | ✅ | GCP API Gateway frontend. |
+| **8.9** | ✅ | Azure API Management REST frontend. |
+| **8.10** | ✅ | Matrix conformance — 3 frontends × 5 backends, SDK driver. |
+| **8.11** | ✅ | CLI conformance: aws apigatewayv2 + gcloud api-gateway; az smoke (per-resource override gap tracked in BUGS.md). |
+| **8.12** | ✅ | Terraform conformance: hashicorp/aws apigatewayv2 init+apply+destroy; hashicorp/google plan; azurerm smoke. |
+| **8.13** | ✅ | `cmd/shim apigateway` subcommand. Default `:9700`. |
+| **8.14** | ✅ | CI lane `conformance-envoy`: kind + Envoy Gateway v1.2.4. |
+| **8.15** | ✅ | **HTTP-route exit criterion test** `TestRouteServes_Envoy` — register Gateway+Route via AWS frontend → echo upstream behind Envoy → port-forward + HTTP GET succeeds. |
+| **8.16** | ◐ | Phase 8 closer — push, CI green, PR merged. |
 
 Status legend: ✅ done · ◐ in progress · ◻ pending · ⏸ paused.
 

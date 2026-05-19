@@ -4,6 +4,30 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 
 > Reverse chronological. One section per phase. The *why*, the surprises, the root causes — not per-PR detail. For commit-level history, `git log`. For per-bug detail, [BUGS.md](BUGS.md).
 
+## Phase 8 — API Gateway (in-flight on `phase-8-apigateway`)
+
+Control-plane shim for HTTP API gateways. Same shape as Phases 5–7 — provision + return URL, clients HTTP-request the URL — with one new wrinkle: the gateway has to translate a *set of routes* to a backend-native primitive that varies wildly across clouds. Declarative-replace via `DeployGateway(routes)` is what makes the cross-cloud semantics tractable.
+
+### Declarative-replace, not incremental mutation
+
+AWS lets you mutate individual routes; GCP atomically deploys an OpenAPI document; Azure replaces APIM operations one at a time; Envoy Gateway swaps the HTTPRoute set. Cross-cloud "patch one route" semantics are impossible (Azure's APIM has versioning baked in; GCP requires a full ApiConfig). The intersection is **publish a full routing table atomically** — `DeployGateway(routes)` replaces everything bound to the gateway. Per-request route accumulation in the AWS frontend (a `map[apiID]routes` keyed off the request flow) bridges AWS's multi-step CreateRoute → CreateDeployment to the domain's atomic shape.
+
+### restJson1 with @jsonName traits
+
+Like Lambda, API Gateway v2 uses restJson1. Unlike Lambda, the Smithy spec **explicitly declares @jsonName traits on every field** — `apiId`, `routeKey`, `integrationUri` — camelCase. The aws-sdk-go-v2 client silently drops fields whose JSON tag doesn't match (no error, fields just go nil). Fixed by rewriting all response structs to camelCase JSON tags. Phase 7's Lambda spec lacks the overrides, which is why PascalCase tags worked there; Phase 8 forced the issue.
+
+### Envoy Gateway as the K8s peer
+
+Phase 8 uses Envoy Gateway (the upstream Gateway API implementation) as the K8s peer. The backend speaks `gateway.networking.k8s.io/v1` via dynamic client + unstructured CRs (`Gateway` + `HTTPRoute`). Each shim Gateway maps to one Envoy Gateway CR plus N HTTPRoutes labeled `shim.apigateway/gateway=<name>` so DeployGateway can atomically wipe-and-replace the HTTPRoute set. No `operator-api` module dependency — same pattern as Phase 6's Redis operator + Phase 7's Knative.
+
+### Azure APIM v3 delete signature
+
+armapimanagement/v3's `APIClient.Delete` requires a `deleteRevisions` boolean and an If-Match etag the v1 SDK didn't surface. Wiring this honestly across the revision-pinning semantics is non-trivial; for Phase 8 the backend returns `InvalidArgument` for DeleteGateway against the Azure backend (documented in BUGS.md) rather than silently faking success. Real-cloud Azure tests are gated on Track A anyway.
+
+### Exit criterion: TestRouteServes_Envoy
+
+The Phase-8 honesty test stands up an echo `Deployment` + `Service`, registers a Gateway + Integration + Route via the AWS frontend, then HTTP-GETs the route through Envoy's Service via port-forward. If the chain — AWS-shaped frontend → domain → Envoy backend → kubectl-applied Gateway CR → HTTPRoute → Envoy proxy → upstream Pod — has any break, the request fails. The CI lane `conformance-envoy` runs it on every PR.
+
 ## Phase 7 — Functions (in-flight on `phase-7-functions`)
 
 Control-plane shim for container-image function deployments. Same shape as Phases 5+6 (provision + return endpoint, clients invoke directly), but the data plane is HTTP — substantially simpler to test than PG wire protocol or RESP, but with one twist: the URL has to actually route to the deployed container, end-to-end.
