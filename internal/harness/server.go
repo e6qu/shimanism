@@ -13,6 +13,11 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	pubsubdomain "github.com/e6qu/shimanism/internal/pubsub/domain"
+	awssnsfront "github.com/e6qu/shimanism/internal/pubsub/frontends/aws_sns"
+	awssqsreceivefront "github.com/e6qu/shimanism/internal/pubsub/frontends/aws_sqs_receive"
+	azuresbtopicsfront "github.com/e6qu/shimanism/internal/pubsub/frontends/azure_servicebus_topics"
+	gcppubsubpsfront "github.com/e6qu/shimanism/internal/pubsub/frontends/gcp_pubsub"
 	queuedomain "github.com/e6qu/shimanism/internal/queue/domain"
 	awssqsfront "github.com/e6qu/shimanism/internal/queue/frontends/aws_sqs"
 	azuresbfront "github.com/e6qu/shimanism/internal/queue/frontends/azure_servicebus"
@@ -171,6 +176,59 @@ func StartQueueServerAzure(t *testing.T, backend queuedomain.Queues) *QueueServe
 	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
 	t.Cleanup(ts.Close)
 	return &QueueServer{URL: ts.URL, Close: ts.Close}
+}
+
+// PubsubServer is a started pubsub-shim instance. AWS-shaped
+// pubsub exposes a separate SNS endpoint (publish side) and SQS
+// endpoint (receive side), so callers get two URLs to point their
+// snsClient + sqsClient at. GCP and Azure expose a single URL each.
+type PubsubServer struct {
+	// SnsURL is the SNS endpoint (awsQuery / XML). Empty for non-AWS.
+	SnsURL string
+	// SqsURL is the SQS-shaped receive endpoint (awsJson1_0). Empty
+	// for non-AWS.
+	SqsURL string
+	// URL is the single endpoint for non-AWS frontends.
+	URL   string
+	Close func()
+}
+
+// StartPubsubServerAWS starts a shim instance with the AWS SNS
+// frontend + the SQS-shaped receive surface, both wired to the
+// same pubsub backend. Returns two URLs the SDK clients should
+// target through their BaseEndpoint override.
+func StartPubsubServerAWS(t *testing.T, backend pubsubdomain.Pubsub) *PubsubServer {
+	t.Helper()
+	snsTs := httptest.NewServer(&logRoundTrip{t: t, mux: awssnsfront.New(backend)})
+	sqsTs := httptest.NewServer(&logRoundTrip{t: t, mux: awssqsreceivefront.New(backend)})
+	t.Cleanup(snsTs.Close)
+	t.Cleanup(sqsTs.Close)
+	return &PubsubServer{
+		SnsURL: snsTs.URL,
+		SqsURL: sqsTs.URL,
+		Close:  func() { snsTs.Close(); sqsTs.Close() },
+	}
+}
+
+// StartPubsubServerGCP starts a shim instance with the GCP Pub/Sub
+// fanout frontend.
+func StartPubsubServerGCP(t *testing.T, backend pubsubdomain.Pubsub) *PubsubServer {
+	t.Helper()
+	srv := gcppubsubpsfront.New(backend)
+	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
+	t.Cleanup(ts.Close)
+	return &PubsubServer{URL: ts.URL, Close: ts.Close}
+}
+
+// StartPubsubServerAzure starts a shim instance with the Azure
+// Service Bus topics REST frontend. AMQP fidelity tier is deferred
+// per Phase 3's open question (same posture for pubsub topics).
+func StartPubsubServerAzure(t *testing.T, backend pubsubdomain.Pubsub) *PubsubServer {
+	t.Helper()
+	srv := azuresbtopicsfront.New(backend)
+	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
+	t.Cleanup(ts.Close)
+	return &PubsubServer{URL: ts.URL, Close: ts.Close}
 }
 
 // logRoundTrip logs each request through the harness. Lightweight —

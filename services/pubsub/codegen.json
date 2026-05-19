@@ -1,0 +1,17 @@
+{
+  "_comment": "The intersection operation set for the pubsub shim's AWS SNS frontend. See OPERATIONS.md for the per-cloud equivalence table. The receive side is delegated to services/queue/ which already covers SQS — Phase 4 subscriptions auto-create backing SQS queues and the SNS subscription protocol is fixed to 'sqs', so SNS itself never speaks the receive surface.",
+  "spec": "services/pubsub/spec/aws-sns.smithy.json",
+  "package": "gen",
+  "out": "services/pubsub/gen/aws_sns.gen.go",
+  "operations": [
+    "CreateTopic",
+    "DeleteTopic",
+    "ListTopics",
+    "Subscribe",
+    "Unsubscribe",
+    "ListSubscriptions",
+    "ListSubscriptionsByTopic",
+    "Publish",
+    "GetTopicAttributes"
+  ]
+}
