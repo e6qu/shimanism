@@ -122,18 +122,18 @@ func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // ----------------------------------------------------------------------
 
 type setSecretRequest struct {
-	Value           string             `json:"value"`
-	Tags            map[string]string  `json:"tags,omitempty"`
-	ContentType     string             `json:"contentType,omitempty"`
+	Value            string            `json:"value"`
+	Tags             map[string]string `json:"tags,omitempty"`
+	ContentType      string            `json:"contentType,omitempty"`
 	SecretAttributes *secretAttributes `json:"attributes,omitempty"`
 }
 
 type secretAttributes struct {
-	Enabled   *bool  `json:"enabled,omitempty"`
-	Created   int64  `json:"created,omitempty"`   // unix seconds
-	Updated   int64  `json:"updated,omitempty"`   // unix seconds
-	NotBefore int64  `json:"nbf,omitempty"`
-	Expires   int64  `json:"exp,omitempty"`
+	Enabled       *bool  `json:"enabled,omitempty"`
+	Created       int64  `json:"created,omitempty"` // unix seconds
+	Updated       int64  `json:"updated,omitempty"` // unix seconds
+	NotBefore     int64  `json:"nbf,omitempty"`
+	Expires       int64  `json:"exp,omitempty"`
 	RecoveryLevel string `json:"recoveryLevel,omitempty"`
 }
 
@@ -239,10 +239,10 @@ func (srv *Server) deleteSecret(w http.ResponseWriter, r *http.Request, name str
 	}
 	// Azure's DeleteSecret returns a DeletedSecretBundle. Approximate.
 	resp := map[string]interface{}{
-		"id":             vaultBaseFromHeader(r) + "/secrets/" + name,
-		"recoveryLevel":  "Purgeable",
+		"id":                 vaultBaseFromHeader(r) + "/secrets/" + name,
+		"recoveryLevel":      "Purgeable",
 		"scheduledPurgeDate": time.Now().Add(7 * 24 * time.Hour).Unix(),
-		"deletedDate":    time.Now().Unix(),
+		"deletedDate":        time.Now().Unix(),
 	}
 	writeJSON(w, http.StatusOK, resp)
 }

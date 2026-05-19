@@ -11,12 +11,12 @@ import (
 	"net/http"
 	"os"
 
+	smapi "cloud.google.com/go/secretmanager/apiv1"
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	azsecretsapi "github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/azsecrets"
 	awsapi "github.com/aws/aws-sdk-go-v2/aws"
 	smcfg "github.com/aws/aws-sdk-go-v2/config"
 	awssm "github.com/aws/aws-sdk-go-v2/service/secretsmanager"
-	smapi "cloud.google.com/go/secretmanager/apiv1"
 	vaultapi "github.com/hashicorp/vault/api"
 
 	"github.com/e6qu/shimanism/internal/secrets/domain"

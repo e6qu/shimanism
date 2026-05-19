@@ -10,8 +10,8 @@ import (
 	"encoding/base64"
 	"testing"
 
-	smraw "google.golang.org/api/secretmanager/v1"
 	"google.golang.org/api/option"
+	smraw "google.golang.org/api/secretmanager/v1"
 
 	"github.com/e6qu/shimanism/internal/harness"
 	"github.com/e6qu/shimanism/services/secrets/backends/inmem"

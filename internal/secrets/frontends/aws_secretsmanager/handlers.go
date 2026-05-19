@@ -23,12 +23,12 @@ type tag struct {
 }
 
 type createSecretRequest struct {
-	Name                 string  `json:"Name"`
-	ClientRequestToken   string  `json:"ClientRequestToken,omitempty"`
-	Description          *string `json:"Description,omitempty"`
-	SecretString         *string `json:"SecretString,omitempty"`
-	SecretBinary         []byte  `json:"SecretBinary,omitempty"`
-	Tags                 []tag   `json:"Tags,omitempty"`
+	Name               string  `json:"Name"`
+	ClientRequestToken string  `json:"ClientRequestToken,omitempty"`
+	Description        *string `json:"Description,omitempty"`
+	SecretString       *string `json:"SecretString,omitempty"`
+	SecretBinary       []byte  `json:"SecretBinary,omitempty"`
+	Tags               []tag   `json:"Tags,omitempty"`
 }
 
 type createSecretResponse struct {
@@ -44,13 +44,13 @@ type getSecretValueRequest struct {
 }
 
 type getSecretValueResponse struct {
-	ARN           string    `json:"ARN"`
-	Name          string    `json:"Name"`
-	VersionId     string    `json:"VersionId"`
-	SecretString  *string   `json:"SecretString,omitempty"`
-	SecretBinary  []byte    `json:"SecretBinary,omitempty"`
-	VersionStages []string  `json:"VersionStages"`
-	CreatedDate   float64   `json:"CreatedDate,omitempty"`
+	ARN           string   `json:"ARN"`
+	Name          string   `json:"Name"`
+	VersionId     string   `json:"VersionId"`
+	SecretString  *string  `json:"SecretString,omitempty"`
+	SecretBinary  []byte   `json:"SecretBinary,omitempty"`
+	VersionStages []string `json:"VersionStages"`
+	CreatedDate   float64  `json:"CreatedDate,omitempty"`
 }
 
 type putSecretValueRequest struct {
@@ -68,9 +68,9 @@ type putSecretValueResponse struct {
 }
 
 type deleteSecretRequest struct {
-	SecretId                   string  `json:"SecretId"`
-	ForceDeleteWithoutRecovery *bool   `json:"ForceDeleteWithoutRecovery,omitempty"`
-	RecoveryWindowInDays       *int64  `json:"RecoveryWindowInDays,omitempty"`
+	SecretId                   string `json:"SecretId"`
+	ForceDeleteWithoutRecovery *bool  `json:"ForceDeleteWithoutRecovery,omitempty"`
+	RecoveryWindowInDays       *int64 `json:"RecoveryWindowInDays,omitempty"`
 }
 
 type deleteSecretResponse struct {
@@ -84,12 +84,12 @@ type describeSecretRequest struct {
 }
 
 type describeSecretResponse struct {
-	ARN              string                 `json:"ARN"`
-	Name             string                 `json:"Name"`
-	Description      string                 `json:"Description,omitempty"`
-	Tags             []tag                  `json:"Tags,omitempty"`
-	CreatedDate      float64                `json:"CreatedDate,omitempty"`
-	LastChangedDate  float64                `json:"LastChangedDate,omitempty"`
+	ARN                string              `json:"ARN"`
+	Name               string              `json:"Name"`
+	Description        string              `json:"Description,omitempty"`
+	Tags               []tag               `json:"Tags,omitempty"`
+	CreatedDate        float64             `json:"CreatedDate,omitempty"`
+	LastChangedDate    float64             `json:"LastChangedDate,omitempty"`
 	VersionIdsToStages map[string][]string `json:"VersionIdsToStages,omitempty"`
 }
 
@@ -128,10 +128,10 @@ type secretVersionsListEntry struct {
 }
 
 type listSecretVersionIdsResponse struct {
-	ARN      string                    `json:"ARN"`
-	Name     string                    `json:"Name"`
-	Versions []secretVersionsListEntry `json:"Versions"`
-	NextToken string                   `json:"NextToken,omitempty"`
+	ARN       string                    `json:"ARN"`
+	Name      string                    `json:"Name"`
+	Versions  []secretVersionsListEntry `json:"Versions"`
+	NextToken string                    `json:"NextToken,omitempty"`
 }
 
 // ----------------------------------------------------------------------
