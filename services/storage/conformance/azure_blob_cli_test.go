@@ -80,10 +80,11 @@ func TestAzureBlob_CLI_ContainerLifecycle(t *testing.T) {
 	mustRun("storage", "container", "create", "--name", "alpha")
 	mustRun("storage", "container", "create", "--name", "beta")
 
-	out := mustRun("storage", "container", "list", "--query", "[].name", "-o", "tsv")
-	names := strings.Fields(string(out))
-	if len(names) != 2 {
-		t.Errorf("container list = %v, want 2", names)
+	// `az` returns the list-containers result as a JSON array; ask for
+	// length(@) so we don't have to disambiguate tsv vs json output.
+	out := mustRun("storage", "container", "list", "--query", "length(@)")
+	if got := strings.TrimSpace(string(out)); got != "2" {
+		t.Errorf("container list count = %q, want 2", got)
 	}
 
 	mustRun("storage", "container", "delete", "--name", "alpha")

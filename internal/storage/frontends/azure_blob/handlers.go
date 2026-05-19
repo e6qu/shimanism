@@ -2,6 +2,7 @@ package azure_blob
 
 import (
 	"encoding/xml"
+	"fmt"
 	"io"
 	"net/http"
 	"strconv"
@@ -199,9 +200,88 @@ func (srv *Server) getBlob(w http.ResponseWriter, r *http.Request, container, bl
 		return
 	}
 	defer func() { _ = obj.Body.Close() }()
+
+	// Range support. `az storage blob download` chunks via Range
+	// requests and refuses the response if Content-Range is missing
+	// (`ValueError: Required Content-Range response header is missing
+	// or malformed.`). For full-body requests we still return 200 +
+	// Content-Length; for ranged requests we read up to the requested
+	// suffix, write 206 + Content-Range.
+	rng := r.Header.Get("Range")
+	if rng == "" {
+		writeBlobHeaders(w, obj)
+		w.WriteHeader(http.StatusOK)
+		_, _ = io.Copy(w, obj.Body)
+		return
+	}
+	start, end, ok := parseSingleRange(rng, obj.Size)
+	if !ok {
+		writeError(w, http.StatusRequestedRangeNotSatisfiable, "InvalidRange",
+			"unparseable Range header: "+rng)
+		return
+	}
+	// Skip the first `start` bytes then read `end-start+1` bytes.
+	// io.CopyN handles short reads as EOF, which is fine here.
+	if start > 0 {
+		if _, err := io.CopyN(io.Discard, obj.Body, start); err != nil {
+			writeError(w, http.StatusInternalServerError, "InternalError",
+				"seeking to range start: "+err.Error())
+			return
+		}
+	}
+	length := end - start + 1
 	writeBlobHeaders(w, obj)
-	w.WriteHeader(http.StatusOK)
-	_, _ = io.Copy(w, obj.Body)
+	w.Header().Set("Content-Length", strconv.FormatInt(length, 10))
+	w.Header().Set("Content-Range", fmt.Sprintf("bytes %d-%d/%d", start, end, obj.Size))
+	w.WriteHeader(http.StatusPartialContent)
+	_, _ = io.CopyN(w, obj.Body, length)
+}
+
+// parseSingleRange parses an HTTP "Range: bytes=START-END" header,
+// returning the inclusive [start, end] byte range. Suffix ranges
+// ("bytes=-500") and open-ended ranges ("bytes=500-") are supported.
+// Multi-range requests aren't supported (Azure clients don't issue
+// them).
+func parseSingleRange(h string, size int64) (start, end int64, ok bool) {
+	const prefix = "bytes="
+	if !strings.HasPrefix(h, prefix) {
+		return 0, 0, false
+	}
+	spec := strings.TrimPrefix(h, prefix)
+	if strings.Contains(spec, ",") {
+		return 0, 0, false
+	}
+	dash := strings.IndexByte(spec, '-')
+	if dash < 0 {
+		return 0, 0, false
+	}
+	startS, endS := spec[:dash], spec[dash+1:]
+	if startS == "" {
+		// Suffix: bytes=-N → last N bytes.
+		n, err := strconv.ParseInt(endS, 10, 64)
+		if err != nil || n <= 0 {
+			return 0, 0, false
+		}
+		if n > size {
+			n = size
+		}
+		return size - n, size - 1, true
+	}
+	s, err := strconv.ParseInt(startS, 10, 64)
+	if err != nil || s < 0 || s >= size {
+		return 0, 0, false
+	}
+	if endS == "" {
+		return s, size - 1, true
+	}
+	e, err := strconv.ParseInt(endS, 10, 64)
+	if err != nil || e < s {
+		return 0, 0, false
+	}
+	if e >= size {
+		e = size - 1
+	}
+	return s, e, true
 }
 
 func (srv *Server) headBlob(w http.ResponseWriter, r *http.Request, container, blob string) {
