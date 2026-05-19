@@ -298,9 +298,9 @@ func (b *Backend) Receive(ctx context.Context, sub string, opt domain.ReceiveOpt
 		max = 10
 	}
 	in := &sqs.ReceiveMessageInput{
-		QueueUrl:            qu.QueueUrl,
-		MaxNumberOfMessages: max,
-		WaitTimeSeconds:     int32(opt.WaitTime),
+		QueueUrl:              qu.QueueUrl,
+		MaxNumberOfMessages:   max,
+		WaitTimeSeconds:       int32(opt.WaitTime),
 		MessageAttributeNames: []string{"All"},
 	}
 	if opt.AckDeadline > 0 {

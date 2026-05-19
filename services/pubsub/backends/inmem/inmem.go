@@ -35,11 +35,11 @@ type topicState struct {
 }
 
 type subscriptionState struct {
-	name      string
-	topic     string
+	name               string
+	topic              string
 	ackDeadlineSeconds int
-	durable   bool
-	createdAt time.Time
+	durable            bool
+	createdAt          time.Time
 
 	pending  []*messageState
 	inflight map[string]*messageState // keyed by receipt handle

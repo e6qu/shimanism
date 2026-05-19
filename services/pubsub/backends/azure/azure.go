@@ -11,8 +11,8 @@
 //   - Raw HTTP REST + SAS-token signing for Complete + RenewLock,
 //     because the high-level SDK requires *ReceivedMessage and the
 //     shim is stateless. URL shape:
-//       DELETE /{topic}/Subscriptions/{sub}/messages/{messageID}/{lockToken}
-//       POST   /{topic}/Subscriptions/{sub}/messages/{messageID}/{lockToken}
+//     DELETE /{topic}/Subscriptions/{sub}/messages/{messageID}/{lockToken}
+//     POST   /{topic}/Subscriptions/{sub}/messages/{messageID}/{lockToken}
 //
 // The receipt handle encodes "<topic>|<sub>|<messageID>|<lockToken>"
 // so Ack / ChangeVisibility can reconstruct the URL without
