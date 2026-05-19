@@ -149,6 +149,12 @@ type apiResponse struct {
 	ProtocolType string `json:"protocolType"`
 	ApiEndpoint  string `json:"apiEndpoint,omitempty"`
 	CreatedDate  string `json:"createdDate,omitempty"`
+	// Default selection expressions — real APIGW v2 returns these
+	// even when no custom value is configured. Without them the
+	// Terraform provider proposes a diff after import (Phase 9.5
+	// fidelity fix).
+	ApiKeySelectionExpression string `json:"apiKeySelectionExpression,omitempty"`
+	RouteSelectionExpression  string `json:"routeSelectionExpression,omitempty"`
 }
 
 type getApisResponse struct {
@@ -387,10 +393,12 @@ func apiEndpointURL(name string) string {
 
 func gatewayToAPI(g domain.Gateway) *apiResponse {
 	out := &apiResponse{
-		ApiId:        g.Name,
-		Name:         g.Name,
-		ProtocolType: "HTTP",
-		CreatedDate:  g.CreatedAt.UTC().Format(time.RFC3339),
+		ApiId:                     g.Name,
+		Name:                      g.Name,
+		ProtocolType:              "HTTP",
+		CreatedDate:               g.CreatedAt.UTC().Format(time.RFC3339),
+		ApiKeySelectionExpression: "$request.header.x-api-key",
+		RouteSelectionExpression:  "$request.method $request.path",
 	}
 	if g.Status == domain.StatusAvailable {
 		if g.Endpoint.URL != "" {
