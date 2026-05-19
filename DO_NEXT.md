@@ -14,7 +14,7 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 
 | Sub | Status | Headline |
 |---|---|---|
-| **2.1** | ◻ | Spec ingest. Vendor AWS Secrets Manager Smithy JSON + GCP Secret Manager Discovery doc + Azure Key Vault OpenAPI v3. Pin upstream commit SHAs in `services/secrets/spec/SOURCES.md`. License check via `make license-check`. |
+| **2.1** | ◐ | Spec ingest. AWS Secrets Manager Smithy 2.0 JSON vendored under `services/secrets/spec/`, pinned to `aws/aws-sdk-go-v2@2517fe9f`. `services/secrets/codegen.json` manifest names the 7 intersection ops. GCP + Azure specs reused via their official Go SDKs' wire-type packages (same approach as the GCS + Azure Blob frontends in Phase 1.14/1.15). |
 | **2.2** | ◻ | `internal/secrets/domain/` neutral interface. Op set: `CreateSecret`, `GetSecretValue(version)`, `PutSecretValue` (creates new version), `DeleteSecret(force)`, `HeadSecret`, `ListSecrets`, `ListVersions`. Error kinds: `NoSuchSecret`, `SecretAlreadyExists`, `SecretBeingDeleted`, `InvalidArgument`. Versions: monotonic uint64 internally; per-cloud encoding in adapters. |
 | **2.3** | ◻ | AWS Secrets Manager frontend. Codegen for the intersection ops via the existing Smithy emitter. `internal/secrets/frontends/aws_secretsmanager/` adapter implements `gen.AWSSecretsManagerBackend` by translating to `domain.Secrets`. JSON-over-HTTP wire (Smithy `aws.protocols#awsJson1_1`); reuse the AWS SigV4 verifier (accepted but not validated at this phase, same posture as Phase 1). |
 | **2.4** | ◻ | `services/secrets/backends/inmem/` real in-memory backend covering all 7 ops. `services/secrets/conformance/` SDK conformance via `aws-sdk-go-v2/service/secretsmanager`. |
