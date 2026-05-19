@@ -8,23 +8,23 @@
 //
 // Architecture (mock-tier):
 //
-//   ┌──────────────────────┐
-//   │ terraform (hashicorp/│
-//   │ aws) — aws_s3_bucket │
-//   └──────────┬───────────┘
-//              │ SigV4 GET, endpoints { s3 = $SHIM }
-//              ▼
-//   ┌──────────────────────┐
-//   │ shim AWS S3 frontend │
-//   │ + GCS backend        │
-//   └──────────┬───────────┘
-//              │ GCS JSON GET (STORAGE_EMULATOR_HOST=$MOCK_GCS)
-//              ▼
-//   ┌──────────────────────┐
-//   │ Mock cloud B (GCS)   │
-//   │ = harness GCS front  │
-//   │   over inmem         │
-//   └──────────────────────┘
+//	┌──────────────────────┐
+//	│ terraform (hashicorp/│
+//	│ aws) — aws_s3_bucket │
+//	└──────────┬───────────┘
+//	           │ SigV4 GET, endpoints { s3 = $SHIM }
+//	           ▼
+//	┌──────────────────────┐
+//	│ shim AWS S3 frontend │
+//	│ + GCS backend        │
+//	└──────────┬───────────┘
+//	           │ GCS JSON GET (STORAGE_EMULATOR_HOST=$MOCK_GCS)
+//	           ▼
+//	┌──────────────────────┐
+//	│ Mock cloud B (GCS)   │
+//	│ = harness GCS front  │
+//	│   over inmem         │
+//	└──────────────────────┘
 //
 // The bucket exists in `inmem` (the data layer for the mock GCS).
 // Terraform thinks it's an aws_s3_bucket. Import succeeds + plan
@@ -51,9 +51,9 @@ import (
 	gcsstorage "cloud.google.com/go/storage"
 	"google.golang.org/api/option"
 
+	"github.com/e6qu/shimanism/internal/restxml"
 	awsfront "github.com/e6qu/shimanism/internal/storage/frontends/aws_s3"
 	gcsfront "github.com/e6qu/shimanism/internal/storage/frontends/gcs"
-	"github.com/e6qu/shimanism/internal/restxml"
 	"github.com/e6qu/shimanism/services/storage/backends/gcs"
 	"github.com/e6qu/shimanism/services/storage/backends/inmem"
 	storagegen "github.com/e6qu/shimanism/services/storage/gen"
