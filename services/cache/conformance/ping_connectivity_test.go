@@ -46,11 +46,13 @@ func TestPingConnectivity_RedisOp(t *testing.T) {
 	})
 
 	const name = "ping-test"
+	const password = "shim-ping-supersecret"
 	cOut, err := client.CreateCacheCluster(ctx, &elasticache.CreateCacheClusterInput{
 		CacheClusterId: awsapi.String(name),
 		Engine:         awsapi.String("redis"),
 		EngineVersion:  awsapi.String("7.0"),
 		CacheNodeType:  awsapi.String("cache.t3.micro"),
+		AuthToken:      awsapi.String(password),
 	})
 	if err != nil {
 		t.Fatalf("CreateCacheCluster: %v", err)
@@ -92,8 +94,11 @@ func TestPingConnectivity_RedisOp(t *testing.T) {
 	host, port := portForwardService(t, ctx, endpoint)
 
 	// Open a real RESP connection. The shim is not on this path.
+	// Auth uses the password the test supplied at CreateCacheCluster;
+	// the shim stored it in the Secret the operator references.
 	rdb := redis.NewClient(&redis.Options{
-		Addr: fmt.Sprintf("%s:%d", host, port),
+		Addr:     fmt.Sprintf("%s:%d", host, port),
+		Password: password,
 	})
 	defer rdb.Close()
 
