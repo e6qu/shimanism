@@ -8,6 +8,37 @@
 
 State [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](BUGS.md) · roadmap [PLAN.md](PLAN.md) · philosophy [PHILOSOPHY.md](PHILOSOPHY.md) · rules [AGENTS.md](AGENTS.md).
 
+## Where Phase 9 stands (live status on PR #13)
+
+A substantial chunk of Phase 9 landed on the Phase 8 PR per user instruction "keep phase 9 to the same open PR." Concretely:
+
+- **9.0 ✅** This plan + codex review revisions applied.
+- **9.1 ✅** `cmd/shimctl` + `internal/clientconfig/overrides.yaml` (per-cloud × per-service endpoint-override registry).
+- **9.2 ✅** Importer-read contract traces captured per service in `services/<svc>/conformance/importer_contract.md` (storage, secrets, queue, pubsub, apigateway, functions, rdbms, cache).
+- **9.2-A ✅** No-fakes audit + `services/<svc>/INTERSECTION.md` per service. Surfaced and fixed 6 real fidelity bugs (BUG-9/10/11 closed; 6 inline fixes: SNS XML double-nesting + Policy JSON + ListTagsForResource + DisplayName; APIGW selection-expression defaults; 7 Lambda Read-path subresources; RDS DBInstanceArn + DbiResourceId; queue ListQueueTags handler).
+- **9.2-B ✅** `services/<svc>/MIGRATION.md` per service — runnable walkthroughs proving the intersection is migration-useful.
+- **9.5 ✅** `terraform_import_test.go` per service — 8 single-cloud import tests, all green.
+- **9.11 ✅** `cmd/shim mock` subcommand — bundle inmem-backed cloud-shaped APIs on localhost ports.
+- **9.13 ✅** Cross-cloud exit criterion — **six services validated**: AWS → GCS (storage), AWS → GCP Pub/Sub (queue), AWS → GCP API Gateway (apigateway), AWS → GCP Memorystore (cache), AWS → GCP Cloud Run (functions), AWS → GCP Cloud SQL (rdbms). Reverse direction (GCS → AWS) skeleton landed, skipped pending hashicorp/google credentials Track A work.
+
+**Filed in BUGS.md (not yet fixed):** BUG-12 (queue domain tag storage), BUG-13 (Lambda memory_size/role/publish defaults).
+
+### Remaining Phase 9 work (next PR after PR #13 merge)
+
+- **9.3** Mock cloud servers as a packaging story (the existing `cmd/shim mock` is the seed).
+- **9.7** Full matrix import driver (every frontend × backend cell, all services).
+- **9.8 / 9.9** CLI + SDK import smoke (separate from full TF import).
+- **9.12** CI lane `conformance-import-matrix`.
+- **9.14** Phase 9 closer.
+
+### Phase 9-A (real-cloud, Track A) carry
+
+- Reverse-direction cross-cloud tests once provider credentials handling clears (especially hashicorp/google).
+- Real-cloud lanes for storage / secrets / queue / pubsub / rdbms / cache / functions / apigateway behind Track A credentials.
+- The pattern proven on PR #13 (mock cloud B = shim frontend over inmem; shim backend points at mock; real provider drives the user-facing shim) extends 1:1 to real cloud B by swapping the mock for the real backend's URL.
+
+
+
 ## What "intersection" means here — useful for migration, not lowest common denominator
 
 The shim exists to **help users migrate, service by service, between clouds and to/from K8s or on-prem.** A migration user's question is *"can I keep my AWS-shaped Terraform module, point it at a GCS backend through the shim, and have my workloads continue to function?"* The intersection that matters is whatever serves that question — not the trivially overlapping subset of every cloud's API.
