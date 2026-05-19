@@ -89,16 +89,22 @@ func (b *Backend) CreateInstance(ctx context.Context, name string, opt domain.Cr
 	redis.SetKind("Redis")
 	redis.SetName(name)
 	redis.SetNamespace(b.namespace)
+	image := b.image
+	if image == "" {
+		// OT-CONTAINER-KIT's published default; pinned for
+		// reproducibility. The operator requires spec.kubernetesConfig.image
+		// to be non-empty.
+		image = "quay.io/opstree/redis:v7.0.12"
+	}
 	spec := map[string]interface{}{
 		"kubernetesConfig": map[string]interface{}{
+			"image":           image,
+			"imagePullPolicy": "IfNotPresent",
 			"redisSecret": map[string]interface{}{
 				"name": secretName,
 				"key":  "password",
 			},
 		},
-	}
-	if b.image != "" {
-		spec["kubernetesConfig"].(map[string]interface{})["image"] = b.image
 	}
 	redis.Object["spec"] = spec
 	if _, err := b.dyn.Resource(redisGVR).Namespace(b.namespace).Create(ctx, redis, metav1.CreateOptions{}); err != nil {
