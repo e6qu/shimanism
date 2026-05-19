@@ -9,9 +9,10 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 | | |
 |---|---|
 | Active branch | `phase-1.4-conformance-harness` — PR open. Intersection scoping correction + conformance harness skeleton. |
-| In-flight | **Phase 2 on PR #7.** Three secrets frontends (AWS Secrets Manager, GCP Secret Manager, Azure Key Vault) × five backends (inmem, Vault KV v2 as K8s peer, AWS / GCP / Azure passthrough) wired through `internal/secrets/domain.Secrets`. SDK matrix green for inmem; vault lane lights up in CI; real-cloud lanes await Track A. CLI: AWS + GCP green; Azure skipped (no data-plane URL override). TF: AWS + GCP green; azurerm skipped (same constraint as Phase 1 storage Azure Blob). `cmd/shim secrets` subcommand lands. Stateless invariant captured across all four rule docs (AGENTS.md / PLAN.md / STATUS.md / PHILOSOPHY.md). |
+| In-flight | **Phase 3 on `phase-3-queue` branch.** Three queue frontends (AWS SQS, GCP Pub/Sub pull, Azure Service Bus queue) × four backends (the three clouds + NATS JetStream as K8s peer) × three driver types (SDK + CLI + Terraform). Same N × N matrix discipline as Phases 1 + 2. Design baseline in [`services/queue/OPERATIONS.md`](services/queue/OPERATIONS.md) — 8-op intersection with opaque receipt handles, capped 600s visibility timeout, capped 20s long-poll wait. |
+| Phase 2 closed | PR #7 merged `7df43ec` 2026-05-19. Three secrets frontends × five secrets backends × three driver types; 12 required CI checks. Stateless invariant + shimakit framework + shima<service> naming convention landed alongside. |
 | Phase 1 closed | PR #6 merged `1f64d9f` 2026-05-19. Three storage frontends × five storage backends × three driver types matrix; 11 required CI checks. |
-| CI baseline | Required checks include the 11 Phase-1 ones + `conformance-vault` added in Phase 2.15. |
+| CI baseline | Required checks include the 12 Phase-2 ones; Phase 3 will add `conformance-nats` (NATS dev container) when 3.15 lands. |
 | Scope rule (2026-05-18) | **Each phase ships the full N × N matrix.** Previous PLAN.md had Phases 9 and 10 as "GCP source row" and "Azure source row" of horizontal expansion across all 8 services; user reversed this. Each service phase now includes all 3 frontends + all 4 backends + SDK / CLI / Terraform for each, before moving to the next service. Phases 9 and 10 deleted; their work is absorbed into Phases 1-8. |
 | Last merged | PR #5 — Phase 1.3 (codegen, originally all 107 ops) (`03b0ebb`, 2026-05-18). |
 | Standing merge auth | **None.** User merges every PR. |

@@ -6,60 +6,49 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 
 ## Where we are
 
-- **Last merged:** PR #6 (Phase 1 — object storage, full 3 × 5 × 3 matrix + CI tooling) at `1f64d9f` on `origin/main`, 2026-05-19.
-- **Active branch:** `phase-2-secrets` — fresh branch off `main`, no commits yet, no PR yet.
-- **Project phase:** **Phase 2 — Secrets management.** Three frontends (AWS Secrets Manager, GCP Secret Manager, Azure Key Vault) × four backends (the three clouds + Vault as K8s peer) × three driver types (SDK + CLI + Terraform). Same N × N matrix discipline as Phase 1.
+- **Last merged:** PR #7 (Phase 2 — secrets, full 3 × 5 × 3 matrix + shimakit framework) at `7df43ec` on `origin/main`, 2026-05-19.
+- **Active branch:** `phase-3-queue` — fresh branch off `main`, no commits yet, no PR yet.
+- **Project phase:** **Phase 3 — Queue.** Three frontends (AWS SQS, GCP Pub/Sub pull, Azure Service Bus queue) × four backends (the three clouds + NATS JetStream as K8s peer) × three driver types (SDK + CLI + Terraform). Same N × N matrix discipline as Phases 1 + 2.
 
-## Phase 2 sub-task table
+## Phase 3 sub-task table
 
 | Sub | Status | Headline |
 |---|---|---|
-| **2.1** | ✅ | Spec ingest. AWS Secrets Manager Smithy 2.0 JSON vendored under `services/secrets/spec/`, pinned to `aws/aws-sdk-go-v2@2517fe9f`. `services/secrets/codegen.json` manifest names the 7 intersection ops. GCP + Azure specs reused via their official Go SDKs' wire-type packages (same approach as the GCS + Azure Blob frontends in Phase 1.14/1.15). |
-| **2.2** | ✅ | `internal/secrets/domain/` neutral interface — `Secrets` interface + types (`Secret`, `SecretValue`, `Version`, `CreateSecretOptions`, `*Result`, `ListSecretsOptions`); typed `Error` with `Kind` discriminator + sentinel constructors. Versions: monotonic uint64; mapping to/from native cloud handles derived per-request (stateless). |
-| **2.3** | ✅ | AWS Secrets Manager frontend `internal/secrets/frontends/aws_secretsmanager/`. Hand-written awsJson1_1 dispatch + per-op JSON shapes mirroring the Smithy spec; tags + version IDs round-trip; AWSCURRENT / AWSPREVIOUS stage labels resolved by listing versions (no shim-side mapping table). ARN normalisation accepts both shim-issued and real-AWS-shaped ARNs. The existing Smithy codegen emits REST-XML; extending it to JSON-protocol is deferred (noted in commit 3b83aa5). |
-| **2.4** | ✅ | `services/secrets/backends/inmem/` covering all 7 ops with versioned values + soft-delete state. `services/secrets/conformance/aws_sdk_test.go` drives `aws-sdk-go-v2/service/secretsmanager` against the in-mem backend: secret lifecycle, AWSCURRENT/AWSPREVIOUS + explicit-VersionId reads, ARN normalisation, duplicate-create rejection. `harness.StartSecretsServerAWS` mounts the frontend → in-mem chain on a random localhost port. |
-| **2.5** | ✅ | **Vault backend** (K8s peer): `services/secrets/backends/vault/` via `hashicorp/vault/api`. Maps domain secrets to KV v2 paths under a configurable mount (default `secret`). Vault's native version numbering is monotonic → 1:1 with the domain. Description encoded as `shim-description` key in custom_metadata. Soft delete = `DELETE <mount>/data/<name>` (current version marked deleted); force = `DELETE <mount>/metadata/<name>` (removes everything). `deploy/k8s/peer-secrets/` manifests follow in 2.13. |
-| **2.6** | ✅ | **AWS Secrets Manager passthrough backend** `services/secrets/backends/aws/` via `aws-sdk-go-v2/service/secretsmanager`. Monotonic version ↔ AWS UUID derived per request by calling `ListSecretVersionIds` + sorting by CreatedDate (no shim-side mapping table). |
-| **2.7** | ✅ | **GCP Secret Manager backend** `services/secrets/backends/gcp/` via `cloud.google.com/go/secretmanager/apiv1`. GCP's native numeric versions match the domain's monotonic uint64 1:1; `latest` maps directly. Description encoded as `shim-description` label. Hard-delete only (GCP has no soft-delete). |
-| **2.8** | ✅ | **Azure Key Vault backend** `services/secrets/backends/azure/` via `azure-sdk-for-go/sdk/security/keyvault/azsecrets`. Monotonic ↔ GUID derived per request from `ListSecretPropertiesVersions` sorted by CreatedOn (stateless). Description encoded as `shim-description` tag. Soft-delete uses Azure's native recovery flow; force-delete polls then `PurgeDeletedSecret`. |
-| **2.9** | ✅ | **GCP Secret Manager frontend** `internal/secrets/frontends/gcp_secretmanager/`. Wire types from `google.golang.org/api/secretmanager/v1` (Discovery-generated). Routes cover `projects/*/secrets/*` + `versions/*` + `:access` and `:addVersion`. SDK conformance via `google.golang.org/api/secretmanager/v1` against in-mem backend: create, addVersion, access (latest + by-number), get-secret, list-secrets, list-versions, delete. |
-| **2.10** | ✅ | **Azure Key Vault frontend** `internal/secrets/frontends/azure_keyvault/`. Routes cover `/secrets/{name}` + `/secrets/{name}/{version}` + `/deletedsecrets`. SDK conformance via `azure-sdk-for-go/sdk/security/keyvault/azsecrets`. Implements the Azure challenge-response auth flow (401 with `WWW-Authenticate: Bearer …` on first attempt without token) so SDK clients send the body on retry; harness uses `httptest.NewTLSServer` because the Azure SDK refuses to send credentials over plain HTTP. |
-| **2.11** | ✅ | Conformance matrix: `TestSecretsMatrix_{AWSFrontend,GCPFrontend,AzureFrontend}` iterates every backend factory (inmem, vault, aws, gcp, azure) and drives the matching cloud's official Go SDK through Create → Get → Put → Get. Inmem always runs; the four others skip pending env vars (vault dev container in CI; the three real-cloud lanes wait on Track A). |
-| **2.12** | ✅ | CLI conformance: `aws secretsmanager` (TestAWSCLI_SecretLifecycle), `gcloud secrets` (TestGCPCLI_SecretLifecycle). `az keyvault secret` skipped — the CLI resolves the data-plane URL from `--vault-name` + a fixed `*.vault.azure.net` suffix and has no override flag/env var; documented in the test. |
-| **2.13** | ✅ | Terraform conformance: `hashicorp/aws` (aws_secretsmanager_secret + secret_version, full init/apply/destroy), `hashicorp/google` (google_secret_manager_secret + secret_version). `hashicorp/azurerm` skipped with the documented Phase-1-Azure-Blob-style constraint (no provider-level data-plane endpoint override). Shim fixes surfaced by TF: AWS frontend ARN normaliser now only strips the 6-char random suffix on real-region ARNs (not shim-issued); AWS frontend added GetResourcePolicy as a probe; GCP frontend added `:enable` and `:disable` as no-op probes. |
-| **2.14** | ✅ | `cmd/shim secrets` subcommand. Selectors: -frontend (aws_secretsmanager, gcp_secretmanager, azure_keyvault), -backend (inmem, vault, aws, gcp, azure). Connection knobs accept both flags and env vars. Version bumped to 0.3.0-phase-2. |
-| **2.15** | ✅ | CI lane `conformance-vault`: Vault dev container, `TestSecretsMatrix_*` against the live Vault backend (all three frontends). Real-cloud lanes (aws-secrets, gcp-secrets, azure-secrets) wait on Track A. |
-| **2.16** | ✅ | Phase 2 closer: all 12 required CI checks green (lint, typecheck, pre-commit, go vet+test+build, conformance × 4 [minio/gcs/azureblob/vault], branch-rebased, symlinks, continuity-docs, licenses). PR #7 retitled + body refreshed. Surfaced 1 latent Vault-backend bug during CI: `CreateSecret` was reading `(*Secret, error)` and checking `err == nil` alone — the Vault API library returns `(nil, nil)` for 404, so empty results were misread as "already exists". Fixed by also checking the response pointer + Data map. |
+| **3.0** | ◐ | Scope + design baseline. `services/queue/OPERATIONS.md` captures the 8-op intersection across AWS SQS / GCP Pub/Sub (pull) / Azure Service Bus queues / NATS JetStream (K8s peer); receipt-handle / visibility-timeout / message-attributes mapping; out-of-intersection list (FIFO, DLQ, KMS, push, IAM); stateless rule applied (no shim-side handle index). |
+| **3.1** | ◻ | Spec ingest. AWS SQS Smithy 2.0 JSON vendored under `services/queue/spec/`. `services/queue/codegen.json` manifest names the 8 intersection ops. GCP + Azure specs reused via their official Go SDKs' wire-type packages, per Phase 1.14/1.15/2.x precedent. |
+| **3.2** | ◻ | `internal/queue/domain/` neutral interface — `Queue` interface + types (`Message`, `QueueAttributes`, `ReceiveOptions`); typed `Error` with `Kind` discriminator (NoSuchQueue, QueueAlreadyExists, InvalidReceiptHandle, MessageTooLarge, InvalidArgument). Receipt handles are opaque strings; visibility timeout in seconds. |
+| **3.3** | ◻ | AWS SQS frontend `internal/queue/frontends/aws_sqs/`. Hand-written awsQuery (SQS uses POST with form-encoded body, not awsJson) dispatch + per-op shapes mirroring the Smithy spec. Note: SQS is one of the rare AWS services on awsQuery protocol; codegen extension deferred. |
+| **3.4** | ◻ | `services/queue/backends/inmem/` covering all 8 ops with in-flight tracking + visibility-timeout expiry. `services/queue/conformance/aws_sdk_test.go` drives `aws-sdk-go-v2/service/sqs` against the in-mem backend. |
+| **3.5** | ◻ | **NATS JetStream backend** (K8s peer): `services/queue/backends/nats/` via `nats.go` + `jetstream` package. Maps domain Queue to a JetStream stream + pull consumer. ChangeVisibility maps to `Msg.InProgress` (extends ack deadline). |
+| **3.6** | ◻ | **AWS SQS passthrough backend** `services/queue/backends/aws/` via `aws-sdk-go-v2/service/sqs`. Receipt handle passes through as opaque string. |
+| **3.7** | ◻ | **GCP Pub/Sub backend** `services/queue/backends/gcp/` via `cloud.google.com/go/pubsub`. Domain queue maps to a topic + subscription pair. `AckId` ↔ opaque receipt handle. |
+| **3.8** | ◻ | **Azure Service Bus backend** `services/queue/backends/azure/` via `azure-sdk-for-go/sdk/messaging/azservicebus`. `LockToken` + `MessageId` encoded into the composite opaque receipt handle. |
+| **3.9** | ◻ | **GCP Pub/Sub frontend** `internal/queue/frontends/gcp_pubsub/`. Wire types from `google.golang.org/api/pubsub/v1` (Discovery-generated). Routes cover topics + subscriptions + `:pull` and `:acknowledge`. |
+| **3.10** | ◻ | **Azure Service Bus frontend** `internal/queue/frontends/azure_servicebus/`. AMQP-vs-REST decision (per PLAN.md open question): REST-only at this phase via the management API; AMQP wire-level shim deferred. |
+| **3.11** | ◻ | Conformance matrix: `TestQueueMatrix_{AWSFrontend,GCPFrontend,AzureFrontend}` iterates every backend factory and drives the matching cloud's official Go SDK through Send → Receive → Delete → Send → Receive → Change-Visibility → Delete. |
+| **3.12** | ◻ | CLI conformance: `aws sqs`, `gcloud pubsub`, `az servicebus`. |
+| **3.13** | ◻ | Terraform conformance where the provider admits endpoint override: `hashicorp/aws` (`aws_sqs_queue`), `hashicorp/google` (`google_pubsub_topic` + `google_pubsub_subscription`). `hashicorp/azurerm` likely skipped same as Phase 1 + 2 — confirm at the time. |
+| **3.14** | ◻ | `cmd/shim queue` subcommand. Selectors: -frontend (aws_sqs, gcp_pubsub, azure_servicebus), -backend (inmem, nats, aws, gcp, azure). Connection knobs accept flags + env vars. Version bumped to 0.4.0-phase-3. |
+| **3.15** | ◻ | CI lane `conformance-nats`: NATS dev container, `TestQueueMatrix_*` against the live NATS backend. Real-cloud lanes (aws-sqs, gcp-pubsub, azure-servicebus) wait on Track A. |
+| **3.16** | ◻ | Phase 3 closer: SDK matrix green across all (frontend × backend) cells; CLI + TF rows green where their tooling admits endpoint override; ◇ skipped cells documented per Phase 1+2 convention. CI green across all required checks. PR retitled + body refreshed. |
 
 Status legend: ✅ done · ◐ in progress · ◻ pending · ⏸ paused.
 
-## Phase 2 design notes
+## Phase 3 design notes
 
-**Version semantics — the hard part.** The three clouds model versions differently:
+**Receipt handles — the hard part.** AWS / GCP / Azure / NATS each emit a different opaque token after a receive that the consumer must present back to ack / extend / delete. The domain uses opaque-string handles; each backend adapter maps native ↔ opaque. **No shim-side index** — per the no-state rule the handle round-trips through the backend, with composite encoding for Azure where the native pair (MessageId + LockToken) doesn't fit one string. See [`services/queue/OPERATIONS.md`](services/queue/OPERATIONS.md#receipt-handles) for the per-cloud mapping.
 
-| Cloud | Version handle | "Latest" alias | Stage labels |
-|---|---|---|---|
-| AWS Secrets Manager | `VersionId` (UUID) + `VersionStages[]` (e.g. `AWSCURRENT`, `AWSPREVIOUS`) | `AWSCURRENT` | yes, multiple per version |
-| GCP Secret Manager | numeric `versions/<N>` | `versions/latest` (alias) | no |
-| Azure Key Vault | hex GUID | bare secret name returns latest | no |
-| Vault KV v2 | numeric `metadata.current_version` | implicit on bare GET | no |
+**Visibility / ack-deadline semantics.** AWS lets you override per-receive (up to 12h); GCP caps at 600s (10m) and doesn't honour a per-receive override (use `ModifyAckDeadline` after the receive instead); Azure extends via `RenewMessageLock`; NATS uses `Msg.InProgress`. Domain caps at 600 seconds across all backends so behaviour is uniform.
 
-The domain interface uses **monotonic uint64** version numbers as the canonical identifier. Each backend's adapter maps that to/from the cloud's native form:
-
-- AWS adapter: store `(monotonic, VersionId)` pairs in the backend's metadata; map staleness via `AWSCURRENT` stage.
-- GCP adapter: monotonic maps directly to `versions/<N>`.
-- Azure adapter: monotonic ↔ GUID cached in the backend's metadata.
-- Vault adapter: monotonic maps directly to `metadata.versions[i].version`.
-
-`AWSCURRENT` / `AWSPREVIOUS` stage semantics live in the AWS frontend adapter (not in the domain) — they're AWS-specific.
+**Wait time.** AWS caps at 20s; Azure at 240s; NATS unbounded; GCP recommends streaming pull. Domain caps at 20s; backends that don't natively support per-receive wait busy-poll up to the budget.
 
 **Out-of-intersection features (return source-cloud "not supported" error):**
-- AWS rotation lambdas, replication regions, KMS encryption-context overrides
-- GCP TTL-based expiration, replication policies, Pub/Sub topic notifications
-- Azure HSM-backed keys, cert imports, soft-delete recovery beyond a basic 7-day window
-- Vault dynamic secrets, transit-engine ops, PKI roles
+- AWS FIFO queues, DLQ redrive, KMS encryption, message timers
+- GCP ordering keys, push subscriptions, filters, exactly-once
+- Azure sessions, duplicate detection, DLQ, scheduled messages, topics/subscriptions, partitioning
+- NATS push consumers, mirror streams, replay policies
 
-**K8s peer choice — Vault.** Per [PLAN.md § Phase 2](PLAN.md#phase-2--secrets), Vault is the K8s-native peer. The shim talks to it via the KV v2 secrets engine. Other Vault engines (transit, pki, etc.) are out of intersection.
+**K8s peer choice — NATS JetStream.** The KV / object engines inside JetStream are out of intersection (they belong to other shim services). Only the pull-consumer model is in scope.
 
 ## Invariants snapshot (full list in [STATUS.md § Invariants](STATUS.md#invariants-carry-across-compactions--fresh-sessions))
 
