@@ -16,6 +16,7 @@ import (
 	pubsubdomain "github.com/e6qu/shimanism/internal/pubsub/domain"
 	awssnsfront "github.com/e6qu/shimanism/internal/pubsub/frontends/aws_sns"
 	awssqsreceivefront "github.com/e6qu/shimanism/internal/pubsub/frontends/aws_sqs_receive"
+	azuresbtopicsfront "github.com/e6qu/shimanism/internal/pubsub/frontends/azure_servicebus_topics"
 	gcppubsubpsfront "github.com/e6qu/shimanism/internal/pubsub/frontends/gcp_pubsub"
 	queuedomain "github.com/e6qu/shimanism/internal/queue/domain"
 	awssqsfront "github.com/e6qu/shimanism/internal/queue/frontends/aws_sqs"
@@ -214,6 +215,17 @@ func StartPubsubServerAWS(t *testing.T, backend pubsubdomain.Pubsub) *PubsubServ
 func StartPubsubServerGCP(t *testing.T, backend pubsubdomain.Pubsub) *PubsubServer {
 	t.Helper()
 	srv := gcppubsubpsfront.New(backend)
+	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
+	t.Cleanup(ts.Close)
+	return &PubsubServer{URL: ts.URL, Close: ts.Close}
+}
+
+// StartPubsubServerAzure starts a shim instance with the Azure
+// Service Bus topics REST frontend. AMQP fidelity tier is deferred
+// per Phase 3's open question (same posture for pubsub topics).
+func StartPubsubServerAzure(t *testing.T, backend pubsubdomain.Pubsub) *PubsubServer {
+	t.Helper()
+	srv := azuresbtopicsfront.New(backend)
 	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
 	t.Cleanup(ts.Close)
 	return &PubsubServer{URL: ts.URL, Close: ts.Close}
