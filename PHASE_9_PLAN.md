@@ -8,6 +8,43 @@
 
 State [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](BUGS.md) · roadmap [PLAN.md](PLAN.md) · philosophy [PHILOSOPHY.md](PHILOSOPHY.md) · rules [AGENTS.md](AGENTS.md).
 
+## Hard invariant: every intersection endpoint does real work
+
+A reinforcement of [AGENTS.md § No fakes. No stubs. No mocks. No silent fallbacks. Ever.](AGENTS.md#no-fakes-no-stubs-no-mocks-no-silent-fallbacks-ever) — directly applicable to Phase 9:
+
+**Every URL path / RPC method / wire endpoint that the official CLI, SDK, or Terraform provider calls — when that endpoint is part of the cross-cloud intersection of functionality — must be backed by a real shim translation to a real backend.** No `return &T{}, nil` placeholders. No `204 No Content` shortcuts. No quietly-empty list responses. No "we'll wire it next phase."
+
+The three classes from the importer-read contract (above) are the *only* legitimate response shapes:
+
+1. **Backed by real backend state.** Tags, region, metadata, ARN-equivalents, etc. The shim's domain must actually persist + return them. If the inmem backend doesn't store the field today, sub-phase 9.2 surfaces it and 9.3 makes inmem store it. Inmem is a *real* fixture — the bytes / metadata it holds are the truth for the test, just as a real S3 bucket's state is the truth for production.
+2. **Feature genuinely not configured.** A brand-new bucket has no `BucketPolicy`; AWS returns `NoSuchBucketPolicy`. That is not a fake — it is the **real, true answer** ("this feature is unset on this resource"). The shim must produce the source cloud's *actual* "unset" envelope, byte-for-byte. A 200 with empty body is a fake; a 404 with the wrong code is a fake; only the correct error envelope counts.
+3. **Out of intersection.** AWS-only object-lock, GCP-only resource-tagging, Azure-only customer-managed soft-delete. The shim returns the source cloud's `NotImplemented` / `OperationNotSupported` / `BadRequest:NotConfigured` error verbatim. Out-of-intersection ≠ "we didn't bother" — it means *this feature has no honest cross-cloud counterpart*, and the user gets told so in the cloud's own error vocabulary.
+
+There is no fourth category. **A handler that returns "something that looks plausible" without driving real backend logic is a fake** and must be removed or BUGed.
+
+### Audit + remediation pass (Phase 9 sub-phase 9.2-A)
+
+Inserted between the importer-read contract trace and the mock implementation: a directed **audit** of every existing frontend's handlers (Phases 1–8 services × all 3 frontends) for any handler that:
+
+- Returns a hard-coded payload without consulting the backend.
+- Swallows a backend error and returns a synthesized success.
+- Discards request fields silently (e.g. tags supplied on `CreateBucket` not stored on the inmem `Bucket`).
+- Returns the wrong "unset" envelope (200 instead of 404, generic 500 instead of `NoSuchBucketPolicy`, etc.).
+
+Each finding files a BUG in [BUGS.md § Open](BUGS.md#open) **before** the fix lands. The audit's exit gate: every operation the CLI / SDK / TF provider importer hits resolves to category 1, 2, or 3 above — with no exceptions. The audit also runs against the intersection inventory below.
+
+### Intersection inventory (per-service deliverable)
+
+A new file per service: `services/<svc>/INTERSECTION.md`. Three columns:
+
+| Cloud-A wire op | Cross-cloud meaning | Status |
+|---|---|---|
+| `GET /v1/projects/{p}/locations/{l}/gateways/{g}` (GCP) | Describe a Gateway | **In intersection** — frontend dispatches to `domain.DescribeGateway`. |
+| `PUT /…/Microsoft.ApiManagement/service/{s}/apis/{a}/policies/{policyId}` (Azure) | Apply per-API policy (auth/transform/rate-limit) | **Out of intersection** — Phase 8's intersection is method+path+backend only. Returns `BadRequest:NotSupported`. |
+| `GET /v1/projects/{p}/locations/{l}/gateways/{g}/iamPolicy` (GCP) | Read IAM bindings | **Out of intersection** today; in scope only when an IAM intersection lands. Returns `NOT_IMPLEMENTED` per GCP error envelope. |
+
+Every operation the importer-read contract surfaces must appear in the inventory with one of the three statuses. The inventory + the audit are what Phase 9 hands to a future Phase that wants to add a new feature to the intersection — the gap is already inventoried.
+
 ## Why import (and why now)
 
 `terraform import` is the canonical "the resource already exists; tell me about it" operation. Unlike `terraform apply` (which the shim has been driving since Phase 1) **import does not create or modify anything** — the provider issues a `GetResource` against the cloud's wire endpoint and adopts the returned attributes verbatim. This is the single most demanding fidelity test:
@@ -143,7 +180,8 @@ Same table flipped for `google_*` and `azurerm_*` source clouds. Every cell in t
 | **9.0** | ◻ | Phase-9 scope baseline (this doc + `services/_import/OPERATIONS.md`). |
 | **9.1** | ◻ | `shimctl env` CLI: emits per-cloud + per-frontend endpoint-override env vars / TF snippets. Single source of truth at `internal/clientconfig/overrides.yaml`. |
 | **9.2** | ◻ | **Importer-read contract trace** per service. Run `TF_LOG=DEBUG terraform import` against an httptest recorder for each in-scope resource type. Capture op list + expected response shapes in `services/<svc>/conformance/importer_contract.md`. **No code yet** — this is the design input for 9.3+. |
-| **9.3** | ◻ | Mock cloud servers under `mocks/{aws,gcp,azure}/`. Each is a thin frontend around the inmem backend so the wire shape is identical to the corresponding shim frontend. Backs **exactly** the ops the 9.2 contracts enumerate, with the source cloud's "not configured" envelope for the rest. |
+| **9.2-A** | ◻ | **No-fakes audit + intersection inventory.** Per service, file `services/<svc>/INTERSECTION.md` classifying every operation the 9.2 trace surfaces as (1) in-intersection-real-work, (2) feature-genuinely-unset, or (3) out-of-intersection. Audit existing Phases 1–8 frontend handlers for any synthesized success / discarded fields / wrong-envelope unset response; file BUGs before fixes. Exit gate: no operation an importer hits returns a fake. |
+| **9.3** | ◻ | Mock cloud servers under `mocks/{aws,gcp,azure}/`. Each is a thin frontend around the inmem backend so the wire shape is identical to the corresponding shim frontend. Backs **exactly** the ops the 9.2 contracts enumerate, with the source cloud's true "not configured" envelope for unset features and the source cloud's "not supported" envelope for out-of-intersection. Verified by the 9.2-A audit. |
 | **9.4** | ◻ | Per-service import conformance for storage — `terraform import` against the AWS / GCP / Azure frontends, mock-backed. Uses `terraform plan -generate-config-out` then plan-is-no-diff. |
 | **9.5** | ◻ | Same for secrets, queue, pubsub. |
 | **9.6** | ◻ | Same for rdbms, cache. |
@@ -173,6 +211,7 @@ Per Codex review (Q3): real-cloud Terraform / CLI / SDK e2e tests **do not gate 
 - **No selective skipping by resource type.** If a resource's import doesn't work, file a BUG. The skip list is `services/<svc>/conformance/import-exempt.txt` and must cite a BUG ID.
 - **No "passes import, then `plan` proposes a diff" cell.** The exit criterion mandates plan-is-no-diff *after generating config from the imported state*. A cell that fails this is a BUG, not an exemption.
 - **No "the inmem domain knows enough" leap.** The provider's `Importer.Read` is the authority on what operations the importer needs; the importer-read contract trace (sub-phase 9.2) is the design input, not an afterthought.
+- **No endpoint without real work.** Every URL the CLI / SDK / TF provider calls (for an in-intersection operation) must do real translation against a real backend. No `return &T{}, nil` placeholders. The 9.2-A audit pass enforces this against existing Phases 1–8 frontends too — not just new Phase 9 code.
 
 ## Open design questions for review
 
