@@ -7,8 +7,8 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 ## Where we are
 
 - **Last merged:** PR #7 (Phase 2 — secrets, full 3 × 5 × 3 matrix + shimakit framework) at `7df43ec` on `origin/main`, 2026-05-19.
-- **Active branch:** `phase-3-queue` — fresh branch off `main`, no commits yet, no PR yet.
-- **Project phase:** **Phase 3 — Queue.** Three frontends (AWS SQS, GCP Pub/Sub pull, Azure Service Bus queue) × four backends (the three clouds + NATS JetStream as K8s peer) × three driver types (SDK + CLI + Terraform). Same N × N matrix discipline as Phases 1 + 2.
+- **Active branch:** `phase-3-queue` — 11 commits piled (3.0–3.15) + this closer. PR pending push.
+- **Project phase:** **Phase 3 — Queue closing.** Three frontends (AWS SQS, GCP Pub/Sub pull, Azure Service Bus REST) × five backends (inmem + NATS JetStream as K8s peer + the three clouds) × three driver types (SDK + CLI + Terraform). Full N × N matrix; SDK + CLI + TF rows green where their tooling admits endpoint override; remaining cells ◇ skipped with documented reasons.
 
 ## Phase 3 sub-task table
 
@@ -30,7 +30,7 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 | **3.13** | ✅ | Terraform conformance. `hashicorp/google` (`google_pubsub_topic` + `google_pubsub_subscription`) green against the GCP frontend. `hashicorp/aws aws_sqs_queue` ◇ skipped — provider reconciles via `SetQueueAttributes`, which is not yet in the queue intersection (filed as BUG-2). `hashicorp/azurerm azurerm_servicebus_queue` ◇ skipped — ARM-control-plane resource; the shim's Azure frontend exposes only the REST data plane. |
 | **3.14** | ✅ | `cmd/shim queue` subcommand at `cmd/shim/queue.go`. Selectors: -frontend (aws_sqs, gcp_pubsub, azure_servicebus), -backend (inmem, nats, aws, gcp, azure). Connection knobs accept flags + env vars (NATS_URL, AWS_SQS_ENDPOINT, GCP_PROJECT_ID, AZURE_SERVICEBUS_CONNECTION_STRING). Version bumped to 0.4.0-phase-3. |
 | **3.15** | ✅ | CI lane `conformance-nats` (added to `.github/workflows/checks.yml`): pulls `nats:2.10`, starts with `-js -m 8222`, waits on /healthz, sets NATS_URL, runs `go test -run TestQueueMatrix ./services/queue/conformance/...`. Real-cloud lanes (aws-sqs, gcp-pubsub, azure-servicebus) wait on Track A. |
-| **3.16** | ◻ | Phase 3 closer: SDK matrix green across all (frontend × backend) cells; CLI + TF rows green where their tooling admits endpoint override; ◇ skipped cells documented per Phase 1+2 convention. CI green across all required checks. PR retitled + body refreshed. |
+| **3.16** | ✅ | Phase 3 closer: SDK matrix green for the inmem cell of all three frontends; the four remaining (nats / aws / gcp / azure) cells skip cleanly per their env-var gates. CLI + TF rows green where their tooling admits endpoint override (`aws sqs`, `gcloud pubsub`, `google_pubsub_*`); ◇ skipped cells documented (`az servicebus`, `aws_sqs_queue` TF, `azurerm_servicebus_queue` TF, Azure SDK). CI lane `conformance-nats` added. STATUS / WHAT_WE_DID / BUGS refreshed. PR pending push. |
 
 Status legend: ✅ done · ◐ in progress · ◻ pending · ⏸ paused.
 

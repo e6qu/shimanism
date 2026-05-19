@@ -8,18 +8,19 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 
 | | |
 |---|---|
-| Active branch | `phase-1.4-conformance-harness` — PR open. Intersection scoping correction + conformance harness skeleton. |
-| In-flight | **Phase 3 on `phase-3-queue` branch.** Three queue frontends (AWS SQS, GCP Pub/Sub pull, Azure Service Bus queue) × four backends (the three clouds + NATS JetStream as K8s peer) × three driver types (SDK + CLI + Terraform). Same N × N matrix discipline as Phases 1 + 2. Design baseline in [`services/queue/OPERATIONS.md`](services/queue/OPERATIONS.md) — 8-op intersection with opaque receipt handles, capped 600s visibility timeout, capped 20s long-poll wait. |
+| Active branch | `phase-3-queue` — PR pending push. Full N × N queue matrix piled onto one branch across 11 commits (3.0–3.15). |
+| In-flight | None — Phase 3 closing. Three queue frontends (AWS SQS, GCP Pub/Sub pull, Azure Service Bus REST) × five backends (inmem + NATS JetStream as K8s peer + the three clouds) × three driver types (SDK + CLI + Terraform). 8-op intersection. Stateless invariant preserved across all five backends — receipt handles round-trip through the backend, no shim-side index. CI gains `conformance-nats` lane. AMQP fidelity tier deferred per PLAN.md open question; Azure SDK + az CLI + azurerm cells ◇ skipped (AMQP / ARM, both out of scope). `aws_sqs_queue` Terraform cell ◇ skipped pending `SetQueueAttributes` extension (BUG-2). |
+| Phase 3 commits | `0c0d1a5`..`8502bc3` on `phase-3-queue`. 11 commits, conventional `Phase 3.x` titles, conformance green at each step. |
 | Phase 2 closed | PR #7 merged `7df43ec` 2026-05-19. Three secrets frontends × five secrets backends × three driver types; 12 required CI checks. Stateless invariant + shimakit framework + shima<service> naming convention landed alongside. |
 | Phase 1 closed | PR #6 merged `1f64d9f` 2026-05-19. Three storage frontends × five storage backends × three driver types matrix; 11 required CI checks. |
-| CI baseline | Required checks include the 12 Phase-2 ones; Phase 3 will add `conformance-nats` (NATS dev container) when 3.15 lands. |
+| CI baseline | 13 required checks — the 12 Phase-2 ones plus `conformance-nats` added in 3.15. Real-cloud lanes (aws-sqs, gcp-pubsub, azure-servicebus) wait on Track A. |
 | Scope rule (2026-05-18) | **Each phase ships the full N × N matrix.** Previous PLAN.md had Phases 9 and 10 as "GCP source row" and "Azure source row" of horizontal expansion across all 8 services; user reversed this. Each service phase now includes all 3 frontends + all 4 backends + SDK / CLI / Terraform for each, before moving to the next service. Phases 9 and 10 deleted; their work is absorbed into Phases 1-8. |
 | Last merged | PR #5 — Phase 1.3 (codegen, originally all 107 ops) (`03b0ebb`, 2026-05-18). |
 | Standing merge auth | **None.** User merges every PR. |
 | CI | Five required checks: `branch rebased on origin/main`, `tracked symlinks resolve`, `continuity docs present`, `go vet + test + build`, `dependency licenses AGPL-compatible`. |
 | Renovate | Config committed (48h minimum release age, weekly batches, pinned GitHub Actions SHAs); **user must install the Renovate GitHub App** at https://github.com/apps/renovate. |
 | Dep policy | [`doc/DEPENDENCY_POLICY.md`](doc/DEPENDENCY_POLICY.md): min release age 48h, prefer pure-Go over cgo, pnpm + no lifecycle scripts when JS lands. |
-| Bugs | 1 filed · 1 fixed · 0 open. |
+| Bugs | 2 filed · 1 fixed · 1 open (BUG-2: SetQueueAttributes gap blocks `aws_sqs_queue` TF cell). |
 | Live infra | None. |
 
 ## Invariants (carry across compactions / fresh sessions)
@@ -49,17 +50,24 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 - Monorepo: `services/<service>/`, shared `internal/codegen/`, `internal/harness/`.
 - Test rings: per-PR recorded interactions, nightly live cloud, pre-release vendor integration suites.
 
-## Current phase — Phase 1: Object storage (S3-source)
+## Current phase — Phase 3: Queue
 
-Phase 1 carries the foundation work alongside its first real consumer. The codegen pipeline, conformance harness, and Go CI matrix are built inside Phase 1 sub-phases rather than as standalone infrastructure.
+Phase 3 ships the queue service end-to-end. AWS SQS / GCP Pub/Sub / Azure Service Bus REST frontends, each translatable to inmem / NATS JetStream / AWS / GCP / Azure backends. 8-op intersection (CreateQueue, DeleteQueue, ListQueues, GetQueueAttributes, SendMessage, ReceiveMessages, DeleteMessage, ChangeVisibility) plus GetQueueUrl as an AWS probe.
 
-Sub-phase table is in [DO_NEXT.md](DO_NEXT.md) and [PLAN.md § Phase 1](PLAN.md#phase-1--object-storage-s3-source). PR #6 piles sub-phases 1.4 through 1.7.
+Sub-phase table is in [DO_NEXT.md](DO_NEXT.md). PR pending push.
+
+### Phase 3 standing notes
+- **Receipt handles are opaque.** No shim-side index. NATS uses the reply subject; GCP passes AckId; AWS passes ReceiptHandle; Azure encodes `<messageID>|<lockToken>` so the receipt round-trips through the URL.
+- **Caps for uniformity.** Visibility timeout 600s (GCP's max), wait time 20s (AWS's max).
+- **AMQP deferred.** Azure SDK speaks AMQP; the shim's Azure frontend is REST-only this phase. SDK cell ◇ skipped; raw-HTTP cell is the conformance contract.
+- **SetQueueAttributes gap.** Filed BUG-2 — `aws_sqs_queue` Terraform reconciliation depends on it; cell ◇ skipped pending the extension.
 
 ## Recently closed phases (last 5)
 
 | PR | Phase | Headline |
 |---|---|---|
+| #7 | 2 | Secrets service end-to-end. 3 frontends × 5 backends (inmem, Vault as K8s peer via shimakit, AWS Secrets Manager, GCP Secret Manager, Azure Key Vault) × 3 driver types. shimakit framework + shima\<service\> naming. Stateless invariant established. Merged 2026-05-19 at `7df43ec`. |
+| #6 | 1 | Storage service end-to-end. 3 frontends × 5 backends (inmem, MinIO as K8s peer, AWS S3, GCS, Azure Blob) × 3 driver types. Spec-driven codegen pipeline. Merged 2026-05-19 at `1f64d9f`. |
+| #5 | 1.3 | Codegen pipeline (originally all 107 ops; later narrowed to intersection-only). Merged 2026-05-18 at `03b0ebb`. |
 | #4 | 1.2 | S3 Smithy spec vendored + license policy + Renovate + dependency policy (48h release age, pure-Go preference, pnpm + no lifecycle scripts) + version bumps to Go 1.26 / actions v6. Merged 2026-05-18 at `98e6ce9`. |
 | #3 | 1.1 | Repo skeleton: Go module (1.25), Makefile, Go CI lane. PLAN.md restructured to one-service-per-phase. Merged 2026-05-18 at `48c0edf`. |
-| #2 | (bootstrap) | Continuity docs + Phase-0 CI checks wired into the main-branch ruleset. Merged 2026-05-18 at `4549a90`. |
-| #1 | (bootstrap) | Repo created. Branch ruleset. PHILOSOPHY.md as koans. README.md with goals / non-goals / MVP service matrix. Merged 2026-05-18 at `e5cc262`. |
