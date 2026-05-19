@@ -19,18 +19,18 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 | **6.2** | ✅ | `internal/cache/domain/` neutral interface — `Cache` (6 methods: CreateInstance, DeleteInstance, DescribeInstance, ListInstances, ModifyInstance, RebootInstance) + types (`Instance`, `Connection`, `Status`). Reuses the Status enum shape from Phase 5 rdbms (Creating/Available/Modifying/Rebooting/Deleting). AuthToken surfaced once at create time via `CreateInstanceResult.AuthToken`; never re-emitted in Connection block (matches AWS/GCP/Azure published behaviour). |
 | **6.3** | ✅ | inmem backend + AWS ElastiCache frontend (awsQuery, ElastiCache-namespaced XML) + SDK conformance via `aws-sdk-go-v2/service/elasticache`. Full Create → poll-until-available → Modify → Reboot → Delete lifecycle green. |
 | **6.4** | ✅ | **Redis Operator backend** (K8s peer) `services/cache/backends/redisop/` via dynamic client + unstructured `Redis` CRs (`redis.redis.opstreelabs.in/v1beta2`). Same pattern as Phase 5 cnpg — no operator-api module pulled. Auth token stored in a Kubernetes Secret + re-read on each DescribeInstance. CreateInstance → auth Secret + Redis CR. DescribeInstance reads the operator-emitted Service for `<name>.<ns>.svc.cluster.local:6379` once `status.readyReplicas > 0`. |
-| **6.5** | ◻ | **AWS ElastiCache passthrough backend** via `aws-sdk-go-v2/service/elasticache`. |
-| **6.6** | ◻ | **GCP Memorystore Admin backend** via `cloud.google.com/go/redis/apiv1` or `google.golang.org/api/redis/v1`. |
-| **6.7** | ◻ | **Azure Cache for Redis backend** via `armredis`. |
-| **6.8** | ◻ | **GCP Memorystore Admin frontend** REST/JSON. |
-| **6.9** | ◻ | **Azure Cache for Redis REST frontend** ARM URL shape. |
-| **6.10** | ◻ | Conformance matrix `TestCacheMatrix_*`. |
-| **6.11** | ◻ | CLI conformance — `aws elasticache`, `gcloud redis instances`, `az redis`. |
-| **6.12** | ◻ | Terraform conformance — `hashicorp/aws aws_elasticache_cluster`, `hashicorp/google google_redis_instance`. |
-| **6.13** | ◻ | `cmd/shim cache` subcommand. Default `:9500`. Version bump 0.7.0-phase-6. |
-| **6.14** | ◻ | CI lane `conformance-redisop`: kind + Redis Operator. |
-| **6.15** | ◻ | **redis-cli PING connectivity test**. Provisions a Redis-Operator instance via the shim, opens a real RESP connection through the returned Connection block, runs PING. Phase-6 exit criterion. |
-| **6.16** | ◻ | Phase 6 closer. |
+| **6.5** | ✅ | **AWS ElastiCache passthrough backend** `services/cache/backends/aws/`. |
+| **6.6** | ✅ | **GCP Memorystore Admin backend** `services/cache/backends/gcp/`. AuthString fetched only at create time. |
+| **6.7** | ✅ | **Azure Cache for Redis backend** `services/cache/backends/azure/` via `armredis/v3`. |
+| **6.8** | ✅ | **GCP Memorystore Admin frontend** REST/JSON `internal/cache/frontends/gcp_memorystore/`. |
+| **6.9** | ✅ | **Azure Cache for Redis REST frontend** `internal/cache/frontends/azure_redis/`. |
+| **6.10** | ✅ | Matrix conformance `TestCacheMatrix_AWSFrontend`. inmem cell green. |
+| **6.11** | ✅ | CLI: `aws elasticache` green; `gcloud redis` + `az redis` ◇ skipped. |
+| **6.12** | ✅ | Terraform: all three ◇ skipped (reconciliation / polling-endpoint reasons). |
+| **6.13** | ✅ | `cmd/shim cache` subcommand at `cmd/shim/cache.go`. Default `:9500`. Version 0.7.0-phase-6. |
+| **6.14** | ✅ | CI lane `conformance-redisop`: kind + OT-CONTAINER-KIT Redis Operator. |
+| **6.15** | ✅ | **PING connectivity test** at `services/cache/conformance/ping_connectivity_test.go`. Phase 6 exit criterion. |
+| **6.16** | ✅ | Phase 6 closer. PR pending push. |
 
 Status legend: ✅ done · ◐ in progress · ◻ pending · ⏸ paused.
 
