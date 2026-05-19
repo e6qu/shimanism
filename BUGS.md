@@ -1,6 +1,6 @@
 # Known Bugs
 
-**4 filed · 1 fixed · 3 open · 0 false positives.**
+**5 filed · 3 fixed · 2 open · 0 false positives.**
 
 Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLAN.md](PLAN.md) · narrative [WHAT_WE_DID.md](WHAT_WE_DID.md) · rules [AGENTS.md](AGENTS.md).
 
@@ -12,7 +12,8 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 
 | ID | Sev | Area | Source-API | One-liner |
 |----|-----|------|------------|-----------|
-| BUG-2 | P2 | queue | AWS SQS `SetQueueAttributes` | Phase 3 intersection is 8 ops; `SetQueueAttributes` (used by `hashicorp/aws aws_sqs_queue` for attribute reconciliation after CreateQueue) is not yet wired through the domain or any backend. Terraform AWS-frontend conformance is ◇-skipped until this lands. Adding it requires the domain method + all 5 backends + the AWS frontend dispatch entry. |
+| BUG-2 | P2 | queue | AWS SQS `SetQueueAttributes` | Phase 3 intersection is 8 ops; `SetQueueAttributes` (used by `hashicorp/aws aws_sqs_queue` for attribute reconciliation after CreateQueue) is not yet wired through the domain or any backend. Terraform AWS-frontend conformance is ◇-skipped until this lands. Same gap ripples through to `aws_sns_topic_subscription` in Phase 4. Adding it requires the domain method + all 5 backends + the AWS frontend dispatch entry. |
+| BUG-5 | P3 | rdbms | GCP Cloud SQL `Operations` endpoint | The Cloud SQL Admin frontend returns PENDING `Operation` envelopes from every mutating op, but the polling endpoint `/v1/projects/{p}/operations/{op}` isn't implemented. `gcloud sql instances` and `hashicorp/google google_sql_database_instance` both hang waiting for polling. SDK + matrix cells cover the driver-backend combination correctness; the CLI + TF cells are ◇ skipped until this lands. |
 | BUG-3 | P1 | queue/nats | NATS JetStream | DeleteMessage / ChangeVisibility / Publish call `nats.Context(ctx)` or `nc.FlushWithContext(ctx)` with the caller's context. When CI runs `TestQueueMatrix_*` it passes `context.Background()` (no deadline); the NATS library rejects this with "nats: context requires a deadline" and the operation 500s. Conformance-nats lane red. Fix: wrap any backend call's context with a default deadline (30s) before handing it to the NATS library. |
 | BUG-4 | P2 | queue/azure-frontend | Azure Service Bus REST | Frontend route `^/([^/]+)/messages/([^/]+)/([^/]+)$` doesn't tolerate `/` inside the messageID or lockToken. NATS backend emits `MessageID = "<stream>/<seq>"`, which breaks the URL when the Azure frontend pairs with the NATS backend in the matrix. Fix: scope the NATS MessageID to a slash-free identifier (stream seq only). Defence-in-depth: matrix-test could URL-escape components, but the right answer is to not have slashes in opaque IDs. |
 

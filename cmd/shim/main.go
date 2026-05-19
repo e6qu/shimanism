@@ -11,6 +11,7 @@
 //	shim secrets [flags]   — run the secrets service.
 //	shim queue   [flags]   — run the queue service.
 //	shim pubsub  [flags]   — run the pubsub (topic fanout) service.
+//	shim rdbms   [flags]   — run the rdbms (managed-DB control plane) service.
 //
 // Each service subcommand selects a backend via -backend=<name> and a
 // frontend via -frontend=<name>. Storage backends: inmem, minio, aws,
@@ -50,7 +51,7 @@ import (
 	storagegen "github.com/e6qu/shimanism/services/storage/gen"
 )
 
-const version = "0.5.0-phase-4"
+const version = "0.6.0-phase-5"
 
 func main() {
 	if len(os.Args) < 2 {
@@ -80,6 +81,11 @@ func main() {
 			fmt.Fprintln(os.Stderr, "shim pubsub:", err)
 			os.Exit(1)
 		}
+	case "rdbms":
+		if err := runRDBMS(os.Args[2:]); err != nil {
+			fmt.Fprintln(os.Stderr, "shim rdbms:", err)
+			os.Exit(1)
+		}
 	case "help", "-h", "--help":
 		usage()
 	default:
@@ -98,6 +104,7 @@ func usage() {
 	fmt.Fprintln(os.Stderr, "  secrets [flags]    Run the secrets service.")
 	fmt.Fprintln(os.Stderr, "  queue   [flags]    Run the queue service.")
 	fmt.Fprintln(os.Stderr, "  pubsub  [flags]    Run the pubsub (topic fanout) service.")
+	fmt.Fprintln(os.Stderr, "  rdbms   [flags]    Run the rdbms (managed-DB control plane) service.")
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Run `shim <subcommand> -h` for per-service flags.")
 }

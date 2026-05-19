@@ -22,6 +22,10 @@ import (
 	awssqsfront "github.com/e6qu/shimanism/internal/queue/frontends/aws_sqs"
 	azuresbfront "github.com/e6qu/shimanism/internal/queue/frontends/azure_servicebus"
 	gcpsubfront "github.com/e6qu/shimanism/internal/queue/frontends/gcp_pubsub"
+	rdbmsdomain "github.com/e6qu/shimanism/internal/rdbms/domain"
+	awsrdsfront "github.com/e6qu/shimanism/internal/rdbms/frontends/aws_rds"
+	azuredbadminfront "github.com/e6qu/shimanism/internal/rdbms/frontends/azure_dbadmin"
+	gcpcloudsqlfront "github.com/e6qu/shimanism/internal/rdbms/frontends/gcp_cloudsql"
 	"github.com/e6qu/shimanism/internal/restxml"
 	secretsdomain "github.com/e6qu/shimanism/internal/secrets/domain"
 	awssmfront "github.com/e6qu/shimanism/internal/secrets/frontends/aws_secretsmanager"
@@ -229,6 +233,44 @@ func StartPubsubServerAzure(t *testing.T, backend pubsubdomain.Pubsub) *PubsubSe
 	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
 	t.Cleanup(ts.Close)
 	return &PubsubServer{URL: ts.URL, Close: ts.Close}
+}
+
+// RDBMSServer is a started rdbms-shim instance.
+type RDBMSServer struct {
+	URL   string
+	Close func()
+}
+
+// StartRDBMSServerAWS starts a shim instance with the AWS RDS
+// awsQuery frontend backed by the given rdbms implementation.
+func StartRDBMSServerAWS(t *testing.T, backend rdbmsdomain.RDBMS) *RDBMSServer {
+	t.Helper()
+	srv := awsrdsfront.New(backend)
+	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
+	t.Cleanup(ts.Close)
+	return &RDBMSServer{URL: ts.URL, Close: ts.Close}
+}
+
+// StartRDBMSServerGCP starts a shim instance with the GCP Cloud
+// SQL Admin REST frontend.
+func StartRDBMSServerGCP(t *testing.T, backend rdbmsdomain.RDBMS) *RDBMSServer {
+	t.Helper()
+	srv := gcpcloudsqlfront.New(backend)
+	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
+	t.Cleanup(ts.Close)
+	return &RDBMSServer{URL: ts.URL, Close: ts.Close}
+}
+
+// StartRDBMSServerAzure starts a shim instance with the Azure DB
+// Admin REST frontend. ARM URL shape; SDK conformance is deferred
+// (the SDK pollers expect Azure-AsyncOperation headers the shim
+// doesn't emit at this phase).
+func StartRDBMSServerAzure(t *testing.T, backend rdbmsdomain.RDBMS) *RDBMSServer {
+	t.Helper()
+	srv := azuredbadminfront.New(backend)
+	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
+	t.Cleanup(ts.Close)
+	return &RDBMSServer{URL: ts.URL, Close: ts.Close}
 }
 
 // logRoundTrip logs each request through the harness. Lightweight —
