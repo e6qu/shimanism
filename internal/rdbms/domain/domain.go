@@ -99,14 +99,14 @@ func (s Status) String() string {
 
 // Instance describes a managed-DB instance's control-plane metadata.
 type Instance struct {
-	Name              string
-	Engine            Engine
-	EngineVersion     string
-	Status            Status
+	Name               string
+	Engine             Engine
+	EngineVersion      string
+	Status             Status
 	AllocatedStorageGB int
-	InstanceClass     string
-	Connection        Connection
-	CreatedAt         time.Time
+	InstanceClass      string
+	Connection         Connection
+	CreatedAt          time.Time
 }
 
 // Connection is what clients need to open a direct DB connection
@@ -122,19 +122,19 @@ type Connection struct {
 
 // Snapshot is a point-in-time copy of an instance.
 type Snapshot struct {
-	ID         string
-	Instance   string
-	Engine     Engine
+	ID            string
+	Instance      string
+	Engine        Engine
 	EngineVersion string
-	CreatedAt  time.Time
-	Status     Status
+	CreatedAt     time.Time
+	Status        Status
 }
 
 // CreateInstanceOptions controls CreateInstance.
 type CreateInstanceOptions struct {
-	Engine             Engine
-	EngineVersion      string
-	MasterUsername     string
+	Engine         Engine
+	EngineVersion  string
+	MasterUsername string
 	// MasterPassword may be empty — backends that support generating
 	// a password (CNPG, GCP) will do so and surface it once in the
 	// result. AWS RDS accepts either generated or user-provided.

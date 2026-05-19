@@ -33,11 +33,11 @@ type Config struct {
 }
 
 type Backend struct {
-	servers  *armpg.ServersClient
-	backups  *armpg.BackupsClient
-	subscription string
+	servers       *armpg.ServersClient
+	backups       *armpg.BackupsClient
+	subscription  string
 	resourceGroup string
-	location     string
+	location      string
 }
 
 func New(cfg Config) (*Backend, error) {
@@ -251,10 +251,10 @@ func (b *Backend) CreateSnapshot(ctx context.Context, instance, snapshotID strin
 		return domain.Snapshot{}, translateErr(err, "snapshot", snapshotID)
 	}
 	return domain.Snapshot{
-		ID:       snapshotID,
-		Instance: instance,
-		Engine:   domain.EnginePostgres,
-		Status:   domain.StatusCreating,
+		ID:        snapshotID,
+		Instance:  instance,
+		Engine:    domain.EnginePostgres,
+		Status:    domain.StatusCreating,
 		CreatedAt: time.Now().UTC(),
 	}, nil
 }
