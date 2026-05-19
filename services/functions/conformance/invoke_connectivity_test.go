@@ -162,6 +162,10 @@ func portForwardKnativeService(t *testing.T, ctx context.Context, name string) (
 		"svc/kourier",
 		fmt.Sprintf("%d:80", localPort),
 	)
+	// Capture stderr so failures (kourier not installed, wrong name)
+	// surface in the test log instead of being silent.
+	stderr := &strings.Builder{}
+	cmd.Stderr = stderr
 	if err := cmd.Start(); err != nil {
 		t.Fatalf("kubectl port-forward: %v", err)
 	}
@@ -176,6 +180,7 @@ func portForwardKnativeService(t *testing.T, ctx context.Context, name string) (
 		}
 		time.Sleep(500 * time.Millisecond)
 	}
-	t.Fatalf("kubectl port-forward never opened localhost:%d", localPort)
+	t.Fatalf("kubectl port-forward never opened localhost:%d; stderr=%s",
+		localPort, stderr.String())
 	return "", 0
 }

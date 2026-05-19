@@ -382,6 +382,17 @@ jobs:
           kubectl -n knative-serving rollout status deployment/controller --timeout=180s
           kubectl -n knative-serving rollout status deployment/activator --timeout=180s
           kubectl -n knative-serving rollout status deployment/autoscaler --timeout=180s
+          # Wait for kourier-system/kourier — it's installed by the
+          # operator only after the KnativeServing CR reconciles
+          # ingress.kourier.enabled=true. Without it, port-forward
+          # has nothing to attach to.
+          for i in $(seq 1 60); do
+            if kubectl -n kourier-system get svc kourier >/dev/null 2>&1; then break; fi
+            sleep 3
+          done
+          kubectl -n kourier-system rollout status deployment/3scale-kourier-gateway --timeout=180s
+          echo "kourier-system state:"
+          kubectl -n kourier-system get all
       - name: Run knative conformance
         env:
           KNATIVE_CONFORMANCE: '1'
