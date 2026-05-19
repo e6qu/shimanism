@@ -6,10 +6,18 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 
 ## Where we are
 
-- **Last merged:** PR #12 (Phase 7 — functions, container-image deploy + Knative as K8s peer + HTTP-invoke exit criterion) at `9d02af0` on `origin/main`, 2026-05-19.
-- **Active branch:** `phase-8-apigateway` — all 16 sub-phases implemented; PR #13 awaiting merge.
-- **Project phase:** **Phase 8 — API Gateway** (in-flight). 3 frontends × 5 backends × 3 driver types. 5-op intersection. Declarative-replace via `DeployGateway`. Envoy Gateway as K8s peer.
-- **Next phase planned:** **Phase 9 — Cross-cloud Terraform import** (`PHASE_9_PLAN.md` drafted + codex-reviewed). Mock cloud servers reusing inmem; `terraform plan -generate-config-out` plan-is-no-diff exit criterion. Real-cloud lanes deferred to Phase 9-A behind Track A.
+- **Last merged:** PR #12 (Phase 7) at `9d02af0` on `origin/main`, 2026-05-19.
+- **Active branch:** `phase-8-apigateway` — PR #13. Phase 8 + a substantial chunk of Phase 9 on one PR per user instruction.
+- **Phase 8** complete (16/16 sub-phases). Exit criterion `TestRouteServes_Envoy` green in `conformance-envoy` CI lane.
+- **Phase 9** advanced significantly on the same PR:
+  - `PHASE_9_PLAN.md` drafted + codex-reviewed + revised to encode the "no fakes" + "useful for migration" instructions.
+  - **9.1** `shimctl env` CLI + `internal/clientconfig/overrides.yaml` registry of (cloud × service) endpoint-override knobs.
+  - **9.2-A** per-service `INTERSECTION.md` audits — every wire op classified real-work / feature-unset / out-of-intersection.
+  - **9.2-B** per-service `MIGRATION.md` walkthroughs — runnable migration recipes per (source cloud × target cloud × K8s peer).
+  - **9.5** `terraform_import_test.go` for all 8 services — every import driver passes through the shim.
+  - **Six real fidelity fixes** surfaced by the import tests (XML double-nesting, missing Policy JSON, missing tag-list handlers, missing selection-expression defaults, missing Lambda subresources, missing RDS ARN). No fakes survived.
+  - **9.13** cross-cloud exit criterion: `TestCrossCloudImport_Roundtrip_StorageAWStoGCS` proves the headline promise — AWS-shape TF imports a bucket that lives in mock-GCS through the shim, with no fidelity diffs.
+- **Remaining Phase 9 work** (next PR after merge): mock cloud servers as standalone binaries (9.3), `cmd/shim mock` subcommand (9.11), per-frontend full-matrix import driver (9.7), CI lane `conformance-import-matrix` (9.12), Phase 9-A real-cloud lanes behind Track A.
 
 ## Phase 8 sub-task table
 
