@@ -14,7 +14,10 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"net"
 	"os"
+	"os/exec"
+	"strings"
 	"testing"
 	"time"
 
@@ -90,24 +93,40 @@ func TestPsqlConnectivity_CNPG(t *testing.T) {
 	}
 	t.Logf("cluster ready, endpoint=%s", endpoint)
 
-	// Open a *real* PostgreSQL connection through the returned
-	// Connection block. The endpoint host is the cnpg-operator-
-	// emitted Service DNS (<name>-rw.<ns>.svc.cluster.local). In CI,
-	// the test runs inside the kind cluster (sidecar pod) so this
-	// DNS resolves; locally, the kubectl-port-forward dance is
-	// the caller's responsibility.
-	dsn := fmt.Sprintf("host=%s port=5432 user=shimadmin password=%s dbname=postgres sslmode=require",
-		endpoint, password)
+	// The endpoint is the cnpg-operator-emitted Service DNS
+	// (<name>-rw.<ns>.svc.cluster.local), which is what an
+	// in-cluster client would consume. Since the test runs OUTSIDE
+	// the kind cluster (on the GitHub runner), we use kubectl
+	// port-forward to expose the Service on a local port. In a
+	// production deployment the shim runs inside the cluster too,
+	// so the Connection block stays correct for the real consumer.
+	host, port := portForwardService(t, ctx, endpoint)
+
+	dsn := fmt.Sprintf("host=%s port=%d user=shimadmin password=%s dbname=postgres sslmode=disable",
+		host, port, password)
 	db, err := sql.Open("pgx", dsn)
 	if err != nil {
 		t.Fatalf("sql.Open: %v", err)
 	}
 	defer db.Close()
 
-	pingCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	pingCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
-	if err := db.PingContext(pingCtx); err != nil {
-		t.Fatalf("db.Ping: %v", err)
+	// Give the cluster a beat to actually accept connections — the
+	// "available" status flips as soon as the primary pod reports
+	// Ready, but the network can still be a bit racy.
+	var pingErr error
+	for i := 0; i < 30; i++ {
+		if err := db.PingContext(pingCtx); err == nil {
+			pingErr = nil
+			break
+		} else {
+			pingErr = err
+			time.Sleep(2 * time.Second)
+		}
+	}
+	if pingErr != nil {
+		t.Fatalf("db.Ping (after retries): %v", pingErr)
 	}
 
 	var got int
@@ -117,4 +136,55 @@ func TestPsqlConnectivity_CNPG(t *testing.T) {
 	if got != 1 {
 		t.Errorf("SELECT 1 returned %d, want 1", got)
 	}
+}
+
+// portForwardService spawns `kubectl port-forward` against the
+// cnpg-operator's `<cluster>-rw` Service so the test (running on
+// the host outside the kind cluster) can dial Postgres. Returns
+// ("localhost", localPort) once the port is accepting connections.
+//
+// Parses cluster name + namespace from the in-cluster DNS:
+// <cluster>-rw.<namespace>.svc.cluster.local
+func portForwardService(t *testing.T, ctx context.Context, endpoint string) (string, int) {
+	t.Helper()
+	parts := strings.Split(endpoint, ".")
+	if len(parts) < 2 || !strings.HasSuffix(parts[0], "-rw") {
+		t.Fatalf("unexpected endpoint shape %q (want <cluster>-rw.<ns>.svc...)", endpoint)
+	}
+	svcName := parts[0]
+	namespace := parts[1]
+
+	// Pick a free local port so parallel runs don't collide.
+	lst, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen for free port: %v", err)
+	}
+	localPort := lst.Addr().(*net.TCPAddr).Port
+	lst.Close()
+
+	cmd := exec.CommandContext(ctx, "kubectl",
+		"-n", namespace,
+		"port-forward",
+		"svc/"+svcName,
+		fmt.Sprintf("%d:5432", localPort),
+	)
+	if err := cmd.Start(); err != nil {
+		t.Fatalf("start kubectl port-forward: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = cmd.Process.Kill()
+	})
+
+	// Poll until the local port is accepting connections.
+	deadline := time.Now().Add(30 * time.Second)
+	for time.Now().Before(deadline) {
+		conn, err := net.DialTimeout("tcp", fmt.Sprintf("127.0.0.1:%d", localPort), time.Second)
+		if err == nil {
+			conn.Close()
+			return "127.0.0.1", localPort
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+	t.Fatalf("kubectl port-forward never opened localhost:%d", localPort)
+	return "", 0
 }
