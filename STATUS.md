@@ -34,6 +34,7 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 ### Architecture (load-bearing across all services)
 - **The shim speaks the cloud's published API exactly.** Error shapes, response headers, status codes, async semantics — match. Server stubs are generated from the upstream spec; hand-written code is translation logic only.
 - **Real backends, never emulators.** A shimmed call drives a real comparable service. The shim holds no state of record.
+- **Stateless shim.** No sidecar storage, no shim-managed key/value namespace, no in-process cache treated as authoritative. State lives in the backend; cross-cloud mappings are derived at request time. See [AGENTS.md § The shim is stateless](AGENTS.md#the-shim-is-stateless).
 - **Intersection-only scope.** Out-of-intersection feature calls fail loud with the source cloud's own error vocabulary. **Never fabricate success.**
 - **Kubernetes is a first-class fourth backend** for every shimmed service.
 - **No fakes, no fallbacks, no degraded modes.** Translation can't be honest → call fails loud.

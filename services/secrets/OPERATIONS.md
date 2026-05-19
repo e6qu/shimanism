@@ -4,6 +4,8 @@
 > **AWS Secrets Manager**, **GCP Secret Manager**, **Azure Key Vault (secrets surface)**, **HashiCorp Vault (KV v2)** as the K8s peer.
 >
 > Anything not in the intersection is out of scope and returns the source cloud's own "not supported" error. See [PHILOSOPHY.md § The Circle](../../PHILOSOPHY.md#the-circle) for why.
+>
+> The shim itself is stateless — every value, version mapping, and encoding flag lives in the backend, not in shimanism. See [AGENTS.md § The shim is stateless](../../AGENTS.md#the-shim-is-stateless).
 
 ## The intersection — 7 operations
 
@@ -23,21 +25,22 @@ A multi-call sequence in one cloud counts as a single domain op when the second 
 
 ## Version semantics
 
-The four systems model versions differently. The domain uses **monotonic uint64** as the canonical version handle. Each backend adapter maps that to/from the cloud's native form.
+The four systems model versions differently. The domain uses **monotonic uint64** as the canonical version handle. Mapping monotonic → native is **derived at request time** from data the backend already keeps (the shim is stateless per [AGENTS.md § The shim is stateless](../../AGENTS.md#the-shim-is-stateless)).
 
-| Cloud | Native version handle | "Latest" alias | Stage labels |
-|---|---|---|---|
-| AWS Secrets Manager | UUID `VersionId` + `VersionStages[]` | `AWSCURRENT` stage | yes — multiple per version (AWSCURRENT, AWSPREVIOUS, AWSPENDING, user-defined) |
-| GCP Secret Manager | numeric `versions/<N>` | `versions/latest` | no |
-| Azure Key Vault | hex GUID | bare secret name returns latest | no |
-| Vault (KV v2) | numeric `metadata.current_version` | implicit on bare GET | no |
+| Cloud | Native version handle | "Latest" alias | Stage labels | Creation timestamp available? |
+|---|---|---|---|---|
+| AWS Secrets Manager | UUID `VersionId` + `VersionStages[]` | `AWSCURRENT` stage | yes — multiple per version (AWSCURRENT, AWSPREVIOUS, AWSPENDING, user-defined) | yes — `CreatedDate` per version |
+| GCP Secret Manager | numeric `versions/<N>` | `versions/latest` | no | yes (but `N` already monotonic) |
+| Azure Key Vault | hex GUID | bare secret name returns latest | no | yes — `Created` per version |
+| Vault (KV v2) | numeric `metadata.versions[i].version` | implicit on bare GET | no | yes (but version already monotonic) |
 
-**Domain rule:** `Version` is a `uint64` that increments by 1 per `PutSecretValue` call. The first `CreateSecret` is version `1`. Each backend stores the native handle alongside the monotonic number:
+**Domain rule:** `Version` is a `uint64` that increments by 1 per `PutSecretValue` call. The first `CreateSecret` is version `1`. The mapping monotonic → native is derived per-request by listing the secret's versions and **sorting them by creation timestamp**:
 
-- **AWS adapter** keeps `(monotonic_uint64 ↔ VersionId UUID)` in the secret's tag set (or in a shim-owned sidecar). `AWSCURRENT` stage maps to "the highest monotonic version that hasn't been superseded". `AWSPREVIOUS` is one below. Custom stage labels are out of intersection.
-- **GCP adapter** uses the numeric `versions/<N>` directly — monotonic int maps 1-to-1.
-- **Azure adapter** caches `(monotonic_uint64 ↔ GUID)` in the secret's tags or in a shim-owned shadow metadata key.
-- **Vault adapter** uses the KV v2 numeric `version` directly.
+- **GCP** + **Vault**: the cloud's native numbering is already monotonic ascending; the domain integer equals it directly.
+- **AWS**: `ListSecretVersionIds(IncludeDeprecated=true)` → sort by `CreatedDate` → the nth entry is monotonic version `n`. `AWSCURRENT` is the stage label on the most recent live version; `AWSPREVIOUS` on the second-most-recent. Stage labels stay inside the AWS-frontend adapter — they never reach the domain.
+- **Azure**: `GetSecretVersions` → sort by `Created` → the nth entry is monotonic version `n`.
+
+This costs an extra list call per ranged read on AWS / Azure. Acceptable: in real workloads `GetSecretValue` is read-heavy on `latest`, which is one round trip on all four clouds. The extra list only happens when a caller asks for a specific historical version. Per-request caching inside a single handler invocation is fine; persistent caching (in the shim) is forbidden by the no-state rule.
 
 `AWSCURRENT` / `AWSPREVIOUS` only exist in the AWS-frontend adapter. The domain knows nothing about stage labels.
 
@@ -52,7 +55,7 @@ The four systems model versions differently. The domain uses **monotonic uint64*
 
 **Domain rule:** values are `[]byte`. Single-string secrets pass through as the bytes of that string. Vault entries with multiple fields are encoded as canonical JSON when written through the shim; when read back through a non-Vault frontend, the JSON encoding is preserved as-is (the caller is responsible for understanding the format). When Vault is the frontend, the shim accepts a JSON-encoded value and decodes it into Vault's `data` map; non-JSON values land as `{"value": "<the raw string>"}`.
 
-The Azure-string-only constraint pushes back: Azure can't store binary secrets. The Azure frontend adapter base64-encodes binary domain values when storing in Azure; the Azure backend adapter base64-decodes on read. The encoding is signalled by a `shim-binary=true` tag on the secret in Azure.
+The Azure-string-only constraint pushes back: Azure can't store binary secrets. The Azure backend adapter base64-encodes binary domain values when storing in Azure; on read, base64-decodes back to bytes. The encoding signal is a `shim-binary=true` **tag on the secret in Azure itself** — Azure already supports per-secret tags, so this is backend-side metadata, not shim-side state. (The no-state rule forbids the shim from owning the encoding map; storing the flag in Azure's own tag dictionary keeps it where it belongs.)
 
 ## Metadata
 
