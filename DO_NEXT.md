@@ -6,49 +6,48 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 
 ## Where we are
 
-- **Last merged:** PR #7 (Phase 2 — secrets, full 3 × 5 × 3 matrix + shimakit framework) at `7df43ec` on `origin/main`, 2026-05-19.
-- **Active branch:** `phase-3-queue` — 11 commits piled (3.0–3.15) + this closer. PR pending push.
-- **Project phase:** **Phase 3 — Queue closing.** Three frontends (AWS SQS, GCP Pub/Sub pull, Azure Service Bus REST) × five backends (inmem + NATS JetStream as K8s peer + the three clouds) × three driver types (SDK + CLI + Terraform). Full N × N matrix; SDK + CLI + TF rows green where their tooling admits endpoint override; remaining cells ◇ skipped with documented reasons.
+- **Last merged:** PR #8 (Phase 3 — queue, full 3 × 5 × 3 matrix + NATS JetStream as K8s peer) at `07d11f5` on `origin/main`, 2026-05-19.
+- **Active branch:** `phase-4-pubsub` — fresh off main, 4.0 scope baseline drafted.
+- **Project phase:** **Phase 4 — Pub/Sub.** Topic-fanout model (one topic, many subscriptions, each subscriber gets a copy of every message). Three frontends (AWS SNS+SQS receive, GCP Pub/Sub fanout, Azure Service Bus topics) × five backends (inmem + NATS core/JetStream as K8s peer + the three clouds) × three driver types (SDK + CLI + Terraform). 10-op intersection in [`services/pubsub/OPERATIONS.md`](services/pubsub/OPERATIONS.md).
 
-## Phase 3 sub-task table
+## Phase 4 sub-task table
 
 | Sub | Status | Headline |
 |---|---|---|
-| **3.0** | ✅ | Scope + design baseline. `services/queue/OPERATIONS.md` captures the 8-op intersection across AWS SQS / GCP Pub/Sub (pull) / Azure Service Bus queues / NATS JetStream (K8s peer); receipt-handle / visibility-timeout / message-attributes mapping; out-of-intersection list (FIFO, DLQ, KMS, push, IAM); stateless rule applied (no shim-side handle index). |
-| **3.1** | ✅ | Spec ingest. AWS SQS Smithy 2.0 JSON vendored at `services/queue/spec/aws-sqs.smithy.json`, pinned to `aws/aws-sdk-go-v2@2517fe9f`. `services/queue/codegen.json` manifest names the 8 intersection ops + `GetQueueUrl` as a probe (clients use URL not name). GCP + Azure specs reused via their official Go SDKs' wire-type packages, per Phase 1.14/1.15/2.x precedent. |
-| **3.2** | ✅ | `internal/queue/domain/` neutral interface — `Queues` interface (8 methods) + types (`Queue`, `Message`, `QueueAttributes`, `*Options`, `*Result`); typed `Error` with `Kind` discriminator (NoSuchQueue, QueueAlreadyExists, QueueBeingDeleted, InvalidReceiptHandle, MessageTooLarge, InvalidArgument). Receipt handles are opaque strings. Domain caps visibility timeout at 600s and wait time at 20s for uniform cross-cloud behaviour. |
-| **3.3** | ✅ | AWS SQS frontend `internal/queue/frontends/aws_sqs/`. Hand-written awsJson1_0 dispatch (modern SDK protocol; SQS migrated off awsQuery in 2022) + per-op JSON shapes mirroring the Smithy spec. QueueUrl normaliser accepts both shim-issued (`sqs.shim.amazonaws.com`) and real-AWS-shaped URLs. |
-| **3.4** | ✅ | `services/queue/backends/inmem/` covering all 8 ops with in-flight tracking + lazy visibility-timeout reclamation. `services/queue/conformance/aws_sdk_test.go` drives `aws-sdk-go-v2/service/sqs` against the in-mem backend: Create → Send (with MessageAttributes) → Receive → ChangeVisibility → Delete → GetQueueAttributes → ListQueues → DeleteQueue → Receive returns QueueDoesNotExist. |
-| **3.5** | ✅ | **NATS JetStream backend** (K8s peer) `services/queue/backends/nats/` via `github.com/nats-io/nats.go`. Maps each domain queue to a JetStream stream + a default pull consumer; subject = stream name. Receipt handle = the message's reply subject; ack/in-progress publishes via the long-lived NATS connection without holding the original `*nats.Msg` (stateless). ChangeVisibility maps to `+WPI` (InProgress) which resets to consumer-level AckWait; per-call timeout silently ignored per NATS' model. |
-| **3.6** | ✅ | **AWS SQS passthrough backend** `services/queue/backends/aws/` via `aws-sdk-go-v2/service/sqs`. Receipt handles pass through unchanged. QueueUrls resolved per request via `GetQueueUrl`; no persistent cache. |
-| **3.7** | ✅ | **GCP Pub/Sub backend** `services/queue/backends/gcp/` via `google.golang.org/api/pubsub/v1` (the synchronous REST SDK; the streaming go/pubsub library doesn't fit the per-call receive contract). Each domain queue maps to a topic + subscription pair sharing the queue's name. `AckId` passes through as the opaque receipt handle. ChangeVisibility maps to `ModifyAckDeadline`. |
-| **3.8** | ✅ | **Azure Service Bus backend** `services/queue/backends/azure/` — hybrid: `azservicebus` SDK for Create/Delete/List/Head/Send/Receive; REST API (with SAS-token signed per request) for `Complete` (DeleteMessage) and `Renew Lock` (ChangeVisibility) because the high-level Go SDK requires the original `*ReceivedMessage` reference and the shim is stateless. Receipt handle is the composite `<messageID>|<lockToken>`. ChangeVisibility's per-call timeout is silently ignored on this backend; Azure REST renews to the queue's configured LockDuration. |
-| **3.9** | ✅ | **GCP Pub/Sub frontend** `internal/queue/frontends/gcp_pubsub/`. Wire types reused from `google.golang.org/api/pubsub/v1` (Discovery-generated). Topic + subscription pair maps to a single domain queue sharing the short name; subscription-delete is a no-op against the queue (real Pub/Sub keeps the topic alive when only the subscription goes away). SDK conformance at `services/queue/conformance/gcp_sdk_test.go`. |
-| **3.10** | ✅ | **Azure Service Bus REST frontend** `internal/queue/frontends/azure_servicebus/`. AMQP-vs-REST decision (PLAN.md open question): REST-only at this phase. The official azservicebus SDK uses AMQP and cannot drive this frontend, so conformance is raw-HTTP at `services/queue/conformance/azure_rest_test.go`. The URL exposes `messageID/lockToken` for routing fidelity, but the shim treats lockToken alone as the receipt handle — backends needing the messageID encode it into the receipt themselves. RenewLock resolves the queue's `VisibilityTimeoutSeconds` per call since the Azure wire API has no per-call timeout. |
-| **3.11** | ✅ | Conformance matrix: `TestQueueMatrix_{AWSFrontend,GCPFrontend,AzureFrontend}` iterates `conformance.ActiveBackends()` and drives Create → Send → Receive → ChangeVisibility → Delete → DeleteQueue. AWS frontend driven by `aws-sdk-go-v2/service/sqs`, GCP frontend by `google.golang.org/api/pubsub/v1`, Azure frontend by raw HTTP (azservicebus SDK uses AMQP — deferred per PLAN.md open question). inmem cell green for all three; the four cloud + NATS cells skip until Track A + the NATS CI lane land. |
-| **3.12** | ✅ | CLI conformance: `aws sqs` (Create → Send → Receive → ChangeVisibility → DeleteMessage → DeleteQueue) and `gcloud pubsub` (Topics.Create → Subscriptions.Create → Publish → Pull → Subscriptions.Delete → Topics.Delete) drive the shim against the inmem backend. `az servicebus` cell ◇ skipped per Phase 1+2 convention — the CLI uses ARM + AMQP, neither of which the shim's REST data-plane frontend exposes; AMQP tier deferred per PLAN.md open question. |
-| **3.13** | ✅ | Terraform conformance. `hashicorp/google` (`google_pubsub_topic` + `google_pubsub_subscription`) green against the GCP frontend. `hashicorp/aws aws_sqs_queue` ◇ skipped — provider reconciles via `SetQueueAttributes`, which is not yet in the queue intersection (filed as BUG-2). `hashicorp/azurerm azurerm_servicebus_queue` ◇ skipped — ARM-control-plane resource; the shim's Azure frontend exposes only the REST data plane. |
-| **3.14** | ✅ | `cmd/shim queue` subcommand at `cmd/shim/queue.go`. Selectors: -frontend (aws_sqs, gcp_pubsub, azure_servicebus), -backend (inmem, nats, aws, gcp, azure). Connection knobs accept flags + env vars (NATS_URL, AWS_SQS_ENDPOINT, GCP_PROJECT_ID, AZURE_SERVICEBUS_CONNECTION_STRING). Version bumped to 0.4.0-phase-3. |
-| **3.15** | ✅ | CI lane `conformance-nats` (added to `.github/workflows/checks.yml`): pulls `nats:2.10`, starts with `-js -m 8222`, waits on /healthz, sets NATS_URL, runs `go test -run TestQueueMatrix ./services/queue/conformance/...`. Real-cloud lanes (aws-sqs, gcp-pubsub, azure-servicebus) wait on Track A. |
-| **3.16** | ✅ | Phase 3 closer: SDK matrix green for the inmem cell of all three frontends; the four remaining (nats / aws / gcp / azure) cells skip cleanly per their env-var gates. CLI + TF rows green where their tooling admits endpoint override (`aws sqs`, `gcloud pubsub`, `google_pubsub_*`); ◇ skipped cells documented (`az servicebus`, `aws_sqs_queue` TF, `azurerm_servicebus_queue` TF, Azure SDK). CI lane `conformance-nats` added. STATUS / WHAT_WE_DID / BUGS refreshed. PR pending push. |
+| **4.0** | ◐ | Scope + design baseline. `services/pubsub/OPERATIONS.md` captures the 10-op intersection across AWS SNS+SQS / GCP Pub/Sub (fanout) / Azure Service Bus topics / NATS core (with JetStream consumers for durable subs); separation of Topic ↔ Subscription resources; receipt-handle / visibility-timeout / message-attributes mapping reused from Phase 3; out-of-intersection list (FIFO topics, filters, push, sessions, ordering keys, exactly-once). |
+| **4.1** | ◻ | Spec ingest. AWS SNS Smithy 2.0 JSON vendored at `services/pubsub/spec/aws-sns.smithy.json` from `aws/aws-sdk-go-v2`. GCP + Azure specs reused via their official Go SDKs' wire-type packages per Phase 1–3 precedent. The AWS frontend's *receive* side reuses Phase 3's SQS handler unchanged — SNS delivers to SQS-shaped endpoints. |
+| **4.2** | ◻ | `internal/pubsub/domain/` neutral interface — `Pubsub` interface (10 methods: CreateTopic, DeleteTopic, ListTopics, CreateSubscription, DeleteSubscription, ListSubscriptions, Publish, Receive, Ack, ChangeVisibility) + types (`Topic`, `Subscription`, `Message`, `*Options`, `*Result`); typed `Error` with `Kind` discriminator. Opaque receipt handles (same rule as Phase 3). Caps mirror Phase 3 (600s visibility, 20s wait). |
+| **4.3** | ◻ | `services/pubsub/backends/inmem/` covering all 10 ops with per-subscription delivery queues + lazy visibility reclamation. AWS SNS frontend `internal/pubsub/frontends/aws_sns/` (publish side); receive side delegates to Phase 3 `aws_sqs` handler. SDK conformance via `aws-sdk-go-v2/service/sns` for the publish flow + `aws-sdk-go-v2/service/sqs` for receive against the same shared inmem store. |
+| **4.4** | ◻ | **NATS-core backend** (K8s peer) `services/pubsub/backends/nats/` via `github.com/nats-io/nats.go`. Core NATS for fanout (subject-based pub/sub, in-memory, immediate broadcast). JetStream consumers attached to a stream provide durable subscriptions when the domain `CreateSubscription` is called with `Durable=true`. |
+| **4.5** | ◻ | **AWS SNS+SQS passthrough backend** `services/pubsub/backends/aws/` via `aws-sdk-go-v2/service/sns` + `aws-sdk-go-v2/service/sqs`. Creating a subscription auto-creates the backing SQS queue and wires the SNS subscription Protocol=sqs / Endpoint=arn. No persistent cache. |
+| **4.6** | ◻ | **GCP Pub/Sub fanout backend** `services/pubsub/backends/gcp/` via `google.golang.org/api/pubsub/v1`. Multi-subscription topology (multiple subs per topic, each with its own ack-deadline). Diverges from Phase 3's "one topic + one sub collapsed to one queue" — Phase 4 keeps them separate. |
+| **4.7** | ◻ | **Azure Service Bus topics backend** `services/pubsub/backends/azure/` — hybrid: `azservicebus` SDK for topic + subscription admin and Send + Receive; REST API (SAS-signed per request) for Complete + RenewLock since the high-level SDK requires `*ReceivedMessage`. |
+| **4.8** | ◻ | **GCP Pub/Sub frontend** `internal/pubsub/frontends/gcp_pubsub/`. Same wire types as Phase 3 (reuse rule), but fanout-aware: topic ≠ subscription resources, multiple subs per topic. |
+| **4.9** | ◻ | **Azure Service Bus topics REST frontend** `internal/pubsub/frontends/azure_servicebus_topics/`. Routes: `PUT /{topic}`, `PUT /{topic}/Subscriptions/{sub}`, `POST /{topic}/messages` (publish), `POST /{topic}/Subscriptions/{sub}/messages/head` (peek-lock on a subscription), Complete/Renew under the subscription's URL. AMQP fidelity tier deferred same as Phase 3. |
+| **4.10** | ◻ | Conformance matrix: `TestPubsubMatrix_{AWSFrontend,GCPFrontend,AzureFrontend}` iterates every backend factory and drives Create → Subscribe → Publish → Receive → Ack → DeleteSubscription → DeleteTopic. |
+| **4.11** | ◻ | CLI conformance: `aws sns publish`/`subscribe` (+ `aws sqs receive-message` for the backing queue), `gcloud pubsub topics+subscriptions`, `az servicebus topic+subscription`. |
+| **4.12** | ◻ | Terraform conformance where the provider admits endpoint override: `hashicorp/aws` (`aws_sns_topic` + `aws_sns_topic_subscription` + `aws_sqs_queue`), `hashicorp/google` (`google_pubsub_topic` + `google_pubsub_subscription`). |
+| **4.13** | ◻ | `cmd/shim pubsub` subcommand. Default `:9300`. Selectors: -frontend (aws_sns, gcp_pubsub, azure_servicebus_topics), -backend (inmem, nats, aws, gcp, azure). Version bump 0.5.0-phase-4. |
+| **4.14** | ◻ | CI lane — reuse the existing `conformance-nats` container (it already runs `-js` which supports both core NATS subjects and JetStream consumers); add `TestPubsubMatrix` to the same lane's test command. |
+| **4.15** | ◻ | Phase 4 closer: SDK matrix green across reachable cells; documented skips for Azure AMQP / ARM-only cells; STATUS / WHAT_WE_DID / BUGS refreshed; PR title + body refreshed; CI green. |
 
 Status legend: ✅ done · ◐ in progress · ◻ pending · ⏸ paused.
 
-## Phase 3 design notes
+## Phase 4 design notes
 
-**Receipt handles — the hard part.** AWS / GCP / Azure / NATS each emit a different opaque token after a receive that the consumer must present back to ack / extend / delete. The domain uses opaque-string handles; each backend adapter maps native ↔ opaque. **No shim-side index** — per the no-state rule the handle round-trips through the backend, with composite encoding for Azure where the native pair (MessageId + LockToken) doesn't fit one string. See [`services/queue/OPERATIONS.md`](services/queue/OPERATIONS.md#receipt-handles) for the per-cloud mapping.
+**Pub/Sub vs Queue — what's different from Phase 3.** Phase 3 was point-to-point: one queue, many consumers, each message goes to *one* consumer. Phase 4 is fanout: one topic, many subscriptions, each subscriber receives a copy of *every* message. Two consequences: Topic ≠ Subscription as separate domain resources, and Receive is per-subscription, not per-topic.
 
-**Visibility / ack-deadline semantics.** AWS lets you override per-receive (up to 12h); GCP caps at 600s (10m) and doesn't honour a per-receive override (use `ModifyAckDeadline` after the receive instead); Azure extends via `RenewMessageLock`; NATS uses `Msg.InProgress`. Domain caps at 600 seconds across all backends so behaviour is uniform.
+**AWS dual-protocol surface.** SNS for publish, SQS for receive. SNS subscriptions deliver to SQS queues by ARN; the shim auto-creates the backing queue at `CreateSubscription` time. The Phase 3 SQS handler is reused verbatim for the receive side. This is the only frontend whose driver tests use *two* SDK clients.
 
-**Wait time.** AWS caps at 20s; Azure at 240s; NATS unbounded; GCP recommends streaming pull. Domain caps at 20s; backends that don't natively support per-receive wait busy-poll up to the budget.
+**NATS core (not JetStream) for fanout.** Subject-based publish/subscribe is true fanout. For *durable* subscriptions the backend toggles to JetStream consumers attached to a stream — same machinery the Phase 3 NATS backend uses. The Phase 3 `conformance-nats` lane already runs NATS with `-js`, so it covers both modes.
+
+**Receipt handles, visibility, attributes.** Inherited verbatim from Phase 3 — same opaque-string contract, same 600s visibility cap, same 20s wait cap, same `map[string]string` attribute coercion rule. See [`services/pubsub/OPERATIONS.md`](services/pubsub/OPERATIONS.md) for details.
 
 **Out-of-intersection features (return source-cloud "not supported" error):**
-- AWS FIFO queues, DLQ redrive, KMS encryption, message timers
-- GCP ordering keys, push subscriptions, filters, exactly-once
-- Azure sessions, duplicate detection, DLQ, scheduled messages, topics/subscriptions, partitioning
-- NATS push consumers, mirror streams, replay policies
-
-**K8s peer choice — NATS JetStream.** The KV / object engines inside JetStream are out of intersection (they belong to other shim services). Only the pull-consumer model is in scope.
+- AWS SNS FIFO topics, message filtering, KMS encryption, HTTP/Lambda/email subscription protocols, DLQ.
+- GCP ordering keys, push subscriptions, exactly-once, schema registries, filters.
+- Azure topic rules/filters, sessions, duplicate detection, auto-forwarding.
+- NATS mirror streams, replay policies.
 
 ## Invariants snapshot (full list in [STATUS.md § Invariants](STATUS.md#invariants-carry-across-compactions--fresh-sessions))
 
@@ -57,15 +56,16 @@ Status legend: ✅ done · ◐ in progress · ◻ pending · ⏸ paused.
 - File BUGs in [BUGS.md](BUGS.md) *before* fixing.
 - Update STATUS / WHAT_WE_DID / DO_NEXT at every significant chunk.
 - Fidelity to the source cloud's API. Out-of-intersection features return source cloud's own error; never fabricate success.
-- Real backends only; no emulators (the in-mem backend is a real-secrets test fixture, not an emulator).
+- Real backends only; no emulators (the in-mem backend is a real-pubsub test fixture, not an emulator).
 - Tests from official client surfaces: SDK + CLI + Terraform provider per operation, per backend, same commit.
 - Kubernetes is a first-class fourth backend.
 - **Reuse over reinvention** ([AGENTS.md](AGENTS.md#reuse-over-reinvention)): wire types from each cloud's official Go SDK; spec inputs from upstream-canonical sources; auth verification via the cloud's official verifier libraries.
 
 ## Resumable tracks (longer-horizon)
 
-- **Track A — Cloud test accounts.** Decide where live cloud accounts for nightly conformance runs live, and who pays. Live-cloud rows for AWS / GCS / Azure Blob are skipped on every phase until this lands.
+- **Track A — Cloud test accounts.** Decide where live cloud accounts for nightly conformance runs live, and who pays. Live-cloud rows for AWS / GCP / Azure are skipped on every phase until this lands.
 - **Track B — Coding-agent automation.** Auto-PR template per service, agent permissions for upstream spec bumps, conformance-failure → BUG-filing automation.
+- **BUG-2 (queue / SetQueueAttributes).** Wiring the 9th queue intersection op so `hashicorp/aws aws_sqs_queue` Terraform conformance lifts the ◇-skip. Pick up after Phase 4 closes, or fold into a later phase.
 
 ## Session-resume checklist
 

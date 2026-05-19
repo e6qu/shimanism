@@ -8,12 +8,12 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 
 | | |
 |---|---|
-| Active branch | `phase-3-queue` — PR pending push. Full N × N queue matrix piled onto one branch across 11 commits (3.0–3.15). |
-| In-flight | None — Phase 3 closing. Three queue frontends (AWS SQS, GCP Pub/Sub pull, Azure Service Bus REST) × five backends (inmem + NATS JetStream as K8s peer + the three clouds) × three driver types (SDK + CLI + Terraform). 8-op intersection. Stateless invariant preserved across all five backends — receipt handles round-trip through the backend, no shim-side index. CI gains `conformance-nats` lane. AMQP fidelity tier deferred per PLAN.md open question; Azure SDK + az CLI + azurerm cells ◇ skipped (AMQP / ARM, both out of scope). `aws_sqs_queue` Terraform cell ◇ skipped pending `SetQueueAttributes` extension (BUG-2). |
-| Phase 3 commits | `0c0d1a5`..`8502bc3` on `phase-3-queue`. 11 commits, conventional `Phase 3.x` titles, conformance green at each step. |
+| Active branch | `phase-4-pubsub` — fresh off main. 4.0 scope baseline drafted; sub-phases 4.1–4.15 ahead. |
+| In-flight | **Phase 4 — Pub/Sub.** Topic-fanout model. Three frontends (AWS SNS+SQS-receive, GCP Pub/Sub fanout, Azure Service Bus topics) × five backends (inmem + NATS core/JetStream as K8s peer + the three clouds) × three driver types. 10-op intersection in [`services/pubsub/OPERATIONS.md`](services/pubsub/OPERATIONS.md). Topic ≠ Subscription as separate resources; Receive is per-subscription. |
+| Phase 3 closed | PR #8 merged `07d11f5` 2026-05-19. Three queue frontends × five backends × three driver types; 13 required CI checks. NATS JetStream as K8s peer; stateless receipt-handle round-trip; AMQP / ARM-only cells ◇-skipped with documented reasons. BUG-2 carried forward (SetQueueAttributes gap blocks `aws_sqs_queue` TF cell). |
 | Phase 2 closed | PR #7 merged `7df43ec` 2026-05-19. Three secrets frontends × five secrets backends × three driver types; 12 required CI checks. Stateless invariant + shimakit framework + shima<service> naming convention landed alongside. |
 | Phase 1 closed | PR #6 merged `1f64d9f` 2026-05-19. Three storage frontends × five storage backends × three driver types matrix; 11 required CI checks. |
-| CI baseline | 13 required checks — the 12 Phase-2 ones plus `conformance-nats` added in 3.15. Real-cloud lanes (aws-sqs, gcp-pubsub, azure-servicebus) wait on Track A. |
+| CI baseline | 13 required checks from Phase 3. Phase 4 reuses the `conformance-nats` lane (JetStream already enabled, covers both NATS-core fanout and durable JetStream subscriptions). Real-cloud lanes wait on Track A. |
 | Scope rule (2026-05-18) | **Each phase ships the full N × N matrix.** Previous PLAN.md had Phases 9 and 10 as "GCP source row" and "Azure source row" of horizontal expansion across all 8 services; user reversed this. Each service phase now includes all 3 frontends + all 4 backends + SDK / CLI / Terraform for each, before moving to the next service. Phases 9 and 10 deleted; their work is absorbed into Phases 1-8. |
 | Last merged | PR #5 — Phase 1.3 (codegen, originally all 107 ops) (`03b0ebb`, 2026-05-18). |
 | Standing merge auth | **None.** User merges every PR. |
@@ -50,17 +50,17 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 - Monorepo: `services/<service>/`, shared `internal/codegen/`, `internal/harness/`.
 - Test rings: per-PR recorded interactions, nightly live cloud, pre-release vendor integration suites.
 
-## Current phase — Phase 3: Queue
+## Current phase — Phase 4: Pub/Sub
 
-Phase 3 ships the queue service end-to-end. AWS SQS / GCP Pub/Sub / Azure Service Bus REST frontends, each translatable to inmem / NATS JetStream / AWS / GCP / Azure backends. 8-op intersection (CreateQueue, DeleteQueue, ListQueues, GetQueueAttributes, SendMessage, ReceiveMessages, DeleteMessage, ChangeVisibility) plus GetQueueUrl as an AWS probe.
+Phase 4 ships the pub/sub service: one topic with many subscriptions, each subscriber receiving a copy of every message. AWS SNS+SQS-receive / GCP Pub/Sub fanout / Azure Service Bus topics frontends, each translatable to inmem / NATS core (or JetStream for durable subs) / AWS / GCP / Azure backends. 10-op intersection.
 
-Sub-phase table is in [DO_NEXT.md](DO_NEXT.md). PR pending push.
+Sub-phase table is in [DO_NEXT.md](DO_NEXT.md). Scope baseline at [`services/pubsub/OPERATIONS.md`](services/pubsub/OPERATIONS.md).
 
-### Phase 3 standing notes
-- **Receipt handles are opaque.** No shim-side index. NATS uses the reply subject; GCP passes AckId; AWS passes ReceiptHandle; Azure encodes `<messageID>|<lockToken>` so the receipt round-trips through the URL.
-- **Caps for uniformity.** Visibility timeout 600s (GCP's max), wait time 20s (AWS's max).
-- **AMQP deferred.** Azure SDK speaks AMQP; the shim's Azure frontend is REST-only this phase. SDK cell ◇ skipped; raw-HTTP cell is the conformance contract.
-- **SetQueueAttributes gap.** Filed BUG-2 — `aws_sqs_queue` Terraform reconciliation depends on it; cell ◇ skipped pending the extension.
+### Phase 4 standing notes
+- **Topic ≠ Subscription.** Phase 3 collapsed a GCP topic+subscription pair onto one queue; Phase 4 keeps them as separate resources because fanout requires it. Multiple subscriptions can attach to one topic; each subscription has its own ack-deadline.
+- **AWS dual-protocol.** SNS for publish, SQS for receive. The shim auto-creates the backing SQS queue at `CreateSubscription` time and registers the SNS subscription with `Protocol=sqs`. The Phase 3 SQS handler is reused verbatim for the receive side.
+- **NATS core for fanout, JetStream for durable subs.** Subject-based publish/subscribe is true fanout. When a subscription is created with `Durable=true`, the backend toggles to JetStream consumers attached to a stream — same machinery as Phase 3. The existing `conformance-nats` CI lane covers both modes.
+- **Receipt handles, visibility, attributes.** Inherited verbatim from Phase 3 — opaque-string contract, 600s visibility cap, 20s wait cap, `map[string]string` attribute coercion.
 
 ## Recently closed phases (last 5)
 
