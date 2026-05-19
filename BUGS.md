@@ -1,6 +1,6 @@
 # Known Bugs
 
-**10 filed · 3 fixed · 7 open · 0 false positives.**
+**11 filed · 3 fixed · 8 open · 0 false positives.**
 
 Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLAN.md](PLAN.md) · narrative [WHAT_WE_DID.md](WHAT_WE_DID.md) · rules [AGENTS.md](AGENTS.md).
 
@@ -21,6 +21,7 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 | BUG-8 | P3 | apigateway/gcp-tf-frontend | `hashicorp/google` | API Gateway endpoint-override attribute name changed across provider major versions and the current provider's API Gateway resource lifecycle requires real OAuth-signed requests the mock httptest server can't sign. `services/apigateway/conformance/gcp_terraform_test.go` is smoke-skipped pending Track A real-cloud TF coverage. |
 | BUG-9 | P2 | apigateway/gcp-frontend | GCP API Gateway REST | `internal/apigateway/frontends/gcp_apigateway` only implements the `Gateways` endpoint family (`/v1/projects/{p}/locations/{l}/gateways/...`). The route-deployment surface (`Apis` + `ApiConfigs` endpoints) — the GCP equivalent of AWS CreateRoute/CreateDeployment — is not implemented. The intersection's `DeployGateway` is reachable through the AWS frontend's CreateDeployment, but a client that drives the GCP frontend natively (via `gcloud api-gateway api-configs create` or the Apis.Configs.Create call) silently 404s instead of returning a real route deployment. Phase 9 must wire ApiConfigs.{Create,Get,Delete,List} so the GCP frontend covers route deployment honestly. |
 | BUG-10 | P2 | apigateway/azure-frontend | Azure API Management REST | `internal/apigateway/frontends/azure_apim` only implements the `Apis` endpoint family. The Operations subresource — `/...service/{svc}/apis/{api}/operations/{op}`, the Azure equivalent of AWS CreateRoute — is not implemented. The `armapimanagement` SDK's `APIOperationClient.CreateOrUpdate` (which a real APIM-shaped client uses to deploy a route) silently 404s. Phase 9 must wire `Operations.{Create,Get,Delete,List}` so the Azure frontend covers route deployment honestly. |
+| BUG-11 | P3 | apigateway/aws-frontend | AWS APIGW v2 restJson1 | The AWS frontend's catch-all 404 emits `restJson1 { "Message": "..." }` but is missing the `__type: "NotFoundException"` field that real APIGW v2 includes. SDK error-class detection (`var nfe *types.NotFoundException; errors.As(err, &nfe)`) silently misclassifies the 404. Per Phase 9.2-A audit. Fix: add the `__type` header / body field per restJson1 spec. |
 
 ## False positives
 
