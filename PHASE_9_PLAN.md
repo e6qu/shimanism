@@ -8,6 +8,41 @@
 
 State [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](BUGS.md) · roadmap [PLAN.md](PLAN.md) · philosophy [PHILOSOPHY.md](PHILOSOPHY.md) · rules [AGENTS.md](AGENTS.md).
 
+## What "intersection" means here — useful for migration, not lowest common denominator
+
+The shim exists to **help users migrate, service by service, between clouds and to/from K8s or on-prem.** A migration user's question is *"can I keep my AWS-shaped Terraform module, point it at a GCS backend through the shim, and have my workloads continue to function?"* The intersection that matters is whatever serves that question — not the trivially overlapping subset of every cloud's API.
+
+Concretely, an operation is **in the intersection** iff:
+
+1. **It moves migration forward.** A user migrating from AWS to GCP needs to read tags, recreate access policies, list versions, configure encryption — these are migration-critical even when the per-cloud shape differs. An operation purely useful for vendor-lock-in features (e.g. AWS-specific S3 Object Lock retention modes) is not.
+2. **It has a faithful counterpart on each target backend.** The counterpart can be a different shape — AWS bucket policy ↔ GCS uniform bucket-level access ↔ Azure container public-access level — but it must capture the same *user intent*. If the user-intent capture requires lying about behavior, the operation is **not** in the intersection.
+3. **The translation is honest under load and at scale.** A "common" operation that only works for resources smaller than 100MB, or that silently degrades for high concurrency, is not in the intersection. Migration is end-to-end or it isn't.
+
+What this rules in / out:
+
+| Op | Rationale |
+|---|---|
+| **List buckets, list secrets, list queues, list functions, list gateways.** | Migration core: a user has to enumerate before they migrate. **In.** |
+| **Read + write tags / labels / metadata.** | Migration core: ownership + cost-attribution + lifecycle hooks all key off these. **In** for every service. |
+| **Read + write resource-level access policies (intent, not bytes).** | Migration core: rebuilding security posture. Per-cloud shape differs; the *intent* maps. **In** at intent level — verbatim policy-byte round-trip is a non-goal. |
+| **Set per-object server-side encryption.** | Migration core: data-at-rest compliance. **In.** Encryption-key-source quirks (AWS KMS keys vs GCS CMEK vs Azure CSE) are translated at intent level. |
+| **AWS S3 Object Lock with compliance mode.** | Vendor-specific compliance feature, no honest cross-cloud counterpart. **Out of intersection** — returns `NotImplemented` honestly when requested. |
+| **GCP requester-pays buckets.** | Vendor-specific billing model. **Out** — returns GCP's `requesterPaysNotEnabled` envelope honestly. |
+| **APIM per-policy XML transform pipelines.** | Vendor-specific request-mangling DSL. **Out**, returns Azure's `BadRequest:NotSupported`. |
+| **Per-route auth at gateway level.** | Migration-critical *but* Phase 8 deferred it to Phase 8.5+. **Currently out**; tracked. |
+
+**The 9.2-A intersection inventory therefore captures three things per op**: (a) what the source cloud calls it; (b) what the cross-cloud user-intent is, if any; (c) which backend counterparts realize that intent (and how). When (b) doesn't exist, the op is out of intersection by definition — the shim then returns the source cloud's "not supported" envelope, not a placeholder.
+
+### Migration utility audit (Phase 9 sub-phase 9.2-B)
+
+After the no-fakes audit (9.2-A) classifies every op, sub-phase 9.2-B re-evaluates the *intersection itself* through the migration lens:
+
+- **Per-service migration scenario walkthrough.** For each shimmed service, write a 1-page "migration walkthrough" at `services/<svc>/MIGRATION.md`: AWS → GCP, AWS → Azure, AWS → K8s peer (and the reverse cells). What ops does the migration use? Are they all green? Where it uses an op currently marked "out of intersection," is the migration *actually impossible without it*, or just less convenient?
+- **Findings either expand the intersection or stay out.** If a walk-through reveals an op that's migration-critical and *does* have honest cross-cloud counterparts (we just didn't ship it), file a BUG + reclassify it as in-intersection + schedule the implementation work. If the op's "counterpart" turns out to require lying, leave it out and document why.
+- **Existing Phase 1–8 ops re-evaluated under the same lens.** A few cells today are "in intersection because the SDK calls them" rather than "in intersection because migration needs them." The audit re-asks.
+
+This is what separates shimanism from "yet another cloud API gateway." The goal is migration, not API mimicry.
+
 ## Hard invariant: every intersection endpoint does real work
 
 A reinforcement of [AGENTS.md § No fakes. No stubs. No mocks. No silent fallbacks. Ever.](AGENTS.md#no-fakes-no-stubs-no-mocks-no-silent-fallbacks-ever) — directly applicable to Phase 9:
@@ -181,6 +216,7 @@ Same table flipped for `google_*` and `azurerm_*` source clouds. Every cell in t
 | **9.1** | ◻ | `shimctl env` CLI: emits per-cloud + per-frontend endpoint-override env vars / TF snippets. Single source of truth at `internal/clientconfig/overrides.yaml`. |
 | **9.2** | ◻ | **Importer-read contract trace** per service. Run `TF_LOG=DEBUG terraform import` against an httptest recorder for each in-scope resource type. Capture op list + expected response shapes in `services/<svc>/conformance/importer_contract.md`. **No code yet** — this is the design input for 9.3+. |
 | **9.2-A** | ◻ | **No-fakes audit + intersection inventory.** Per service, file `services/<svc>/INTERSECTION.md` classifying every operation the 9.2 trace surfaces as (1) in-intersection-real-work, (2) feature-genuinely-unset, or (3) out-of-intersection. Audit existing Phases 1–8 frontend handlers for any synthesized success / discarded fields / wrong-envelope unset response; file BUGs before fixes. Exit gate: no operation an importer hits returns a fake. |
+| **9.2-B** | ◻ | **Migration utility audit.** Per service, file `services/<svc>/MIGRATION.md` covering AWS→GCP, AWS→Azure, AWS→K8s peer (and reverses). Re-evaluate every op's intersection status through the migration lens. Reclassify ops that are migration-critical and have honest counterparts; document why genuinely-vendor-locked ops stay out. |
 | **9.3** | ◻ | Mock cloud servers under `mocks/{aws,gcp,azure}/`. Each is a thin frontend around the inmem backend so the wire shape is identical to the corresponding shim frontend. Backs **exactly** the ops the 9.2 contracts enumerate, with the source cloud's true "not configured" envelope for unset features and the source cloud's "not supported" envelope for out-of-intersection. Verified by the 9.2-A audit. |
 | **9.4** | ◻ | Per-service import conformance for storage — `terraform import` against the AWS / GCP / Azure frontends, mock-backed. Uses `terraform plan -generate-config-out` then plan-is-no-diff. |
 | **9.5** | ◻ | Same for secrets, queue, pubsub. |
