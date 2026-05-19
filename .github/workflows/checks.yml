@@ -336,7 +336,27 @@ jobs:
         run: |
           # Knative Serving operator. Pin to a known 1.x release.
           kubectl apply -f https://github.com/knative/operator/releases/download/knative-v1.15.7/operator.yaml
-          kubectl -n default rollout status deployment/knative-operator --timeout=180s
+          # The manifest creates a `knative-operator` namespace +
+          # a deployment of the same name. Locate it across namespaces
+          # to be robust against future manifest layouts; wait for the
+          # operator + webhook to be Available before applying the
+          # KnativeServing CR (otherwise the validating webhook isn't
+          # registered yet and the apply fails).
+          for i in $(seq 1 60); do
+            ns=$(kubectl get deployment -A -l name=knative-operator -o jsonpath='{.items[0].metadata.namespace}' 2>/dev/null || true)
+            if [ -z "$ns" ]; then
+              ns=$(kubectl get deployment -A -o jsonpath='{range .items[?(@.metadata.name=="knative-operator")]}{.metadata.namespace}{"\n"}{end}' 2>/dev/null | head -1)
+            fi
+            if [ -n "$ns" ]; then break; fi
+            sleep 2
+          done
+          if [ -z "$ns" ]; then
+            echo "knative-operator deployment did not register; dumping cluster state" >&2
+            kubectl get deployment -A
+            exit 1
+          fi
+          echo "knative-operator in namespace=$ns"
+          kubectl -n "$ns" rollout status deployment/knative-operator --timeout=180s
           # Create a KnativeServing CR with kourier as the network layer.
           cat <<EOF | kubectl apply -f -
           apiVersion: operator.knative.dev/v1beta1
