@@ -334,64 +334,29 @@ jobs:
           cluster_name: shim-knative
       - name: Install Knative Serving
         run: |
-          # Knative Serving operator. Pin to a known 1.x release.
-          kubectl apply -f https://github.com/knative/operator/releases/download/knative-v1.15.7/operator.yaml
-          # The manifest creates a `knative-operator` namespace +
-          # a deployment of the same name. Locate it across namespaces
-          # to be robust against future manifest layouts; wait for the
-          # operator + webhook to be Available before applying the
-          # KnativeServing CR (otherwise the validating webhook isn't
-          # registered yet and the apply fails).
-          for i in $(seq 1 60); do
-            ns=$(kubectl get deployment -A -l name=knative-operator -o jsonpath='{.items[0].metadata.namespace}' 2>/dev/null || true)
-            if [ -z "$ns" ]; then
-              ns=$(kubectl get deployment -A -o jsonpath='{range .items[?(@.metadata.name=="knative-operator")]}{.metadata.namespace}{"\n"}{end}' 2>/dev/null | head -1)
-            fi
-            if [ -n "$ns" ]; then break; fi
-            sleep 2
-          done
-          if [ -z "$ns" ]; then
-            echo "knative-operator deployment did not register; dumping cluster state" >&2
-            kubectl get deployment -A
-            exit 1
-          fi
-          echo "knative-operator in namespace=$ns"
-          kubectl -n "$ns" rollout status deployment/knative-operator --timeout=180s
-          # The KnativeServing CR lives in a `knative-serving` namespace
-          # the operator doesn't create automatically — create it.
-          kubectl create namespace knative-serving --dry-run=client -o yaml | kubectl apply -f -
-          # Create a KnativeServing CR with kourier as the network layer.
-          cat <<EOF | kubectl apply -f -
-          apiVersion: operator.knative.dev/v1beta1
-          kind: KnativeServing
-          metadata:
-            name: knative-serving
-            namespace: knative-serving
-          spec:
-            ingress:
-              kourier:
-                enabled: true
-            config:
-              network:
-                ingress-class: "kourier.ingress.networking.knative.dev"
-          EOF
-          for i in $(seq 1 60); do
-            if kubectl -n knative-serving get deployment controller >/dev/null 2>&1; then break; fi
-            sleep 5
-          done
-          kubectl -n knative-serving rollout status deployment/controller --timeout=180s
-          kubectl -n knative-serving rollout status deployment/activator --timeout=180s
-          kubectl -n knative-serving rollout status deployment/autoscaler --timeout=180s
-          # Wait for kourier-system/kourier — it's installed by the
-          # operator only after the KnativeServing CR reconciles
-          # ingress.kourier.enabled=true. Without it, port-forward
-          # has nothing to attach to.
-          for i in $(seq 1 60); do
-            if kubectl -n kourier-system get svc kourier >/dev/null 2>&1; then break; fi
-            sleep 3
-          done
+          # Direct install (skip the operator). Pinning to Knative
+          # Serving v1.15.2 + net-kourier v1.15.1.
+          kubectl apply -f https://github.com/knative/serving/releases/download/knative-v1.15.2/serving-crds.yaml
+          kubectl apply -f https://github.com/knative/serving/releases/download/knative-v1.15.2/serving-core.yaml
+          kubectl -n knative-serving rollout status deployment/controller --timeout=240s
+          kubectl -n knative-serving rollout status deployment/activator --timeout=240s
+          kubectl -n knative-serving rollout status deployment/autoscaler --timeout=240s
+          kubectl -n knative-serving rollout status deployment/webhook --timeout=240s
+
+          # Install net-kourier (gateway + controller).
+          kubectl apply -f https://github.com/knative/net-kourier/releases/download/knative-v1.15.1/kourier.yaml
+          kubectl -n knative-serving rollout status deployment/net-kourier-controller --timeout=180s
           kubectl -n kourier-system rollout status deployment/3scale-kourier-gateway --timeout=180s
-          echo "kourier-system state:"
+
+          # Point Knative at kourier.
+          kubectl patch configmap/config-network \
+            --namespace knative-serving \
+            --type merge \
+            --patch '{"data":{"ingress-class":"kourier.ingress.networking.knative.dev"}}'
+
+          echo "knative-serving:"
+          kubectl -n knative-serving get all
+          echo "kourier-system:"
           kubectl -n kourier-system get all
       - name: Run knative conformance
         env:
