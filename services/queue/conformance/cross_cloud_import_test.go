@@ -22,9 +22,8 @@ import (
 	"google.golang.org/api/option"
 	pubsubraw "google.golang.org/api/pubsub/v1"
 
-	"github.com/e6qu/shimanism/internal/harness"
-	awssqsfront "github.com/e6qu/shimanism/internal/queue/frontends/aws_sqs"
 	"github.com/e6qu/shimanism/internal/queue/domain"
+	awssqsfront "github.com/e6qu/shimanism/internal/queue/frontends/aws_sqs"
 	gcpsubfront "github.com/e6qu/shimanism/internal/queue/frontends/gcp_pubsub"
 	gcpbackend "github.com/e6qu/shimanism/services/queue/backends/gcp"
 	"github.com/e6qu/shimanism/services/queue/backends/inmem"
@@ -142,8 +141,6 @@ func TestCrossCloudImport_Roundtrip_QueueAWStoGCPPubsub(t *testing.T) {
 			stdout, stderr)
 		return
 	}
-	// Use harness for the unused-import check.
-	_ = harness.QueueServer{}
 	t.Fatalf("terraform plan:\nstdout: %s\nstderr: %s\nerr: %v", stdout, stderr, err)
 }
 
