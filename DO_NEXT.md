@@ -6,73 +6,66 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 
 ## Where we are
 
-- **Last merged:** PR #10 (Phase 5 — rdbms, full 3 × 5 × 3 matrix + CloudNativePG as K8s peer + psql exit criterion) at `aeadbc8` on `origin/main`, 2026-05-19.
-- **Active branch:** `phase-6-cache` — fresh off main, 6.0 scope baseline drafted.
-- **Project phase:** **Phase 6 — Managed Redis (control plane only).** Same structural shape as Phase 5. Three frontends (AWS ElastiCache, GCP Memorystore Admin, Azure Cache for Redis) × five backends (inmem + Redis Operator as K8s peer + the three clouds) × three driver types. 6-op intersection (snapshot/restore deferred — cross-cloud Redis snapshot semantics are too divergent). Exit criterion: `redis-cli PING → PONG` through the shim-returned Connection block.
+- **Last merged:** PR #11 (Phase 6 — cache, full 3 × 5 × 3 matrix + Redis Operator as K8s peer + redis PING exit criterion) at `cca8bc0` on `origin/main`, 2026-05-19.
+- **Active branch:** `phase-7-functions` — fresh off main, 7.0 scope baseline drafted.
+- **Project phase:** **Phase 7 — Functions.** Same control-plane shape as Phases 5+6 with HTTP as the data plane. Container-image deployments only. Three frontends (AWS Lambda, GCP Cloud Run, Azure Container Apps) × five backends (inmem + Knative Serving as K8s peer + the three clouds) × three driver types. 5-op intersection. Events/triggers deferred — HTTP-trigger functions only.
 
-## Phase 6 sub-task table
+## Phase 7 sub-task table
 
 | Sub | Status | Headline |
 |---|---|---|
-| **6.0** | ✅ | Scope + design baseline. `services/cache/OPERATIONS.md` captures the 6-op intersection (Create/Delete/Describe/List/Modify/Reboot Instance). Snapshot/restore deferred (AWS S3 vs GCP GCS export vs Azure backup containers vs Redis Operator BackupRestore CRs — too divergent). Same async / stateless / control-plane-only rules as Phase 5. |
-| **6.1** | ✅ | Spec ingest. AWS ElastiCache Smithy 2.0 JSON vendored at `services/cache/spec/aws-elasticache.smithy.json` (965 KB) pinned to `aws/aws-sdk-go-v2@2517fe9f`. awsQuery wire protocol (same family as SNS + RDS). GCP Memorystore reused via `google.golang.org/api/redis/v1`; Azure via `armredis`. Manifest in `services/cache/codegen.json`. |
-| **6.2** | ✅ | `internal/cache/domain/` neutral interface — `Cache` (6 methods: CreateInstance, DeleteInstance, DescribeInstance, ListInstances, ModifyInstance, RebootInstance) + types (`Instance`, `Connection`, `Status`). Reuses the Status enum shape from Phase 5 rdbms (Creating/Available/Modifying/Rebooting/Deleting). AuthToken surfaced once at create time via `CreateInstanceResult.AuthToken`; never re-emitted in Connection block (matches AWS/GCP/Azure published behaviour). |
-| **6.3** | ✅ | inmem backend + AWS ElastiCache frontend (awsQuery, ElastiCache-namespaced XML) + SDK conformance via `aws-sdk-go-v2/service/elasticache`. Full Create → poll-until-available → Modify → Reboot → Delete lifecycle green. |
-| **6.4** | ✅ | **Redis Operator backend** (K8s peer) `services/cache/backends/redisop/` via dynamic client + unstructured `Redis` CRs (`redis.redis.opstreelabs.in/v1beta2`). Same pattern as Phase 5 cnpg — no operator-api module pulled. Auth token stored in a Kubernetes Secret + re-read on each DescribeInstance. CreateInstance → auth Secret + Redis CR. DescribeInstance reads the operator-emitted Service for `<name>.<ns>.svc.cluster.local:6379` once `status.readyReplicas > 0`. |
-| **6.5** | ✅ | **AWS ElastiCache passthrough backend** `services/cache/backends/aws/`. |
-| **6.6** | ✅ | **GCP Memorystore Admin backend** `services/cache/backends/gcp/`. AuthString fetched only at create time. |
-| **6.7** | ✅ | **Azure Cache for Redis backend** `services/cache/backends/azure/` via `armredis/v3`. |
-| **6.8** | ✅ | **GCP Memorystore Admin frontend** REST/JSON `internal/cache/frontends/gcp_memorystore/`. |
-| **6.9** | ✅ | **Azure Cache for Redis REST frontend** `internal/cache/frontends/azure_redis/`. |
-| **6.10** | ✅ | Matrix conformance `TestCacheMatrix_AWSFrontend`. inmem cell green. |
-| **6.11** | ✅ | CLI: `aws elasticache` green; `gcloud redis` + `az redis` ◇ skipped. |
-| **6.12** | ✅ | Terraform: all three ◇ skipped (reconciliation / polling-endpoint reasons). |
-| **6.13** | ✅ | `cmd/shim cache` subcommand at `cmd/shim/cache.go`. Default `:9500`. Version 0.7.0-phase-6. |
-| **6.14** | ✅ | CI lane `conformance-redisop`: kind + OT-CONTAINER-KIT Redis Operator. |
-| **6.15** | ✅ | **PING connectivity test** at `services/cache/conformance/ping_connectivity_test.go`. Phase 6 exit criterion. |
-| **6.16** | ✅ | Phase 6 closer. PR pending push. |
+| **7.0** | ✅ | Scope + design baseline. `services/functions/OPERATIONS.md` captures the 5-op intersection (Create/Delete/Describe/List/Update Function). Container image only; events + auth-on-invoke deferred. |
+| **7.1** | ✅ | AWS Lambda Smithy vendored (restJson1). |
+| **7.2** | ✅ | `internal/functions/domain/` — 5-method `Functions` interface. |
+| **7.3** | ✅ | inmem + AWS Lambda restJson1 frontend + SDK conformance. |
+| **7.4** | ✅ | Knative Serving backend (K8s peer). |
+| **7.5** | ✅ | AWS Lambda passthrough backend. |
+| **7.6** | ✅ | GCP Cloud Run backend (`run/v2`). |
+| **7.7** | ✅ | Azure Container Apps backend (`armappcontainers/v3`). |
+| **7.8** | ✅ | GCP Cloud Run REST frontend. |
+| **7.9** | ✅ | Azure Container Apps REST frontend. |
+| **7.10** | ✅ | Matrix conformance `TestFunctionsMatrix_AWSFrontend`. |
+| **7.11** | ✅ | CLI: `aws lambda` green; `gcloud run` + `az containerapp` ◇ skipped. |
+| **7.12** | ✅ | Terraform: all three ◇ skipped. |
+| **7.13** | ✅ | `cmd/shim functions` subcommand. Default `:9600`. Version 0.8.0-phase-7. |
+| **7.14** | ✅ | CI lane `conformance-knative`: kind + Knative Serving v1.15.7 + Kourier. |
+| **7.15** | ✅ | **HTTP-invoke connectivity test** — deploys `gcr.io/knative-samples/helloworld-go` via the shim, port-forwards, opens real HTTP, asserts "Hello" response. Phase-7 exit criterion. |
+| **7.16** | ✅ | Phase 7 closer. PR pending push. |
 
 Status legend: ✅ done · ◐ in progress · ◻ pending · ⏸ paused.
 
-## Phase 6 design notes
+## Phase 7 design notes
 
-**Same shape as Phase 5.** Control plane only — shim provisions, clients connect directly via RESP. Explicit `Status` enum for async lifecycle. Stateless credential handling — auth token returned exactly once at create time. The Redis Operator backend mirrors the cnpg backend's dynamic-client + unstructured-CR pattern.
-
-**Snapshot/restore deferred.** Cross-cloud Redis snapshot semantics are too divergent for a clean intersection at this phase (AWS exports to S3, GCP to GCS, Azure to backup containers, Redis Operator uses BackupRestore CRs with different conventions). Defer to a follow-on if needed.
-
-**Out-of-intersection features (return source-cloud "not supported" error):**
-- AWS ElastiCache cluster mode, replication groups, parameter groups, ElastiCache Serverless.
-- GCP Memorystore persistence configs, maintenance policies, read replicas.
-- Azure Cache for Redis premium-tier features (clustering, persistence, geo-replication).
-- Redis Operator Sentinel deployments, custom Redis configs.
+- **Control plane only.** Same posture as Phases 5+6. The shim provisions deployments and returns endpoint URLs; HTTP invocation goes straight to the function URL.
+- **Container image only.** ZIP-package Lambda deployment is out of intersection. All four backends natively support container images.
+- **Events deferred.** Cross-cloud event payload normalization is the hard part per PLAN.md. HTTP-trigger functions only at this phase; event-source mappings deferred.
+- **Auth-on-invoke deferred.** Public-HTTP functions only.
 
 ## Invariants snapshot (full list in [STATUS.md § Invariants](STATUS.md#invariants-carry-across-compactions--fresh-sessions))
 
 - Never auto-merge; user merges every PR.
-- **One PR at a time.** Work piles on the single open PR; new branches only start after the current PR merges.
+- **One PR at a time.**
 - File BUGs in [BUGS.md](BUGS.md) *before* fixing.
 - Update STATUS / WHAT_WE_DID / DO_NEXT at every significant chunk.
-- Fidelity to the source cloud's API. Out-of-intersection features return source cloud's own error; never fabricate success.
-- Real backends only; no emulators (the in-mem backend is a real-cache test fixture, not an emulator).
-- Tests from official client surfaces: SDK + CLI + Terraform provider per operation, per backend, same commit.
+- Fidelity to the source cloud's API.
+- Real backends only; no emulators.
+- Tests from official client surfaces.
 - Kubernetes is a first-class fourth backend.
-- **Reuse over reinvention** ([AGENTS.md](AGENTS.md#reuse-over-reinvention)): wire types from each cloud's official Go SDK; spec inputs from upstream-canonical sources; auth verification via the cloud's official verifier libraries.
+- **Reuse over reinvention.**
 
 ## Resumable tracks (longer-horizon)
 
-- **Track A — Cloud test accounts.** Decide where live cloud accounts for nightly conformance runs live, and who pays.
-- **Track B — Coding-agent automation.** Auto-PR template per service, agent permissions for upstream spec bumps, conformance-failure → BUG-filing automation.
-- **BUG-2 (queue / SetQueueAttributes).** Wiring the 9th queue intersection op so `hashicorp/aws aws_sqs_queue` Terraform conformance lifts the ◇-skip. Same gap blocks `aws_sns_topic_subscription` (Phase 4) and contributed to `aws_db_instance` skip (Phase 5).
-- **BUG-5 (rdbms / GCP Operations polling endpoint).** Unlocks `gcloud sql instances` + `google_sql_database_instance` cells from Phase 5.
+- **Track A — Cloud test accounts.**
+- **Track B — Coding-agent automation.**
+- **BUG-2 (queue / SetQueueAttributes).** Ripple still affects Phase 4 + 5 TF cells.
+- **BUG-5 (rdbms / GCP Operations polling endpoint).** Blocks Phase 5 + 6 GCP CLI + TF cells.
 
 ## Session-resume checklist
 
-When picking up after compaction or in a fresh session:
-
 1. `git fetch origin && git checkout main && git pull` — sync.
-2. `gh pr list --state open` — find the single open PR. **Don't open a new one** if any are open; pile work onto the existing branch.
+2. `gh pr list --state open` — find the single open PR.
 3. `git checkout <pr-branch>` — get on the active branch.
 4. Read [STATUS.md § Snapshot](STATUS.md#snapshot) and this file's "Where we are" section.
-5. Read [STATUS.md § Invariants](STATUS.md#invariants-carry-across-compactions--fresh-sessions) and [AGENTS.md](AGENTS.md) before any code change.
-6. Skim [BUGS.md § Open](BUGS.md#open) — anything in there pre-empts new feature work unless explicitly deferred in the bug entry.
-7. Pick the next ◻ sub-task above; mark ◐ when starting; include continuity-doc updates in the same PR.
+5. Read [STATUS.md § Invariants](STATUS.md#invariants-carry-across-compactions--fresh-sessions) and [AGENTS.md](AGENTS.md).
+6. Skim [BUGS.md § Open](BUGS.md#open).
+7. Pick the next ◻ sub-task; mark ◐ when starting.

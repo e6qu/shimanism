@@ -4,6 +4,41 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 
 > Reverse chronological. One section per phase. The *why*, the surprises, the root causes — not per-PR detail. For commit-level history, `git log`. For per-bug detail, [BUGS.md](BUGS.md).
 
+## Phase 7 — Functions (in-flight on `phase-7-functions`)
+
+Control-plane shim for container-image function deployments. Same shape as Phases 5+6 (provision + return endpoint, clients invoke directly), but the data plane is HTTP — substantially simpler to test than PG wire protocol or RESP, but with one twist: the URL has to actually route to the deployed container, end-to-end.
+
+### Container image only
+
+ZIP-package Lambda is out of intersection. All four backends (AWS Lambda, GCP Cloud Run, Azure Container Apps, Knative) natively support container images; ZIP is AWS-specific. Cross-cloud function deployment via the shim means shipping a registry image, not a source bundle. This is a meaningful narrowing — most "function" tooling defaults to ZIP/source for AWS users — but it's the honest intersection.
+
+### restJson1 — a fourth AWS wire protocol family
+
+Phases 1+2 used S3 XML / awsJson1_1. Phase 3 used awsJson1_0 (SQS). Phases 4+5+6 used awsQuery (SNS, RDS, ElastiCache). Phase 7's Lambda uses **restJson1**: real REST routes (`POST /2015-03-31/functions/`, `GET /2015-03-31/functions/{name}/configuration`) with JSON request + response bodies. The frontend hand-writes the URL dispatcher; wire-type shapes mirror the vendored Smithy spec. Four AWS protocol families now covered in the shim's frontend implementations.
+
+### Events deferred
+
+PLAN.md flags event payload normalization as the hard part — cross-cloud events (CloudWatch / EventBridge / Eventarc / Pub/Sub triggers / Event Grid) have completely different shapes. The shim ships HTTP-trigger functions only at this phase. Event-source mappings are deferred to a follow-on phase if they're needed (likely not — most cross-cloud function deployments are HTTP-driven anyway).
+
+### Auth-on-invoke deferred
+
+Public-HTTP functions only. IAM-gated invocation (`aws lambda invoke` with SigV4-signed Invoke requests, GCP IAM bindings, Azure managed-identity auth) requires per-cloud credential flows that don't translate cleanly. Documented as deferred.
+
+### Knative URL routing nuance
+
+The HTTP-invoke exit criterion needs the test to hit the Knative-deployed container. Knative routes by Host header — the Service's `status.url` looks like `http://helloworld.default.example.com` and the ingress gateway dispatches to the underlying Pod based on the Host. Since the test runs on the GitHub runner (outside the kind cluster), it uses `kubectl port-forward svc/<name>` to bypass the gateway entirely — the per-Service `<name>` Service routes directly to the activator + Pod without the gateway's Host-based dispatch in the way. The test then sets `req.Host` to the Knative-emitted hostname so the response is correct.
+
+### Endpoint URL across backends
+
+- **Knative**: `Service.status.url` — directly usable.
+- **AWS Lambda**: no public URL by default (Lambda Function URLs require a separate `CreateFunctionUrlConfig` op, out of intersection). The backend emits `aws-lambda://<arn>` as a placeholder; only the Knative backend supports the HTTP exit criterion at this phase.
+- **GCP Cloud Run**: `Service.uri` — public HTTPS URL by default.
+- **Azure Container Apps**: `Configuration.Ingress.Fqdn` — externally reachable when `ingress.external=true`.
+
+### CI
+
+`conformance-knative` lane uses `helm/kind-action` + the Knative Serving operator v1.15.7 + Kourier as the ingress layer. The exit-criterion test polls `kubectl get ksvc` for the URL, port-forwards the Knative Service, and curl-invokes the helloworld-go sample container.
+
 ## Phase 6 — Managed Redis (in-flight on `phase-6-cache`)
 
 A near-mirror of Phase 5 — control plane only, K8s peer is Redis Operator instead of CloudNativePG, exit criterion is `redis-cli PING → PONG` through the shim-returned Connection block. Mostly mechanical re-application of the Phase 5 architecture.

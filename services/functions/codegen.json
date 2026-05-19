@@ -1,0 +1,15 @@
+{
+  "_comment": "Intersection set for the functions shim's AWS Lambda frontend. Container-image deployments only. Lambda uses restJson1 (REST routes + JSON bodies).",
+  "spec": "services/functions/spec/aws-lambda.smithy.json",
+  "package": "gen",
+  "out": "services/functions/gen/aws_lambda.gen.go",
+  "operations": [
+    "CreateFunction",
+    "DeleteFunction",
+    "GetFunction",
+    "GetFunctionConfiguration",
+    "ListFunctions",
+    "UpdateFunctionCode",
+    "UpdateFunctionConfiguration"
+  ]
+}
