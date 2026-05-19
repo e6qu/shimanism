@@ -210,7 +210,7 @@ func (b *Backend) toDomain(ctx context.Context, u *unstructured.Unstructured) do
 	name := u.GetName()
 	inst := domain.Instance{
 		Name:      name,
-		Status:    statusFromRedis(u),
+		Status:    b.statusFor(ctx, u),
 		CreatedAt: u.GetCreationTimestamp().Time,
 	}
 	if inst.Status == domain.StatusAvailable {
@@ -232,30 +232,20 @@ func (b *Backend) toDomain(ctx context.Context, u *unstructured.Unstructured) do
 	return inst
 }
 
-func statusFromRedis(u *unstructured.Unstructured) domain.Status {
+// statusFor reads the operator-managed StatefulSet to decide whether
+// the Redis is available. The Redis CR's own .status fields differ
+// across the various operators (Sentinel, Replication, single-node)
+// and aren't reliably populated for the v1beta2 Redis kind; the
+// StatefulSet's ReadyReplicas count is the most universal signal —
+// it's what every operator topology lands on.
+func (b *Backend) statusFor(ctx context.Context, u *unstructured.Unstructured) domain.Status {
 	if u.GetDeletionTimestamp() != nil {
 		return domain.StatusDeleting
 	}
-	status, ok := u.Object["status"].(map[string]interface{})
-	if !ok {
-		return domain.StatusCreating
-	}
-	if state, ok := status["state"].(string); ok {
-		switch state {
-		case "Ready", "Initialising-Master-Replicas":
-			if state == "Ready" {
-				return domain.StatusAvailable
-			}
-			return domain.StatusCreating
-		}
-	}
-	if ready, ok := status["readyReplicas"]; ok {
-		if r, ok := ready.(int64); ok && r > 0 {
-			return domain.StatusAvailable
-		}
-		if r, ok := ready.(float64); ok && r > 0 {
-			return domain.StatusAvailable
-		}
+	name := u.GetName()
+	ss, err := b.core.AppsV1().StatefulSets(b.namespace).Get(ctx, name, metav1.GetOptions{})
+	if err == nil && ss.Status.ReadyReplicas > 0 {
+		return domain.StatusAvailable
 	}
 	return domain.StatusCreating
 }
