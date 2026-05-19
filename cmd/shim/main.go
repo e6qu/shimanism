@@ -25,11 +25,11 @@ import (
 	"net/http"
 	"os"
 
+	gcsstorage "cloud.google.com/go/storage"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	awss3 "github.com/aws/aws-sdk-go-v2/service/s3"
-	gcsstorage "cloud.google.com/go/storage"
 
 	"github.com/e6qu/shimanism/internal/restxml"
 	"github.com/e6qu/shimanism/internal/storage/domain"

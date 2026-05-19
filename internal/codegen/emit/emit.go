@@ -223,8 +223,8 @@ type structView struct {
 }
 
 type fieldView struct {
-	GoName  string
-	GoType  string
+	GoName string
+	GoType string
 	// Binding is one of:
 	//   "body"           appears in the XML body (default)
 	//   "header"         single header value
@@ -269,12 +269,12 @@ type opView struct {
 	Bindings   []fieldView // input bindings (one per input member)
 
 	// Input body-handling.
-	InputPayload         *fieldView // single member with httpPayload (or nil)
-	InputHasBodyFields   bool       // input struct has any XML-body fields
-	OutputPayload        *fieldView // single member with httpPayload on the output (or nil)
-	OutputHasBodyFields  bool       // output has any XML-body fields
-	OutputHeaders        []fieldView // header-bound output fields
-	OutputPrefixHeaders  []fieldView // prefix-headers-bound output fields (Metadata)
+	InputPayload        *fieldView  // single member with httpPayload (or nil)
+	InputHasBodyFields  bool        // input struct has any XML-body fields
+	OutputPayload       *fieldView  // single member with httpPayload on the output (or nil)
+	OutputHasBodyFields bool        // output has any XML-body fields
+	OutputHeaders       []fieldView // header-bound output fields
+	OutputPrefixHeaders []fieldView // prefix-headers-bound output fields (Metadata)
 
 	// RequiredInputHeaders are HTTP header names the input declares as
 	// required + header-bound. Used by Register() to disambiguate

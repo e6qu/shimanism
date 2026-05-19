@@ -22,11 +22,11 @@ import (
 	"strings"
 	"testing"
 
+	gcsstorage "cloud.google.com/go/storage"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/blob"
 	awsapi "github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-	gcsstorage "cloud.google.com/go/storage"
 
 	"github.com/e6qu/shimanism/internal/harness"
 	"github.com/e6qu/shimanism/services/storage/conformance"

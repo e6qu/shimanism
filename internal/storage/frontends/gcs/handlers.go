@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"hash"
 	"io"
 	"mime"
@@ -261,13 +260,13 @@ func (srv *Server) uploadMedia(w http.ResponseWriter, r *http.Request, bucket, n
 		return
 	}
 	writeJSON(w, http.StatusOK, &raw.Object{
-		Kind:     "storage#object",
-		Bucket:   bucket,
-		Name:     name,
-		Etag:     strings.Trim(res.ETag, "\""),
-		Md5Hash:  base64.StdEncoding.EncodeToString(hasher.Sum(nil)),
-		Updated:  time.Now().UTC().Format(time.RFC3339),
-		Size:     uint64(counted.N), //nolint:gosec
+		Kind:    "storage#object",
+		Bucket:  bucket,
+		Name:    name,
+		Etag:    strings.Trim(res.ETag, "\""),
+		Md5Hash: base64.StdEncoding.EncodeToString(hasher.Sum(nil)),
+		Updated: time.Now().UTC().Format(time.RFC3339),
+		Size:    uint64(counted.N), //nolint:gosec
 	})
 }
 
@@ -504,23 +503,6 @@ func (c *countingReader) Read(p []byte) (int, error) {
 	n, err := c.R.Read(p)
 	c.N += int64(n)
 	return n, err
-}
-
-// readWithLength returns the request body and the declared length.
-// Falls back to chunked read when Content-Length is missing.
-func readWithLength(r *http.Request) (io.Reader, int64, error) {
-	n := r.ContentLength
-	if n > 0 {
-		return r.Body, n, nil
-	}
-	// No declared length — read fully so backends that need a size
-	// can compute one. The intersection ops we care about all carry
-	// Content-Length, but defensiveness is cheap.
-	buf, err := io.ReadAll(r.Body)
-	if err != nil {
-		return nil, 0, fmt.Errorf("read body: %w", err)
-	}
-	return strings.NewReader(string(buf)), int64(len(buf)), nil
 }
 
 // Ensure the errors symbol is used (avoid "imported and not used"

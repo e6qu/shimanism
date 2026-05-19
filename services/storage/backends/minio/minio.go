@@ -206,7 +206,7 @@ func (b *Backend) GetObject(ctx context.Context, bucket, key string) (domain.Obj
 	}
 	info, err := obj.Stat()
 	if err != nil {
-		obj.Close()
+		_ = obj.Close()
 		return domain.Object{}, translateErr(err)
 	}
 	return domain.Object{
@@ -292,7 +292,7 @@ func (b *Backend) CopyObject(ctx context.Context, opt domain.CopyObjectOptions) 
 // ----------------------------------------------------------------------
 
 func (b *Backend) CreateMultipartUpload(ctx context.Context, bucket, key, contentType string, metadata map[string]string) (string, error) {
-		id, err := b.core.NewMultipartUpload(ctx, bucket, key, miniogo.PutObjectOptions{
+	id, err := b.core.NewMultipartUpload(ctx, bucket, key, miniogo.PutObjectOptions{
 		ContentType:  contentType,
 		UserMetadata: metadata,
 	})
@@ -300,7 +300,7 @@ func (b *Backend) CreateMultipartUpload(ctx context.Context, bucket, key, conten
 }
 
 func (b *Backend) UploadPart(ctx context.Context, bucket, key, uploadID string, partNumber int32, body io.Reader) (string, error) {
-		part, err := b.core.PutObjectPart(ctx, bucket, key, uploadID, int(partNumber),
+	part, err := b.core.PutObjectPart(ctx, bucket, key, uploadID, int(partNumber),
 		body, -1, miniogo.PutObjectPartOptions{})
 	if err != nil {
 		return "", translateErr(err)
@@ -309,7 +309,7 @@ func (b *Backend) UploadPart(ctx context.Context, bucket, key, uploadID string, 
 }
 
 func (b *Backend) CompleteMultipartUpload(ctx context.Context, bucket, key, uploadID string, parts []domain.CompletePartRef) (string, error) {
-		mp := make([]miniogo.CompletePart, len(parts))
+	mp := make([]miniogo.CompletePart, len(parts))
 	for i, p := range parts {
 		mp[i] = miniogo.CompletePart{PartNumber: int(p.Number), ETag: strings.Trim(p.ETag, "\"")}
 	}
@@ -321,11 +321,11 @@ func (b *Backend) CompleteMultipartUpload(ctx context.Context, bucket, key, uplo
 }
 
 func (b *Backend) AbortMultipartUpload(ctx context.Context, bucket, key, uploadID string) error {
-		return translateErr(b.core.AbortMultipartUpload(ctx, bucket, key, uploadID))
+	return translateErr(b.core.AbortMultipartUpload(ctx, bucket, key, uploadID))
 }
 
 func (b *Backend) ListMultipartUploads(ctx context.Context, bucket, prefix string) ([]domain.MultipartUpload, error) {
-		r, err := b.core.ListMultipartUploads(ctx, bucket, prefix, "", "", "", 1000)
+	r, err := b.core.ListMultipartUploads(ctx, bucket, prefix, "", "", "", 1000)
 	if err != nil {
 		return nil, translateErr(err)
 	}
@@ -342,7 +342,7 @@ func (b *Backend) ListMultipartUploads(ctx context.Context, bucket, prefix strin
 }
 
 func (b *Backend) ListParts(ctx context.Context, bucket, key, uploadID string) ([]domain.Part, error) {
-		r, err := b.core.ListObjectParts(ctx, bucket, key, uploadID, 0, 1000)
+	r, err := b.core.ListObjectParts(ctx, bucket, key, uploadID, 0, 1000)
 	if err != nil {
 		return nil, translateErr(err)
 	}

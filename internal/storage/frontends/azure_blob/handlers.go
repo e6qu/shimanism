@@ -60,8 +60,8 @@ type listBlobsResponse struct {
 }
 
 type blobsGroup struct {
-	Blobs       []blobXML        `xml:"Blob"`
-	BlobPrefix  []blobPrefixXML  `xml:"BlobPrefix"`
+	Blobs      []blobXML       `xml:"Blob"`
+	BlobPrefix []blobPrefixXML `xml:"BlobPrefix"`
 }
 
 type blobPrefixXML struct {

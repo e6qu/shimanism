@@ -58,7 +58,6 @@ type uploadState struct {
 	key         string
 	created     time.Time
 	parts       map[int32]*partState
-	completed   bool
 	contentType string
 	metadata    map[string]string
 }

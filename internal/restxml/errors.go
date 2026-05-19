@@ -89,7 +89,7 @@ func NoSuchKey(bucket, key string) *ShimError {
 
 func BucketAlreadyOwnedByYou(bucket string) *ShimError {
 	return &ShimError{HTTPStatus: http.StatusConflict, Code: "BucketAlreadyOwnedByYou",
-		Message: "Your previous request to create the named bucket succeeded and you already own it",
+		Message:  "Your previous request to create the named bucket succeeded and you already own it",
 		Resource: bucket}
 }
 

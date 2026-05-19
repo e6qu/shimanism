@@ -4,7 +4,7 @@
 # enough to run on every PR. Phase-specific targets (codegen, conformance)
 # get added as their sub-phases land.
 
-.PHONY: all build test vet lint fmt check clean fetch-specs license-check codegen
+.PHONY: all build test vet lint typecheck fmt check clean fetch-specs license-check codegen
 
 # Default: the full local pre-push lane.
 all: vet test build
@@ -23,10 +23,23 @@ test:
 vet:
 	go vet ./...
 
-# Linting. Phase 1.1 has no Go code worth linting; golangci-lint gets
-# wired in alongside the first translation code (Phase 1.5).
+# Linting. golangci-lint config lives in .golangci.yml at the repo
+# root. The CI lint job pins the version; if golangci-lint isn't on
+# PATH locally, install it from the binary release the version
+# pinned there expects.
 lint:
-	@echo "lint: no Go lint configured yet (Phase 1.1 placeholder — see PLAN.md)"
+	@if ! command -v golangci-lint >/dev/null 2>&1 && [ ! -x "$$(go env GOPATH)/bin/golangci-lint" ]; then \
+		echo "golangci-lint not found. Install via:"; \
+		echo "  curl -sSfL https://golangci-lint.run/install.sh | sh -s -- -b \$$(go env GOPATH)/bin v2.10.1"; \
+		exit 1; \
+	fi
+	@golangci-lint run ./...
+
+# Type-check every package without running tests. Catches build
+# errors faster than `go test` in pre-commit / pre-push hooks.
+typecheck:
+	go build ./...
+	go vet ./...
 
 fmt:
 	gofmt -w .

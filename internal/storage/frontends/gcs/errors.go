@@ -26,10 +26,10 @@ type apiError struct {
 }
 
 type apiErrorBody struct {
-	Code    int                `json:"code"`
-	Message string             `json:"message"`
-	Errors  []apiErrorDetail   `json:"errors,omitempty"`
-	Status  string             `json:"status,omitempty"`
+	Code    int              `json:"code"`
+	Message string           `json:"message"`
+	Errors  []apiErrorDetail `json:"errors,omitempty"`
+	Status  string           `json:"status,omitempty"`
 }
 
 type apiErrorDetail struct {

@@ -24,14 +24,14 @@ type Model struct {
 
 // Shape is a generic Smithy shape; the Type field is the discriminator.
 type Shape struct {
-	Type   string                     `json:"type"`
-	Input  *ShapeRef                  `json:"input,omitempty"`
-	Output *ShapeRef                  `json:"output,omitempty"`
-	Errors []ShapeRef                 `json:"errors,omitempty"`
+	Type   string     `json:"type"`
+	Input  *ShapeRef  `json:"input,omitempty"`
+	Output *ShapeRef  `json:"output,omitempty"`
+	Errors []ShapeRef `json:"errors,omitempty"`
 	// Members appears in: structure, union, enum, intEnum.
-	Members map[string]Member          `json:"members,omitempty"`
+	Members map[string]Member `json:"members,omitempty"`
 	// Member for list and set shapes.
-	Member *Member                    `json:"member,omitempty"`
+	Member *Member `json:"member,omitempty"`
 	// Key + Value for map shapes.
 	Key    *Member                    `json:"key,omitempty"`
 	Value  *Member                    `json:"value,omitempty"`

@@ -1,0 +1,70 @@
+version: "2"
+
+run:
+  timeout: 5m
+
+linters:
+  enable:
+    - errcheck
+    - govet
+    - staticcheck
+    - unused
+    - ineffassign
+  settings:
+    errcheck:
+      exclude-functions:
+        # HTTP response writing — errors indicate client disconnected
+        - (net/http.ResponseWriter).Write
+        - (*encoding/json.Encoder).Encode
+        - (*encoding/json.Decoder).Decode
+        - (*encoding/xml.Encoder).Encode
+        # Streaming / copying
+        - io.Copy
+        # Writer helpers
+        - (*bufio.Writer).WriteString
+        - (*bytes.Buffer).Write
+        - (*bytes.Buffer).WriteString
+        - (*strings.Builder).WriteByte
+        - (*strings.Builder).WriteString
+        # Crypto / formatting
+        - (crypto/rand).Read
+        - fmt.Sscanf
+        # Shell output — best effort
+        - fmt.Fprintf
+        - fmt.Fprint
+        - fmt.Fprintln
+        # Cleanup / filesystem — best effort
+        - os.RemoveAll
+        - os.Remove
+        - os.MkdirAll
+        - os.WriteFile
+        - os.Setenv
+        # JSON/IO — fire and forget in non-critical paths
+        - encoding/json.Unmarshal
+        - io.ReadAll
+        # Close / Flush — deferred cleanup, error not actionable
+        - (io.Closer).Close
+        - (*os.File).Close
+        - (*os.File).Write
+        - (*net.TCPConn).Close
+        - (*net.UnixConn).Close
+        - (net.Conn).Close
+        - (*bufio.Writer).Flush
+        - (*net/http.Response).Body.Close
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters:
+          - errcheck
+          - govet
+      - linters:
+          - staticcheck
+        text: "SA1019:"
+      - linters:
+          - staticcheck
+        text: "QF1001:"
+      - linters:
+          - staticcheck
+        text: "QF1003:"
+    paths:
+      - services/storage/gen

@@ -157,14 +157,14 @@ func (a *Adapter) ListObjectsV2(ctx context.Context, in *gen.ListObjectsV2Reques
 		return nil, mapError(err)
 	}
 	out := &gen.ListObjectsV2Output{
-		Name:                  ptr(res.Bucket),
-		Prefix:                ptr(res.Prefix),
-		Delimiter:             ptr(res.Delimiter),
-		MaxKeys:               ptr(int32(deref(in.MaxKeys, 1000))),
-		KeyCount:              ptr(int32(res.KeyCount)),
-		IsTruncated:           ptr(res.IsTruncated),
-		ContinuationToken:     in.ContinuationToken,
-		StartAfter:            in.StartAfter,
+		Name:              ptr(res.Bucket),
+		Prefix:            ptr(res.Prefix),
+		Delimiter:         ptr(res.Delimiter),
+		MaxKeys:           ptr(int32(deref(in.MaxKeys, 1000))),
+		KeyCount:          ptr(int32(res.KeyCount)),
+		IsTruncated:       ptr(res.IsTruncated),
+		ContinuationToken: in.ContinuationToken,
+		StartAfter:        in.StartAfter,
 	}
 	if res.NextToken != "" {
 		out.NextContinuationToken = ptr(res.NextToken)
@@ -372,4 +372,3 @@ func (a *Adapter) ListParts(ctx context.Context, in *gen.ListPartsRequest) (*gen
 	}
 	return out, nil
 }
-
