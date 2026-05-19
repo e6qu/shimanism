@@ -8,13 +8,14 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 
 | | |
 |---|---|
-| Active branch | `phase-5-rdbms` — PR #10 open. 5.0–5.15 piled across ~20 commits + the 5.16 closer below. |
-| In-flight | None — Phase 5 closing. Three frontends (AWS RDS, GCP Cloud SQL Admin, Azure DB Admin) × five backends (inmem + CloudNativePG as K8s peer + the three clouds) × three driver types. **Control-plane only** — shim provisions instances + returns connection metadata; clients connect *directly* to the real Postgres/MySQL. Postgres only this phase (MySQL via MySQL-Operator on K8s deferred). 11-op intersection (Create/Delete/Describe/List/Modify/Reboot Instance + Create/Delete/Describe Snapshot + RestoreFromSnapshot + ListSnapshots). New CI lane `conformance-cnpg` (kind + CloudNativePG operator). Phase-5 exit criterion is psql connectivity through the shim-returned Connection block — owned by sub-phase 5.15. Three documented skips: `aws_db_instance` Terraform (BUG-2 ripple), `gcloud sql instances` CLI + `google_sql_database_instance` Terraform (BUG-5 — GCP Operations polling endpoint), `az postgres flexible-server` CLI + `azurerm_postgresql_flexible_server` Terraform (Azure-AsyncOperation polling). |
+| Active branch | `phase-6-cache` — fresh off main. 6.0 scope baseline drafted; sub-phases 6.1–6.16 ahead. |
+| In-flight | **Phase 6 — Managed Redis (control plane only).** Same structural shape as Phase 5: shim provisions; clients connect directly via RESP. Three frontends (AWS ElastiCache, GCP Memorystore Admin, Azure Cache for Redis) × five backends (inmem + Redis Operator as K8s peer + the three clouds) × three driver types. 6-op intersection (snapshot/restore deferred — cross-cloud Redis snapshot semantics diverge too much). Exit criterion: `redis-cli PING → PONG` through the shim-returned Connection block. |
+| Phase 5 closed | PR #10 merged `aeadbc8` 2026-05-19. Three rdbms frontends × five backends × three driver types; 14 required CI checks (added `conformance-cnpg` lane). CloudNativePG as K8s peer; explicit async Status enum; psql connectivity exit criterion validated end-to-end. BUG-5 carried forward (GCP Operations polling endpoint blocks `gcloud sql instances` + `google_sql_database_instance` cells). |
 | Phase 4 closed | PR #9 merged `6305354` 2026-05-19. Three pubsub frontends × five backends × three driver types; same 13 required CI checks. NATS JetStream throughout as K8s peer; AWS dual-protocol surface (SNS publish + slim SQS-receive); 4-part Azure receipt encoding; AMQP / ARM-only cells ◇-skipped. `aws_sns_topic_subscription` cell carried as ripple of BUG-2. |
 | Phase 3 closed | PR #8 merged `07d11f5` 2026-05-19. Three queue frontends × five backends × three driver types; 13 required CI checks. NATS JetStream as K8s peer; stateless receipt-handle round-trip; AMQP / ARM-only cells ◇-skipped with documented reasons. BUG-2 carried forward (SetQueueAttributes gap blocks `aws_sqs_queue` TF cell). |
 | Phase 2 closed | PR #7 merged `7df43ec` 2026-05-19. Three secrets frontends × five secrets backends × three driver types; 12 required CI checks. Stateless invariant + shimakit framework + shima<service> naming convention landed alongside. |
 | Phase 1 closed | PR #6 merged `1f64d9f` 2026-05-19. Three storage frontends × five storage backends × three driver types matrix; 11 required CI checks. |
-| CI baseline | 14 required checks — the 13 from Phase 3-4 plus `conformance-cnpg` added in Phase 5.14. Real-cloud lanes (aws-rds, gcp-cloudsql, azure-dbadmin) wait on Track A. |
+| CI baseline | 14 required checks from Phase 5. Phase 6 will add a `conformance-redisop` lane (kind + Redis Operator). Real-cloud lanes wait on Track A. |
 | Scope rule (2026-05-18) | **Each phase ships the full N × N matrix.** Previous PLAN.md had Phases 9 and 10 as "GCP source row" and "Azure source row" of horizontal expansion across all 8 services; user reversed this. Each service phase now includes all 3 frontends + all 4 backends + SDK / CLI / Terraform for each, before moving to the next service. Phases 9 and 10 deleted; their work is absorbed into Phases 1-8. |
 | Last merged | PR #5 — Phase 1.3 (codegen, originally all 107 ops) (`03b0ebb`, 2026-05-18). |
 | Standing merge auth | **None.** User merges every PR. |
@@ -51,25 +52,23 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 - Monorepo: `services/<service>/`, shared `internal/codegen/`, `internal/harness/`.
 - Test rings: per-PR recorded interactions, nightly live cloud, pre-release vendor integration suites.
 
-## Current phase — Phase 5: Managed RDBMS
+## Current phase — Phase 6: Managed Redis
 
-Phase 5 ships the rdbms service end-to-end. AWS RDS / GCP Cloud SQL Admin / Azure DB Admin frontends, each translatable to inmem / CloudNativePG / AWS / GCP / Azure backends. 10-op intersection — provisioning + lifecycle + snapshot/restore. Two engines (Postgres + MySQL).
+Phase 6 ships the cache service end-to-end. AWS ElastiCache / GCP Memorystore Admin / Azure Cache for Redis frontends, each translatable to inmem / Redis Operator (K8s peer) / AWS / GCP / Azure backends. 6-op intersection — provisioning + lifecycle. Snapshot/restore deferred (cross-cloud semantics too divergent).
 
-Sub-phase table is in [DO_NEXT.md](DO_NEXT.md). Scope baseline at [`services/rdbms/OPERATIONS.md`](services/rdbms/OPERATIONS.md).
+Sub-phase table is in [DO_NEXT.md](DO_NEXT.md). Scope baseline at [`services/cache/OPERATIONS.md`](services/cache/OPERATIONS.md).
 
-### Phase 5 standing notes
-- **Control plane only.** Different shape from Phases 1-4. The shim shimmed every wire-protocol message in storage/secrets/queue/pubsub; in rdbms it shimmed *only the provisioning API*. Once an instance is `Available`, clients open direct PostgreSQL/MySQL connections to the returned host. The shim plays no role on the data path.
-- **Async semantics surfaced explicitly.** Domain has an explicit `Status` field (Creating, Available, Modifying, Rebooting, Deleting). Clients poll `DescribeInstance` after `CreateInstance` until `Status == Available`. Don't fake synchronous-on-top-of-async — every backend (AWS, GCP, Azure, CloudNativePG) surfaces async, and the SDKs all know how to poll.
-- **Stateless credential handling.** Master password returned exactly once at `CreateInstance` time. CloudNativePG stores credentials in a Kubernetes `Secret`; the shim re-reads that Secret on each `DescribeInstance`. No shim-side credential cache.
-- **Two engines.** Postgres + MySQL. Versions track a small LTS intersection (PG 15+16, MySQL 8.0); other versions return source-cloud error vocabulary.
-- **Exit criterion is psql connectivity.** Beyond control-plane translation, the Phase-5 exit criterion is "psql opens a connection to the CloudNativePG-provisioned cluster through the shim-returned `Connection` block and runs `SELECT 1`." Sub-phase 5.15 owns that test.
+### Phase 6 standing notes
+- **Same shape as Phase 5.** Control plane only — shim provisions; clients connect directly via RESP. Reuses Phase 5's Status enum, async-polling discipline, stateless credential pattern, and K8s-peer-via-dynamic-client design.
+- **Snapshot/restore deferred.** AWS ElastiCache → S3, GCP → GCS export, Azure → backup containers, Redis Operator → BackupRestore CRs. Conventions are too divergent for a clean intersection at this phase.
+- **Exit criterion: `redis-cli PING`.** Sub-phase 6.15 owns the RESP-connectivity test against the Redis-Operator-provisioned instance through the shim-returned Connection block (host, port, auth token).
 
 ## Recently closed phases (last 5)
 
 | PR | Phase | Headline |
 |---|---|---|
+| #10 | 5 | RDBMS service end-to-end (control-plane only). 3 frontends × 5 backends (inmem, CloudNativePG as K8s peer via dynamic-client + unstructured Cluster CRs, AWS RDS, GCP Cloud SQL Admin, Azure flexible-servers) × 3 driver types. Explicit async Status enum; psql connectivity exit criterion validated through kind + cnpg + real PG. Merged 2026-05-19 at `aeadbc8`. |
 | #9 | 4 | Pubsub service end-to-end. 3 frontends × 5 backends (inmem, NATS JetStream as K8s peer with InterestPolicy retention + per-sub consumers, AWS SNS+SQS-receive, GCP Pub/Sub fanout, Azure Service Bus topics REST) × 3 driver types. Topic ≠ Subscription split as load-bearing change. Merged 2026-05-19 at `6305354`. |
 | #8 | 3 | Queue service end-to-end. 3 frontends × 5 backends (inmem, NATS JetStream as K8s peer, AWS SQS, GCP Pub/Sub pull, Azure Service Bus queue) × 3 driver types. Stateless receipt-handle round-trip; new `conformance-nats` CI lane. Merged 2026-05-19 at `07d11f5`. |
 | #7 | 2 | Secrets service end-to-end. 3 frontends × 5 backends (inmem, Vault as K8s peer via shimakit, AWS Secrets Manager, GCP Secret Manager, Azure Key Vault) × 3 driver types. shimakit framework + shima\<service\> naming. Stateless invariant established. Merged 2026-05-19 at `7df43ec`. |
 | #6 | 1 | Storage service end-to-end. 3 frontends × 5 backends (inmem, MinIO as K8s peer, AWS S3, GCS, Azure Blob) × 3 driver types. Spec-driven codegen pipeline. Merged 2026-05-19 at `1f64d9f`. |
-| #5 | 1.3 | Codegen pipeline (originally all 107 ops; later narrowed to intersection-only). Merged 2026-05-18 at `03b0ebb`. |
