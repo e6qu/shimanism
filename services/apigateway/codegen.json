@@ -1,0 +1,20 @@
+{
+  "_comment": "Intersection set for the API Gateway frontend. 5 declarative-replace ops + the routes/integrations APIs the SDK needs internally for the deploy flow.",
+  "spec": "services/apigateway/spec/aws-apigatewayv2.smithy.json",
+  "package": "gen",
+  "out": "services/apigateway/gen/aws_apigatewayv2.gen.go",
+  "operations": [
+    "CreateApi",
+    "DeleteApi",
+    "GetApi",
+    "GetApis",
+    "UpdateApi",
+    "CreateRoute",
+    "DeleteRoute",
+    "GetRoutes",
+    "CreateIntegration",
+    "DeleteIntegration",
+    "GetIntegrations",
+    "CreateDeployment"
+  ]
+}

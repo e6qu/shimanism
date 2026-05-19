@@ -13,6 +13,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	apigatewaydomain "github.com/e6qu/shimanism/internal/apigateway/domain"
+	awsapigwfront "github.com/e6qu/shimanism/internal/apigateway/frontends/aws_apigatewayv2"
 	cachedomain "github.com/e6qu/shimanism/internal/cache/domain"
 	awsecfront "github.com/e6qu/shimanism/internal/cache/frontends/aws_elasticache"
 	azureredisfront "github.com/e6qu/shimanism/internal/cache/frontends/azure_redis"
@@ -353,6 +355,22 @@ func StartFunctionsServerAzure(t *testing.T, backend functionsdomain.Functions) 
 	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
 	t.Cleanup(ts.Close)
 	return &FunctionsServer{URL: ts.URL, Close: ts.Close}
+}
+
+// APIGatewayServer is a started apigateway-shim instance.
+type APIGatewayServer struct {
+	URL   string
+	Close func()
+}
+
+// StartAPIGatewayServerAWS starts a shim instance with the AWS
+// API Gateway v2 restJson1 frontend.
+func StartAPIGatewayServerAWS(t *testing.T, backend apigatewaydomain.APIGateway) *APIGatewayServer {
+	t.Helper()
+	srv := awsapigwfront.New(backend)
+	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
+	t.Cleanup(ts.Close)
+	return &APIGatewayServer{URL: ts.URL, Close: ts.Close}
 }
 
 // logRoundTrip logs each request through the harness. Lightweight —
