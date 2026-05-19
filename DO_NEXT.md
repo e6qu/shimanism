@@ -15,22 +15,22 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 | Sub | Status | Headline |
 |---|---|---|
 | **7.0** | ✅ | Scope + design baseline. `services/functions/OPERATIONS.md` captures the 5-op intersection (Create/Delete/Describe/List/Update Function). Container image only; events + auth-on-invoke deferred. |
-| **7.1** | ◻ | Spec ingest. AWS Lambda Smithy. GCP Cloud Run via `google.golang.org/api/run/v2`; Azure via `armappcontainers`. |
-| **7.2** | ◻ | Domain interface `internal/functions/domain/`. |
-| **7.3** | ◻ | inmem + AWS Lambda frontend (awsJson1_0) + SDK conformance. |
-| **7.4** | ◻ | Knative Serving backend (K8s peer) via dynamic client + unstructured `Service` CRs. |
-| **7.5** | ◻ | AWS Lambda passthrough. |
-| **7.6** | ◻ | GCP Cloud Run Admin backend. |
-| **7.7** | ◻ | Azure Container Apps backend. |
-| **7.8** | ◻ | GCP Cloud Run frontend. |
-| **7.9** | ◻ | Azure Container Apps REST frontend. |
-| **7.10** | ◻ | Matrix conformance. |
-| **7.11** | ◻ | CLI conformance. |
-| **7.12** | ◻ | Terraform conformance. |
-| **7.13** | ◻ | `cmd/shim functions` subcommand. Default `:9600`. |
-| **7.14** | ◻ | CI lane `conformance-knative`. |
-| **7.15** | ◻ | **HTTP-invoke connectivity test**. Phase-7 exit criterion. |
-| **7.16** | ◻ | Phase 7 closer. |
+| **7.1** | ✅ | AWS Lambda Smithy vendored (restJson1). |
+| **7.2** | ✅ | `internal/functions/domain/` — 5-method `Functions` interface. |
+| **7.3** | ✅ | inmem + AWS Lambda restJson1 frontend + SDK conformance. |
+| **7.4** | ✅ | Knative Serving backend (K8s peer). |
+| **7.5** | ✅ | AWS Lambda passthrough backend. |
+| **7.6** | ✅ | GCP Cloud Run backend (`run/v2`). |
+| **7.7** | ✅ | Azure Container Apps backend (`armappcontainers/v3`). |
+| **7.8** | ✅ | GCP Cloud Run REST frontend. |
+| **7.9** | ✅ | Azure Container Apps REST frontend. |
+| **7.10** | ✅ | Matrix conformance `TestFunctionsMatrix_AWSFrontend`. |
+| **7.11** | ✅ | CLI: `aws lambda` green; `gcloud run` + `az containerapp` ◇ skipped. |
+| **7.12** | ✅ | Terraform: all three ◇ skipped. |
+| **7.13** | ✅ | `cmd/shim functions` subcommand. Default `:9600`. Version 0.8.0-phase-7. |
+| **7.14** | ✅ | CI lane `conformance-knative`: kind + Knative Serving v1.15.7 + Kourier. |
+| **7.15** | ✅ | **HTTP-invoke connectivity test** — deploys `gcr.io/knative-samples/helloworld-go` via the shim, port-forwards, opens real HTTP, asserts "Hello" response. Phase-7 exit criterion. |
+| **7.16** | ✅ | Phase 7 closer. PR pending push. |
 
 Status legend: ✅ done · ◐ in progress · ◻ pending · ⏸ paused.
 

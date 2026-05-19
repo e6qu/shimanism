@@ -8,14 +8,14 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 
 | | |
 |---|---|
-| Active branch | `phase-7-functions` — fresh off main. 7.0 scope baseline drafted. |
-| In-flight | **Phase 7 — Functions.** Same control-plane shape as Phases 5+6; HTTP as the data plane. Container-image deployments only. Three frontends (AWS Lambda, GCP Cloud Run, Azure Container Apps) × five backends (inmem + Knative Serving as K8s peer + the three clouds) × three driver types. 5-op intersection. Events + auth-on-invoke deferred. Exit criterion: `curl <returned-url>` → function HTTP response. |
+| Active branch | `phase-7-functions` — PR #12 open. 7.0–7.15 piled + 7.16 closer below. |
+| In-flight | None — Phase 7 closing. Three frontends (AWS Lambda restJson1, GCP Cloud Run REST, Azure Container Apps ARM REST) × five backends (inmem + Knative Serving as K8s peer + AWS Lambda + GCP Cloud Run + Azure Container Apps) × three driver types. 5-op intersection. New CI lane `conformance-knative` (kind + Knative operator + HTTP invoke exit criterion). Events + auth-on-invoke deferred. |
 | Phase 6 closed | PR #11 merged `cca8bc0` 2026-05-19. Three cache frontends × five backends × three driver types; 15 required CI checks (added `conformance-redisop` lane). Redis Operator as K8s peer via dynamic client; PING exit criterion validated end-to-end. |
 | Phase 4 closed | PR #9 merged `6305354` 2026-05-19. Three pubsub frontends × five backends × three driver types; same 13 required CI checks. NATS JetStream throughout as K8s peer; AWS dual-protocol surface (SNS publish + slim SQS-receive); 4-part Azure receipt encoding; AMQP / ARM-only cells ◇-skipped. `aws_sns_topic_subscription` cell carried as ripple of BUG-2. |
 | Phase 3 closed | PR #8 merged `07d11f5` 2026-05-19. Three queue frontends × five backends × three driver types; 13 required CI checks. NATS JetStream as K8s peer; stateless receipt-handle round-trip; AMQP / ARM-only cells ◇-skipped with documented reasons. BUG-2 carried forward (SetQueueAttributes gap blocks `aws_sqs_queue` TF cell). |
 | Phase 2 closed | PR #7 merged `7df43ec` 2026-05-19. Three secrets frontends × five secrets backends × three driver types; 12 required CI checks. Stateless invariant + shimakit framework + shima<service> naming convention landed alongside. |
 | Phase 1 closed | PR #6 merged `1f64d9f` 2026-05-19. Three storage frontends × five storage backends × three driver types matrix; 11 required CI checks. |
-| CI baseline | 15 required checks from Phase 6. Phase 7 will add `conformance-knative` (kind + Knative Serving). Real-cloud lanes wait on Track A. |
+| CI baseline | 16 required checks — the 15 from Phase 6 plus `conformance-knative` added in Phase 7.14. Real-cloud lanes wait on Track A. |
 | Scope rule (2026-05-18) | **Each phase ships the full N × N matrix.** Previous PLAN.md had Phases 9 and 10 as "GCP source row" and "Azure source row" of horizontal expansion across all 8 services; user reversed this. Each service phase now includes all 3 frontends + all 4 backends + SDK / CLI / Terraform for each, before moving to the next service. Phases 9 and 10 deleted; their work is absorbed into Phases 1-8. |
 | Last merged | PR #5 — Phase 1.3 (codegen, originally all 107 ops) (`03b0ebb`, 2026-05-18). |
 | Standing merge auth | **None.** User merges every PR. |
