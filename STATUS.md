@@ -8,14 +8,15 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 
 | | |
 |---|---|
-| Active branch | `phase-7-functions` — PR #12 open. 7.0–7.15 piled + 7.16 closer below. |
-| In-flight | None — Phase 7 closing. Three frontends (AWS Lambda restJson1, GCP Cloud Run REST, Azure Container Apps ARM REST) × five backends (inmem + Knative Serving as K8s peer + AWS Lambda + GCP Cloud Run + Azure Container Apps) × three driver types. 5-op intersection. New CI lane `conformance-knative` (kind + Knative operator + HTTP invoke exit criterion). Events + auth-on-invoke deferred. |
+| Active branch | `phase-8-apigateway` — fresh off main. 8.0 scope baseline drafted. |
+| In-flight | **Phase 8 — API Gateway.** Declarative-replace model: `DeployGateway(spec)` atomically swaps the routing table. Three frontends (AWS API Gateway v2, GCP API Gateway, Azure API Management) × five backends (inmem + Envoy Gateway as K8s peer + the three clouds) × three driver types. 5-op intersection. Route shape minimal: method + path + backend URL. Per-route auth/throttling/transforms deferred. Exit criterion: gateway deploys + published URL serves the configured route. |
+| Phase 7 closed | PR #12 merged `9d02af0` 2026-05-19. Three functions frontends × five backends × three driver types; 16 required CI checks (added `conformance-knative` lane). Knative Serving as K8s peer via dynamic client + kourier-internal port-forward for HTTP-invoke exit criterion. Container-image deploys only; events + auth-on-invoke deferred. |
 | Phase 6 closed | PR #11 merged `cca8bc0` 2026-05-19. Three cache frontends × five backends × three driver types; 15 required CI checks (added `conformance-redisop` lane). Redis Operator as K8s peer via dynamic client; PING exit criterion validated end-to-end. |
 | Phase 4 closed | PR #9 merged `6305354` 2026-05-19. Three pubsub frontends × five backends × three driver types; same 13 required CI checks. NATS JetStream throughout as K8s peer; AWS dual-protocol surface (SNS publish + slim SQS-receive); 4-part Azure receipt encoding; AMQP / ARM-only cells ◇-skipped. `aws_sns_topic_subscription` cell carried as ripple of BUG-2. |
 | Phase 3 closed | PR #8 merged `07d11f5` 2026-05-19. Three queue frontends × five backends × three driver types; 13 required CI checks. NATS JetStream as K8s peer; stateless receipt-handle round-trip; AMQP / ARM-only cells ◇-skipped with documented reasons. BUG-2 carried forward (SetQueueAttributes gap blocks `aws_sqs_queue` TF cell). |
 | Phase 2 closed | PR #7 merged `7df43ec` 2026-05-19. Three secrets frontends × five secrets backends × three driver types; 12 required CI checks. Stateless invariant + shimakit framework + shima<service> naming convention landed alongside. |
 | Phase 1 closed | PR #6 merged `1f64d9f` 2026-05-19. Three storage frontends × five storage backends × three driver types matrix; 11 required CI checks. |
-| CI baseline | 16 required checks — the 15 from Phase 6 plus `conformance-knative` added in Phase 7.14. Real-cloud lanes wait on Track A. |
+| CI baseline | 16 required checks from Phase 7. Phase 8 will add a `conformance-envoy` lane (kind + Envoy Gateway). Real-cloud lanes wait on Track A. |
 | Scope rule (2026-05-18) | **Each phase ships the full N × N matrix.** Previous PLAN.md had Phases 9 and 10 as "GCP source row" and "Azure source row" of horizontal expansion across all 8 services; user reversed this. Each service phase now includes all 3 frontends + all 4 backends + SDK / CLI / Terraform for each, before moving to the next service. Phases 9 and 10 deleted; their work is absorbed into Phases 1-8. |
 | Last merged | PR #5 — Phase 1.3 (codegen, originally all 107 ops) (`03b0ebb`, 2026-05-18). |
 | Standing merge auth | **None.** User merges every PR. |
@@ -52,23 +53,23 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 - Monorepo: `services/<service>/`, shared `internal/codegen/`, `internal/harness/`.
 - Test rings: per-PR recorded interactions, nightly live cloud, pre-release vendor integration suites.
 
-## Current phase — Phase 7: Functions
+## Current phase — Phase 8: API Gateway
 
-Phase 7 ships the functions service end-to-end. AWS Lambda / GCP Cloud Run / Azure Container Apps frontends, each translatable to inmem / Knative Serving (K8s peer) / AWS / GCP / Azure backends. 5-op intersection. Container-image deployments only; events + auth-on-invoke deferred.
+Phase 8 ships the API Gateway service end-to-end. AWS API Gateway HTTP API v2 / GCP API Gateway / Azure API Management frontends, each translatable to inmem / Envoy Gateway (K8s peer) / the three clouds. 5-op intersection — Create/Delete/Describe/List/Deploy Gateway.
 
-Sub-phase table is in [DO_NEXT.md](DO_NEXT.md). Scope baseline at [`services/functions/OPERATIONS.md`](services/functions/OPERATIONS.md).
+Sub-phase table is in [DO_NEXT.md](DO_NEXT.md). Scope baseline at [`services/apigateway/OPERATIONS.md`](services/apigateway/OPERATIONS.md).
 
-### Phase 7 standing notes
-- **Same control-plane shape as Phases 5+6; HTTP as the data plane.** The shim provisions and returns an endpoint URL; clients invoke via plain HTTP — shim plays no role on the invocation path.
-- **Container image only.** All four backends natively support container images; ZIP-package Lambda is out of intersection.
-- **Events deferred.** Cross-cloud event payload normalization is the hard part per PLAN.md; HTTP-trigger functions only at this phase.
-- **Auth-on-invoke deferred.** Public-HTTP functions only.
-- **Exit criterion: `curl <endpoint>`.** Sub-phase 7.15 owns the HTTP-connectivity test against the Knative-provisioned function through the shim-returned endpoint URL.
+### Phase 8 standing notes
+- **Declarative-replace.** `DeployGateway(spec)` atomically swaps the entire routing table. Partial route mutations on a live gateway are out of intersection (cross-cloud semantics diverge).
+- **Route shape minimal.** Method + path + backend URL only. Per-route auth, throttling, transforms, CORS, custom domains all deferred — the exit criterion is "routes dispatch HTTP to backends correctly."
+- **HTTP data plane.** Same posture as Phases 5-7. Shim provisions; HTTP traffic goes directly to the gateway URL; shim plays no role on the request path.
+- **Exit criterion: gateway routes HTTP to a backend.** Sub-phase 8.15 owns the test: deploy a gateway with one route pointing at a `pong`-echo backend; HTTP-invoke the gateway's URL through that path; assert `pong`.
 
 ## Recently closed phases (last 5)
 
 | PR | Phase | Headline |
 |---|---|---|
+| #12 | 7 | Functions service end-to-end (control-plane only). 3 frontends × 5 backends (inmem, Knative Serving as K8s peer via dynamic-client + Service CRs, AWS Lambda, GCP Cloud Run, Azure Container Apps) × 3 driver types. Container-image only; HTTP-invoke exit criterion validated through kind + Knative + kourier-internal port-forward. Merged 2026-05-19 at `9d02af0`. |
 | #11 | 6 | Cache service end-to-end (control-plane only). 3 frontends × 5 backends (inmem, Redis Operator as K8s peer via dynamic-client, AWS ElastiCache, GCP Memorystore, Azure Cache for Redis) × 3 driver types. Same control-plane shape as Phase 5; RESP PING exit criterion validated through kind + Redis Operator. Merged 2026-05-19 at `cca8bc0`. |
 | #10 | 5 | RDBMS service end-to-end (control-plane only). 3 frontends × 5 backends (inmem, CloudNativePG as K8s peer via dynamic-client + unstructured Cluster CRs, AWS RDS, GCP Cloud SQL Admin, Azure flexible-servers) × 3 driver types. Explicit async Status enum; psql connectivity exit criterion validated through kind + cnpg + real PG. Merged 2026-05-19 at `aeadbc8`. |
 | #9 | 4 | Pubsub service end-to-end. 3 frontends × 5 backends (inmem, NATS JetStream as K8s peer with InterestPolicy retention + per-sub consumers, AWS SNS+SQS-receive, GCP Pub/Sub fanout, Azure Service Bus topics REST) × 3 driver types. Topic ≠ Subscription split as load-bearing change. Merged 2026-05-19 at `6305354`. |
