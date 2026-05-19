@@ -61,3 +61,71 @@ func TestGCPSDK_APIGatewayLifecycle(t *testing.T) {
 		t.Fatalf("Gateways.Delete: %v", err)
 	}
 }
+
+// TestGCPSDK_APIGateway_ApiConfigRouteDeploy exercises the Apis +
+// ApiConfigs surface — the GCP-shaped route-deployment path. The
+// SDK posts an OpenAPI document; the shim parses it and dispatches
+// to domain.DeployGateway.
+func TestGCPSDK_APIGateway_ApiConfigRouteDeploy(t *testing.T) {
+	srv := harness.StartAPIGatewayServerGCP(t, inmem.New())
+	ctx := context.Background()
+	endpoint := strings.TrimSuffix(srv.URL, "/")
+	svc, err := apigwapi.NewService(ctx,
+		option.WithEndpoint(endpoint),
+		option.WithoutAuthentication(),
+	)
+	if err != nil {
+		t.Fatalf("NewService: %v", err)
+	}
+
+	apiName := "shim-route-deploy"
+	if _, err := svc.Projects.Locations.Apis.Create(
+		"projects/p1/locations/global", &apigwapi.ApigatewayApi{}).
+		ApiId(apiName).Context(ctx).Do(); err != nil {
+		t.Fatalf("Apis.Create: %v", err)
+	}
+
+	openapi := `swagger: "2.0"
+info:
+  title: ` + apiName + `
+  version: 1.0.0
+schemes:
+  - https
+paths:
+  /healthz:
+    get:
+      operationId: get_healthz
+      responses:
+        "200":
+          description: OK
+      x-google-backend:
+        address: https://backend.example.com/healthz
+`
+	if _, err := svc.Projects.Locations.Apis.Configs.Create(
+		"projects/p1/locations/global/apis/"+apiName,
+		&apigwapi.ApigatewayApiConfig{
+			OpenapiDocuments: []*apigwapi.ApigatewayApiConfigOpenApiDocument{{
+				Document: &apigwapi.ApigatewayApiConfigFile{
+					Contents: openapi,
+					Path:     "openapi.yaml",
+				},
+			}},
+		}).ApiConfigId("cfg-1").Context(ctx).Do(); err != nil {
+		t.Fatalf("ApiConfigs.Create: %v", err)
+	}
+
+	// Confirm Gateway state has the route deployed.
+	got, err := svc.Projects.Locations.Apis.Configs.List(
+		"projects/p1/locations/global/apis/" + apiName).Context(ctx).Do()
+	if err != nil {
+		t.Fatalf("ApiConfigs.List: %v", err)
+	}
+	if len(got.ApiConfigs) == 0 {
+		t.Errorf("ApiConfigs.List = empty, want at least 1")
+	}
+
+	if _, err := svc.Projects.Locations.Apis.Delete(
+		"projects/p1/locations/global/apis/" + apiName).Context(ctx).Do(); err != nil {
+		t.Fatalf("Apis.Delete: %v", err)
+	}
+}

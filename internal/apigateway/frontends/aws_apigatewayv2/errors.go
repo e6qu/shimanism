@@ -9,6 +9,7 @@ import (
 )
 
 type apigwError struct {
+	Type    string `json:"__type,omitempty"`
 	Message string `json:"Message,omitempty"`
 }
 
@@ -16,7 +17,7 @@ func writeError(w http.ResponseWriter, status int, code, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("X-Amzn-Errortype", code)
 	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(apigwError{Message: message})
+	_ = json.NewEncoder(w).Encode(apigwError{Type: code, Message: message})
 }
 
 func mapDomainError(w http.ResponseWriter, err error) {

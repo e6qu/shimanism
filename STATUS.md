@@ -23,7 +23,7 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 | CI | Five required checks: `branch rebased on origin/main`, `tracked symlinks resolve`, `continuity docs present`, `go vet + test + build`, `dependency licenses AGPL-compatible`. |
 | Renovate | Config committed (48h minimum release age, weekly batches, pinned GitHub Actions SHAs); **user must install the Renovate GitHub App** at https://github.com/apps/renovate. |
 | Dep policy | [`doc/DEPENDENCY_POLICY.md`](doc/DEPENDENCY_POLICY.md): min release age 48h, prefer pure-Go over cgo, pnpm + no lifecycle scripts when JS lands. |
-| Bugs | 10 filed · 3 fixed · 7 open. BUG-2/BUG-5 carry; Phase 8 added BUG-6 (Azure APIM v3 Delete signature), BUG-7 (az CLI per-resource override), BUG-8 (hashicorp/google APIGW override), BUG-9 (GCP frontend missing ApiConfigs), BUG-10 (Azure frontend missing Operations). BUG-9/10 are intersection fidelity gaps — Phase 9 picks them up. |
+| Bugs | 11 filed · 6 fixed · 5 open. BUG-2/BUG-5 carry; Phase 8 added BUG-6 (Azure APIM v3 Delete signature), BUG-7 (az CLI per-resource override), BUG-8 (hashicorp/google APIGW override). Phase 9 fixed BUG-9 (GCP ApiConfigs route-deployment), BUG-10 (Azure Operations subresource), BUG-11 (AWS restJson1 `__type` field). |
 | Live infra | None. |
 
 ## Invariants (carry across compactions / fresh sessions)

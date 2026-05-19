@@ -66,6 +66,11 @@ type Route struct {
 	Path string
 	// Backend is the upstream HTTPS URL the gateway proxies to.
 	Backend string
+	// ID is an optional stable identifier the frontend assigns so a
+	// caller can update / delete a single route without rewriting
+	// the whole table. Backends ignore the ID; it round-trips
+	// through DescribeGateway so the frontend can correlate.
+	ID string
 }
 
 // CreateGatewayOptions controls CreateGateway. Routes can be empty

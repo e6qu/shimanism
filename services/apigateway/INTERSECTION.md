@@ -38,12 +38,12 @@ Service status legend: ✅ implemented & exercised · ⚠ implemented but covera
 | `GET /v1/projects/{p}/locations/{l}/gateways/{name}` | `getGateway` | 1 — real | ✅ |
 | `GET /v1/projects/{p}/locations/{l}/gateways` | `listGateways` | 1 — real | ✅ |
 | `DELETE /v1/projects/{p}/locations/{l}/gateways/{name}` | `deleteGateway` | 1 — real | ✅ |
-| `POST /v1/projects/{p}/locations/global/apis?apiId=<n>` (Apis.Create) | — | **1 — real** (must dispatch to backend; the GCP route-deployment surface lives at the Api + ApiConfig level) | ❌ **BUG-9** |
-| `POST /v1/projects/{p}/locations/global/apis/{a}/configs?apiConfigId=<n>` (ApiConfigs.Create) | — | **1 — real** (this is the GCP-shaped DeployGateway entry) | ❌ **BUG-9** |
-| `GET /v1/projects/{p}/locations/global/apis/{a}/configs/{c}` (ApiConfigs.Get) | — | 1 — real | ❌ **BUG-9** |
-| `GET /v1/projects/{p}/locations/global/apis/{a}/configs` (ApiConfigs.List) | — | 1 — real | ❌ **BUG-9** |
-| `DELETE /v1/projects/{p}/locations/global/apis/{a}/configs/{c}` (ApiConfigs.Delete) | — | 1 — real | ❌ **BUG-9** |
-| `DELETE /v1/projects/{p}/locations/global/apis/{a}` (Apis.Delete) | — | 1 — real | ❌ **BUG-9** |
+| `POST /v1/projects/{p}/locations/global/apis?apiId=<n>` (Apis.Create) | `createApi` | 1 — real | ✅ |
+| `POST /v1/projects/{p}/locations/global/apis/{a}/configs?apiConfigId=<n>` (ApiConfigs.Create) | `createApiConfig` (parses OpenAPI → `domain.DeployGateway`) | 1 — real | ✅ |
+| `GET /v1/projects/{p}/locations/global/apis/{a}/configs/{c}` (ApiConfigs.Get) | `getApiConfig` | 1 — real | ✅ |
+| `GET /v1/projects/{p}/locations/global/apis/{a}/configs` (ApiConfigs.List) | `listApiConfigs` | 1 — real | ✅ |
+| `DELETE /v1/projects/{p}/locations/global/apis/{a}/configs/{c}` (ApiConfigs.Delete) | `deleteApiConfig` | 1 — real | ✅ |
+| `DELETE /v1/projects/{p}/locations/global/apis/{a}` (Apis.Delete) | `deleteApi` | 1 — real | ✅ |
 | `GET /v1/operations/{op}` (long-running operation polling) | — | 1 — real (intersection includes Operation polling — every cloud's async ops need it) | ◻ Phase 9.4 |
 | IAM policy ops (`gateways/{g}/iamPolicy`) | — | 3 — out (cross-cloud IAM is its own phase) | ◇ |
 | Stages/auth/CORS analogues | — | 3 — out | ◇ |
@@ -58,10 +58,10 @@ Service status legend: ✅ implemented & exercised · ⚠ implemented but covera
 | `GET /...service/{svc}/apis/{api}` | `get` | 1 — real | ✅ |
 | `GET /...service/{svc}/apis` | `list` | 1 — real | ✅ |
 | `DELETE /...service/{svc}/apis/{api}` | `delete` | 1 — real (frontend); backend ⚠ defers to BUG-6 | ⚠ |
-| `PUT /...service/{svc}/apis/{api}/operations/{op}` (Operation CreateOrUpdate) | — | **1 — real** (this is the Azure-shaped per-route entry) | ❌ **BUG-10** |
-| `GET /...service/{svc}/apis/{api}/operations/{op}` | — | 1 — real | ❌ **BUG-10** |
-| `GET /...service/{svc}/apis/{api}/operations` | — | 1 — real | ❌ **BUG-10** |
-| `DELETE /...service/{svc}/apis/{api}/operations/{op}` | — | 1 — real | ❌ **BUG-10** |
+| `PUT /...service/{svc}/apis/{api}/operations/{op}` (Operation CreateOrUpdate) | `createOrUpdateOp` (merges → `domain.DeployGateway`) | 1 — real | ✅ |
+| `GET /...service/{svc}/apis/{api}/operations/{op}` | `getOp` | 1 — real | ✅ |
+| `GET /...service/{svc}/apis/{api}/operations` | `listOps` | 1 — real | ✅ |
+| `DELETE /...service/{svc}/apis/{api}/operations/{op}` | `deleteOp` | 1 — real | ✅ |
 | `PUT /...service/{svc}/apis/{api}/policies/{policy}` (per-Api policy XML) | — | 3 — out (vendor-specific XML transform DSL) | ◇ |
 | Subscriptions, Products, Tags, Groups | — | 3 — out (not in Phase 8 intersection) | ◇ |
 
