@@ -17,8 +17,8 @@ import (
 	"strings"
 	"testing"
 
-	redisapi "google.golang.org/api/redis/v1"
 	"google.golang.org/api/option"
+	redisapi "google.golang.org/api/redis/v1"
 
 	"github.com/e6qu/shimanism/internal/cache/domain"
 	awsfront "github.com/e6qu/shimanism/internal/cache/frontends/aws_elasticache"
