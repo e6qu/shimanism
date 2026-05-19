@@ -7,8 +7,9 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 ## Where we are
 
 - **Last merged:** PR #12 (Phase 7 — functions, container-image deploy + Knative as K8s peer + HTTP-invoke exit criterion) at `9d02af0` on `origin/main`, 2026-05-19.
-- **Active branch:** `phase-8-apigateway` — fresh off main, 8.0 scope baseline drafted.
-- **Project phase:** **Phase 8 — API Gateway.** Declarative-replace model: `DeployGateway(spec)` atomically swaps the routing table. Same control-plane + HTTP-data-plane shape as Phases 5–7. Three frontends (AWS API Gateway v2, GCP API Gateway, Azure API Management) × five backends (inmem + Envoy Gateway as K8s peer + the three clouds) × three driver types. 5-op intersection. Per-route auth/throttling/transforms deferred.
+- **Active branch:** `phase-8-apigateway` — all 16 sub-phases implemented; PR #13 awaiting merge.
+- **Project phase:** **Phase 8 — API Gateway** (in-flight). 3 frontends × 5 backends × 3 driver types. 5-op intersection. Declarative-replace via `DeployGateway`. Envoy Gateway as K8s peer.
+- **Next phase planned:** **Phase 9 — Cross-cloud Terraform import** (`PHASE_9_PLAN.md` drafted + codex-reviewed). Mock cloud servers reusing inmem; `terraform plan -generate-config-out` plan-is-no-diff exit criterion. Real-cloud lanes deferred to Phase 9-A behind Track A.
 
 ## Phase 8 sub-task table
 
