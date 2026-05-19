@@ -52,15 +52,15 @@ func runAPIGateway(args []string) error {
 	}
 
 	backend, err := buildAPIGatewayBackend(*backendName, apigatewayBackendConfig{
-		kubeconfig:    *kubeconfig,
-		envoyNS:       *envoyNS,
-		envoyClass:    *envoyClass,
-		awsEndpoint:   *awsEndpoint,
-		gcpProject:    *gcpProject,
-		gcpRegion:     *gcpRegion,
-		azureSub:      *azureSub,
-		azureRG:       *azureRG,
-		azureService:  *azureSvc,
+		kubeconfig:   *kubeconfig,
+		envoyNS:      *envoyNS,
+		envoyClass:   *envoyClass,
+		awsEndpoint:  *awsEndpoint,
+		gcpProject:   *gcpProject,
+		gcpRegion:    *gcpRegion,
+		azureSub:     *azureSub,
+		azureRG:      *azureRG,
+		azureService: *azureSvc,
 	})
 	if err != nil {
 		return err

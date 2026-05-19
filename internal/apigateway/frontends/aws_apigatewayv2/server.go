@@ -43,9 +43,9 @@ type Server struct {
 	// AWS's multi-call flow (CreateApi → CreateRoute × N →
 	// CreateDeployment) onto the domain's atomic DeployGateway.
 	// Cleared after each successful CreateDeployment.
-	mu       sync.Mutex
-	pending  map[string][]domain.Route   // apiID → routes
-	intIDs   map[string]map[string]string // apiID → integrationID → targetURL
+	mu      sync.Mutex
+	pending map[string][]domain.Route    // apiID → routes
+	intIDs  map[string]map[string]string // apiID → integrationID → targetURL
 }
 
 func New(s domain.APIGateway) *Server {
@@ -57,13 +57,13 @@ func New(s domain.APIGateway) *Server {
 }
 
 var (
-	reApis           = regexp.MustCompile(`^/v2/apis/?$`)
-	reApi            = regexp.MustCompile(`^/v2/apis/([^/]+)$`)
-	reRoutes         = regexp.MustCompile(`^/v2/apis/([^/]+)/routes/?$`)
-	reRoute          = regexp.MustCompile(`^/v2/apis/([^/]+)/routes/([^/]+)$`)
-	reIntegrations   = regexp.MustCompile(`^/v2/apis/([^/]+)/integrations/?$`)
-	reIntegration    = regexp.MustCompile(`^/v2/apis/([^/]+)/integrations/([^/]+)$`)
-	reDeployments    = regexp.MustCompile(`^/v2/apis/([^/]+)/deployments/?$`)
+	reApis         = regexp.MustCompile(`^/v2/apis/?$`)
+	reApi          = regexp.MustCompile(`^/v2/apis/([^/]+)$`)
+	reRoutes       = regexp.MustCompile(`^/v2/apis/([^/]+)/routes/?$`)
+	reRoute        = regexp.MustCompile(`^/v2/apis/([^/]+)/routes/([^/]+)$`)
+	reIntegrations = regexp.MustCompile(`^/v2/apis/([^/]+)/integrations/?$`)
+	reIntegration  = regexp.MustCompile(`^/v2/apis/([^/]+)/integrations/([^/]+)$`)
+	reDeployments  = regexp.MustCompile(`^/v2/apis/([^/]+)/deployments/?$`)
 )
 
 func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
