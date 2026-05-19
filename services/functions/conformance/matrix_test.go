@@ -35,15 +35,19 @@ func TestFunctionsMatrix_AWSFrontend(t *testing.T) {
 			})
 
 			name := fmt.Sprintf("matrix-aws-%s", f.Name)
+			// Knative needs a real HTTP-serving container to reach
+			// Ready. helloworld-go listens on $PORT and replies;
+			// docker.io/library/hello-world exits immediately so the
+			// Knative Pod is never healthy and Service never Ready.
 			if _, err := client.CreateFunction(ctx, &lambda.CreateFunctionInput{
 				FunctionName: awsapi.String(name),
 				PackageType:  lambdatypes.PackageTypeImage,
 				Code: &lambdatypes.FunctionCode{
-					ImageUri: awsapi.String("docker.io/library/hello-world:latest"),
+					ImageUri: awsapi.String("gcr.io/knative-samples/helloworld-go"),
 				},
 				Role:       awsapi.String("arn:aws:iam::000000000000:role/lambda"),
 				MemorySize: awsapi.Int32(128),
-				Timeout:    awsapi.Int32(3),
+				Timeout:    awsapi.Int32(60),
 			}); err != nil {
 				t.Fatalf("CreateFunction: %v", err)
 			}
