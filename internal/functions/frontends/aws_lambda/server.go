@@ -320,10 +320,10 @@ func (srv *Server) getFunctionURLConfig(w http.ResponseWriter, r *http.Request, 
 }
 
 func (srv *Server) listTags(w http.ResponseWriter, r *http.Request, name string) {
-	_ = name
-	if _, err := srv.s.DescribeFunction(r.Context(), nameFromARN(name)); err != nil {
-		// continue — Lambda's ListTags is tolerant
-	}
+	// Lambda's ListTags is tolerant of "no such function" — it just
+	// returns an empty tag set. Probe DescribeFunction to confirm
+	// the function exists, but don't surface its error.
+	_, _ = srv.s.DescribeFunction(r.Context(), nameFromARN(name))
 	writeJSON(w, http.StatusOK, map[string]map[string]string{"Tags": {}})
 }
 
