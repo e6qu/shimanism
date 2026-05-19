@@ -106,10 +106,12 @@ func unwrapValue(data map[string]interface{}) ([]byte, bool) {
 }
 
 func (b *Backend) CreateSecret(ctx context.Context, name string, opt domain.CreateSecretOptions) (domain.CreateSecretResult, error) {
-	// Vault KV v2's data path PUT both creates and updates. To enforce
-	// "create only if absent" we check metadata first; if the secret
-	// already exists, return SecretAlreadyExists.
-	if _, err := b.c.Logical().ReadWithContext(ctx, b.metadataPath(name)); err == nil {
+	// Vault KV v2's data path PUT both creates and updates. Enforce
+	// "create only if absent" by checking metadata first. The Vault
+	// API library returns (nil, nil) for a 404 — `err == nil` alone
+	// is true for both "exists" and "missing", so we must also check
+	// the response is non-nil.
+	if resp, err := b.c.Logical().ReadWithContext(ctx, b.metadataPath(name)); err == nil && resp != nil && resp.Data != nil {
 		return domain.CreateSecretResult{}, domain.SecretAlreadyExists(name)
 	}
 
