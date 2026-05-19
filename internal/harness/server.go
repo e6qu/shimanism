@@ -18,6 +18,8 @@ import (
 	awssqsreceivefront "github.com/e6qu/shimanism/internal/pubsub/frontends/aws_sqs_receive"
 	azuresbtopicsfront "github.com/e6qu/shimanism/internal/pubsub/frontends/azure_servicebus_topics"
 	gcppubsubpsfront "github.com/e6qu/shimanism/internal/pubsub/frontends/gcp_pubsub"
+	rdbmsdomain "github.com/e6qu/shimanism/internal/rdbms/domain"
+	awsrdsfront "github.com/e6qu/shimanism/internal/rdbms/frontends/aws_rds"
 	queuedomain "github.com/e6qu/shimanism/internal/queue/domain"
 	awssqsfront "github.com/e6qu/shimanism/internal/queue/frontends/aws_sqs"
 	azuresbfront "github.com/e6qu/shimanism/internal/queue/frontends/azure_servicebus"
@@ -229,6 +231,22 @@ func StartPubsubServerAzure(t *testing.T, backend pubsubdomain.Pubsub) *PubsubSe
 	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
 	t.Cleanup(ts.Close)
 	return &PubsubServer{URL: ts.URL, Close: ts.Close}
+}
+
+// RDBMSServer is a started rdbms-shim instance.
+type RDBMSServer struct {
+	URL   string
+	Close func()
+}
+
+// StartRDBMSServerAWS starts a shim instance with the AWS RDS
+// awsQuery frontend backed by the given rdbms implementation.
+func StartRDBMSServerAWS(t *testing.T, backend rdbmsdomain.RDBMS) *RDBMSServer {
+	t.Helper()
+	srv := awsrdsfront.New(backend)
+	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
+	t.Cleanup(ts.Close)
+	return &RDBMSServer{URL: ts.URL, Close: ts.Close}
 }
 
 // logRoundTrip logs each request through the harness. Lightweight —
