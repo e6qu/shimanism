@@ -61,6 +61,22 @@ Why: a stateless shim scales horizontally (any replica answers any request), res
 
 If a feature can't be implemented statelessly, **it's out of intersection** — return the source cloud's "not supported" error. Don't add state to make it work.
 
+## In-tree K8s peer: one package, common denominator
+
+When a shimmed service's K8s-peer slot doesn't have a clean third-party OSS fit, the in-tree [`peers/shimanism/`](peers/shimanism/) package fills it. **One** package, **one** binary, **one** Store interface — not a fleet of per-service shim peers.
+
+The common denominator every shimmed service reduces to:
+
+- Named, versioned binary objects.
+- Per-object structured metadata (`map[string]string`).
+- Soft-delete + force-delete lifecycle.
+- List with prefix + pagination.
+- Multi-namespace addressing so one deployment serves many shim services.
+
+That's the whole `peers/shimanism/peer.go` interface. The shim service's frontend handles the per-cloud shape (S3 / Vault / SQS / Lambda / …); the peer just stores the bytes. Don't add service-specific knowledge to the peer.
+
+The peer lives in its own Go module so it can be deployed and upgraded on its own cadence; importing it from `services/<svc>/backends/` is optional and only happens when a phase actually surfaces the gap. Phase 1 (storage) and Phase 2 (secrets) used MinIO and Vault — the peer module didn't ship code, only the interface contract.
+
 ## Fidelity to the source cloud's API is P0
 
 The shim's front door speaks the cloud's published API. The contract is:
