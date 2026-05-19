@@ -1,6 +1,6 @@
 # Known Bugs
 
-**1 filed · 1 fixed · 0 open · 0 false positives.**
+**2 filed · 1 fixed · 1 open · 0 false positives.**
 
 Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLAN.md](PLAN.md) · narrative [WHAT_WE_DID.md](WHAT_WE_DID.md) · rules [AGENTS.md](AGENTS.md).
 
@@ -12,8 +12,7 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 
 | ID | Sev | Area | Source-API | One-liner |
 |----|-----|------|------------|-----------|
-
-*(empty)*
+| BUG-2 | P2 | queue | AWS SQS `SetQueueAttributes` | Phase 3 intersection is 8 ops; `SetQueueAttributes` (used by `hashicorp/aws aws_sqs_queue` for attribute reconciliation after CreateQueue) is not yet wired through the domain or any backend. Terraform AWS-frontend conformance is ◇-skipped until this lands. Adding it requires the domain method + all 5 backends + the AWS frontend dispatch entry. |
 
 ## False positives
 
