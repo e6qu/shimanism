@@ -37,18 +37,24 @@ func requireAZ(t *testing.T) string {
 func runAZ(t *testing.T, srvURL, bin string, args ...string) ([]byte, []byte, error) {
 	t.Helper()
 	endpoint := strings.TrimRight(srvURL, "/") + "/" + azAccountName
-	full := append([]string{
-		"--output", "json",
-		"--only-show-errors",
-	}, args...)
+	// Subcommand first, global flags last. az is sensitive to flag
+	// order: arg-order parsing can otherwise treat trailing tokens as
+	// the subcommand and then complain about an unrecognized one.
+	full := append([]string{}, args...)
 	full = append(full,
 		"--account-name", azAccountName,
 		"--account-key", azAccountKey,
 		"--blob-endpoint", endpoint,
+		"--only-show-errors",
+		"--output", "json",
 	)
 	cmd := exec.Command(bin, full...)
 	cmd.Env = append(os.Environ(),
 		"AZURE_CORE_NO_COLOR=true",
+		// Older az on GitHub-hosted runners declines without telemetry
+		// settings being explicitly opted out — disable to keep CI
+		// deterministic.
+		"AZURE_CORE_COLLECT_TELEMETRY=no",
 	)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
