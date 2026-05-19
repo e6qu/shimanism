@@ -14,6 +14,7 @@ package conformance_test
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -121,20 +122,19 @@ func TestTerraform_AWSS3_Import(t *testing.T) {
 	stdout, stderr, err = runTf("plan", "-no-color", "-detailed-exitcode")
 	// detailed-exitcode: 0 = no diff, 2 = diff. Anything else is
 	// an error.
-	switch {
-	case err == nil:
-		// 0 — exactly what we want.
-	default:
-		if exitErr, ok := err.(*exec.ExitError); ok && exitErr.ExitCode() == 2 {
-			t.Logf("terraform plan reports a diff after import — fidelity gap\nplan stdout:\n%s\nstderr:\n%s",
-				stdout, stderr)
-			// Not a hard fail at this phase: the goal of 9.4 is to
-			// surface the diffs so they become BUGs. Hard-failing
-			// would mask which attributes diverge.
-		} else {
-			t.Fatalf("terraform plan:\nstdout: %s\nstderr: %s\nerr: %v", stdout, stderr, err)
-		}
+	if err == nil {
+		return // 0 — exactly what we want.
 	}
+	var exitErr *exec.ExitError
+	if errors.As(err, &exitErr) && exitErr.ExitCode() == 2 {
+		t.Logf("terraform plan reports a diff after import — fidelity gap\nplan stdout:\n%s\nstderr:\n%s",
+			stdout, stderr)
+		// Not a hard fail at this phase: the goal of 9.4 is to
+		// surface the diffs so they become BUGs. Hard-failing
+		// would mask which attributes diverge.
+		return
+	}
+	t.Fatalf("terraform plan:\nstdout: %s\nstderr: %s\nerr: %v", stdout, stderr, err)
 }
 
 func terraformPluginCacheDirStorage() string {
