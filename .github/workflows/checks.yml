@@ -357,6 +357,9 @@ jobs:
           fi
           echo "knative-operator in namespace=$ns"
           kubectl -n "$ns" rollout status deployment/knative-operator --timeout=180s
+          # The KnativeServing CR lives in a `knative-serving` namespace
+          # the operator doesn't create automatically — create it.
+          kubectl create namespace knative-serving --dry-run=client -o yaml | kubectl apply -f -
           # Create a KnativeServing CR with kourier as the network layer.
           cat <<EOF | kubectl apply -f -
           apiVersion: operator.knative.dev/v1beta1
