@@ -1,0 +1,17 @@
+{
+  "_comment": "The intersection operation set for the queue shim. See OPERATIONS.md for the per-cloud equivalence table. GetQueueUrl is included as a probe — AWS SQS clients call it to translate a queue name into a URL before any other op, so the shim needs to honour it even though it's AWS-specific.",
+  "spec": "services/queue/spec/aws-sqs.smithy.json",
+  "package": "gen",
+  "out": "services/queue/gen/aws_sqs.gen.go",
+  "operations": [
+    "CreateQueue",
+    "DeleteQueue",
+    "ListQueues",
+    "GetQueueUrl",
+    "GetQueueAttributes",
+    "SendMessage",
+    "ReceiveMessage",
+    "DeleteMessage",
+    "ChangeMessageVisibility"
+  ]
+}
