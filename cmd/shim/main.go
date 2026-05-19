@@ -9,14 +9,18 @@
 //	shim version           — print version and exit.
 //	shim storage [flags]   — run the storage service.
 //	shim secrets [flags]   — run the secrets service.
+//	shim queue   [flags]   — run the queue service.
 //
 // Each service subcommand selects a backend via -backend=<name> and a
 // frontend via -frontend=<name>. Storage backends: inmem, minio, aws,
 // gcs, azureblob. Storage frontends: aws_s3, gcs, azure_blob. Secrets
 // backends: inmem, vault, aws, gcp, azure. Secrets frontends:
-// aws_secretsmanager, gcp_secretmanager, azure_keyvault. The K8s peer
-// (deploy/k8s/peer/) uses frontend=aws_s3 + backend=minio for storage
-// and frontend=aws_secretsmanager + backend=vault for secrets.
+// aws_secretsmanager, gcp_secretmanager, azure_keyvault. Queue
+// backends: inmem, nats, aws, gcp, azure. Queue frontends: aws_sqs,
+// gcp_pubsub, azure_servicebus. The K8s peer (deploy/k8s/peer/) uses
+// frontend=aws_s3 + backend=minio for storage,
+// frontend=aws_secretsmanager + backend=vault for secrets, and
+// frontend=aws_sqs + backend=nats for queue.
 package main
 
 import (
@@ -45,7 +49,7 @@ import (
 	storagegen "github.com/e6qu/shimanism/services/storage/gen"
 )
 
-const version = "0.3.0-phase-2"
+const version = "0.4.0-phase-3"
 
 func main() {
 	if len(os.Args) < 2 {
@@ -65,6 +69,11 @@ func main() {
 			fmt.Fprintln(os.Stderr, "shim secrets:", err)
 			os.Exit(1)
 		}
+	case "queue":
+		if err := runQueue(os.Args[2:]); err != nil {
+			fmt.Fprintln(os.Stderr, "shim queue:", err)
+			os.Exit(1)
+		}
 	case "help", "-h", "--help":
 		usage()
 	default:
@@ -81,6 +90,7 @@ func usage() {
 	fmt.Fprintln(os.Stderr, "  version            Print the shim version and exit.")
 	fmt.Fprintln(os.Stderr, "  storage [flags]    Run the storage service.")
 	fmt.Fprintln(os.Stderr, "  secrets [flags]    Run the secrets service.")
+	fmt.Fprintln(os.Stderr, "  queue   [flags]    Run the queue service.")
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Run `shim <subcommand> -h` for per-service flags.")
 }
