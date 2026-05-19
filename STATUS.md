@@ -9,8 +9,9 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 | | |
 |---|---|
 | Active branch | `phase-1.4-conformance-harness` — PR open. Intersection scoping correction + conformance harness skeleton. |
-| In-flight | **Phase 1 complete on PR #6, all 11 CI checks green.** Three real frontends (AWS S3 / GCS / Azure Blob) × five backends (inmem / minio / aws / gcs / azureblob) wired through `domain.Storage`. SDK matrix drives every (frontend, backend) cell via TestConformanceMatrix_*; CLI rows cover AWS + gcloud bucket-lifecycle + az (with Range support fixes for the Python azure-storage validator); Terraform rows cover hashicorp/aws + hashicorp/google. Engineering hygiene: golangci-lint v2.10.1, pre-commit framework, type-check + lint + pre-commit CI jobs (inspired by e6qu/sockerless). |
-| CI baseline | 11 required checks: branch-rebased, symlinks, continuity-docs, lint (golangci-lint), type-check, pre-commit, go vet+test+build, dependency-licenses, conformance-minio, conformance-gcs, conformance-azureblob. All passing on PR #6 at `597965b`. |
+| In-flight | **Phase 2 on PR #7.** Three secrets frontends (AWS Secrets Manager, GCP Secret Manager, Azure Key Vault) × five backends (inmem, Vault KV v2 as K8s peer, AWS / GCP / Azure passthrough) wired through `internal/secrets/domain.Secrets`. SDK matrix green for inmem; vault lane lights up in CI; real-cloud lanes await Track A. CLI: AWS + GCP green; Azure skipped (no data-plane URL override). TF: AWS + GCP green; azurerm skipped (same constraint as Phase 1 storage Azure Blob). `cmd/shim secrets` subcommand lands. Stateless invariant captured across all four rule docs (AGENTS.md / PLAN.md / STATUS.md / PHILOSOPHY.md). |
+| Phase 1 closed | PR #6 merged `1f64d9f` 2026-05-19. Three storage frontends × five storage backends × three driver types matrix; 11 required CI checks. |
+| CI baseline | Required checks include the 11 Phase-1 ones + `conformance-vault` added in Phase 2.15. |
 | Scope rule (2026-05-18) | **Each phase ships the full N × N matrix.** Previous PLAN.md had Phases 9 and 10 as "GCP source row" and "Azure source row" of horizontal expansion across all 8 services; user reversed this. Each service phase now includes all 3 frontends + all 4 backends + SDK / CLI / Terraform for each, before moving to the next service. Phases 9 and 10 deleted; their work is absorbed into Phases 1-8. |
 | Last merged | PR #5 — Phase 1.3 (codegen, originally all 107 ops) (`03b0ebb`, 2026-05-18). |
 | Standing merge auth | **None.** User merges every PR. |
@@ -34,6 +35,7 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 ### Architecture (load-bearing across all services)
 - **The shim speaks the cloud's published API exactly.** Error shapes, response headers, status codes, async semantics — match. Server stubs are generated from the upstream spec; hand-written code is translation logic only.
 - **Real backends, never emulators.** A shimmed call drives a real comparable service. The shim holds no state of record.
+- **Stateless shim.** No sidecar storage, no shim-managed key/value namespace, no in-process cache treated as authoritative. State lives in the backend; cross-cloud mappings are derived at request time. See [AGENTS.md § The shim is stateless](AGENTS.md#the-shim-is-stateless).
 - **Intersection-only scope.** Out-of-intersection feature calls fail loud with the source cloud's own error vocabulary. **Never fabricate success.**
 - **Kubernetes is a first-class fourth backend** for every shimmed service.
 - **No fakes, no fallbacks, no degraded modes.** Translation can't be honest → call fails loud.

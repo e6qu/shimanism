@@ -68,3 +68,10 @@ linters:
         text: "QF1003:"
     paths:
       - services/storage/gen
+      # peers/shimanism/ is a separate Go module released
+      # independently (its own go.mod). Some golangci-lint
+      # versions enumerate it as part of the main module's ./...
+      # target and choke on a package-not-in-module typecheck
+      # error; pinning the path here keeps the main lint lane
+      # focused on the main module.
+      - peers

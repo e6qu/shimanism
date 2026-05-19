@@ -1,7 +1,6 @@
 // Command shim is the entry point for the shimanism protocol-translation
 // proxy. It runs the shim as a network service: a chosen wire-protocol
-// frontend (AWS S3, GCS, or Azure Blob) sits in front of a chosen
-// backend implementation of domain.Storage, so any cloud's official
+// frontend sits in front of a chosen backend, so any cloud's official
 // SDK / CLI / Terraform provider can drive it via the standard
 // endpoint-override path.
 //
@@ -9,13 +8,15 @@
 //
 //	shim version           — print version and exit.
 //	shim storage [flags]   — run the storage service.
+//	shim secrets [flags]   — run the secrets service.
 //
-// The storage subcommand selects a backend via -backend=<name> and a
-// frontend via -frontend=<name>; each backend reads its connection
-// config from flags or environment variables. Backends currently
-// implemented: inmem, minio, aws, gcs, azureblob. Frontends:
-// aws_s3, gcs, azure_blob. The K8s peer (deploy/k8s/peer/) uses
-// frontend=aws_s3 + backend=minio by default.
+// Each service subcommand selects a backend via -backend=<name> and a
+// frontend via -frontend=<name>. Storage backends: inmem, minio, aws,
+// gcs, azureblob. Storage frontends: aws_s3, gcs, azure_blob. Secrets
+// backends: inmem, vault, aws, gcp, azure. Secrets frontends:
+// aws_secretsmanager, gcp_secretmanager, azure_keyvault. The K8s peer
+// (deploy/k8s/peer/) uses frontend=aws_s3 + backend=minio for storage
+// and frontend=aws_secretsmanager + backend=vault for secrets.
 package main
 
 import (
@@ -44,7 +45,7 @@ import (
 	storagegen "github.com/e6qu/shimanism/services/storage/gen"
 )
 
-const version = "0.2.0-phase-1.15"
+const version = "0.3.0-phase-2"
 
 func main() {
 	if len(os.Args) < 2 {
@@ -57,6 +58,11 @@ func main() {
 	case "storage":
 		if err := runStorage(os.Args[2:]); err != nil {
 			fmt.Fprintln(os.Stderr, "shim storage:", err)
+			os.Exit(1)
+		}
+	case "secrets":
+		if err := runSecrets(os.Args[2:]); err != nil {
+			fmt.Fprintln(os.Stderr, "shim secrets:", err)
 			os.Exit(1)
 		}
 	case "help", "-h", "--help":
@@ -73,9 +79,10 @@ func usage() {
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Subcommands:")
 	fmt.Fprintln(os.Stderr, "  version            Print the shim version and exit.")
-	fmt.Fprintln(os.Stderr, "  storage [flags]    Run the storage service (S3-shaped frontend).")
+	fmt.Fprintln(os.Stderr, "  storage [flags]    Run the storage service.")
+	fmt.Fprintln(os.Stderr, "  secrets [flags]    Run the secrets service.")
 	fmt.Fprintln(os.Stderr)
-	fmt.Fprintln(os.Stderr, "Run `shim storage -h` for storage-service flags.")
+	fmt.Fprintln(os.Stderr, "Run `shim <subcommand> -h` for per-service flags.")
 }
 
 func runStorage(args []string) error {

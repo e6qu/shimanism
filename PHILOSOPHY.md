@@ -109,6 +109,18 @@ He returned to his onion.
 
 The master held up the onion, peeled now to nothing, and showed his empty fingers.
 
+## The Empty Hands
+
+"Master, where shall the shim keep its memory?" asked the grasshopper, presenting a small clay jar.
+
+The master took the jar, drank the tea inside, and handed it back empty.
+
+The grasshopper put it on a shelf labelled *Shim Cache*. By morning the jar held mismatched keys and the cellar had spoiled. The master, opening the cellar, pulled the grasshopper inside by his ear.
+
+"The shim's hands are empty. The cellar is the cellar."
+
+The grasshopper smashed the jar. Where he stood, the shelf collapsed, and the cellar's true contents — still good — looked up at him through the dust.
+
 ## The Blind Master
 
 A blind master inspected the shim by touching its signatures and listening to its tests. "Three back doors. Two are boneless."

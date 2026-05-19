@@ -6,34 +6,60 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 
 ## Where we are
 
-- **Last merged:** PR #5 (Phase 1.3 — codegen) at `03b0ebb` on `origin/main`, 2026-05-18.
-- **Active branch:** `phase-1.4-conformance-harness` — PR #6 open. Eight commits piled on so far: (1) intersection scoping (16 ops); (2) SDK + CLI + Terraform conformance harness; (3) TF resource-lifecycle support (manifest grew to 34 ops including bucket-config probes; typed `restxml.ShimError` for backend-error → S3-status mapping); (4) Phase 1.5.0 — neutral `domain.Storage` interface + AWS S3 frontend adapter + in-mem backend refactor + streaming `httpPayload` codegen; (5) Phase 1.5.1 — MinIO backend; (6) Phase 1.5.2 — AWS S3 passthrough backend; (7) Phase 1.6 — GCS backend; (8) Phase 1.7 — Azure Blob backend. Five backends now wired into the conformance factory list (inmem, minio, aws, gcs, azureblob), each gated on its own env var so CI lights one up at a time.
-- **Project phase:** **Phase 1 — Object storage (S3-source).** Phase 1.4 has the harness running real `terraform init / apply / destroy` against `resource "aws_s3_bucket"` + `resource "aws_s3_object"`. Phases 1.5–1.7 stacked on the same branch deliver four additional real backends behind the neutral `domain.Storage` interface.
+- **Last merged:** PR #6 (Phase 1 — object storage, full 3 × 5 × 3 matrix + CI tooling) at `1f64d9f` on `origin/main`, 2026-05-19.
+- **Active branch:** `phase-2-secrets` — fresh branch off `main`, no commits yet, no PR yet.
+- **Project phase:** **Phase 2 — Secrets management.** Three frontends (AWS Secrets Manager, GCP Secret Manager, Azure Key Vault) × four backends (the three clouds + Vault as K8s peer) × three driver types (SDK + CLI + Terraform). Same N × N matrix discipline as Phase 1.
 
-## Phase 1 sub-task table
+## Phase 2 sub-task table
 
 | Sub | Status | Headline |
 |---|---|---|
-| **1.1** | ✅ | Repo skeleton: Go module at `github.com/e6qu/shimanism`, Makefile, Go CI lane, placeholder `cmd/shim/main.go`. PR #3, merged at `48c0edf`. |
-| **1.2** | ✅ | Spec ingestion + engineering hygiene: S3 Smithy JSON vendored + license policy + Renovate + supply-chain hardening + version bumps. PR #4, merged at `98e6ce9`. |
-| **1.3** | ✅ | Codegen pipeline. PR #5, merged at `03b0ebb`. |
-| **1.4** | ◐ | Conformance harness + Terraform resource-lifecycle path. Manifest holds 34 ops (16 core + 18 bucket-config probes). `internal/restxml` ships URI / scalar / time / typed-error / router runtime. Generated handlers funnel backend errors through `WriteBackendError`. `services/storage/backends/inmem/` is a real in-memory backend covering all 34. Three conformance drivers (SDK / CLI / TF) run against it in CI. Open bug: [BUG-1](BUGS.md) (router x-id stripping shadows sibling-op disambiguation on object paths — shadowed for now, tracked). PR #6 open. |
-| **1.5.0** | ✅ | Domain refactor. `internal/storage/domain/` introduces the neutral `Storage` interface (streaming-friendly: `io.Reader` for `httpPayload` blob inputs, `io.ReadCloser` for outputs). `internal/storage/frontends/aws_s3/` wraps `gen.AmazonS3Backend` and translates to `domain.Storage`. `services/storage/backends/inmem/` implements `domain.Storage` directly, drops the `gen.*` types. Codegen streaming changes for `httpPayload`+blob members. Conformance suite unchanged (still hits AWS frontend, in-mem backend). See [`doc/CROSS_CLOUD_ROUTING.md`](doc/CROSS_CLOUD_ROUTING.md). Piled on PR #6 at `829d360`. |
-| **1.5.1** | ✅ | **MinIO backend** — `services/storage/backends/minio/` implements `domain.Storage` via `minio-go` (uses `minio.Core` for explicit multipart). Skipped in CI unless `MINIO_ENDPOINT` is set; conformance factory `minio` enabled. Piled on PR #6 at `e9ca37a`. |
-| **1.5.2** | ✅ | **AWS passthrough backend** — `services/storage/backends/aws/` via `aws-sdk-go-v2/service/s3`. Skipped unless `AWS_S3_CONFORMANCE_ENDPOINT` is set or `AWS_S3_CONFORMANCE=1`; conformance factory `aws` enabled. Piled on PR #6 at `c584b7e`. |
-| **1.6** | ✅ | **GCS backend** — first cross-shape translation. AWS-shaped frontend → `domain.Storage` → `cloud.google.com/go/storage` → real GCS. Multipart mapped to GCS temp-objects-and-compose under `<key>.uploads/<uploadID>/`. Skipped unless `STORAGE_EMULATOR_HOST` is set or `GCS_CONFORMANCE=1`; conformance factory `gcs` enabled. Piled on PR #6 (uncommitted as of this update — see WHAT_WE_DID.md). |
-| **1.7** | ✅ | **Azure Blob backend** — `services/storage/backends/azureblob/` via `azure-sdk-for-go/sdk/storage/azblob`. Multipart mapped to native Azure block list with base64 block IDs derived from `(uploadID, partNumber)`. Skipped unless `AZURE_STORAGE_CONNECTION_STRING` is set or `AZURE_BLOB_CONFORMANCE=1`; conformance factory `azureblob` enabled. Piled on PR #6 (uncommitted as of this update — see WHAT_WE_DID.md). |
-| **1.8** | ✅ | **K8s peer backend** — `cmd/shim` rewritten as a runnable service with subcommands (`shim storage -backend=<...>`); `deploy/k8s/peer/` ships a kustomization with a MinIO StatefulSet + Service and a shim Deployment + Service; `Dockerfile` builds a distroless static image consumed by the Deployment. The "leave the cloud entirely" path is now operational. Piled on PR #6. |
-| **1.9** | ✅ | `CopyObject` cross-cloud nuances. Azure: poll loop now fails loud on `failed`/`aborted` status, fails on still-pending after 30s (no silent partial copies), keeps ETag + LastModified in sync via GetProperties. GCS: `Copier.Run` already handles the rewrite-token loop for >5GB internally — no change needed. Piled on PR #6. |
-| **1.10** | ✅ | Multipart upload cross-cloud nuances. `domain.MultipartETag` computes the canonical S3 multipart ETag `<md5(concat(part-md5s))>-<N>` from the per-part ETags; in-mem, GCS, and Azure Blob backends now return this shape from `CompleteMultipartUpload` instead of native cloud ETags (GCS's CRC32C-derived Etag, Azure's block-blob ETag). MinIO + AWS passthrough already return the canonical shape natively. Piled on PR #6. |
-| **1.11** | ✅ | Presigned URLs: `TestSDK_PresignedURL` exercises the SDK's PresignClient against the shim. The router's ForbiddenQueries does not block SigV4 query params (X-Amz-*), and the shim accepts SigV4-bearing requests without validation at this phase (validation is a future hardening step — for now the shim is a passthrough). Piled on PR #6. |
-| **1.12** | ✅ | Fix [BUG-1](BUGS.md): `restxml.RouteOptions.ForbiddenQueries` + codegen emits the S3 feature-query list for the base ops + GetObjectTagging / GetObjectAcl added as object-level probes. Piled on PR #6. |
-| **1.13** | ✅ | CI conformance matrix: `conformance-minio` (MinIO container), `conformance-gcs` (fake-gcs-server), `conformance-azureblob` (Azurite). Each lane runs `TestConformanceMatrix_*` (all 3 frontends × the lane's backend) with the env var its docker container exposes; the factory's other-backend skips keep each lane focused. Real-AWS lane deferred to Track A (cloud test accounts). |
-| **1.14** | ✅ | **GCS frontend.** `internal/storage/frontends/gcs/` reuses `google.golang.org/api/storage/v1` raw wire types (per locked-in decision #11). Routes cover ListBuckets / GetBucket / InsertBucket / DeleteBucket / ListObjects / GetObject (metadata + media) / DeleteObject / InsertObject (simple media + multipart) / CopyObject / RewriteObject / storageLayout probe. Conformance: `cloud.google.com/go/storage` SDK (TestGCS_SDK_*), `gcloud storage` CLI bucket lifecycle (TestGCS_CLI_BucketLifecycle), `hashicorp/google` Terraform with `storage_custom_endpoint` (TestTerraform_GCS_ResourceLifecycle). gcloud cp object round-trip is skipped pending an upstream gcloud TypeError fix; SDK covers the cell. |
-| **1.15** | ✅ | **Azure Blob frontend.** `internal/storage/frontends/azure_blob/` matches the shapes the Azure SDK's internal `generated/` package uses. Routes cover ListContainers / Create + Get + Delete container / ListBlobs / Put + Get + Head + Delete blob / CopyBlob via `x-ms-copy-source`. SharedKey auth verification deferred (shim accepts unsigned at this phase). Conformance: `azure-sdk-for-go/sdk/storage/azblob` SDK (TestAzureBlob_SDK_*), `az storage blob` CLI (TestAzureBlob_CLI_*, runs when `az` is on PATH). `hashicorp/azurerm` Terraform skipped with documented upstream constraint (no blob-endpoint override; derived from ARM). |
-| **1.16** | ✅ | Phase 1 closer: all 11 required CI checks green (lint, typecheck, pre-commit, go vet+test+build, conformance × 3, branch-rebased, symlinks, continuity-docs, licenses). Engineering hygiene added (golangci-lint, pre-commit framework, type-check job) inspired by sockerless. PR #6 retitled + body updated; awaiting user merge. |
+| **2.1** | ✅ | Spec ingest. AWS Secrets Manager Smithy 2.0 JSON vendored under `services/secrets/spec/`, pinned to `aws/aws-sdk-go-v2@2517fe9f`. `services/secrets/codegen.json` manifest names the 7 intersection ops. GCP + Azure specs reused via their official Go SDKs' wire-type packages (same approach as the GCS + Azure Blob frontends in Phase 1.14/1.15). |
+| **2.2** | ✅ | `internal/secrets/domain/` neutral interface — `Secrets` interface + types (`Secret`, `SecretValue`, `Version`, `CreateSecretOptions`, `*Result`, `ListSecretsOptions`); typed `Error` with `Kind` discriminator + sentinel constructors. Versions: monotonic uint64; mapping to/from native cloud handles derived per-request (stateless). |
+| **2.3** | ✅ | AWS Secrets Manager frontend `internal/secrets/frontends/aws_secretsmanager/`. Hand-written awsJson1_1 dispatch + per-op JSON shapes mirroring the Smithy spec; tags + version IDs round-trip; AWSCURRENT / AWSPREVIOUS stage labels resolved by listing versions (no shim-side mapping table). ARN normalisation accepts both shim-issued and real-AWS-shaped ARNs. The existing Smithy codegen emits REST-XML; extending it to JSON-protocol is deferred (noted in commit 3b83aa5). |
+| **2.4** | ✅ | `services/secrets/backends/inmem/` covering all 7 ops with versioned values + soft-delete state. `services/secrets/conformance/aws_sdk_test.go` drives `aws-sdk-go-v2/service/secretsmanager` against the in-mem backend: secret lifecycle, AWSCURRENT/AWSPREVIOUS + explicit-VersionId reads, ARN normalisation, duplicate-create rejection. `harness.StartSecretsServerAWS` mounts the frontend → in-mem chain on a random localhost port. |
+| **2.5** | ✅ | **Vault backend** (K8s peer): `services/secrets/backends/vault/` via `hashicorp/vault/api`. Maps domain secrets to KV v2 paths under a configurable mount (default `secret`). Vault's native version numbering is monotonic → 1:1 with the domain. Description encoded as `shim-description` key in custom_metadata. Soft delete = `DELETE <mount>/data/<name>` (current version marked deleted); force = `DELETE <mount>/metadata/<name>` (removes everything). `deploy/k8s/peer-secrets/` manifests follow in 2.13. |
+| **2.6** | ✅ | **AWS Secrets Manager passthrough backend** `services/secrets/backends/aws/` via `aws-sdk-go-v2/service/secretsmanager`. Monotonic version ↔ AWS UUID derived per request by calling `ListSecretVersionIds` + sorting by CreatedDate (no shim-side mapping table). |
+| **2.7** | ✅ | **GCP Secret Manager backend** `services/secrets/backends/gcp/` via `cloud.google.com/go/secretmanager/apiv1`. GCP's native numeric versions match the domain's monotonic uint64 1:1; `latest` maps directly. Description encoded as `shim-description` label. Hard-delete only (GCP has no soft-delete). |
+| **2.8** | ✅ | **Azure Key Vault backend** `services/secrets/backends/azure/` via `azure-sdk-for-go/sdk/security/keyvault/azsecrets`. Monotonic ↔ GUID derived per request from `ListSecretPropertiesVersions` sorted by CreatedOn (stateless). Description encoded as `shim-description` tag. Soft-delete uses Azure's native recovery flow; force-delete polls then `PurgeDeletedSecret`. |
+| **2.9** | ✅ | **GCP Secret Manager frontend** `internal/secrets/frontends/gcp_secretmanager/`. Wire types from `google.golang.org/api/secretmanager/v1` (Discovery-generated). Routes cover `projects/*/secrets/*` + `versions/*` + `:access` and `:addVersion`. SDK conformance via `google.golang.org/api/secretmanager/v1` against in-mem backend: create, addVersion, access (latest + by-number), get-secret, list-secrets, list-versions, delete. |
+| **2.10** | ✅ | **Azure Key Vault frontend** `internal/secrets/frontends/azure_keyvault/`. Routes cover `/secrets/{name}` + `/secrets/{name}/{version}` + `/deletedsecrets`. SDK conformance via `azure-sdk-for-go/sdk/security/keyvault/azsecrets`. Implements the Azure challenge-response auth flow (401 with `WWW-Authenticate: Bearer …` on first attempt without token) so SDK clients send the body on retry; harness uses `httptest.NewTLSServer` because the Azure SDK refuses to send credentials over plain HTTP. |
+| **2.11** | ✅ | Conformance matrix: `TestSecretsMatrix_{AWSFrontend,GCPFrontend,AzureFrontend}` iterates every backend factory (inmem, vault, aws, gcp, azure) and drives the matching cloud's official Go SDK through Create → Get → Put → Get. Inmem always runs; the four others skip pending env vars (vault dev container in CI; the three real-cloud lanes wait on Track A). |
+| **2.12** | ✅ | CLI conformance: `aws secretsmanager` (TestAWSCLI_SecretLifecycle), `gcloud secrets` (TestGCPCLI_SecretLifecycle). `az keyvault secret` skipped — the CLI resolves the data-plane URL from `--vault-name` + a fixed `*.vault.azure.net` suffix and has no override flag/env var; documented in the test. |
+| **2.13** | ✅ | Terraform conformance: `hashicorp/aws` (aws_secretsmanager_secret + secret_version, full init/apply/destroy), `hashicorp/google` (google_secret_manager_secret + secret_version). `hashicorp/azurerm` skipped with the documented Phase-1-Azure-Blob-style constraint (no provider-level data-plane endpoint override). Shim fixes surfaced by TF: AWS frontend ARN normaliser now only strips the 6-char random suffix on real-region ARNs (not shim-issued); AWS frontend added GetResourcePolicy as a probe; GCP frontend added `:enable` and `:disable` as no-op probes. |
+| **2.14** | ✅ | `cmd/shim secrets` subcommand. Selectors: -frontend (aws_secretsmanager, gcp_secretmanager, azure_keyvault), -backend (inmem, vault, aws, gcp, azure). Connection knobs accept both flags and env vars. Version bumped to 0.3.0-phase-2. |
+| **2.15** | ✅ | CI lane `conformance-vault`: Vault dev container, `TestSecretsMatrix_*` against the live Vault backend (all three frontends). Real-cloud lanes (aws-secrets, gcp-secrets, azure-secrets) wait on Track A. |
+| **2.16** | ✅ | Phase 2 closer: all 12 required CI checks green (lint, typecheck, pre-commit, go vet+test+build, conformance × 4 [minio/gcs/azureblob/vault], branch-rebased, symlinks, continuity-docs, licenses). PR #7 retitled + body refreshed. Surfaced 1 latent Vault-backend bug during CI: `CreateSecret` was reading `(*Secret, error)` and checking `err == nil` alone — the Vault API library returns `(nil, nil)` for 404, so empty results were misread as "already exists". Fixed by also checking the response pointer + Data map. |
 
 Status legend: ✅ done · ◐ in progress · ◻ pending · ⏸ paused.
+
+## Phase 2 design notes
+
+**Version semantics — the hard part.** The three clouds model versions differently:
+
+| Cloud | Version handle | "Latest" alias | Stage labels |
+|---|---|---|---|
+| AWS Secrets Manager | `VersionId` (UUID) + `VersionStages[]` (e.g. `AWSCURRENT`, `AWSPREVIOUS`) | `AWSCURRENT` | yes, multiple per version |
+| GCP Secret Manager | numeric `versions/<N>` | `versions/latest` (alias) | no |
+| Azure Key Vault | hex GUID | bare secret name returns latest | no |
+| Vault KV v2 | numeric `metadata.current_version` | implicit on bare GET | no |
+
+The domain interface uses **monotonic uint64** version numbers as the canonical identifier. Each backend's adapter maps that to/from the cloud's native form:
+
+- AWS adapter: store `(monotonic, VersionId)` pairs in the backend's metadata; map staleness via `AWSCURRENT` stage.
+- GCP adapter: monotonic maps directly to `versions/<N>`.
+- Azure adapter: monotonic ↔ GUID cached in the backend's metadata.
+- Vault adapter: monotonic maps directly to `metadata.versions[i].version`.
+
+`AWSCURRENT` / `AWSPREVIOUS` stage semantics live in the AWS frontend adapter (not in the domain) — they're AWS-specific.
+
+**Out-of-intersection features (return source-cloud "not supported" error):**
+- AWS rotation lambdas, replication regions, KMS encryption-context overrides
+- GCP TTL-based expiration, replication policies, Pub/Sub topic notifications
+- Azure HSM-backed keys, cert imports, soft-delete recovery beyond a basic 7-day window
+- Vault dynamic secrets, transit-engine ops, PKI roles
+
+**K8s peer choice — Vault.** Per [PLAN.md § Phase 2](PLAN.md#phase-2--secrets), Vault is the K8s-native peer. The shim talks to it via the KV v2 secrets engine. Other Vault engines (transit, pki, etc.) are out of intersection.
 
 ## Invariants snapshot (full list in [STATUS.md § Invariants](STATUS.md#invariants-carry-across-compactions--fresh-sessions))
 
@@ -42,16 +68,15 @@ Status legend: ✅ done · ◐ in progress · ◻ pending · ⏸ paused.
 - File BUGs in [BUGS.md](BUGS.md) *before* fixing.
 - Update STATUS / WHAT_WE_DID / DO_NEXT at every significant chunk.
 - Fidelity to the source cloud's API. Out-of-intersection features return source cloud's own error; never fabricate success.
-- Real backends only; no emulators (the in-mem backend is a real-storage test fixture, not an emulator).
+- Real backends only; no emulators (the in-mem backend is a real-secrets test fixture, not an emulator).
 - Tests from official client surfaces: SDK + CLI + Terraform provider per operation, per backend, same commit.
 - Kubernetes is a first-class fourth backend.
+- **Reuse over reinvention** ([AGENTS.md](AGENTS.md#reuse-over-reinvention)): wire types from each cloud's official Go SDK; spec inputs from upstream-canonical sources; auth verification via the cloud's official verifier libraries.
 
 ## Resumable tracks (longer-horizon)
 
-- **Track A — Cloud test accounts.** Decide where live cloud accounts for nightly conformance runs live, and who pays. Needed before Phase 1.12 nightly tier can light up.
-- **Track B — GCP source row (Phase 9).** Holds until Phase 8 (API Gateway) wraps.
-- **Track C — Azure source row (Phase 10).** Holds until Phase 9 wraps. AMQP-vs-REST fidelity decision to be made at Phase 10.3 start.
-- **Track D — Coding-agent automation.** Auto-PR template per service, agent permissions for upstream spec bumps, conformance-failure → BUG-filing automation.
+- **Track A — Cloud test accounts.** Decide where live cloud accounts for nightly conformance runs live, and who pays. Live-cloud rows for AWS / GCS / Azure Blob are skipped on every phase until this lands.
+- **Track B — Coding-agent automation.** Auto-PR template per service, agent permissions for upstream spec bumps, conformance-failure → BUG-filing automation.
 
 ## Session-resume checklist
 
