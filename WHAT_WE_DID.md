@@ -4,6 +4,36 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 
 > Reverse chronological. One section per phase. The *why*, the surprises, the root causes — not per-PR detail. For commit-level history, `git log`. For per-bug detail, [BUGS.md](BUGS.md).
 
+## Phase 4 — Pub/Sub (in-flight on `phase-4-pubsub`)
+
+Topic-fanout sibling of Phase 3. Same N × N discipline (3 frontends × 5 backends × 3 driver types) applied to one-to-many message delivery. AWS SNS+SQS-receive / GCP Pub/Sub fanout / Azure Service Bus topics REST × inmem + NATS JetStream + AWS + GCP + Azure × SDK + CLI + Terraform.
+
+### Topic ≠ Subscription is the load-bearing change
+
+Phase 3's queue domain collapsed GCP's (topic, subscription) pair onto one Queue because point-to-point delivery only needs one identifier. Phase 4 can't do that: with fanout, multiple subscriptions on one topic need to be addressable independently (each has its own ack-deadline, each holds its own per-subscriber delivery queue). The domain therefore has two resource types and 12 ops (10 user-facing + HeadTopic + HeadSubscription). Receive is per-Subscription; Publish is per-Topic; there's no per-Topic Receive.
+
+### The AWS dual-protocol surface
+
+Real AWS pub/sub is SNS for publish, SQS for receive — SNS subscriptions deliver to SQS queues. The shim's AWS frontend mirrors this: a SNS handler at `internal/pubsub/frontends/aws_sns/` (awsQuery wire protocol, XML responses) for the publish surface, and a *slim* SQS-shaped receive frontend at `internal/pubsub/frontends/aws_sqs_receive/` for the receive surface. The harness's `StartPubsubServerAWS` returns two URLs (SnsURL + SqsURL) pointing at the same backend; SDK conformance points its `sns.Client` at one and its `sqs.Client` at the other.
+
+The slim SQS receive frontend deliberately omits `CreateQueue` and `SendMessage` — those operations don't belong on a fanout-only data plane. Send is via SNS Publish; CreateQueue is replaced by SNS Subscribe (which auto-creates the backing queue inside the backend, not exposed as a separate op). This is what makes the `aws_sns_topic_subscription` Terraform cell skip: the AWS provider expects `aws_sqs_queue` to manage the backing queue, and the shim doesn't expose that. SDK + CLI cells cover the same combination correctly.
+
+### NATS JetStream throughout, not core
+
+OPERATIONS.md drafted core NATS (in-memory subject pub/sub) for non-durable fanout and JetStream consumers for durable subscriptions. In practice we used JetStream throughout: streams have `InterestPolicy` retention (keep messages until every consumer has read them, then drop), consumers are durable pull consumers. AWS / GCP / Azure subscriptions are *always* durable; toggling NATS to non-durable just for one knob would diverge the K8s peer from the cloud surfaces. The `Subscription.Durable` flag is recorded but doesn't change wire behaviour on the NATS backend.
+
+### Azure backend's 4-part receipt handle
+
+Phase 3's Azure receipt handle was `<messageID>|<lockToken>` because the queue REST URL is `/{queue}/messages/{id}/{lock}`. Phase 4's Azure topic REST URL is `/{topic}/Subscriptions/{sub}/messages/{id}/{lock}` — four segments. Receipt handle expands to `<topic>|<sub>|<messageID>|<lockToken>` so Ack + RenewLock can reconstruct the URL with no shim-side state. Same stateless rule, four-part encoding.
+
+### DeleteSubscription + HeadSubscription iteration
+
+In the AWS / Azure / NATS-JetStream backends, subscriptions are addressed by (topic, sub) or (stream, consumer), but the pubsub domain identifies them by name only. Each of these three backends has a `findOwner(sub)` step in DeleteSubscription / HeadSubscription that scans topics until a matching subscription is found. This is O(topics) per call, which is fine for the shim's scale; revisit if a service ever needs flat sub addressing at scale.
+
+### CI
+
+Same `conformance-nats` lane as Phase 3 — it already runs NATS with JetStream. The test step now runs both `TestQueueMatrix` (Phase 3) and `TestPubsubMatrix` (Phase 4) against the same container. Single CI lane, both services covered.
+
 ## Phase 3 — Queue (in-flight on `phase-3-queue`)
 
 Same N × N discipline as Phases 1 + 2 applied to message queueing. Three frontends (AWS SQS, GCP Pub/Sub pull, Azure Service Bus REST) × five backends (inmem test fixture, NATS JetStream as K8s peer, AWS / GCP / Azure passthrough) × three driver types (SDK, CLI, Terraform). 8-op intersection in [`services/queue/OPERATIONS.md`](services/queue/OPERATIONS.md): CreateQueue, DeleteQueue, ListQueues, GetQueueAttributes, SendMessage, ReceiveMessages, DeleteMessage, ChangeVisibility; plus `GetQueueUrl` as an AWS-only probe.
