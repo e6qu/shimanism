@@ -77,6 +77,8 @@ func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		srv.listSubscriptions(w, r, form, parseTopicArn(form.Get("TopicArn")))
 	case "Publish":
 		srv.publish(w, r, form)
+	case "ListTagsForResource":
+		srv.listTagsForResource(w, r, form)
 	default:
 		writeError(w, http.StatusBadRequest, "Sender", "InvalidAction",
 			"unknown or out-of-intersection action: "+action)
@@ -157,16 +159,54 @@ func (srv *Server) getTopicAttributes(w http.ResponseWriter, r *http.Request, fo
 		Value   string   `xml:"value"`
 	}
 	type attrs struct {
-		Entries []entry `xml:"entry"`
+		XMLName xml.Name `xml:"Attributes"`
+		Entries []entry  `xml:"entry"`
 	}
-	out := attrs{Entries: []entry{
+	// Provider Read paths parse Policy + EffectiveDeliveryPolicy as
+	// JSON; an empty string triggers 'unexpected end of JSON input'.
+	// Real SNS returns canonical-default JSON envelopes when no
+	// custom policy is configured (category 2: feature unset →
+	// source cloud's actual default).
+	defaultPolicy := fmt.Sprintf(`{"Version":"2012-10-17","Id":"__default_policy_ID","Statement":[{"Sid":"__default_statement_ID","Effect":"Allow","Principal":{"AWS":"*"},"Action":"SNS:GetTopicAttributes","Resource":"%s"}]}`, topicArn(name))
+	defaultDeliveryPolicy := `{"http":{"defaultHealthyRetryPolicy":{"minDelayTarget":20,"maxDelayTarget":20,"numRetries":3,"numMaxDelayRetries":0,"numNoDelayRetries":0,"numMinDelayRetries":0,"backoffFunction":"linear"},"disableSubscriptionOverrides":false}}`
+	// DisplayName is a category-2 attribute — empty when not
+	// explicitly set. Real SNS returns the empty string, not the
+	// topic name; the Terraform provider treats a non-empty
+	// DisplayName as user intent and proposes diffs.
+	writeXMLStruct(w, http.StatusOK, "GetTopicAttributes", attrs{Entries: []entry{
 		{Key: "TopicArn", Value: topicArn(name)},
-		{Key: "DisplayName", Value: name},
-	}}
-	writeXMLStruct(w, http.StatusOK, "GetTopicAttributes", struct {
-		XMLName    xml.Name `xml:"Attributes"`
-		Attributes attrs
-	}{Attributes: out})
+		{Key: "DisplayName", Value: ""},
+		{Key: "Owner", Value: snsAccount},
+		{Key: "Policy", Value: defaultPolicy},
+		{Key: "EffectiveDeliveryPolicy", Value: defaultDeliveryPolicy},
+		{Key: "SubscriptionsConfirmed", Value: "0"},
+		{Key: "SubscriptionsPending", Value: "0"},
+		{Key: "SubscriptionsDeleted", Value: "0"},
+	}})
+}
+
+// listTagsForResource returns the (currently empty) tag set for an
+// SNS topic. The pubsub domain has no tag concept yet — tag storage
+// is tracked alongside BUG-12 (queue tags). Category-2 honest empty
+// response: the topic has no tags configured. Without this handler,
+// hashicorp/aws aws_sns_topic import crashes on
+// InvalidAction: ListTagsForResource.
+func (srv *Server) listTagsForResource(w http.ResponseWriter, r *http.Request, form url.Values) {
+	arn := form.Get("ResourceArn")
+	name := parseTopicArn(arn)
+	if name == "" {
+		writeError(w, http.StatusBadRequest, "Sender", "InvalidParameter",
+			"ResourceArn is required")
+		return
+	}
+	if _, err := srv.s.HeadTopic(r.Context(), name); err != nil {
+		mapDomainError(w, err)
+		return
+	}
+	type tags struct {
+		XMLName xml.Name `xml:"Tags"`
+	}
+	writeXMLStruct(w, http.StatusOK, "ListTagsForResource", tags{})
 }
 
 // ----------------------------------------------------------------------

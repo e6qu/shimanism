@@ -303,6 +303,28 @@ func (srv *Server) changeMessageVisibility(w http.ResponseWriter, r *http.Reques
 	writeJSON(w, http.StatusOK, map[string]string{})
 }
 
+// listQueueTags returns the (currently always empty) tag set for a
+// queue. The domain.Queues interface has no tag concept yet — tag
+// storage as a real read/write domain op is tracked in BUGS.md.
+// Until then, this is a category-2 "feature unset" response: the
+// queue genuinely has no tags configured, and the shim returns the
+// honest empty-set envelope. Without this handler, the
+// hashicorp/aws aws_sqs_queue importer crashes on
+// ListQueueTags → UnknownOperationException.
+func (srv *Server) listQueueTags(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		QueueUrl string `json:"QueueUrl"`
+	}
+	if !decode(w, r, &in) {
+		return
+	}
+	if _, err := srv.s.HeadQueue(r.Context(), normaliseQueueURL(in.QueueUrl)); err != nil {
+		mapDomainError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]map[string]string{"Tags": {}})
+}
+
 // ----------------------------------------------------------------------
 // AWS ↔ domain attribute mapping
 // ----------------------------------------------------------------------

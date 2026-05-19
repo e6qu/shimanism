@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/e6qu/shimanism/internal/functions/domain"
@@ -24,6 +25,13 @@ var (
 	reFunction       = regexp.MustCompile(`^/2015-03-31/functions/([^/]+)$`)
 	reFunctionConfig = regexp.MustCompile(`^/2015-03-31/functions/([^/]+)/configuration$`)
 	reFunctionCode   = regexp.MustCompile(`^/2015-03-31/functions/([^/]+)/code$`)
+	reFunctionVers   = regexp.MustCompile(`^/2015-03-31/functions/([^/]+)/versions$`)
+	reFunctionURL    = regexp.MustCompile(`^/2021-10-31/functions/([^/]+)/url$`)
+	reFunctionTags   = regexp.MustCompile(`^/2017-03-31/tags/([^/]+)$`)
+	reFunctionPolicy = regexp.MustCompile(`^/2015-03-31/functions/([^/]+)/policy$`)
+	reFunctionCC     = regexp.MustCompile(`^/2017-10-31/functions/([^/]+)/concurrency$`)
+	reFunctionECfg   = regexp.MustCompile(`^/2016-09-25/functions/([^/]+)/event-invoke-config$`)
+	reCodeSign       = regexp.MustCompile(`^/2020-06-30/functions/([^/]+)/code-signing-config$`)
 )
 
 func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -43,6 +51,38 @@ func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	if m := reFunctionCode.FindStringSubmatch(path); m != nil && method == http.MethodPut {
 		srv.updateFunctionCode(w, r, m[1])
+		return
+	}
+	// Importer Read-path subresources. Each is a category-2 endpoint
+	// — feature unset on a plain function — returning the source
+	// cloud's actual canonical-empty envelope so the provider doesn't
+	// crash and doesn't propose phantom diffs.
+	if m := reFunctionVers.FindStringSubmatch(path); m != nil && method == http.MethodGet {
+		srv.listVersions(w, r, m[1])
+		return
+	}
+	if m := reFunctionURL.FindStringSubmatch(path); m != nil && method == http.MethodGet {
+		srv.getFunctionURLConfig(w, r, m[1])
+		return
+	}
+	if m := reFunctionTags.FindStringSubmatch(path); m != nil && method == http.MethodGet {
+		srv.listTags(w, r, m[1])
+		return
+	}
+	if m := reFunctionPolicy.FindStringSubmatch(path); m != nil && method == http.MethodGet {
+		srv.getPolicy(w, r, m[1])
+		return
+	}
+	if m := reFunctionCC.FindStringSubmatch(path); m != nil && method == http.MethodGet {
+		srv.getConcurrency(w, r, m[1])
+		return
+	}
+	if m := reFunctionECfg.FindStringSubmatch(path); m != nil && method == http.MethodGet {
+		srv.getEventInvokeConfig(w, r, m[1])
+		return
+	}
+	if m := reCodeSign.FindStringSubmatch(path); m != nil && method == http.MethodGet {
+		srv.getCodeSigningConfig(w, r, m[1])
 		return
 	}
 	if m := reFunction.FindStringSubmatch(path); m != nil {
@@ -114,6 +154,7 @@ type functionConfiguration struct {
 	Code             *functionCodeLocation `json:"Code,omitempty"`
 	CodeSha256       string                `json:"CodeSha256,omitempty"`
 	LastModified     string                `json:"LastModified,omitempty"`
+	Version          string                `json:"Version,omitempty"`
 }
 
 type environmentResponse struct {
@@ -248,6 +289,72 @@ func (srv *Server) updateFunctionCode(w http.ResponseWriter, r *http.Request, na
 	}
 	fn, _ := srv.s.DescribeFunction(r.Context(), name)
 	writeJSON(w, http.StatusOK, functionToAWS(fn))
+}
+
+// ----------------------------------------------------------------------
+// Importer Read-path subresource handlers
+//
+// Each returns the source cloud's canonical-unset envelope for a
+// feature that's out of the Phase 7 intersection. Real Lambda
+// always returns at least the $LATEST version + empty tag/policy
+// envelopes for a freshly-created function. Without these the
+// hashicorp/aws aws_lambda_function importer crashes mid-Read.
+// ----------------------------------------------------------------------
+
+func (srv *Server) listVersions(w http.ResponseWriter, r *http.Request, name string) {
+	fn, err := srv.s.DescribeFunction(r.Context(), name)
+	if err != nil {
+		mapDomainError(w, err)
+		return
+	}
+	cfg := functionToAWS(fn)
+	cfg.Version = "$LATEST"
+	writeJSON(w, http.StatusOK, map[string]any{"Versions": []*functionConfiguration{cfg}})
+}
+
+func (srv *Server) getFunctionURLConfig(w http.ResponseWriter, r *http.Request, name string) {
+	// No URL config configured on a plain function.
+	_ = name
+	writeError(w, http.StatusNotFound, "ResourceNotFoundException",
+		"function URL config does not exist")
+}
+
+func (srv *Server) listTags(w http.ResponseWriter, r *http.Request, name string) {
+	// Lambda's ListTags is tolerant of "no such function" — it just
+	// returns an empty tag set. Probe DescribeFunction to confirm
+	// the function exists, but don't surface its error.
+	_, _ = srv.s.DescribeFunction(r.Context(), nameFromARN(name))
+	writeJSON(w, http.StatusOK, map[string]map[string]string{"Tags": {}})
+}
+
+func (srv *Server) getPolicy(w http.ResponseWriter, r *http.Request, name string) {
+	_ = name
+	writeError(w, http.StatusNotFound, "ResourceNotFoundException",
+		"resource policy does not exist for this function")
+}
+
+func (srv *Server) getConcurrency(w http.ResponseWriter, r *http.Request, name string) {
+	_ = name
+	writeJSON(w, http.StatusOK, map[string]any{})
+}
+
+func (srv *Server) getEventInvokeConfig(w http.ResponseWriter, r *http.Request, name string) {
+	_ = name
+	writeError(w, http.StatusNotFound, "ResourceNotFoundException",
+		"event invoke config does not exist")
+}
+
+func (srv *Server) getCodeSigningConfig(w http.ResponseWriter, r *http.Request, name string) {
+	_ = name
+	writeJSON(w, http.StatusOK, map[string]any{})
+}
+
+// nameFromARN extracts the function name from an ARN-or-name.
+func nameFromARN(s string) string {
+	if i := strings.LastIndex(s, ":"); i >= 0 && strings.HasPrefix(s, "arn:") {
+		return s[i+1:]
+	}
+	return s
 }
 
 // ----------------------------------------------------------------------

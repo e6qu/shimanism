@@ -366,6 +366,53 @@ jobs:
           export KUBECONFIG="${HOME}/.kube/config"
           go test -timeout 20m -run "TestFunctionsMatrix_AWSFrontend/knative|TestInvokeConnectivity_Knative" ./services/functions/conformance/...
 
+  conformance-envoy:
+    name: conformance envoy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.26'
+          cache: true
+      - name: Create kind cluster
+        uses: helm/kind-action@v1
+        with:
+          cluster_name: shim-envoy
+      - name: Install Envoy Gateway
+        run: |
+          # Pin to Envoy Gateway v1.2.4. The shim's envoy backend
+          # only needs Gateway API CRDs + the eg GatewayClass; the
+          # default install ships both.
+          kubectl apply --server-side -f https://github.com/envoyproxy/gateway/releases/download/v1.2.4/install.yaml
+          kubectl -n envoy-gateway-system rollout status deployment/envoy-gateway --timeout=180s
+          # The install.yaml doesn't ship the `eg` GatewayClass; the
+          # operator just provides the controller binary. Create the
+          # GatewayClass referencing the envoy-gateway controller so
+          # `Gateway` CRs the shim creates pick it up.
+          cat <<'EOF' | kubectl apply -f -
+          apiVersion: gateway.networking.k8s.io/v1
+          kind: GatewayClass
+          metadata:
+            name: eg
+          spec:
+            controllerName: gateway.envoyproxy.io/gatewayclass-controller
+          EOF
+          # Give the controller a moment to reconcile the class to Accepted.
+          for i in $(seq 1 30); do
+            status=$(kubectl get gatewayclass eg -o jsonpath='{.status.conditions[?(@.type=="Accepted")].status}' 2>/dev/null || true)
+            if [ "$status" = "True" ]; then break; fi
+            sleep 2
+          done
+          kubectl get gatewayclass eg -o yaml
+      - name: Run envoy conformance
+        env:
+          ENVOY_CONFORMANCE: '1'
+          ENVOY_NAMESPACE: default
+        run: |
+          export KUBECONFIG="${HOME}/.kube/config"
+          go test -timeout 15m -run "TestAPIGatewayMatrix_AWSFrontend/envoy|TestRouteServes_Envoy" ./services/apigateway/conformance/...
+
   conformance-azureblob:
     name: conformance azureblob
     runs-on: ubuntu-latest

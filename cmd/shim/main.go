@@ -53,7 +53,7 @@ import (
 	storagegen "github.com/e6qu/shimanism/services/storage/gen"
 )
 
-const version = "0.8.0-phase-7"
+const version = "0.9.0-phase-8"
 
 func main() {
 	if len(os.Args) < 2 {
@@ -98,6 +98,16 @@ func main() {
 			fmt.Fprintln(os.Stderr, "shim functions:", err)
 			os.Exit(1)
 		}
+	case "apigateway":
+		if err := runAPIGateway(os.Args[2:]); err != nil {
+			fmt.Fprintln(os.Stderr, "shim apigateway:", err)
+			os.Exit(1)
+		}
+	case "mock":
+		if err := runMock(os.Args[2:]); err != nil {
+			fmt.Fprintln(os.Stderr, "shim mock:", err)
+			os.Exit(1)
+		}
 	case "help", "-h", "--help":
 		usage()
 	default:
@@ -119,6 +129,8 @@ func usage() {
 	fmt.Fprintln(os.Stderr, "  rdbms   [flags]    Run the rdbms (managed-DB control plane) service.")
 	fmt.Fprintln(os.Stderr, "  cache   [flags]    Run the cache (managed-Redis control plane) service.")
 	fmt.Fprintln(os.Stderr, "  functions [flags]  Run the functions (container-image deploy) service.")
+	fmt.Fprintln(os.Stderr, "  apigateway [flags] Run the apigateway (HTTP-route control plane) service.")
+	fmt.Fprintln(os.Stderr, "  mock [flags]       Run inmem-backed mock cloud servers for all 8 shimmed services.")
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Run `shim <subcommand> -h` for per-service flags.")
 }

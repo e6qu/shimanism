@@ -1,0 +1,239 @@
+# Endpoint-override knobs per (frontend cloud, shimmed service).
+# Single source of truth for `shimctl env` snippet generation and
+# for documentation / debugging of how end users wire any cloud's
+# official client through the shim.
+#
+# Schema:
+#   frontends:
+#     <frontend-cloud>:
+#       services:
+#         <service>:
+#           env: { <env var>: <value template using $SHIM> }
+#           terraform: { provider: <name>, endpoints_block: <hcl snippet> }
+#           sdk: <Go SDK code snippet>
+#           cli: <CLI flag snippet>
+#
+# $SHIM is the user-supplied shim base URL (e.g. http://localhost:9000).
+
+frontends:
+  aws:
+    services:
+      storage:
+        env:
+          AWS_ENDPOINT_URL_S3: "$SHIM"
+        terraform:
+          provider: aws
+          endpoints_block: |
+            endpoints { s3 = "$SHIM" }
+        sdk: 'o.BaseEndpoint = aws.String("$SHIM")  // s3.NewFromConfig opts'
+        cli: 'aws s3 --endpoint-url "$SHIM" <subcommand>'
+      secrets:
+        env:
+          AWS_ENDPOINT_URL_SECRETS_MANAGER: "$SHIM"
+        terraform:
+          provider: aws
+          endpoints_block: |
+            endpoints { secretsmanager = "$SHIM" }
+        sdk: 'o.BaseEndpoint = aws.String("$SHIM")  // secretsmanager.NewFromConfig opts'
+        cli: 'aws secretsmanager --endpoint-url "$SHIM" <subcommand>'
+      queue:
+        env:
+          AWS_ENDPOINT_URL_SQS: "$SHIM"
+        terraform:
+          provider: aws
+          endpoints_block: |
+            endpoints { sqs = "$SHIM" }
+        sdk: 'o.BaseEndpoint = aws.String("$SHIM")'
+        cli: 'aws sqs --endpoint-url "$SHIM" <subcommand>'
+      pubsub:
+        env:
+          AWS_ENDPOINT_URL_SNS: "$SHIM"
+        terraform:
+          provider: aws
+          endpoints_block: |
+            endpoints { sns = "$SHIM" }
+        sdk: 'o.BaseEndpoint = aws.String("$SHIM")'
+        cli: 'aws sns --endpoint-url "$SHIM" <subcommand>'
+      rdbms:
+        env:
+          AWS_ENDPOINT_URL_RDS: "$SHIM"
+        terraform:
+          provider: aws
+          endpoints_block: |
+            endpoints { rds = "$SHIM" }
+        sdk: 'o.BaseEndpoint = aws.String("$SHIM")'
+        cli: 'aws rds --endpoint-url "$SHIM" <subcommand>'
+      cache:
+        env:
+          AWS_ENDPOINT_URL_ELASTICACHE: "$SHIM"
+        terraform:
+          provider: aws
+          endpoints_block: |
+            endpoints { elasticache = "$SHIM" }
+        sdk: 'o.BaseEndpoint = aws.String("$SHIM")'
+        cli: 'aws elasticache --endpoint-url "$SHIM" <subcommand>'
+      functions:
+        env:
+          AWS_ENDPOINT_URL_LAMBDA: "$SHIM"
+        terraform:
+          provider: aws
+          endpoints_block: |
+            endpoints { lambda = "$SHIM" }
+        sdk: 'o.BaseEndpoint = aws.String("$SHIM")'
+        cli: 'aws lambda --endpoint-url "$SHIM" <subcommand>'
+      apigateway:
+        env:
+          AWS_ENDPOINT_URL_APIGATEWAYV2: "$SHIM"
+        terraform:
+          provider: aws
+          endpoints_block: |
+            endpoints { apigatewayv2 = "$SHIM" }
+        sdk: 'o.BaseEndpoint = aws.String("$SHIM")'
+        cli: 'aws apigatewayv2 --endpoint-url "$SHIM" <subcommand>'
+  gcp:
+    services:
+      storage:
+        env:
+          CLOUDSDK_API_ENDPOINT_OVERRIDES_STORAGE: "$SHIM/storage/v1/"
+          STORAGE_EMULATOR_HOST: "$SHIM"
+        terraform:
+          provider: google
+          endpoints_block: |
+            storage_custom_endpoint = "$SHIM/storage/v1/"
+        sdk: 'option.WithEndpoint("$SHIM")'
+        cli: 'gcloud storage <subcommand>  (env CLOUDSDK_API_ENDPOINT_OVERRIDES_STORAGE=$SHIM/storage/v1/)'
+      secrets:
+        env:
+          CLOUDSDK_API_ENDPOINT_OVERRIDES_SECRETMANAGER: "$SHIM/"
+        terraform:
+          provider: google
+          endpoints_block: |
+            secret_manager_custom_endpoint = "$SHIM/v1/"
+        sdk: 'option.WithEndpoint("$SHIM")'
+        cli: 'gcloud secrets <subcommand>'
+      queue:
+        env:
+          CLOUDSDK_API_ENDPOINT_OVERRIDES_PUBSUB: "$SHIM/"
+        terraform:
+          provider: google
+          endpoints_block: |
+            pubsub_custom_endpoint = "$SHIM/v1/"
+        sdk: 'option.WithEndpoint("$SHIM")'
+        cli: 'gcloud pubsub <subcommand>'
+      pubsub:
+        env:
+          CLOUDSDK_API_ENDPOINT_OVERRIDES_PUBSUB: "$SHIM/"
+        terraform:
+          provider: google
+          endpoints_block: |
+            pubsub_custom_endpoint = "$SHIM/v1/"
+        sdk: 'option.WithEndpoint("$SHIM")'
+        cli: 'gcloud pubsub <subcommand>'
+      rdbms:
+        env:
+          CLOUDSDK_API_ENDPOINT_OVERRIDES_SQLADMIN: "$SHIM/"
+        terraform:
+          provider: google
+          endpoints_block: |
+            sql_custom_endpoint = "$SHIM/sql/v1beta4/"
+        sdk: 'option.WithEndpoint("$SHIM")'
+        cli: 'gcloud sql <subcommand>'
+      cache:
+        env:
+          CLOUDSDK_API_ENDPOINT_OVERRIDES_REDIS: "$SHIM/"
+        terraform:
+          provider: google
+          endpoints_block: |
+            redis_custom_endpoint = "$SHIM/v1/"
+        sdk: 'option.WithEndpoint("$SHIM")'
+        cli: 'gcloud redis <subcommand>'
+      functions:
+        env:
+          CLOUDSDK_API_ENDPOINT_OVERRIDES_RUN: "$SHIM/"
+        terraform:
+          provider: google
+          endpoints_block: |
+            cloud_run_custom_endpoint = "$SHIM/v2/"
+        sdk: 'option.WithEndpoint("$SHIM")'
+        cli: 'gcloud run <subcommand>'
+      apigateway:
+        env:
+          CLOUDSDK_API_ENDPOINT_OVERRIDES_APIGATEWAY: "$SHIM/"
+        terraform:
+          provider: google
+          # See BUG-8: provider-version-dependent attribute name.
+          endpoints_block: |
+            # endpoints { api_gateway = "$SHIM/v1/" }  # provider-version-dependent
+        sdk: 'option.WithEndpoint("$SHIM")'
+        cli: 'gcloud api-gateway <subcommand>'
+  azure:
+    services:
+      storage:
+        env: {}
+        terraform:
+          provider: azurerm
+          # azurerm composes the storage endpoint from the account
+          # name + the environment's storage_suffix. Use a custom
+          # environment configuration to redirect.
+          endpoints_block: |
+            # custom environment block — see PHASE_9_PLAN.md
+        sdk: 'azblob.NewClient("$SHIM/<account>/", cred, nil)'
+        cli: 'az storage blob --blob-endpoint "$SHIM/<account>" <subcommand>'
+      secrets:
+        env: {}
+        terraform:
+          provider: azurerm
+          endpoints_block: |
+            # custom Key Vault endpoint via per-resource vault_uri
+        sdk: 'azsecrets.NewClient("$SHIM", cred, nil)'
+        cli: 'az keyvault secret --vault-name <name> --vault-uri "$SHIM" <subcommand>'
+      queue:
+        env: {}
+        terraform:
+          provider: azurerm
+          endpoints_block: |
+            # AMQP — REST endpoint override doesn't apply
+        sdk: 'azservicebus.NewClient("$SHIM", cred, nil)  # AMQP gap; see BUG-2'
+        cli: 'az servicebus queue <subcommand>'
+      pubsub:
+        env: {}
+        terraform:
+          provider: azurerm
+          endpoints_block: |
+            # AMQP — REST endpoint override doesn't apply
+        sdk: 'azservicebus.NewClient("$SHIM", cred, nil)'
+        cli: 'az servicebus topic <subcommand>'
+      rdbms:
+        env: {}
+        terraform:
+          provider: azurerm
+          # See BUG-5; ARM endpoint override at provider level
+          endpoints_block: |
+            # use environment{...} block override on hashicorp/azurerm
+        sdk: 'armdbforpostgresql.NewClientFactory(sub, cred, &arm.ClientOptions{...Cloud override})'
+        cli: 'az postgres flexible-server <subcommand>'
+      cache:
+        env: {}
+        terraform:
+          provider: azurerm
+          endpoints_block: |
+            # ARM endpoint override
+        sdk: 'armredis.NewClientFactory(sub, cred, &arm.ClientOptions{...})'
+        cli: 'az redis <subcommand>'
+      functions:
+        env: {}
+        terraform:
+          provider: azurerm
+          endpoints_block: |
+            # ARM endpoint override
+        sdk: 'armappcontainers.NewClientFactory(sub, cred, &arm.ClientOptions{...})'
+        cli: 'az containerapp <subcommand>'
+      apigateway:
+        env: {}
+        terraform:
+          provider: azurerm
+          # See BUG-7; APIM has no per-resource endpoint override
+          endpoints_block: |
+            # ARM environment override
+        sdk: 'armapimanagement.NewClientFactory(sub, cred, &arm.ClientOptions{...})'
+        cli: 'az apim <subcommand>'

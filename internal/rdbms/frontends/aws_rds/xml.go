@@ -44,8 +44,17 @@ func renderDBInstance(inst domain.Instance) string {
 			`</Address><Port>` + strconv.Itoa(inst.Connection.Port) +
 			`</Port></Endpoint>`
 	}
+	// ARN + DbiResourceId are category-1 attributes the importer
+	// checks to confirm the instance exists. Without them the
+	// hashicorp/aws provider concludes the resource is gone even
+	// though Status=available. Derived deterministically from the
+	// instance name + a fixed account/region.
+	arn := `arn:aws:rds:us-east-1:000000000000:db:` + inst.Name
+	dbiID := "db-" + inst.Name
 	return `<DBInstance>` +
 		`<DBInstanceIdentifier>` + escape(inst.Name) + `</DBInstanceIdentifier>` +
+		`<DBInstanceArn>` + escape(arn) + `</DBInstanceArn>` +
+		`<DbiResourceId>` + escape(dbiID) + `</DbiResourceId>` +
 		`<Engine>` + escape(domainEngineToAWS(inst.Engine)) + `</Engine>` +
 		`<EngineVersion>` + escape(inst.EngineVersion) + `</EngineVersion>` +
 		`<DBInstanceStatus>` + escape(awsStatusFromDomain(inst.Status)) + `</DBInstanceStatus>` +

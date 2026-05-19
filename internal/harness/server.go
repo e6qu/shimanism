@@ -13,6 +13,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	apigatewaydomain "github.com/e6qu/shimanism/internal/apigateway/domain"
+	awsapigwfront "github.com/e6qu/shimanism/internal/apigateway/frontends/aws_apigatewayv2"
+	azureapimfront "github.com/e6qu/shimanism/internal/apigateway/frontends/azure_apim"
+	gcpapigwfront "github.com/e6qu/shimanism/internal/apigateway/frontends/gcp_apigateway"
 	cachedomain "github.com/e6qu/shimanism/internal/cache/domain"
 	awsecfront "github.com/e6qu/shimanism/internal/cache/frontends/aws_elasticache"
 	azureredisfront "github.com/e6qu/shimanism/internal/cache/frontends/azure_redis"
@@ -353,6 +357,47 @@ func StartFunctionsServerAzure(t *testing.T, backend functionsdomain.Functions) 
 	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
 	t.Cleanup(ts.Close)
 	return &FunctionsServer{URL: ts.URL, Close: ts.Close}
+}
+
+// APIGatewayServer is a started apigateway-shim instance.
+type APIGatewayServer struct {
+	URL   string
+	Close func()
+}
+
+// StartAPIGatewayServerAWS starts a shim instance with the AWS
+// API Gateway v2 restJson1 frontend.
+func StartAPIGatewayServerAWS(t *testing.T, backend apigatewaydomain.APIGateway) *APIGatewayServer {
+	t.Helper()
+	srv := awsapigwfront.New(backend)
+	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
+	t.Cleanup(ts.Close)
+	return &APIGatewayServer{URL: ts.URL, Close: ts.Close}
+}
+
+// StartAPIGatewayServerGCP starts a shim instance with the GCP API
+// Gateway REST frontend. GCP-shaped clients
+// (google.golang.org/api/apigateway/v1, gcloud api-gateway,
+// hashicorp/google Terraform provider) drive it via the
+// endpoint-override path.
+func StartAPIGatewayServerGCP(t *testing.T, backend apigatewaydomain.APIGateway) *APIGatewayServer {
+	t.Helper()
+	srv := gcpapigwfront.New(backend)
+	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
+	t.Cleanup(ts.Close)
+	return &APIGatewayServer{URL: ts.URL, Close: ts.Close}
+}
+
+// StartAPIGatewayServerAzure starts a shim instance with the Azure
+// API Management ARM-style frontend. Azure-shaped clients
+// (armapimanagement, az apim, hashicorp/azurerm Terraform provider)
+// drive it via the endpoint-override path.
+func StartAPIGatewayServerAzure(t *testing.T, backend apigatewaydomain.APIGateway) *APIGatewayServer {
+	t.Helper()
+	srv := azureapimfront.New(backend)
+	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
+	t.Cleanup(ts.Close)
+	return &APIGatewayServer{URL: ts.URL, Close: ts.Close}
 }
 
 // logRoundTrip logs each request through the harness. Lightweight —
