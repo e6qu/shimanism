@@ -22,6 +22,8 @@ import (
 	awssqsfront "github.com/e6qu/shimanism/internal/queue/frontends/aws_sqs"
 	azuresbfront "github.com/e6qu/shimanism/internal/queue/frontends/azure_servicebus"
 	gcpsubfront "github.com/e6qu/shimanism/internal/queue/frontends/gcp_pubsub"
+	cachedomain "github.com/e6qu/shimanism/internal/cache/domain"
+	awsecfront "github.com/e6qu/shimanism/internal/cache/frontends/aws_elasticache"
 	rdbmsdomain "github.com/e6qu/shimanism/internal/rdbms/domain"
 	awsrdsfront "github.com/e6qu/shimanism/internal/rdbms/frontends/aws_rds"
 	azuredbadminfront "github.com/e6qu/shimanism/internal/rdbms/frontends/azure_dbadmin"
@@ -271,6 +273,23 @@ func StartRDBMSServerAzure(t *testing.T, backend rdbmsdomain.RDBMS) *RDBMSServer
 	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
 	t.Cleanup(ts.Close)
 	return &RDBMSServer{URL: ts.URL, Close: ts.Close}
+}
+
+// CacheServer is a started cache-shim instance.
+type CacheServer struct {
+	URL   string
+	Close func()
+}
+
+// StartCacheServerAWS starts a shim instance with the AWS
+// ElastiCache awsQuery frontend backed by the given cache
+// implementation.
+func StartCacheServerAWS(t *testing.T, backend cachedomain.Cache) *CacheServer {
+	t.Helper()
+	srv := awsecfront.New(backend)
+	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
+	t.Cleanup(ts.Close)
+	return &CacheServer{URL: ts.URL, Close: ts.Close}
 }
 
 // logRoundTrip logs each request through the harness. Lightweight —
