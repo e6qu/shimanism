@@ -133,6 +133,9 @@ spec:
 
 	// Envoy assigns an LB IP to the Gateway over the next few seconds.
 	host, port := portForwardEnvoyGateway(t, ctx, apiID)
+	// Wait for the HTTPRoute to be Accepted+ResolvedRefs=True. Envoy
+	// needs a few seconds after CR creation to program the route.
+	waitForHTTPRouteReady(t, ctx, apiID)
 	httpClient := &http.Client{Timeout: 30 * time.Second}
 	url := fmt.Sprintf("http://%s:%d/echo", host, port)
 
@@ -264,11 +267,32 @@ func portForwardEnvoyGateway(t *testing.T, ctx context.Context, apiID string) (s
 	return "", 0
 }
 
+func waitForHTTPRouteReady(t *testing.T, ctx context.Context, gateway string) {
+	t.Helper()
+	deadline := time.Now().Add(120 * time.Second)
+	for time.Now().Before(deadline) {
+		// Find the first HTTPRoute labeled with this gateway.
+		out, err := exec.CommandContext(ctx, "kubectl",
+			"get", "httproute",
+			"-l", "shim.apigateway/gateway="+gateway,
+			"-o", "jsonpath={.items[0].status.parents[0].conditions[?(@.type==\"ResolvedRefs\")].status} {.items[0].status.parents[0].conditions[?(@.type==\"Accepted\")].status}",
+		).CombinedOutput()
+		if err == nil {
+			s := strings.TrimSpace(string(out))
+			if s == "True True" {
+				return
+			}
+		}
+		time.Sleep(2 * time.Second)
+	}
+	t.Logf("HTTPRoute for gateway %s never reached ResolvedRefs+Accepted=True", gateway)
+}
+
 func dumpEnvoyState(t *testing.T, ctx context.Context) {
 	t.Helper()
 	for _, args := range [][]string{
 		{"get", "gateway", "-A"},
-		{"get", "httproute", "-A"},
+		{"get", "httproute", "-A", "-o", "yaml"},
 		{"-n", "envoy-gateway-system", "get", "all"},
 		{"get", "pods", "-A"},
 	} {

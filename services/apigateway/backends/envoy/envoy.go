@@ -191,8 +191,11 @@ func (b *Backend) deployRoutes(ctx context.Context, gateway string, routes []dom
 		hr.SetName(fmt.Sprintf("%s-route-%d", gateway, i))
 		hr.SetNamespace(b.namespace)
 		hr.SetLabels(map[string]string{"shim.apigateway/gateway": gateway})
-		// Parse the backend URL — split host:port.
-		host, port := parseBackend(route.Backend)
+		// Parse the backend URL into a Gateway API backendRef:
+		// {name: <Service name>, namespace?: <Service ns>, port: <int>}.
+		// Service names can't contain dots, so a backend URL like
+		// http://svc.ns.svc.cluster.local:80 must be split.
+		svcName, svcNS, port := parseBackend(route.Backend)
 		method := route.Method
 		if method == "" || method == "ANY" {
 			method = ""
@@ -206,19 +209,24 @@ func (b *Backend) deployRoutes(ctx context.Context, gateway string, routes []dom
 		if method != "" {
 			match["method"] = method
 		}
+		backendRef := map[string]interface{}{
+			"name": svcName,
+			"port": int64(port),
+		}
+		if svcNS != "" && svcNS != b.namespace {
+			backendRef["namespace"] = svcNS
+		}
 		hr.Object["spec"] = map[string]interface{}{
 			"parentRefs": []interface{}{
-				map[string]interface{}{"name": gateway},
+				map[string]interface{}{
+					"name":      gateway,
+					"namespace": b.namespace,
+				},
 			},
 			"rules": []interface{}{
 				map[string]interface{}{
-					"matches": []interface{}{match},
-					"backendRefs": []interface{}{
-						map[string]interface{}{
-							"name": host,
-							"port": int64(port),
-						},
-					},
+					"matches":     []interface{}{match},
+					"backendRefs": []interface{}{backendRef},
 				},
 			},
 		}
@@ -278,13 +286,17 @@ func (b *Backend) routesFor(ctx context.Context, gateway string) ([]domain.Route
 				if refs, ok := rm["backendRefs"].([]interface{}); ok && len(refs) > 0 {
 					if br, ok := refs[0].(map[string]interface{}); ok {
 						name, _ := br["name"].(string)
+						ns, _ := br["namespace"].(string)
 						port := int64(80)
 						if p, ok := br["port"].(int64); ok {
 							port = p
 						} else if p, ok := br["port"].(float64); ok {
 							port = int64(p)
 						}
-						backend = fmt.Sprintf("http://%s:%d", name, port)
+						if ns == "" {
+							ns = b.namespace
+						}
+						backend = fmt.Sprintf("http://%s.%s.svc.cluster.local:%d", name, ns, port)
 					}
 				}
 				out = append(out, domain.Route{
@@ -332,21 +344,38 @@ func statusFromGateway(u *unstructured.Unstructured) domain.Status {
 	return domain.StatusCreating
 }
 
-// parseBackend extracts host and port from a URL like
-// "http://service.namespace.svc.cluster.local:8080". Falls back to
-// the raw value as the host name if parsing fails. Returns 80 if
-// no port is in the URL.
-func parseBackend(url string) (string, int) {
+// parseBackend extracts a Gateway-API-style backendRef from a URL.
+// Gateway API backendRefs use `name: <Service>` (bare Service name,
+// no DNS suffix) + an optional `namespace`. So a URL like
+// "http://svc.ns.svc.cluster.local:8080" splits into (svc, ns, 8080),
+// and a bare "shim-echo:80" becomes ("shim-echo", "", 80).
+//
+// Heuristics:
+//   - If the host part contains dots and the second-from-the-end
+//     label is "svc", it's an in-cluster DNS name — first label is
+//     the Service, second label is the namespace.
+//   - Otherwise the host part is taken as the bare Service name and
+//     namespace is left empty (HTTPRoute's namespace is implied).
+//
+// Port defaults to 80 if not in the URL.
+func parseBackend(url string) (name, namespace string, port int) {
 	u := strings.TrimPrefix(url, "https://")
 	u = strings.TrimPrefix(u, "http://")
 	if i := strings.IndexByte(u, '/'); i >= 0 {
 		u = u[:i]
 	}
 	host := u
-	port := 80
+	port = 80
 	if i := strings.IndexByte(u, ':'); i >= 0 {
 		host = u[:i]
 		fmt.Sscanf(u[i+1:], "%d", &port)
 	}
-	return host, port
+	labels := strings.Split(host, ".")
+	if len(labels) >= 3 && labels[2] == "svc" {
+		return labels[0], labels[1], port
+	}
+	if len(labels) >= 2 && labels[1] == "svc" {
+		return labels[0], "", port
+	}
+	return labels[0], "", port
 }
