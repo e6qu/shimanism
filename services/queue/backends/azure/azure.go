@@ -8,8 +8,10 @@
 // the data plane uses Azure SB's REST API directly for ack /
 // extend-lock / abandon operations — those paths admit
 // token-only acks via
-//   DELETE /{queue}/messages/{messageId}/{lockToken}
-//   POST   /{queue}/messages/{messageId}/{lockToken}
+//
+//	DELETE /{queue}/messages/{messageId}/{lockToken}
+//	POST   /{queue}/messages/{messageId}/{lockToken}
+//
 // SAS-token authentication is computed per-request from the
 // configured connection string; the receipt handle is the
 // composite "<messageId>|<lockToken>" so DeleteMessage /

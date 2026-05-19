@@ -8,8 +8,8 @@ import (
 	"encoding/base64"
 	"testing"
 
-	pubsubraw "google.golang.org/api/pubsub/v1"
 	"google.golang.org/api/option"
+	pubsubraw "google.golang.org/api/pubsub/v1"
 
 	"github.com/e6qu/shimanism/internal/harness"
 	"github.com/e6qu/shimanism/services/queue/backends/inmem"

@@ -119,10 +119,10 @@ func (srv *Server) getQueue(w http.ResponseWriter, r *http.Request, name string)
 	// a small JSON shape sufficient for raw-HTTP clients. The official
 	// azservicebus SDK doesn't consume this endpoint.
 	writeJSON(w, http.StatusOK, map[string]interface{}{
-		"name":                       q.Name,
-		"VisibilityTimeoutSeconds":   q.Attributes.VisibilityTimeoutSeconds,
-		"MessageRetentionSeconds":    q.Attributes.MessageRetentionSeconds,
-		"ApproximateMessageCount":    q.Attributes.ApproximateMessageCount,
+		"name":                     q.Name,
+		"VisibilityTimeoutSeconds": q.Attributes.VisibilityTimeoutSeconds,
+		"MessageRetentionSeconds":  q.Attributes.MessageRetentionSeconds,
+		"ApproximateMessageCount":  q.Attributes.ApproximateMessageCount,
 	})
 }
 

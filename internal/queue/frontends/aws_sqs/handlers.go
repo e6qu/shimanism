@@ -83,12 +83,12 @@ type receiveMessageRequest struct {
 }
 
 type receiveMessageOut struct {
-	MessageId         string                                `json:"MessageId"`
-	ReceiptHandle     string                                `json:"ReceiptHandle"`
-	Body              string                                `json:"Body"`
-	MD5OfBody         string                                `json:"MD5OfBody,omitempty"`
-	Attributes        map[string]string                     `json:"Attributes,omitempty"`
-	MessageAttributes map[string]messageAttributeValueOut   `json:"MessageAttributes,omitempty"`
+	MessageId         string                              `json:"MessageId"`
+	ReceiptHandle     string                              `json:"ReceiptHandle"`
+	Body              string                              `json:"Body"`
+	MD5OfBody         string                              `json:"MD5OfBody,omitempty"`
+	Attributes        map[string]string                   `json:"Attributes,omitempty"`
+	MessageAttributes map[string]messageAttributeValueOut `json:"MessageAttributes,omitempty"`
 }
 
 type messageAttributeValueOut struct {

@@ -16,6 +16,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -23,6 +24,18 @@ import (
 
 	"github.com/e6qu/shimanism/internal/queue/domain"
 )
+
+// withDeadline ensures the context handed to the NATS library has a
+// deadline. The NATS Go SDK rejects deadline-less contexts in
+// FlushWithContext / nats.Context with "nats: context requires a
+// deadline". Backend ops invoked from tests or matrix loops use
+// context.Background(); wrap them with a sensible default.
+func withDeadline(ctx context.Context) (context.Context, context.CancelFunc) {
+	if _, ok := ctx.Deadline(); ok {
+		return ctx, func() {}
+	}
+	return context.WithTimeout(ctx, 30*time.Second)
+}
 
 // Backend implements domain.Queues via NATS JetStream.
 type Backend struct {
@@ -84,8 +97,9 @@ func translateErr(err error, name string) error {
 }
 
 func (b *Backend) CreateQueue(ctx context.Context, name string, opt domain.CreateQueueOptions) (domain.Queue, error) {
+	ctx, cancel := withDeadline(ctx)
+	defer cancel()
 	stream := streamName(name)
-	// Default retention: 4 days unless overridden.
 	maxAge := time.Duration(opt.Attributes.MessageRetentionSeconds) * time.Second
 	if maxAge == 0 {
 		maxAge = 4 * 24 * time.Hour
@@ -93,14 +107,13 @@ func (b *Backend) CreateQueue(ctx context.Context, name string, opt domain.Creat
 	_, err := b.js.AddStream(&natsapi.StreamConfig{
 		Name:      stream,
 		Subjects:  []string{stream},
-		Retention: natsapi.WorkQueuePolicy, // each msg consumed once across all consumers
+		Retention: natsapi.WorkQueuePolicy,
 		MaxAge:    maxAge,
 		Storage:   natsapi.FileStorage,
 	}, natsapi.Context(ctx))
 	if err != nil {
 		return domain.Queue{}, translateErr(err, name)
 	}
-	// Default consumer with AckWait matching VisibilityTimeout.
 	ackWait := time.Duration(opt.Attributes.VisibilityTimeoutSeconds) * time.Second
 	if ackWait == 0 {
 		ackWait = 30 * time.Second
@@ -124,6 +137,8 @@ func (b *Backend) DeleteQueue(ctx context.Context, name string) error {
 }
 
 func (b *Backend) HeadQueue(ctx context.Context, name string) (domain.Queue, error) {
+	ctx, cancel := withDeadline(ctx)
+	defer cancel()
 	info, err := b.js.StreamInfo(streamName(name), natsapi.Context(ctx))
 	if err != nil {
 		return domain.Queue{}, translateErr(err, name)
@@ -142,6 +157,8 @@ func (b *Backend) HeadQueue(ctx context.Context, name string) (domain.Queue, err
 }
 
 func (b *Backend) ListQueues(ctx context.Context, opt domain.ListQueuesOptions) (domain.ListQueuesResult, error) {
+	ctx, cancel := withDeadline(ctx)
+	defer cancel()
 	names := b.js.StreamNames(natsapi.Context(ctx))
 	res := domain.ListQueuesResult{}
 	for n := range names {
@@ -161,6 +178,8 @@ func (b *Backend) ListQueues(ctx context.Context, opt domain.ListQueuesOptions) 
 }
 
 func (b *Backend) SendMessage(ctx context.Context, queueName string, opt domain.SendMessageOptions) (domain.SendMessageResult, error) {
+	ctx, cancel := withDeadline(ctx)
+	defer cancel()
 	stream := streamName(queueName)
 	msg := &natsapi.Msg{
 		Subject: stream,
@@ -178,7 +197,7 @@ func (b *Backend) SendMessage(ctx context.Context, queueName string, opt domain.
 		return domain.SendMessageResult{}, translateErr(err, queueName)
 	}
 	return domain.SendMessageResult{
-		MessageID: fmt.Sprintf("%s/%d", ack.Stream, ack.Sequence),
+		MessageID: strconv.FormatUint(ack.Sequence, 10),
 	}, nil
 }
 
@@ -215,7 +234,7 @@ func (b *Backend) ReceiveMessages(ctx context.Context, queueName string, opt dom
 		var msgID string
 		if md != nil {
 			dc = int(md.NumDelivered)
-			msgID = fmt.Sprintf("%s/%d", md.Stream, md.Sequence.Stream)
+			msgID = strconv.FormatUint(md.Sequence.Stream, 10)
 		}
 		out = append(out, domain.Message{
 			MessageID:     msgID,
@@ -233,15 +252,17 @@ func (b *Backend) ReceiveMessages(ctx context.Context, queueName string, opt dom
 // directly to the reply subject from the receipt handle without
 // holding the original *nats.Msg, keeping the shim stateless.
 var (
-	ackAck         = []byte("+ACK")
-	ackInProgress  = []byte("+WPI")
-	ackTerm        = []byte("+TERM") //nolint:unused
+	ackAck        = []byte("+ACK")
+	ackInProgress = []byte("+WPI")
+	ackTerm       = []byte("+TERM") //nolint:unused
 )
 
 func (b *Backend) DeleteMessage(ctx context.Context, queueName string, receiptHandle string) error {
 	if receiptHandle == "" {
 		return domain.InvalidReceiptHandle("receipt handle is empty")
 	}
+	ctx, cancel := withDeadline(ctx)
+	defer cancel()
 	if err := b.nc.Publish(receiptHandle, ackAck); err != nil {
 		return translateErr(err, queueName)
 	}
@@ -254,10 +275,12 @@ func (b *Backend) ChangeVisibility(ctx context.Context, queueName string, receip
 	}
 	// NATS JetStream's InProgress resets the deadline to the
 	// consumer's AckWait — it doesn't accept a per-call timeout.
-	// We honour the InProgress extension; the new timeout value is
-	// silently ignored on this backend (consumer-level AckWait is
-	// the source of truth). Documented in OPERATIONS.md.
+	// The new timeout value is silently ignored on this backend
+	// (consumer-level AckWait is the source of truth). Documented
+	// in OPERATIONS.md.
 	_ = visibilityTimeout
+	ctx, cancel := withDeadline(ctx)
+	defer cancel()
 	if err := b.nc.Publish(receiptHandle, ackInProgress); err != nil {
 		return translateErr(err, queueName)
 	}
