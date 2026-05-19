@@ -73,6 +73,15 @@ func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		srv.listSecrets(w, r)
 	case "ListSecretVersionIds":
 		srv.listSecretVersionIds(w, r)
+	case "GetResourcePolicy":
+		// Probe: the hashicorp/aws Terraform provider calls
+		// GetResourcePolicy on every aws_secretsmanager_secret read
+		// refresh. The shim doesn't shim resource policies (they're
+		// IAM-side, out of the secrets data-plane intersection), but
+		// returning UnknownOperationException breaks TF state-reads.
+		// Honour the call with the canonical "no policy" response so
+		// TF state converges; never persist a policy.
+		srv.getResourcePolicy(w, r)
 	default:
 		// Out-of-intersection operation. Return AWS's canonical
 		// "operation isn't supported by this service endpoint"

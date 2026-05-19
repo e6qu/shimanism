@@ -42,6 +42,10 @@ func New(s domain.Secrets) *Server { return &Server{s: s} }
 var (
 	// /v1/projects/{project}/secrets/{secret}/versions/{version}:access
 	reAccessVersion = regexp.MustCompile(`^/v1/projects/([^/]+)/secrets/([^/]+)/versions/([^/:]+):access$`)
+	// /v1/projects/{project}/secrets/{secret}/versions/{version}:enable
+	reEnableVersion = regexp.MustCompile(`^/v1/projects/([^/]+)/secrets/([^/]+)/versions/([^/:]+):enable$`)
+	// /v1/projects/{project}/secrets/{secret}/versions/{version}:disable
+	reDisableVersion = regexp.MustCompile(`^/v1/projects/([^/]+)/secrets/([^/]+)/versions/([^/:]+):disable$`)
 	// /v1/projects/{project}/secrets/{secret}/versions/{version}
 	reGetVersion = regexp.MustCompile(`^/v1/projects/([^/]+)/secrets/([^/]+)/versions/([^/]+)$`)
 	// /v1/projects/{project}/secrets/{secret}/versions
@@ -65,6 +69,28 @@ func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		writeError(w, http.StatusMethodNotAllowed, "FAILED_PRECONDITION", method+" not allowed")
 		return
+	}
+	if m := reEnableVersion.FindStringSubmatch(path); m != nil {
+		if method == http.MethodPost {
+			// Versions are enabled by default in the shim. Real GCP
+			// supports per-version disable/enable; the domain doesn't
+			// model that. Treat :enable as a no-op probe that returns
+			// the version unchanged, so hashicorp/google's post-Create
+			// idempotent enable call succeeds.
+			srv.getSecretVersion(w, r, m[2], m[3])
+			return
+		}
+	}
+	if m := reDisableVersion.FindStringSubmatch(path); m != nil {
+		if method == http.MethodPost {
+			// Per-version disable is out of intersection (the domain
+			// has no enabled/disabled per-version flag). Honour by
+			// returning the version unchanged; SDK clients that
+			// inspect the State field will see ENABLED, which the
+			// hashicorp/google provider treats as a benign drift.
+			srv.getSecretVersion(w, r, m[2], m[3])
+			return
+		}
 	}
 	if m := reAddVersion.FindStringSubmatch(path); m != nil {
 		if method == http.MethodPost {

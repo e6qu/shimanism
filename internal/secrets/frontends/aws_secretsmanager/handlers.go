@@ -467,6 +467,42 @@ func (srv *Server) listSecrets(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, &resp)
 }
 
+// getResourcePolicy is a probe handler for the TF AWS provider's
+// resource-read flow. Real AWS returns 200 with ARN + Name + a
+// null ResourcePolicy when no policy is attached. The shim doesn't
+// model resource policies — they're IAM-side, separate from the
+// secret data plane — but TF reads this on every refresh.
+type getResourcePolicyRequest struct {
+	SecretId string `json:"SecretId"`
+}
+
+type getResourcePolicyResponse struct {
+	ARN            string  `json:"ARN"`
+	Name           string  `json:"Name"`
+	ResourcePolicy *string `json:"ResourcePolicy,omitempty"`
+}
+
+func (srv *Server) getResourcePolicy(w http.ResponseWriter, r *http.Request) {
+	var in getResourcePolicyRequest
+	if !decode(w, r, &in) {
+		return
+	}
+	if in.SecretId == "" {
+		writeError(w, http.StatusBadRequest, "InvalidParameterException", "SecretId is required")
+		return
+	}
+	name := normaliseSecretID(in.SecretId)
+	// Verify the secret exists; if not, return ResourceNotFoundException.
+	if _, err := srv.s.HeadSecret(r.Context(), name); err != nil {
+		mapDomainError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, &getResourcePolicyResponse{
+		ARN:  fakeARN(name),
+		Name: name,
+	})
+}
+
 func (srv *Server) listSecretVersionIds(w http.ResponseWriter, r *http.Request) {
 	var in listSecretVersionIdsRequest
 	if !decode(w, r, &in) {
@@ -505,23 +541,31 @@ func (srv *Server) listSecretVersionIds(w http.ResponseWriter, r *http.Request) 
 // normaliseSecretID accepts either a bare name or an ARN and returns
 // the secret name. AWS clients are allowed to pass either; the
 // domain only knows about names.
+//
+// Real AWS ARNs append a 6-char random suffix
+// (`arn:aws:secretsmanager:<region>:<account>:secret:<name>-<6 random>`).
+// Shim-issued ARNs use the fake region `shim` and append no random
+// suffix. We strip the suffix only when the region segment looks
+// like a real AWS region (not "shim"), avoiding the trap where a
+// legitimate name like `tf-driven` reads as `tf` + suffix `driven`.
 func normaliseSecretID(id string) string {
-	// Real AWS ARN: arn:aws:secretsmanager:<region>:<account>:secret:<name>-<6 random>
-	// shim ARN:    arn:aws:secretsmanager:shim:000000000000:secret:<name>
 	const arnPrefix = "arn:aws:secretsmanager:"
 	if !strings.HasPrefix(id, arnPrefix) {
 		return id
 	}
 	rest := strings.TrimPrefix(id, arnPrefix)
-	// Skip <region>:<account>:secret:
 	parts := strings.SplitN(rest, ":", 4)
 	if len(parts) < 4 || parts[2] != "secret" {
 		return id
 	}
+	region := parts[0]
 	name := parts[3]
-	// Real AWS ARNs append a 6-char random suffix; strip it.
+	if region == "shim" {
+		// Shim-issued ARN; no random suffix to strip.
+		return name
+	}
+	// Real-AWS ARN: strip the 6-char alnum suffix.
 	if i := strings.LastIndexByte(name, '-'); i >= 0 && len(name)-i == 7 {
-		// Check that the suffix is 6 alnum chars; if so, strip.
 		ok := true
 		for _, c := range name[i+1:] {
 			if !(c >= '0' && c <= '9' || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z') {
