@@ -54,10 +54,10 @@ type apiResource struct {
 }
 
 type apiConfigResource struct {
-	Name             string                    `json:"name,omitempty"`
-	DisplayName      string                    `json:"displayName,omitempty"`
-	State            string                    `json:"state,omitempty"`
-	CreateTime       string                    `json:"createTime,omitempty"`
+	Name             string                     `json:"name,omitempty"`
+	DisplayName      string                     `json:"displayName,omitempty"`
+	State            string                     `json:"state,omitempty"`
+	CreateTime       string                     `json:"createTime,omitempty"`
 	OpenapiDocuments []apiConfigOpenAPIDocument `json:"openapiDocuments,omitempty"`
 }
 

@@ -140,9 +140,9 @@ func (srv *Server) createOrUpdateOp(w http.ResponseWriter, r *http.Request, apiN
 	}
 	routes := dropRouteByID(g.Routes, opID)
 	routes = append(routes, domain.Route{
-		Method:  body.Properties.Method,
-		Path:    body.Properties.URLTemplate,
-		ID:      opID,
+		Method: body.Properties.Method,
+		Path:   body.Properties.URLTemplate,
+		ID:     opID,
 	})
 	if err := srv.s.DeployGateway(r.Context(), apiName, domain.DeployGatewayOptions{Routes: routes}); err != nil {
 		mapDomainError(w, err)
