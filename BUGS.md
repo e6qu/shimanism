@@ -1,6 +1,6 @@
 # Known Bugs
 
-**8 filed · 3 fixed · 5 open · 0 false positives.**
+**10 filed · 3 fixed · 7 open · 0 false positives.**
 
 Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLAN.md](PLAN.md) · narrative [WHAT_WE_DID.md](WHAT_WE_DID.md) · rules [AGENTS.md](AGENTS.md).
 
@@ -19,6 +19,8 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 | BUG-6 | P2 | apigateway/azure-backend | Azure APIM `APIClient.Delete` | `armapimanagement/v3` exposes `Delete(ctx, rg, svc, name, deleteRevisions string, options *Options)` requiring an If-Match etag + a deleteRevisions decision; the v1 SDK exposed `Delete(ctx, rg, svc, name)` directly. Phase 8's Azure backend returns `domain.InvalidArgument` honestly until a v3-correct etag-fetching delete is written. Blocks Track A azure-backend conformance for `DeleteGateway`. |
 | BUG-7 | P3 | apigateway/azure-cli-frontend | `az` CLI | `az` exposes no documented per-resource endpoint override that targets only APIM (the closest mechanism is the cloud-environment switch, which forces every resource type through the shim — incompatible with multi-cloud workflows). `services/apigateway/conformance/azure_cli_test.go` is smoke-skipped pending this. |
 | BUG-8 | P3 | apigateway/gcp-tf-frontend | `hashicorp/google` | API Gateway endpoint-override attribute name changed across provider major versions and the current provider's API Gateway resource lifecycle requires real OAuth-signed requests the mock httptest server can't sign. `services/apigateway/conformance/gcp_terraform_test.go` is smoke-skipped pending Track A real-cloud TF coverage. |
+| BUG-9 | P2 | apigateway/gcp-frontend | GCP API Gateway REST | `internal/apigateway/frontends/gcp_apigateway` only implements the `Gateways` endpoint family (`/v1/projects/{p}/locations/{l}/gateways/...`). The route-deployment surface (`Apis` + `ApiConfigs` endpoints) — the GCP equivalent of AWS CreateRoute/CreateDeployment — is not implemented. The intersection's `DeployGateway` is reachable through the AWS frontend's CreateDeployment, but a client that drives the GCP frontend natively (via `gcloud api-gateway api-configs create` or the Apis.Configs.Create call) silently 404s instead of returning a real route deployment. Phase 9 must wire ApiConfigs.{Create,Get,Delete,List} so the GCP frontend covers route deployment honestly. |
+| BUG-10 | P2 | apigateway/azure-frontend | Azure API Management REST | `internal/apigateway/frontends/azure_apim` only implements the `Apis` endpoint family. The Operations subresource — `/...service/{svc}/apis/{api}/operations/{op}`, the Azure equivalent of AWS CreateRoute — is not implemented. The `armapimanagement` SDK's `APIOperationClient.CreateOrUpdate` (which a real APIM-shaped client uses to deploy a route) silently 404s. Phase 9 must wire `Operations.{Create,Get,Delete,List}` so the Azure frontend covers route deployment honestly. |
 
 ## False positives
 
