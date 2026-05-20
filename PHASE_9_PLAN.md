@@ -19,7 +19,20 @@ A substantial chunk of Phase 9 landed on the Phase 8 PR per user instruction "ke
 - **9.2-B ✅** `services/<svc>/MIGRATION.md` per service — runnable walkthroughs proving the intersection is migration-useful.
 - **9.5 ✅** `terraform_import_test.go` per service — 8 single-cloud import tests, all green.
 - **9.11 ✅** `cmd/shim mock` subcommand — bundle inmem-backed cloud-shaped APIs on localhost ports.
-- **9.13 ✅** Cross-cloud exit criterion — **six services validated**: AWS → GCS (storage), AWS → GCP Pub/Sub (queue), AWS → GCP API Gateway (apigateway), AWS → GCP Memorystore (cache), AWS → GCP Cloud Run (functions), AWS → GCP Cloud SQL (rdbms). Reverse direction (GCS → AWS) skeleton landed, skipped pending hashicorp/google credentials Track A work.
+- **9.13 ✅** Cross-cloud exit criterion — **all 8 services validated**:
+
+  | service     | AWS frontend wire | backend cloud (mock) | result |
+  |---|---|---|---|
+  | storage     | S3 XML            | GCS REST             | ✅ |
+  | secrets     | awsJson1_1        | Azure KV (TLS)       | ✅ |
+  | queue       | awsJson1_0        | GCP Pub/Sub          | ✅ |
+  | pubsub      | awsQuery XML      | GCP Pub/Sub          | ✅ |
+  | apigateway  | restJson1         | GCP API Gateway      | ✅ |
+  | cache       | awsQuery XML      | GCP Memorystore      | ✅ |
+  | functions   | restJson1         | GCP Cloud Run        | ✅ |
+  | rdbms       | awsQuery XML      | GCP Cloud SQL Admin  | ✅ |
+
+  Every AWS wire-protocol family (S3 XML, awsJson1_0, awsJson1_1, restJson1, awsQuery) is exercised against at least one non-AWS backend cloud (GCP, Azure) through real `hashicorp/aws` provider tooling. Reverse direction (GCS → AWS) skeleton landed for storage, skipped pending hashicorp/google credentials Track A work.
 
 **Filed in BUGS.md (not yet fixed):** BUG-12 (queue domain tag storage), BUG-13 (Lambda memory_size/role/publish defaults).
 
