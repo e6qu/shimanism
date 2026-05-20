@@ -6,8 +6,8 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 
 ## Where we are
 
-- **Last merged:** PR #12 (Phase 7) at `9d02af0` on `origin/main`, 2026-05-19.
-- **Active branch:** `phase-8-apigateway` — PR #13. Phase 8 + a substantial chunk of Phase 9 on one PR per user instruction.
+- **Last merged:** PR #13 (Phase 8 + Phase 9 substantial chunk) at `ad85ddf` on `origin/main`, 2026-05-20.
+- **Active branch:** `phase-9-closer`. Docs roll-up only — the merged PHASE_9_PLAN narrative said "six" because the closer commit was pushed after the squash-merge fired. All 8 cross-cloud cells (incl. secrets + pubsub) actually shipped in PR #13.
 - **Phase 8** complete (16/16 sub-phases). Exit criterion `TestRouteServes_Envoy` green in `conformance-envoy` CI lane.
 - **Phase 9** advanced significantly on the same PR:
   - `PHASE_9_PLAN.md` drafted + codex-reviewed + revised to encode the "no fakes" + "useful for migration" instructions.
