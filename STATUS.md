@@ -8,8 +8,9 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 
 | | |
 |---|---|
-| Active branch | `phase-8-apigateway` — Phase 8 + Phase 9 plan/docs/code on one PR per user instruction. |
-| In-flight | **Phase 8 + Phase 9.** Phase 8 (API Gateway) complete: 3 frontends × 5 backends × 3 drivers; declarative-replace `DeployGateway`; exit criterion `TestRouteServes_Envoy` proves end-to-end HTTP routing through Envoy. Phase 9 (cross-cloud terraform-import) substantially advanced on same PR: importer-read contracts + INTERSECTION.md + MIGRATION.md per service; `shimctl env` CLI; `terraform import` test per service; 6 real fidelity fixes (XML double-nesting, Policy/EffectiveDeliveryPolicy JSON, ListQueueTags/ListTagsForResource handlers, APIGW selection-expression defaults, Lambda Read-path subresources, RDS DBInstanceArn). Exit criterion `TestCrossCloudImport_Roundtrip_StorageAWStoGCS` proves cross-cloud import — AWS-shape TF imports a bucket whose data lives in mock GCS through the shim. |
+| Active branch | `phase-9-closer` — Phase 9 docs roll-up (the merged PHASE_9_PLAN narrative still said "six" because the closer commit hadn't pushed before the merge fired). |
+| Phase 8 closed | PR #13 merged `ad85ddf` 2026-05-20. Phase 8 (API Gateway) + Phase 9 substantial chunk landed together. **All 8 services through cross-cloud import** (storage / secrets / queue / pubsub / apigateway / cache / functions / rdbms). 6 real fidelity bugs fixed inline. |
+| In-flight | **Phase 9 closer (docs only).** Just the STATUS / DO_NEXT / PHASE_9_PLAN narrative corrections so the in-tree story matches what was merged. |
 | Phase 7 closed | PR #12 merged `9d02af0` 2026-05-19. Three functions frontends × five backends × three driver types; 16 required CI checks (added `conformance-knative` lane). Knative Serving as K8s peer via dynamic client + kourier-internal port-forward for HTTP-invoke exit criterion. Container-image deploys only; events + auth-on-invoke deferred. |
 | Phase 6 closed | PR #11 merged `cca8bc0` 2026-05-19. Three cache frontends × five backends × three driver types; 15 required CI checks (added `conformance-redisop` lane). Redis Operator as K8s peer via dynamic client; PING exit criterion validated end-to-end. |
 | Phase 4 closed | PR #9 merged `6305354` 2026-05-19. Three pubsub frontends × five backends × three driver types; same 13 required CI checks. NATS JetStream throughout as K8s peer; AWS dual-protocol surface (SNS publish + slim SQS-receive); 4-part Azure receipt encoding; AMQP / ARM-only cells ◇-skipped. `aws_sns_topic_subscription` cell carried as ripple of BUG-2. |
@@ -18,7 +19,7 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 | Phase 1 closed | PR #6 merged `1f64d9f` 2026-05-19. Three storage frontends × five storage backends × three driver types matrix; 11 required CI checks. |
 | CI baseline | 16 required checks from Phase 7. Phase 8 will add a `conformance-envoy` lane (kind + Envoy Gateway). Real-cloud lanes wait on Track A. |
 | Scope rule (2026-05-18) | **Each phase ships the full N × N matrix.** Previous PLAN.md had Phases 9 and 10 as "GCP source row" and "Azure source row" of horizontal expansion across all 8 services; user reversed this. Each service phase now includes all 3 frontends + all 4 backends + SDK / CLI / Terraform for each, before moving to the next service. Phases 9 and 10 deleted; their work is absorbed into Phases 1-8. |
-| Last merged | PR #5 — Phase 1.3 (codegen, originally all 107 ops) (`03b0ebb`, 2026-05-18). |
+| Last merged | PR #13 — Phase 8 + Phase 9 substantial chunk (`ad85ddf`, 2026-05-20). |
 | Standing merge auth | **None.** User merges every PR. |
 | CI | Five required checks: `branch rebased on origin/main`, `tracked symlinks resolve`, `continuity docs present`, `go vet + test + build`, `dependency licenses AGPL-compatible`. |
 | Renovate | Config committed (48h minimum release age, weekly batches, pinned GitHub Actions SHAs); **user must install the Renovate GitHub App** at https://github.com/apps/renovate. |
