@@ -1,8 +1,8 @@
 # Phase 10 — Cross-cloud `terraform apply` through shimanism
 
-> **Goal:** Phase 9 proved that the shim is a transparent read surface — `terraform import` of a resource that lives in cloud B, driven through the shim's cloud A frontend, produces a state file that round-trips without diffs. Phase 10 extends the proof to the *write* side: a user's `terraform apply` against the shim should provision, update, and destroy resources on the destination backend cloud, with the source-cloud provider unaware of the translation.
+> **Goal:** Phase 9 proved the shim is a transparent read surface for `terraform import`. Phase 10 extends the proof to the *write* side: a user's `terraform apply` against the shim provisions, updates, and destroys resources on the destination backend cloud, with the source-cloud provider unaware of the translation.
 >
-> Apply is the migration user's actual workflow. Import is for adoption-of-existing-state; apply is for everyday Terraform usage. If apply doesn't work, the shim is a museum piece; if it works, the shim is a migration tool.
+> Apply is the everyday Terraform workflow. Honest Apply makes shimanism **a cross-cloud IaC control-plane migration tool** — *not* a full migration tool. Users still need data movement, secret value/version history transfer, DB snapshots/replication, cache warmup, queued-message drain, pubsub backlog/subscription replication, function artifact transfer, custom domain + cert provisioning, IAM rebinding, DNS swap, validation, rollback, and cleanup. Phase 10-A and follow-on phases address those; Phase 10 itself ships the IaC plumbing.
 
 State [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](BUGS.md) · roadmap [PLAN.md](PLAN.md) · philosophy [PHILOSOPHY.md](PHILOSOPHY.md) · rules [AGENTS.md](AGENTS.md).
 
@@ -33,17 +33,24 @@ Specifically:
 
 ## Hard problems & how each is approached
 
-### 1. Create-then-Read drift audit
+### 1. Create-then-Read drift audit (necessary, not sufficient)
 
 For each (resource type, source cloud) pair, write a test that:
 
 1. `terraform apply` against the shim — drives Create.
-2. `terraform plan -refresh-only -detailed-exitcode` — drives Read against the same shim and asks "is the state still consistent with the cloud?"
+2. `terraform plan -refresh-only -detailed-exitcode` — drives Read against the same shim.
 3. Assert exit code 0.
 
-If any attribute the user set in HCL isn't returned by the shim's Read after the shim's Create, that's a Phase-10 fidelity bug. File BUG, fix it. Repeat until 0.
+**Important caveat (per codex review):** create-then-read will *not* catch **self-consistent wrongness** — Create translates an attribute to the wrong backend behavior, and Read translates that same wrong backend state back into the expected source shape. The user sees no drift but the resource is semantically wrong. It also won't catch:
 
-This is essentially what Phase 9 was doing via Import, but Apply touches more attributes because the user *set* them rather than just *imported* them.
+- Invalid-input error fidelity (does the shim reject malformed input with the source cloud's *real* error envelope, or accept-and-mangle?).
+- Data-plane behavior beyond the control-plane CRUD (object reads after Put through a different frontend; secret value-history retrieval after rotation through cloud A).
+- Concurrency / idempotency (two Apply runs at once; Create-Then-Retry-Create).
+- Delayed async failures (Create returns Pending; backend rejects at apply-completion time, not request time).
+- Delete recovery behavior (soft-delete window honored across translations; purge permissions; name reuse).
+- Provider-unmodeled fields (attributes the cloud returns that the Terraform provider ignores but other tools care about).
+
+Phase 10 therefore adds **semantic conformance tests beyond create-then-read**: read-through-the-other-frontend (sub-phase 10.2-B), explicit invalid-input fidelity (10.2-C), and a per-service "apply intersection contract" (10.0-A, below) that constrains the matrix to operations whose semantics actually converge across backends.
 
 ### 2. Async-op polling — close BUG-5 family
 
@@ -65,13 +72,14 @@ For each service:
 - Identify which require replace (Terraform `ForceNew`).
 - Audit the shim's translate.go to ensure Update dispatches honestly, and that fields-that-require-replace surface the source cloud's "operation not supported in update" error vocabulary rather than silently no-op.
 
-### 4. Soft-delete semantics
+### 4. Soft-delete semantics (narrowed per codex review)
 
-AWS Secrets Manager + Azure Key Vault default to soft-delete. AWS S3 has versioning (a form of soft-delete for objects). GCS, Azure Blob have soft-delete tiers. Phase 10's intersection has to:
+Codex flagged the earlier draft's translation table as too lossy: AWS `recovery_window_in_days`, Azure `soft_delete_retention_days`, and GCS default-30 are *not* equivalent across recoverability, purge permissions, versioning / object-delete markers, name reuse, and force-delete semantics. "Default-30" in particular fabricates intent the source HCL may not express. Reworked policy:
 
-- Surface soft-delete as a category-1 op (the user wants to recover-after-delete in many migration scenarios).
-- Map the per-cloud retention windows to a single domain primitive.
-- Translate the Terraform `recovery_window_in_days` (AWS) ↔ `soft_delete_retention_days` (Azure) ↔ default-30-days (GCP).
+- **Recoverable delete is an opt-in intersection feature**, not a default. The user must declare a retention window in source-cloud HCL; without it, the shim hard-deletes and Terraform's destroy completes synchronously.
+- **Cross-cloud retention** is only honored where the destination backend exposes a *first-class* soft-delete primitive that the shim can configure. Where it doesn't, the shim returns the source cloud's `OperationNotSupported` envelope on a destroy with a retention window — *not* a silent hard-delete.
+- **Queue soft-delete is dropped from Phase 10 scope.** Queues don't have a peer concept on AWS / GCP / Azure / NATS; the earlier draft was wrong to include it.
+- The honest cross-cloud table only covers (secrets + storage) and specifies *which* cells honor retention. Storage cells map AWS S3 versioning ↔ GCS Object Versioning ↔ Azure Blob soft-delete ↔ MinIO versioning. Secrets cells map AWS Secrets Manager ↔ Azure Key Vault soft-delete ↔ GCP Secret Manager (no soft-delete — out of intersection) ↔ Vault (KV destroy is hard).
 
 ### 5. Apply exit criterion: `TestCrossCloudApply_Roundtrip`
 
@@ -88,12 +96,15 @@ Symmetric to Phase 9.13's `TestCrossCloudImport_Roundtrip`. Per (source cloud A,
 | Sub | Status | Headline |
 |---|---|---|
 | **10.0** | ◻ | Scope baseline (this doc; codex review). |
-| **10.1** | ◻ | Close BUG-5 family — GCP Operations.get across rdbms / cache / functions / apigateway. |
+| **10.0-A** | ◻ | **Per-service Apply Intersection Contract** — *new from codex review*. Before any test code, write `services/<svc>/APPLY_INTERSECTION.md` enumerating exactly which Create / Update / Delete ops the shim claims honest semantics for, with the per-cell translation specified. The matrix tests assert against *this contract*, not "everything the provider tries." Stops the matrix-explosion failure mode. |
+| **10.1** | ◻ | **Gate: close BUG-5 family** — GCP Operations.get across rdbms / cache / functions / apigateway. No Phase 10 Apply cell may run before this lands; Apply against GCP-shaped frontends will hang on async ops without it. |
 | **10.2** | ◻ | Create-then-Read drift audit per service. Build the `terraform apply` test scaffolding. |
-| **10.3** | ◻ | Update intersection audit per service. |
-| **10.4** | ◻ | Soft-delete intersection across secrets / storage / queue. |
-| **10.5** | ◻ | Per-service `apply_test.go` covering Create → Read-check → Update → Read-check → Destroy. |
-| **10.6** | ◻ | Cross-cloud Apply matrix tests — symmetric to Phase 9.13's cross-cloud import matrix. |
+| **10.2-B** | ◻ | **Cross-frontend read** — *new*. After Create through frontend A, drive Read through frontend B (same service, same backend). Catches self-consistent-wrongness that single-frontend create-then-read misses. |
+| **10.2-C** | ◻ | **Invalid-input fidelity** — *new*. For each Create / Update, exercise known-bad inputs (wrong name format, missing required field, conflicting attributes) and assert the shim returns the source cloud's *real* error envelope rather than fabricating success or passing through a generic 500. |
+| **10.3** | ◻ | Update intersection audit per service. In-place vs replace per backend cell, with the source cloud's "operation not supported in update" surfaced when intent doesn't translate. |
+| **10.4** | ◻ | Soft-delete intersection across secrets + storage (queue dropped per codex review). Opt-in only; non-supporting backends return source cloud's not-supported envelope on retention-windowed destroy. |
+| **10.5** | ◻ | Per-service `apply_test.go` covering Create → Read-check → Update → Read-check → Destroy. Assert against 10.0-A's contract. |
+| **10.6** | ◻ | Cross-cloud Apply matrix tests, contract-scoped. |
 | **10.7** | ◻ | Exit criterion: `TestCrossCloudApply_Roundtrip` per service. |
 | **10.8** | ◻ | Phase 10 closer. |
 
@@ -107,4 +118,14 @@ The mock-tier Apply matrix is a precondition; real-cloud Apply is the *headline*
 
 ## Why this phase is honest
 
-Import is a one-shot read. Apply is the lifetime of a Terraform-managed resource. **If Apply is honest end-to-end, the shim is a migration tool;** if not, it's a partial proof. Phase 10 is what makes shimanism's promise — "keep your AWS-shaped Terraform; point it at any backend" — actually true for users, not just for the import test suite.
+Import is a one-shot read. Apply is the lifetime of a Terraform-managed resource. **If Apply is honest end-to-end, the shim is a cross-cloud IaC control-plane migration tool** — the foundation a real migration is built on, not the migration itself.
+
+## Codex review (and what we changed in response)
+
+Submitted to `codex exec` for an independent review. Five critiques returned; each is addressed above.
+
+1. *"'Migration tool' is overclaim — Apply doesn't move data."* **Accepted.** Goal section now reads "cross-cloud IaC control-plane migration tool" and enumerates what's still missing (data, snapshots, IAM, DNS, etc.).
+2. *"Create-then-Read misses self-consistent wrongness + several other classes of bug."* **Accepted.** Added sub-phases 10.2-B (cross-frontend read after cross-cloud write) and 10.2-C (invalid-input fidelity). The drift audit is now explicitly necessary-but-not-sufficient.
+3. *"Deferring BUG-5 into Phase 10 is right only if it's the gate, not cleanup."* **Accepted.** Sub-phase 10.1 is marked as a hard gate; no Apply cell runs before it lands.
+4. *"Soft-delete table is too lossy; queue soft-delete is implausible."* **Accepted.** Queue dropped from soft-delete scope. Retention-window translation is opt-in only; non-supporting cells return source cloud's `OperationNotSupported`.
+5. *"Most likely failure mode: matrix explodes before semantics converge."* **Accepted.** Sub-phase 10.0-A inserted as the first deliverable — per-service Apply Intersection Contract before any test code. Matrix tests assert against the contract, not against "whatever the provider tries."
