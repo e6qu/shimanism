@@ -21,6 +21,7 @@ import (
 
 	awsapi "github.com/aws/aws-sdk-go-v2/aws"
 	awscfg "github.com/aws/aws-sdk-go-v2/config"
+	awscredentials "github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/apigatewayv2"
 	apigwtypes "github.com/aws/aws-sdk-go-v2/service/apigatewayv2/types"
 
@@ -85,7 +86,12 @@ spec:
 	srv := harness.StartAPIGatewayServerAWS(t, backend)
 	cfg, err := awscfg.LoadDefaultConfig(ctx,
 		awscfg.WithRegion("us-east-1"),
-		awscfg.WithCredentialsProvider(awsapi.AnonymousCredentials{}),
+		awscfg.WithCredentialsProvider(awscredentials.StaticCredentialsProvider{
+			Value: awsapi.Credentials{
+				AccessKeyID:     "AKIAIOSFODNN7EXAMPLE",
+				SecretAccessKey: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+			},
+		}),
 	)
 	if err != nil {
 		t.Fatalf("aws config: %v", err)

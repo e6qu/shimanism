@@ -20,6 +20,7 @@ import (
 
 	awsapi "github.com/aws/aws-sdk-go-v2/aws"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
+	awscredentials "github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/elasticache"
 	"github.com/redis/go-redis/v9"
 
@@ -36,7 +37,12 @@ func TestPingConnectivity_RedisOp(t *testing.T) {
 	srv := harness.StartCacheServerAWS(t, be)
 	cfg, err := awsconfig.LoadDefaultConfig(ctx,
 		awsconfig.WithRegion("us-east-1"),
-		awsconfig.WithCredentialsProvider(awsapi.AnonymousCredentials{}),
+		awsconfig.WithCredentialsProvider(awscredentials.StaticCredentialsProvider{
+			Value: awsapi.Credentials{
+				AccessKeyID:     "AKIAIOSFODNN7EXAMPLE",
+				SecretAccessKey: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+			},
+		}),
 	)
 	if err != nil {
 		t.Fatalf("aws config: %v", err)
