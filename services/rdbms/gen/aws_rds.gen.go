@@ -1065,12 +1065,13 @@ type CreateDBInstanceBackend interface {
 
 // CreateDBInstanceHandler decodes a CreateDBInstance request, dispatches
 // to the backend, and encodes the response per awsQuery semantics.
-// Form-encoded request bodies are decoded field-by-field; nested
-// list / map shapes use the AWS member / entry conventions and are
-// decoded by spec-aware adapter glue (Phase 11 follow-on).
+// Form-encoded request bodies are decoded field-by-field for
+// scalars, map<string,string>, and list<string> shapes. Complex
+// collections (map<string,struct> like SNS MessageAttributes) are
+// available to the backend via awsquery.FormFromContext(ctx).
 func CreateDBInstanceHandler(b CreateDBInstanceBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
+		ctx := awsquery.WithForm(r.Context(), r.Form)
 		in := &CreateDBInstanceMessage{}
 		_ = in
 		// Decode top-level scalar + map<string,string> + list<string>
@@ -1379,12 +1380,13 @@ type DeleteDBInstanceBackend interface {
 
 // DeleteDBInstanceHandler decodes a DeleteDBInstance request, dispatches
 // to the backend, and encodes the response per awsQuery semantics.
-// Form-encoded request bodies are decoded field-by-field; nested
-// list / map shapes use the AWS member / entry conventions and are
-// decoded by spec-aware adapter glue (Phase 11 follow-on).
+// Form-encoded request bodies are decoded field-by-field for
+// scalars, map<string,string>, and list<string> shapes. Complex
+// collections (map<string,struct> like SNS MessageAttributes) are
+// available to the backend via awsquery.FormFromContext(ctx).
 func DeleteDBInstanceHandler(b DeleteDBInstanceBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
+		ctx := awsquery.WithForm(r.Context(), r.Form)
 		in := &DeleteDBInstanceMessage{}
 		_ = in
 		// Decode top-level scalar + map<string,string> + list<string>
@@ -1423,12 +1425,13 @@ type DescribeDBInstancesBackend interface {
 
 // DescribeDBInstancesHandler decodes a DescribeDBInstances request, dispatches
 // to the backend, and encodes the response per awsQuery semantics.
-// Form-encoded request bodies are decoded field-by-field; nested
-// list / map shapes use the AWS member / entry conventions and are
-// decoded by spec-aware adapter glue (Phase 11 follow-on).
+// Form-encoded request bodies are decoded field-by-field for
+// scalars, map<string,string>, and list<string> shapes. Complex
+// collections (map<string,struct> like SNS MessageAttributes) are
+// available to the backend via awsquery.FormFromContext(ctx).
 func DescribeDBInstancesHandler(b DescribeDBInstancesBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
+		ctx := awsquery.WithForm(r.Context(), r.Form)
 		in := &DescribeDBInstancesMessage{}
 		_ = in
 		// Decode top-level scalar + map<string,string> + list<string>
@@ -1466,12 +1469,13 @@ type ModifyDBInstanceBackend interface {
 
 // ModifyDBInstanceHandler decodes a ModifyDBInstance request, dispatches
 // to the backend, and encodes the response per awsQuery semantics.
-// Form-encoded request bodies are decoded field-by-field; nested
-// list / map shapes use the AWS member / entry conventions and are
-// decoded by spec-aware adapter glue (Phase 11 follow-on).
+// Form-encoded request bodies are decoded field-by-field for
+// scalars, map<string,string>, and list<string> shapes. Complex
+// collections (map<string,struct> like SNS MessageAttributes) are
+// available to the backend via awsquery.FormFromContext(ctx).
 func ModifyDBInstanceHandler(b ModifyDBInstanceBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
+		ctx := awsquery.WithForm(r.Context(), r.Form)
 		in := &ModifyDBInstanceMessage{}
 		_ = in
 		// Decode top-level scalar + map<string,string> + list<string>
@@ -1768,12 +1772,13 @@ type RebootDBInstanceBackend interface {
 
 // RebootDBInstanceHandler decodes a RebootDBInstance request, dispatches
 // to the backend, and encodes the response per awsQuery semantics.
-// Form-encoded request bodies are decoded field-by-field; nested
-// list / map shapes use the AWS member / entry conventions and are
-// decoded by spec-aware adapter glue (Phase 11 follow-on).
+// Form-encoded request bodies are decoded field-by-field for
+// scalars, map<string,string>, and list<string> shapes. Complex
+// collections (map<string,struct> like SNS MessageAttributes) are
+// available to the backend via awsquery.FormFromContext(ctx).
 func RebootDBInstanceHandler(b RebootDBInstanceBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
+		ctx := awsquery.WithForm(r.Context(), r.Form)
 		in := &RebootDBInstanceMessage{}
 		_ = in
 		// Decode top-level scalar + map<string,string> + list<string>
@@ -1803,12 +1808,13 @@ type CreateDBSnapshotBackend interface {
 
 // CreateDBSnapshotHandler decodes a CreateDBSnapshot request, dispatches
 // to the backend, and encodes the response per awsQuery semantics.
-// Form-encoded request bodies are decoded field-by-field; nested
-// list / map shapes use the AWS member / entry conventions and are
-// decoded by spec-aware adapter glue (Phase 11 follow-on).
+// Form-encoded request bodies are decoded field-by-field for
+// scalars, map<string,string>, and list<string> shapes. Complex
+// collections (map<string,struct> like SNS MessageAttributes) are
+// available to the backend via awsquery.FormFromContext(ctx).
 func CreateDBSnapshotHandler(b CreateDBSnapshotBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
+		ctx := awsquery.WithForm(r.Context(), r.Form)
 		in := &CreateDBSnapshotMessage{}
 		_ = in
 		// Decode top-level scalar + map<string,string> + list<string>
@@ -1834,12 +1840,13 @@ type DeleteDBSnapshotBackend interface {
 
 // DeleteDBSnapshotHandler decodes a DeleteDBSnapshot request, dispatches
 // to the backend, and encodes the response per awsQuery semantics.
-// Form-encoded request bodies are decoded field-by-field; nested
-// list / map shapes use the AWS member / entry conventions and are
-// decoded by spec-aware adapter glue (Phase 11 follow-on).
+// Form-encoded request bodies are decoded field-by-field for
+// scalars, map<string,string>, and list<string> shapes. Complex
+// collections (map<string,struct> like SNS MessageAttributes) are
+// available to the backend via awsquery.FormFromContext(ctx).
 func DeleteDBSnapshotHandler(b DeleteDBSnapshotBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
+		ctx := awsquery.WithForm(r.Context(), r.Form)
 		in := &DeleteDBSnapshotMessage{}
 		_ = in
 		// Decode top-level scalar + map<string,string> + list<string>
@@ -1864,12 +1871,13 @@ type DescribeDBSnapshotsBackend interface {
 
 // DescribeDBSnapshotsHandler decodes a DescribeDBSnapshots request, dispatches
 // to the backend, and encodes the response per awsQuery semantics.
-// Form-encoded request bodies are decoded field-by-field; nested
-// list / map shapes use the AWS member / entry conventions and are
-// decoded by spec-aware adapter glue (Phase 11 follow-on).
+// Form-encoded request bodies are decoded field-by-field for
+// scalars, map<string,string>, and list<string> shapes. Complex
+// collections (map<string,struct> like SNS MessageAttributes) are
+// available to the backend via awsquery.FormFromContext(ctx).
 func DescribeDBSnapshotsHandler(b DescribeDBSnapshotsBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
+		ctx := awsquery.WithForm(r.Context(), r.Form)
 		in := &DescribeDBSnapshotsMessage{}
 		_ = in
 		// Decode top-level scalar + map<string,string> + list<string>
@@ -1929,12 +1937,13 @@ type RestoreDBInstanceFromDBSnapshotBackend interface {
 
 // RestoreDBInstanceFromDBSnapshotHandler decodes a RestoreDBInstanceFromDBSnapshot request, dispatches
 // to the backend, and encodes the response per awsQuery semantics.
-// Form-encoded request bodies are decoded field-by-field; nested
-// list / map shapes use the AWS member / entry conventions and are
-// decoded by spec-aware adapter glue (Phase 11 follow-on).
+// Form-encoded request bodies are decoded field-by-field for
+// scalars, map<string,string>, and list<string> shapes. Complex
+// collections (map<string,struct> like SNS MessageAttributes) are
+// available to the backend via awsquery.FormFromContext(ctx).
 func RestoreDBInstanceFromDBSnapshotHandler(b RestoreDBInstanceFromDBSnapshotBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
+		ctx := awsquery.WithForm(r.Context(), r.Form)
 		in := &RestoreDBInstanceFromDBSnapshotMessage{}
 		_ = in
 		// Decode top-level scalar + map<string,string> + list<string>

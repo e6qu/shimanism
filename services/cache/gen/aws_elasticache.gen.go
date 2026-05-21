@@ -579,12 +579,13 @@ type CreateCacheClusterBackend interface {
 
 // CreateCacheClusterHandler decodes a CreateCacheCluster request, dispatches
 // to the backend, and encodes the response per awsQuery semantics.
-// Form-encoded request bodies are decoded field-by-field; nested
-// list / map shapes use the AWS member / entry conventions and are
-// decoded by spec-aware adapter glue (Phase 11 follow-on).
+// Form-encoded request bodies are decoded field-by-field for
+// scalars, map<string,string>, and list<string> shapes. Complex
+// collections (map<string,struct> like SNS MessageAttributes) are
+// available to the backend via awsquery.FormFromContext(ctx).
 func CreateCacheClusterHandler(b CreateCacheClusterBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
+		ctx := awsquery.WithForm(r.Context(), r.Form)
 		in := &CreateCacheClusterMessage{}
 		_ = in
 		// Decode top-level scalar + map<string,string> + list<string>
@@ -734,12 +735,13 @@ type DeleteCacheClusterBackend interface {
 
 // DeleteCacheClusterHandler decodes a DeleteCacheCluster request, dispatches
 // to the backend, and encodes the response per awsQuery semantics.
-// Form-encoded request bodies are decoded field-by-field; nested
-// list / map shapes use the AWS member / entry conventions and are
-// decoded by spec-aware adapter glue (Phase 11 follow-on).
+// Form-encoded request bodies are decoded field-by-field for
+// scalars, map<string,string>, and list<string> shapes. Complex
+// collections (map<string,struct> like SNS MessageAttributes) are
+// available to the backend via awsquery.FormFromContext(ctx).
 func DeleteCacheClusterHandler(b DeleteCacheClusterBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
+		ctx := awsquery.WithForm(r.Context(), r.Form)
 		in := &DeleteCacheClusterMessage{}
 		_ = in
 		// Decode top-level scalar + map<string,string> + list<string>
@@ -768,12 +770,13 @@ type DescribeCacheClustersBackend interface {
 
 // DescribeCacheClustersHandler decodes a DescribeCacheClusters request, dispatches
 // to the backend, and encodes the response per awsQuery semantics.
-// Form-encoded request bodies are decoded field-by-field; nested
-// list / map shapes use the AWS member / entry conventions and are
-// decoded by spec-aware adapter glue (Phase 11 follow-on).
+// Form-encoded request bodies are decoded field-by-field for
+// scalars, map<string,string>, and list<string> shapes. Complex
+// collections (map<string,struct> like SNS MessageAttributes) are
+// available to the backend via awsquery.FormFromContext(ctx).
 func DescribeCacheClustersHandler(b DescribeCacheClustersBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
+		ctx := awsquery.WithForm(r.Context(), r.Form)
 		in := &DescribeCacheClustersMessage{}
 		_ = in
 		// Decode top-level scalar + map<string,string> + list<string>
@@ -821,12 +824,13 @@ type ModifyCacheClusterBackend interface {
 
 // ModifyCacheClusterHandler decodes a ModifyCacheCluster request, dispatches
 // to the backend, and encodes the response per awsQuery semantics.
-// Form-encoded request bodies are decoded field-by-field; nested
-// list / map shapes use the AWS member / entry conventions and are
-// decoded by spec-aware adapter glue (Phase 11 follow-on).
+// Form-encoded request bodies are decoded field-by-field for
+// scalars, map<string,string>, and list<string> shapes. Complex
+// collections (map<string,struct> like SNS MessageAttributes) are
+// available to the backend via awsquery.FormFromContext(ctx).
 func ModifyCacheClusterHandler(b ModifyCacheClusterBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
+		ctx := awsquery.WithForm(r.Context(), r.Form)
 		in := &ModifyCacheClusterMessage{}
 		_ = in
 		// Decode top-level scalar + map<string,string> + list<string>
@@ -945,12 +949,13 @@ type RebootCacheClusterBackend interface {
 
 // RebootCacheClusterHandler decodes a RebootCacheCluster request, dispatches
 // to the backend, and encodes the response per awsQuery semantics.
-// Form-encoded request bodies are decoded field-by-field; nested
-// list / map shapes use the AWS member / entry conventions and are
-// decoded by spec-aware adapter glue (Phase 11 follow-on).
+// Form-encoded request bodies are decoded field-by-field for
+// scalars, map<string,string>, and list<string> shapes. Complex
+// collections (map<string,struct> like SNS MessageAttributes) are
+// available to the backend via awsquery.FormFromContext(ctx).
 func RebootCacheClusterHandler(b RebootCacheClusterBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
+		ctx := awsquery.WithForm(r.Context(), r.Form)
 		in := &RebootCacheClusterMessage{}
 		_ = in
 		// Decode top-level scalar + map<string,string> + list<string>

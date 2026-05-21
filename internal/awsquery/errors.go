@@ -84,20 +84,66 @@ func WriteBackendError(w http.ResponseWriter, err error) {
 // </ResponseMetadata></OpResponse>`. `opName` is the operation's
 // short name; the OpResponse wrapper uses `<OpName>Response`, the
 // OpResult uses `<OpName>Result`.
+//
+// The result's fields are inlined into `<OpName>Result>` — the
+// helper strips the result struct's own outer element (Go's default
+// xml.Marshal wraps in a `<StructTypeName>` element) so the output
+// matches what AWS clients expect for the awsQuery wire shape.
 func WriteResult(w http.ResponseWriter, opName string, result interface{}) {
 	w.Header().Set("Content-Type", "text/xml")
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write([]byte(xml.Header))
-	// Open the OpResponse wrapper element.
 	_, _ = w.Write([]byte("<" + opName + "Response>"))
 	if result != nil {
-		// Open OpResult, encode the user value's fields inside, close OpResult.
-		_, _ = w.Write([]byte("<" + opName + "Result>"))
-		_ = xml.NewEncoder(w).Encode(result)
-		_, _ = w.Write([]byte("</" + opName + "Result>"))
+		inner, _ := marshalInner(result)
+		if len(inner) > 0 {
+			_, _ = w.Write([]byte("<" + opName + "Result>"))
+			_, _ = w.Write(inner)
+			_, _ = w.Write([]byte("</" + opName + "Result>"))
+		} else {
+			_, _ = w.Write([]byte("<" + opName + "Result/>"))
+		}
 	} else {
 		_, _ = w.Write([]byte("<" + opName + "Result/>"))
 	}
 	_, _ = w.Write([]byte("<ResponseMetadata><RequestId>00000000-0000-0000-0000-000000000000</RequestId></ResponseMetadata>"))
 	_, _ = w.Write([]byte("</" + opName + "Response>"))
+}
+
+// marshalInner serialises a value via xml.Marshal and strips its
+// outer element so the fields are inline-emittable inside the
+// awsQuery OpResult wrapper.
+func marshalInner(v interface{}) ([]byte, error) {
+	data, err := xml.Marshal(v)
+	if err != nil {
+		return nil, err
+	}
+	// Find the end of the opening tag and the start of the closing tag.
+	first := indexOf(data, '>')
+	if first < 0 {
+		return nil, nil
+	}
+	last := lastIndexOf(data, '<')
+	if last < 0 || last <= first {
+		return nil, nil
+	}
+	return data[first+1 : last], nil
+}
+
+func indexOf(b []byte, c byte) int {
+	for i, x := range b {
+		if x == c {
+			return i
+		}
+	}
+	return -1
+}
+
+func lastIndexOf(b []byte, c byte) int {
+	for i := len(b) - 1; i >= 0; i-- {
+		if b[i] == c {
+			return i
+		}
+	}
+	return -1
 }

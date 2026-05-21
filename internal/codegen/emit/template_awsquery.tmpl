@@ -85,12 +85,13 @@ type {{ .GoName }}Backend interface {
 
 // {{ .GoName }}Handler decodes a {{ .GoName }} request, dispatches
 // to the backend, and encodes the response per awsQuery semantics.
-// Form-encoded request bodies are decoded field-by-field; nested
-// list / map shapes use the AWS member / entry conventions and are
-// decoded by spec-aware adapter glue (Phase 11 follow-on).
+// Form-encoded request bodies are decoded field-by-field for
+// scalars, map<string,string>, and list<string> shapes. Complex
+// collections (map<string,struct> like SNS MessageAttributes) are
+// available to the backend via awsquery.FormFromContext(ctx).
 func {{ .GoName }}Handler(b {{ .GoName }}Backend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
+		ctx := awsquery.WithForm(r.Context(), r.Form)
 {{- if .InputType }}
 		in := &{{ .InputType }}{}
 		_ = in

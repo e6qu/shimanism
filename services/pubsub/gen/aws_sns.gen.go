@@ -365,12 +365,13 @@ type CreateTopicBackend interface {
 
 // CreateTopicHandler decodes a CreateTopic request, dispatches
 // to the backend, and encodes the response per awsQuery semantics.
-// Form-encoded request bodies are decoded field-by-field; nested
-// list / map shapes use the AWS member / entry conventions and are
-// decoded by spec-aware adapter glue (Phase 11 follow-on).
+// Form-encoded request bodies are decoded field-by-field for
+// scalars, map<string,string>, and list<string> shapes. Complex
+// collections (map<string,struct> like SNS MessageAttributes) are
+// available to the backend via awsquery.FormFromContext(ctx).
 func CreateTopicHandler(b CreateTopicBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
+		ctx := awsquery.WithForm(r.Context(), r.Form)
 		in := &CreateTopicInput{}
 		_ = in
 		// Decode top-level scalar + map<string,string> + list<string>
@@ -428,12 +429,13 @@ type DeleteTopicBackend interface {
 
 // DeleteTopicHandler decodes a DeleteTopic request, dispatches
 // to the backend, and encodes the response per awsQuery semantics.
-// Form-encoded request bodies are decoded field-by-field; nested
-// list / map shapes use the AWS member / entry conventions and are
-// decoded by spec-aware adapter glue (Phase 11 follow-on).
+// Form-encoded request bodies are decoded field-by-field for
+// scalars, map<string,string>, and list<string> shapes. Complex
+// collections (map<string,struct> like SNS MessageAttributes) are
+// available to the backend via awsquery.FormFromContext(ctx).
 func DeleteTopicHandler(b DeleteTopicBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
+		ctx := awsquery.WithForm(r.Context(), r.Form)
 		in := &DeleteTopicInput{}
 		_ = in
 		// Decode top-level scalar + map<string,string> + list<string>
@@ -457,12 +459,13 @@ type ListTopicsBackend interface {
 
 // ListTopicsHandler decodes a ListTopics request, dispatches
 // to the backend, and encodes the response per awsQuery semantics.
-// Form-encoded request bodies are decoded field-by-field; nested
-// list / map shapes use the AWS member / entry conventions and are
-// decoded by spec-aware adapter glue (Phase 11 follow-on).
+// Form-encoded request bodies are decoded field-by-field for
+// scalars, map<string,string>, and list<string> shapes. Complex
+// collections (map<string,struct> like SNS MessageAttributes) are
+// available to the backend via awsquery.FormFromContext(ctx).
 func ListTopicsHandler(b ListTopicsBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
+		ctx := awsquery.WithForm(r.Context(), r.Form)
 		in := &ListTopicsInput{}
 		_ = in
 		// Decode top-level scalar + map<string,string> + list<string>
@@ -490,12 +493,13 @@ type SubscribeBackend interface {
 
 // SubscribeHandler decodes a Subscribe request, dispatches
 // to the backend, and encodes the response per awsQuery semantics.
-// Form-encoded request bodies are decoded field-by-field; nested
-// list / map shapes use the AWS member / entry conventions and are
-// decoded by spec-aware adapter glue (Phase 11 follow-on).
+// Form-encoded request bodies are decoded field-by-field for
+// scalars, map<string,string>, and list<string> shapes. Complex
+// collections (map<string,struct> like SNS MessageAttributes) are
+// available to the backend via awsquery.FormFromContext(ctx).
 func SubscribeHandler(b SubscribeBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
+		ctx := awsquery.WithForm(r.Context(), r.Form)
 		in := &SubscribeInput{}
 		_ = in
 		// Decode top-level scalar + map<string,string> + list<string>
@@ -559,12 +563,13 @@ type UnsubscribeBackend interface {
 
 // UnsubscribeHandler decodes a Unsubscribe request, dispatches
 // to the backend, and encodes the response per awsQuery semantics.
-// Form-encoded request bodies are decoded field-by-field; nested
-// list / map shapes use the AWS member / entry conventions and are
-// decoded by spec-aware adapter glue (Phase 11 follow-on).
+// Form-encoded request bodies are decoded field-by-field for
+// scalars, map<string,string>, and list<string> shapes. Complex
+// collections (map<string,struct> like SNS MessageAttributes) are
+// available to the backend via awsquery.FormFromContext(ctx).
 func UnsubscribeHandler(b UnsubscribeBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
+		ctx := awsquery.WithForm(r.Context(), r.Form)
 		in := &UnsubscribeInput{}
 		_ = in
 		// Decode top-level scalar + map<string,string> + list<string>
@@ -588,12 +593,13 @@ type ListSubscriptionsBackend interface {
 
 // ListSubscriptionsHandler decodes a ListSubscriptions request, dispatches
 // to the backend, and encodes the response per awsQuery semantics.
-// Form-encoded request bodies are decoded field-by-field; nested
-// list / map shapes use the AWS member / entry conventions and are
-// decoded by spec-aware adapter glue (Phase 11 follow-on).
+// Form-encoded request bodies are decoded field-by-field for
+// scalars, map<string,string>, and list<string> shapes. Complex
+// collections (map<string,struct> like SNS MessageAttributes) are
+// available to the backend via awsquery.FormFromContext(ctx).
 func ListSubscriptionsHandler(b ListSubscriptionsBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
+		ctx := awsquery.WithForm(r.Context(), r.Form)
 		in := &ListSubscriptionsInput{}
 		_ = in
 		// Decode top-level scalar + map<string,string> + list<string>
@@ -621,12 +627,13 @@ type ListSubscriptionsByTopicBackend interface {
 
 // ListSubscriptionsByTopicHandler decodes a ListSubscriptionsByTopic request, dispatches
 // to the backend, and encodes the response per awsQuery semantics.
-// Form-encoded request bodies are decoded field-by-field; nested
-// list / map shapes use the AWS member / entry conventions and are
-// decoded by spec-aware adapter glue (Phase 11 follow-on).
+// Form-encoded request bodies are decoded field-by-field for
+// scalars, map<string,string>, and list<string> shapes. Complex
+// collections (map<string,struct> like SNS MessageAttributes) are
+// available to the backend via awsquery.FormFromContext(ctx).
 func ListSubscriptionsByTopicHandler(b ListSubscriptionsByTopicBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
+		ctx := awsquery.WithForm(r.Context(), r.Form)
 		in := &ListSubscriptionsByTopicInput{}
 		_ = in
 		// Decode top-level scalar + map<string,string> + list<string>
@@ -655,12 +662,13 @@ type PublishBackend interface {
 
 // PublishHandler decodes a Publish request, dispatches
 // to the backend, and encodes the response per awsQuery semantics.
-// Form-encoded request bodies are decoded field-by-field; nested
-// list / map shapes use the AWS member / entry conventions and are
-// decoded by spec-aware adapter glue (Phase 11 follow-on).
+// Form-encoded request bodies are decoded field-by-field for
+// scalars, map<string,string>, and list<string> shapes. Complex
+// collections (map<string,struct> like SNS MessageAttributes) are
+// available to the backend via awsquery.FormFromContext(ctx).
 func PublishHandler(b PublishBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
+		ctx := awsquery.WithForm(r.Context(), r.Form)
 		in := &PublishInput{}
 		_ = in
 		// Decode top-level scalar + map<string,string> + list<string>
@@ -713,12 +721,13 @@ type GetTopicAttributesBackend interface {
 
 // GetTopicAttributesHandler decodes a GetTopicAttributes request, dispatches
 // to the backend, and encodes the response per awsQuery semantics.
-// Form-encoded request bodies are decoded field-by-field; nested
-// list / map shapes use the AWS member / entry conventions and are
-// decoded by spec-aware adapter glue (Phase 11 follow-on).
+// Form-encoded request bodies are decoded field-by-field for
+// scalars, map<string,string>, and list<string> shapes. Complex
+// collections (map<string,struct> like SNS MessageAttributes) are
+// available to the backend via awsquery.FormFromContext(ctx).
 func GetTopicAttributesHandler(b GetTopicAttributesBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
+		ctx := awsquery.WithForm(r.Context(), r.Form)
 		in := &GetTopicAttributesInput{}
 		_ = in
 		// Decode top-level scalar + map<string,string> + list<string>
@@ -743,12 +752,13 @@ type SetTopicAttributesBackend interface {
 
 // SetTopicAttributesHandler decodes a SetTopicAttributes request, dispatches
 // to the backend, and encodes the response per awsQuery semantics.
-// Form-encoded request bodies are decoded field-by-field; nested
-// list / map shapes use the AWS member / entry conventions and are
-// decoded by spec-aware adapter glue (Phase 11 follow-on).
+// Form-encoded request bodies are decoded field-by-field for
+// scalars, map<string,string>, and list<string> shapes. Complex
+// collections (map<string,struct> like SNS MessageAttributes) are
+// available to the backend via awsquery.FormFromContext(ctx).
 func SetTopicAttributesHandler(b SetTopicAttributesBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
+		ctx := awsquery.WithForm(r.Context(), r.Form)
 		in := &SetTopicAttributesInput{}
 		_ = in
 		// Decode top-level scalar + map<string,string> + list<string>
@@ -777,12 +787,13 @@ type ListTagsForResourceBackend interface {
 
 // ListTagsForResourceHandler decodes a ListTagsForResource request, dispatches
 // to the backend, and encodes the response per awsQuery semantics.
-// Form-encoded request bodies are decoded field-by-field; nested
-// list / map shapes use the AWS member / entry conventions and are
-// decoded by spec-aware adapter glue (Phase 11 follow-on).
+// Form-encoded request bodies are decoded field-by-field for
+// scalars, map<string,string>, and list<string> shapes. Complex
+// collections (map<string,struct> like SNS MessageAttributes) are
+// available to the backend via awsquery.FormFromContext(ctx).
 func ListTagsForResourceHandler(b ListTagsForResourceBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
+		ctx := awsquery.WithForm(r.Context(), r.Form)
 		in := &ListTagsForResourceRequest{}
 		_ = in
 		// Decode top-level scalar + map<string,string> + list<string>
