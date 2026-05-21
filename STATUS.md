@@ -25,7 +25,7 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 | CI | Five required checks: `branch rebased on origin/main`, `tracked symlinks resolve`, `continuity docs present`, `go vet + test + build`, `dependency licenses AGPL-compatible`. |
 | Renovate | Config committed (48h minimum release age, weekly batches, pinned GitHub Actions SHAs); **user must install the Renovate GitHub App** at https://github.com/apps/renovate. |
 | Dep policy | [`doc/DEPENDENCY_POLICY.md`](doc/DEPENDENCY_POLICY.md): min release age 48h, prefer pure-Go over cgo, pnpm + no lifecycle scripts when JS lands. |
-| Bugs | 13 filed · 7 fixed · 6 open. Phase 10.1 closed BUG-5 (GCP `Operations.Get`); Phase 9 had fixed BUG-9/10/11 + filed BUG-12 + BUG-13. |
+| Bugs | 14 filed · 7 fixed · 6 open · 1 false positive. Phase 10.2 drift audit filed BUG-14 then reclassified as a Terraform-provider quirk after the shim's `NoSuchTagSet` envelope was confirmed to match real S3 bit-for-bit. Fixture remedy: HCL declares `tags = {}` explicitly. |
 | Live infra | None. |
 
 ## Invariants (carry across compactions / fresh sessions)

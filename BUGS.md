@@ -1,6 +1,6 @@
 # Known Bugs
 
-**13 filed · 7 fixed · 6 open · 0 false positives.**
+**14 filed · 7 fixed · 6 open · 1 false positive.**
 
 Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLAN.md](PLAN.md) · narrative [WHAT_WE_DID.md](WHAT_WE_DID.md) · rules [AGENTS.md](AGENTS.md).
 
@@ -25,8 +25,7 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 
 | Area | Finding | Why it's not a bug |
 |------|---------|--------------------|
-
-*(empty)*
+| BUG-14 / storage Apply test fixture | `terraform apply` of `aws_s3_bucket` with no `tags` declared, followed by `plan -refresh-only -detailed-exitcode`, surfaces `tags: absent → {}` drift. | The shim returns `<Code>NoSuchTagSet</Code>` 404, identical to real AWS. The drift comes from hashicorp/aws's own behavior: it records `tags = {}` after read regardless of whether the HCL declared tags. Real AWS exhibits the same drift in the same path. **Resolution:** Phase 10 apply-test fixtures declare `tags = {}` explicitly to match the canonical Terraform idiom for "this resource has no tags". Documented in [`services/storage/APPLY_INTERSECTION.md`](services/storage/APPLY_INTERSECTION.md) as a Terraform-provider quirk. |
 
 ## Class-of-bug rules (carried forward)
 
