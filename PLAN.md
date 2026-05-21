@@ -156,19 +156,32 @@ The earlier AGENTS.md row required `cloud.google.com/go/<svc>` (gRPC) as the can
 |---|---|---|
 | 11.0 | ✅ | Plan baseline + codex review (this section + PR #18). |
 | 11.1 | ✅ | Architecture spike landed: per-cloud verifier libraries documented above (§ Architecture decisions); GCP SDK row reconciled in AGENTS.md to widen for REST; BUG-15 walked (drift persists with the Phase 10.3 partial fix; pinned to Track A for real-cloud comparison); BUG-8 confirmed Track-A only (no code change). |
-| 11.2 | ✅ | **Smithy emitter — `awsJson1_1` protocol path.** Runtime helper at `internal/awsjson/` (Router, BackendError, error envelope helpers); new emitter template `internal/codegen/emit/template_awsjson.tmpl` paralleling the REST-XML one; protocol detection via service-shape traits (`aws.protocols#awsJson1_1`, `#awsJson1_0`, `#awsQuery`, `#restJson1`, `#restXml`); per-protocol template selection; JSON-tagged Go structs; required-field validation at decode → `ValidationException`; `awsjson.MissingRequiredField`, `WriteBackendError`, `WriteError` write the JSON envelope with `__type` + `X-Amzn-Errortype`. New `internal/codegen/awsjson_test.go` proves the emitter produces gofmt-clean Go, parseable via `go/parser`, with the expected symbols + correct protocol-specific imports. |
-| 11.3 | ✅ | AWS Secrets Manager service migration. **11.3a** ✅ generalised `make codegen`. **11.3b** ✅ `awsjson.EpochTime`. **11.3c** ✅ adapter at `internal/secrets/frontends/aws_secretsmanager/adapter.go` implements `gen.SecretsManagerBackend` for all 11 ops; `New(s)` returns the generated router via `gen.RegisterSecretsManagerRoutes`; deleted 865 lines of hand-written wire (`handlers.go`, `server.go`, `errors.go`). Conformance unchanged — `TestAWSSDK_*` and `TestTerraform_AWSSecrets_*` green in isolation. |
-| 11.4 | ◻ | **OpenAPI v3 (Azure) pilot for Key Vault.** `oapi-codegen` net/http server stubs + `kin-openapi` request-validation middleware + Azure error-envelope mapping + Bearer challenge issuance + ARM LRO polling. Migrate Key Vault frontend to `services/secrets/gen/azure/`. |
-| 11.5 | ◻ | GCP Secret Manager — routing layer emitted from Discovery, reusing `google.golang.org/api/secretmanager/v1` wire types. Decide REST-vs-gRPC SDK conformance row per 11.1 output. |
-| 11.6 | ◻ | **BUG-18 signature verification across the 3 secrets frontends.** AWS SigV4 verifier built on `signer/v4` canonical-request building blocks; Azure Bearer challenge + JWT signature validation; GCP bearer-token honest path (per 11.1 decision). Conformance lanes: real signing + valid-auth acceptance + tampered-signature rejection (wrong region/service, stale timestamp, mutated header, mutated body). Auth-bypass knobs dropped from secrets lanes. |
-| 11.7 | ◻ | Roll forward to queue. Add `awsJson1_0` to Smithy emitter (SQS); OpenAPI for Azure Service Bus admin; GCP Pub/Sub Discovery. Sig verification carried forward. |
-| 11.8 | ◻ | Roll forward to pubsub. Add `awsQuery` to Smithy emitter (SNS); GCP Pub/Sub Discovery; Azure Service Bus topics OpenAPI. |
-| 11.9 | ◻ | Roll forward to rdbms. `awsQuery` extension already present (from 11.8); GCP Cloud SQL Admin Discovery; Azure ARM OpenAPI. |
-| 11.10 | ◻ | Roll forward to cache. `awsQuery` (ElastiCache); GCP Memorystore REST; Azure ARM OpenAPI. |
-| 11.11 | ◻ | Roll forward to functions. Add `restJson1` to Smithy emitter (Lambda); GCP Cloud Run Discovery; Azure Container Apps ARM OpenAPI. |
-| 11.12 | ◻ | Roll forward to apigateway. `restJson1` (APIGW v2); GCP API Gateway Discovery; Azure APIM ARM OpenAPI. |
-| 11.13 | ◻ | Storage retrofit. SharedKey verifier on the Azure Blob frontend; SigV4 verifier on the AWS S3 frontend; bearer-token verifier on the GCS frontend. Negative-conformance tests added retrospectively. Auth-bypass knobs dropped from storage lanes. |
-| 11.14 | ◻ | Phase 11 closer. All 8 services spec-driven with honest field-level validation; `make codegen` regenerates everything; BUG-18 closed; auth-bypass deleted across conformance. |
+| 11.2 | ✅ | **Smithy emitter — `awsJson1_1` (+ `awsJson1_0`) protocol path.** Runtime helper at `internal/awsjson/`; new emitter template `template_awsjson.tmpl`; protocol detection; JSON-tagged Go structs; required-field validation at decode → `ValidationException`; `__type` + `X-Amzn-Errortype` envelope. |
+| 11.3 | ✅ | AWS Secrets Manager spec-driven (11.3a/b/c). Adapter at `internal/secrets/frontends/aws_secretsmanager/adapter.go`; 865 LOC hand-written wire deleted. |
+| 11.4 | ◻ | **Azure Key Vault oapi-codegen pilot.** Not yet started. |
+| 11.5 | ◻ | **GCP Secret Manager routing emitter.** Not yet started. |
+| 11.6 | ◐ | **BUG-18 signature verification.** **11.6a** ✅ `internal/sigv4verifier/` package — Authorization-header parse, credential-store lookup, body buffering, re-sign + constant-time compare, clock-skew check, 7 unit tests covering accept/reject/tampered/stale/restore. **11.6b** ◻ per-frontend wiring (call verifier in adapter, drop auth-bypass from conformance) — pending. Azure Bearer + GCP ID-token verifiers — pending. |
+| 11.7 | ◐ | **Queue.** **11.7a** ✅ SQS spec-driven via existing `awsJson1_0` emitter path. Adapter at `internal/queue/frontends/aws_sqs/adapter.go`; 679 LOC hand-written wire deleted. `awsjson.BackendError` gained `QueryCompatibleCode` so SQS-awsQueryCompatible legacy error codes round-trip via `x-amzn-query-error`. **11.7b** ◻ Azure Service Bus admin + GCP Pub/Sub frontend migrations — pending. |
+| 11.8 | ◻ | **Pubsub (SNS).** Blocked on `awsQuery` emitter extension. |
+| 11.9 | ◐ | **Functions (Lambda).** **11.9a** ✅ `restJson1` emitter path landed (template `template_restjson.tmpl`). **11.9b** ◐ manifest extended to 14 ops; gen file in tree (`services/functions/gen/aws_lambda.gen.go`); adapter swap pending. |
+| 11.10 | ◐ | **API Gateway v2.** Same shape as 11.9 — gen file in tree, adapter swap pending. |
+| 11.11 | ◻ | **rdbms (RDS).** Blocked on `awsQuery` emitter extension. |
+| 11.12 | ◻ | **Cache (ElastiCache).** Blocked on `awsQuery` emitter extension. |
+| 11.13 | ◻ | **Storage retrofit.** SharedKey verifier on Azure Blob; SigV4 verifier on S3; bearer-token verifier on GCS. Auth-bypass knobs dropped. |
+| 11.14 | ◻ | **Phase 11 closer.** All 8 services spec-driven; BUG-18 closed; auth-bypass deleted across conformance. |
+
+### Remaining work (honest)
+
+After 11.0–11.3c + 11.6a + 11.7a + 11.9/10a + the Lambda/APIGW manifest extensions, the substantial chunks still ahead:
+
+- **`awsQuery` emitter extension** — unblocks SNS, RDS, ElastiCache. Form-encoded request bodies + XML responses + XML error envelope; the most complex of the four AWS protocols (Smithy structures serialise as flat `name=value&list.1=...&map.1.key=...` pairs).
+- **Lambda + APIGW v2 adapter migrations** — generated stubs are in tree; pattern is identical to 11.3c / 11.7a (~480 LOC adapter per service mapping each generated `<Op>Backend` interface).
+- **Per-frontend SigV4 wiring** — verifier package exists; each AWS-shaped adapter needs to call `Verify(r)` before dispatch and drop the corresponding conformance auth-bypass knobs.
+- **GCP routing emitter** — emit dispatch tables from Discovery JSON; reuse `google.golang.org/api/<svc>/v1` wire types. Then per-service adapter migrations.
+- **Azure `oapi-codegen` integration** — generated `net/http` stubs + `kin-openapi` validation middleware + Bearer challenge handling + ARM LRO. Then per-service adapter migrations.
+- **GCP ID-token + Azure Bearer verifiers** — analogous packages to `internal/sigv4verifier`.
+- **Storage retrofit** — apply SigV4/SharedKey/bearer to existing `services/storage/gen/` REST-XML stubs.
+- **Conformance lane cleanup** — drop `skip_credentials_validation` / `WithoutAuthentication` / `fakeAzureCred` everywhere.
 
 Status legend: ✅ done · ◐ in progress · ◻ pending · ⏸ paused.
 

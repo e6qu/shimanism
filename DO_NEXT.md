@@ -11,23 +11,18 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 - **Phase 11 sub-task table:** lives in [PLAN.md § Phase 11](PLAN.md#phase-11--tighten-the-wire-boundary). Do not duplicate it here — update it in PLAN.md as sub-tasks land.
 - **Phase 12 sub-task table:** lives in [PLAN.md § Phase 12](PLAN.md#phase-12--cross-cloud-migration-cell-expansion). Doesn't depend on Phase 11.
 
-## Next concrete action
+## Next concrete actions (in priority order)
 
-**11.3c** — Wire generated `gen.SecretsManagerBackend` into `harness.StartSecretsServerAWS`; delete hand-written wire.
+PR #18 has shipped substantial Phase 11 progress. The remaining work doesn't fit one session; pick from these in priority order.
 
-The codegen artifacts + EpochTime fidelity foundation are in tree. 11.3c writes the per-op adapter:
-
-- New file `internal/secrets/frontends/aws_secretsmanager/adapter.go` implementing every generated `<Op>Backend` interface method. Each method maps `gen.*Request` → existing domain types → calls `srv.s.<Op>(...)` → maps result → `*gen.*Response`. The existing helpers (versionIDFor, fakeARN, normaliseSecretID, tagsFromMap) move into the adapter file or a `wire.go`.
-- Update `internal/harness/server.go` `StartSecretsServerAWS` to use `gen.RegisterSecretsManagerRoutes(adapter)` instead of `awssmfront.New(backend)`.
-- Delete `internal/secrets/frontends/aws_secretsmanager/handlers.go` + `server.go` + `errors.go`. The package becomes the adapter only.
-- AWS SDK / CLI / Terraform conformance tests in `services/secrets/conformance/` must pass unchanged.
-
-Two tricky bits to keep in mind:
-
-- `GetResourcePolicy` probe: the hand-written handler returns the canonical "no policy" response (no actual policy storage). The generated `GetResourcePolicyResponse` has the same shape; the adapter just constructs the empty-policy form.
-- Version-handle translation: the hand-written code uses `versionIDFor(n uint64)` to render the domain's monotonic uint64 as a zero-UUID. The adapter carries this verbatim.
-
-After 11.3c, **11.4** opens (Azure Key Vault oapi-codegen pilot).
+1. **Lambda adapter migration (11.9b).** Gen file in tree (`services/functions/gen/aws_lambda.gen.go`, 14 ops). Write `internal/functions/frontends/aws_lambda/adapter.go` implementing `gen.LambdaBackend`; delete `server.go` + `errors.go`. Same shape as `internal/secrets/frontends/aws_secretsmanager/adapter.go`. ~30-60 min.
+2. **APIGW v2 adapter migration (11.10b).** Same shape; gen file in tree.
+3. **Per-frontend SigV4 wiring (11.6b).** Verifier package exists. Each AWS adapter calls `verifier.Verify(r)` early; conformance tests use the deterministic test signing key. Start with secrets (already migrated, smallest surface).
+4. **`awsQuery` emitter extension.** Form-encoded request body + XML response + XML error envelope. Heaviest remaining emitter work; unblocks SNS, RDS, ElastiCache (11.8 / 11.11 / 11.12).
+5. **GCP routing emitter (11.5).** Discovery JSON → routing-only Go (wire types via `google.golang.org/api/<svc>/v1`). Start with Secret Manager.
+6. **Azure `oapi-codegen` pilot (11.4).** Net/http stubs + `kin-openapi` validation + Bearer challenge + ARM LRO. Key Vault first.
+7. **Storage retrofit (11.13).** Wire SigV4 + SharedKey + bearer verifiers onto existing `services/storage/gen/` stubs.
+8. **Conformance lane cleanup + closer (11.14).** Drop auth-bypass knobs; BUG-18 closed.
 
 ## Invariants snapshot
 
