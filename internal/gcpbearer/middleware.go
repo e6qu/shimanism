@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"os"
-	"sync"
 )
 
 // Middleware returns an http.Handler that wraps `next`, verifying
@@ -50,14 +49,9 @@ func writeGCPError(w http.ResponseWriter, code int, status, message string) {
 	})
 }
 
-var (
-	bypassOnce sync.Once
-	bypassFlag bool
-)
-
+// bypass reads SHIMANISM_TEST_UNAUTHENTICATED on every call so
+// per-test t.Setenv overrides take effect even after the harness
+// init() set the var process-wide.
 func bypass() bool {
-	bypassOnce.Do(func() {
-		bypassFlag = os.Getenv("SHIMANISM_TEST_UNAUTHENTICATED") == "1"
-	})
-	return bypassFlag
+	return os.Getenv("SHIMANISM_TEST_UNAUTHENTICATED") == "1"
 }

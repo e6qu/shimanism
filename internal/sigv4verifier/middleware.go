@@ -4,7 +4,6 @@ import (
 	"context"
 	"net/http"
 	"os"
-	"sync"
 )
 
 // Middleware returns an http.Handler that wraps `next`, verifying
@@ -49,19 +48,12 @@ func Middleware(v *Verifier, emitErr EmitError) func(http.Handler) http.Handler 
 	}
 }
 
-var (
-	bypassOnce sync.Once
-	bypassFlag bool
-)
-
-// bypass reports whether the SHIMANISM_TEST_UNAUTHENTICATED env var
-// is set. Cached on first read so changing the env mid-process won't
-// flip behaviour silently — set it before the shim starts.
+// bypass reads SHIMANISM_TEST_UNAUTHENTICATED on every call so
+// per-test t.Setenv overrides take effect even after the harness
+// init() set the var process-wide. The per-request lookup cost is
+// trivial relative to the rest of request handling.
 func bypass() bool {
-	bypassOnce.Do(func() {
-		bypassFlag = os.Getenv("SHIMANISM_TEST_UNAUTHENTICATED") == "1"
-	})
-	return bypassFlag
+	return os.Getenv("SHIMANISM_TEST_UNAUTHENTICATED") == "1"
 }
 
 // StaticStore is a CredentialStore wired to a single (access-key,

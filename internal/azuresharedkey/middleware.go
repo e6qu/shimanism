@@ -4,7 +4,6 @@ import (
 	"encoding/xml"
 	"net/http"
 	"os"
-	"sync"
 )
 
 // Middleware returns an http.Handler that wraps `next`, verifying
@@ -56,14 +55,6 @@ func writeStorageError(w http.ResponseWriter, code int, errorCode, message strin
 	_ = xml.NewEncoder(w).Encode(storageErrorEnvelope{Code: errorCode, Message: message})
 }
 
-var (
-	bypassOnce sync.Once
-	bypassFlag bool
-)
-
 func bypass() bool {
-	bypassOnce.Do(func() {
-		bypassFlag = os.Getenv("SHIMANISM_TEST_UNAUTHENTICATED") == "1"
-	})
-	return bypassFlag
+	return os.Getenv("SHIMANISM_TEST_UNAUTHENTICATED") == "1"
 }

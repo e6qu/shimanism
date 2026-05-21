@@ -297,7 +297,9 @@ func StartPubsubServerAWS(t *testing.T, backend pubsubdomain.Pubsub) *PubsubServ
 func StartPubsubServerGCP(t *testing.T, backend pubsubdomain.Pubsub) *PubsubServer {
 	t.Helper()
 	srv := gcppubsubpsfront.New(backend)
-	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
+	verifier := gcpbearer.New(gcpbearer.Options{Audience: "https://pubsub.googleapis.com/", TestKey: []byte("test-key-do-not-use-in-prod")})
+	mw := gcpbearer.Middleware(verifier)
+	ts := httptest.NewServer(&logRoundTrip{t: t, mux: mw(srv)})
 	t.Cleanup(ts.Close)
 	return &PubsubServer{URL: ts.URL, Close: ts.Close}
 }
@@ -308,7 +310,9 @@ func StartPubsubServerGCP(t *testing.T, backend pubsubdomain.Pubsub) *PubsubServ
 func StartPubsubServerAzure(t *testing.T, backend pubsubdomain.Pubsub) *PubsubServer {
 	t.Helper()
 	srv := azuresbtopicsfront.New(backend)
-	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
+	verifier := azurebearer.New(azurebearer.Options{Audience: "https://servicebus.azure.net", TestKey: []byte("test-key-do-not-use-in-prod")})
+	mw := azurebearer.Middleware(verifier)
+	ts := httptest.NewServer(&logRoundTrip{t: t, mux: mw(srv)})
 	t.Cleanup(ts.Close)
 	return &PubsubServer{URL: ts.URL, Close: ts.Close}
 }
@@ -334,7 +338,9 @@ func StartRDBMSServerAWS(t *testing.T, backend rdbmsdomain.RDBMS) *RDBMSServer {
 func StartRDBMSServerGCP(t *testing.T, backend rdbmsdomain.RDBMS) *RDBMSServer {
 	t.Helper()
 	srv := gcpcloudsqlfront.New(backend)
-	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
+	verifier := gcpbearer.New(gcpbearer.Options{Audience: "https://sqladmin.googleapis.com/", TestKey: []byte("test-key-do-not-use-in-prod")})
+	mw := gcpbearer.Middleware(verifier)
+	ts := httptest.NewServer(&logRoundTrip{t: t, mux: mw(srv)})
 	t.Cleanup(ts.Close)
 	return &RDBMSServer{URL: ts.URL, Close: ts.Close}
 }
@@ -346,7 +352,9 @@ func StartRDBMSServerGCP(t *testing.T, backend rdbmsdomain.RDBMS) *RDBMSServer {
 func StartRDBMSServerAzure(t *testing.T, backend rdbmsdomain.RDBMS) *RDBMSServer {
 	t.Helper()
 	srv := azuredbadminfront.New(backend)
-	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
+	verifier := azurebearer.New(azurebearer.Options{Audience: "https://management.azure.com/", TestKey: []byte("test-key-do-not-use-in-prod")})
+	mw := azurebearer.Middleware(verifier)
+	ts := httptest.NewServer(&logRoundTrip{t: t, mux: mw(srv)})
 	t.Cleanup(ts.Close)
 	return &RDBMSServer{URL: ts.URL, Close: ts.Close}
 }
@@ -373,7 +381,9 @@ func StartCacheServerAWS(t *testing.T, backend cachedomain.Cache) *CacheServer {
 func StartCacheServerGCP(t *testing.T, backend cachedomain.Cache) *CacheServer {
 	t.Helper()
 	srv := gcpmsfront.New(backend)
-	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
+	verifier := gcpbearer.New(gcpbearer.Options{Audience: "https://redis.googleapis.com/", TestKey: []byte("test-key-do-not-use-in-prod")})
+	mw := gcpbearer.Middleware(verifier)
+	ts := httptest.NewServer(&logRoundTrip{t: t, mux: mw(srv)})
 	t.Cleanup(ts.Close)
 	return &CacheServer{URL: ts.URL, Close: ts.Close}
 }
@@ -383,7 +393,9 @@ func StartCacheServerGCP(t *testing.T, backend cachedomain.Cache) *CacheServer {
 func StartCacheServerAzure(t *testing.T, backend cachedomain.Cache) *CacheServer {
 	t.Helper()
 	srv := azureredisfront.New(backend)
-	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
+	verifier := azurebearer.New(azurebearer.Options{Audience: "https://management.azure.com/", TestKey: []byte("test-key-do-not-use-in-prod")})
+	mw := azurebearer.Middleware(verifier)
+	ts := httptest.NewServer(&logRoundTrip{t: t, mux: mw(srv)})
 	t.Cleanup(ts.Close)
 	return &CacheServer{URL: ts.URL, Close: ts.Close}
 }
@@ -410,7 +422,9 @@ func StartFunctionsServerAWS(t *testing.T, backend functionsdomain.Functions) *F
 func StartFunctionsServerGCP(t *testing.T, backend functionsdomain.Functions) *FunctionsServer {
 	t.Helper()
 	srv := gcpcrfront.New(backend)
-	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
+	verifier := gcpbearer.New(gcpbearer.Options{Audience: "https://run.googleapis.com/", TestKey: []byte("test-key-do-not-use-in-prod")})
+	mw := gcpbearer.Middleware(verifier)
+	ts := httptest.NewServer(&logRoundTrip{t: t, mux: mw(srv)})
 	t.Cleanup(ts.Close)
 	return &FunctionsServer{URL: ts.URL, Close: ts.Close}
 }
@@ -420,7 +434,9 @@ func StartFunctionsServerGCP(t *testing.T, backend functionsdomain.Functions) *F
 func StartFunctionsServerAzure(t *testing.T, backend functionsdomain.Functions) *FunctionsServer {
 	t.Helper()
 	srv := azurecafront.New(backend)
-	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
+	verifier := azurebearer.New(azurebearer.Options{Audience: "https://management.azure.com/", TestKey: []byte("test-key-do-not-use-in-prod")})
+	mw := azurebearer.Middleware(verifier)
+	ts := httptest.NewServer(&logRoundTrip{t: t, mux: mw(srv)})
 	t.Cleanup(ts.Close)
 	return &FunctionsServer{URL: ts.URL, Close: ts.Close}
 }
@@ -449,7 +465,9 @@ func StartAPIGatewayServerAWS(t *testing.T, backend apigatewaydomain.APIGateway)
 func StartAPIGatewayServerGCP(t *testing.T, backend apigatewaydomain.APIGateway) *APIGatewayServer {
 	t.Helper()
 	srv := gcpapigwfront.New(backend)
-	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
+	verifier := gcpbearer.New(gcpbearer.Options{Audience: "https://apigateway.googleapis.com/", TestKey: []byte("test-key-do-not-use-in-prod")})
+	mw := gcpbearer.Middleware(verifier)
+	ts := httptest.NewServer(&logRoundTrip{t: t, mux: mw(srv)})
 	t.Cleanup(ts.Close)
 	return &APIGatewayServer{URL: ts.URL, Close: ts.Close}
 }
@@ -461,7 +479,9 @@ func StartAPIGatewayServerGCP(t *testing.T, backend apigatewaydomain.APIGateway)
 func StartAPIGatewayServerAzure(t *testing.T, backend apigatewaydomain.APIGateway) *APIGatewayServer {
 	t.Helper()
 	srv := azureapimfront.New(backend)
-	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
+	verifier := azurebearer.New(azurebearer.Options{Audience: "https://management.azure.com/", TestKey: []byte("test-key-do-not-use-in-prod")})
+	mw := azurebearer.Middleware(verifier)
+	ts := httptest.NewServer(&logRoundTrip{t: t, mux: mw(srv)})
 	t.Cleanup(ts.Close)
 	return &APIGatewayServer{URL: ts.URL, Close: ts.Close}
 }

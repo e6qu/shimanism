@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"os"
-	"sync"
 )
 
 // Middleware returns an http.Handler that wraps `next`, verifying
@@ -76,14 +75,6 @@ func writeAzureError(w http.ResponseWriter, code int, errorCode, message, challe
 	})
 }
 
-var (
-	bypassOnce sync.Once
-	bypassFlag bool
-)
-
 func bypass() bool {
-	bypassOnce.Do(func() {
-		bypassFlag = os.Getenv("SHIMANISM_TEST_UNAUTHENTICATED") == "1"
-	})
-	return bypassFlag
+	return os.Getenv("SHIMANISM_TEST_UNAUTHENTICATED") == "1"
 }
