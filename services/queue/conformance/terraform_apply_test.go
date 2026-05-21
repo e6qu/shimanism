@@ -194,7 +194,23 @@ func TestTerraform_GCPQueue_Apply_NoDrift(t *testing.T) {
 	// the round-trip is symmetric (started in this PR; not enough on
 	// its own — the provider behavior persists). Phase 10.3 owns the
 	// honest fix. Diamond-skip with pointer until then.
-	t.Skip("BUG-15: hashicorp/google message_retention_duration plan/apply asymmetry")
+	// BUG-15 walked in Phase 11.1: with the Phase 10.3 partial fix
+	// (shim parses retention on create, stores it, emits it on read)
+	// the drift persists even with `message_retention_duration =
+	// "604800s"` declared explicitly in HCL. The plan diff is
+	// `~ message_retention_duration = "345600s" -> "604800s"`: state
+	// has "345600s" (the provider's schema default — 4 days, oddly
+	// the AWS retention default) regardless of what HCL declared or
+	// what the API returned. The shim's HTTP responses contain
+	// "604800s" (verified by the test harness logs); something in
+	// the hashicorp/google flatten / state-write path overwrites
+	// with the schema default. Pinned to Track A (real-cloud
+	// comparison) — if real GCP exhibits the same drift, this is a
+	// hashicorp/google provider bug and reclassifies false-positive;
+	// if real GCP doesn't drift, the shim is missing a response
+	// field the provider needs to disable its default-substitution
+	// path.
+	t.Skip("BUG-15: hashicorp/google message_retention_duration plan/apply asymmetry — pinned to Track A")
 
 	t.Parallel()
 	if _, err := exec.LookPath("terraform"); err != nil {

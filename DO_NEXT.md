@@ -13,16 +13,19 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 
 ## Next concrete action
 
-**11.1** — Architecture spike. Lock in per-cloud verifier libraries before any code:
+**11.2** — Smithy emitter `awsJson1_1` protocol path.
 
-- AWS: design the SigV4 verifier (uses `signer/v4` canonical-request building blocks; constant-time compare; explicit handling for `UNSIGNED-PAYLOAD`, presigned URLs, body replay, clock skew, session tokens).
-- GCP: identify what credentials Google SDK / CLI / Terraform actually emit per shimmed service and pick the honest verification path (JWKS-validated Bearer for ID tokens; document the gap for opaque access tokens).
-- Azure: Bearer challenge issuance + JWT signature validation for Key Vault; SharedKey for Storage (Phase 11.13 retrofit).
-- GCP gRPC vs REST AGENTS.md reconciliation: pick a per-service path.
+The current Smithy emitter (`internal/codegen/`) is REST-XML-shaped: handlers import `restxml`, route from `smithy.api#http` operation traits, encode XML responses. AWS Secrets Manager uses `awsJson1_1`: HTTP `POST /` for every operation with `X-Amz-Target: SecretsManager.<Op>` for dispatch + JSON request/response bodies + JSON error envelopes (`{"__type": "...", "message": "..."}`).
 
-Output: a short doc that locks the verifier choices; folded into PLAN.md, no separate file.
+Concrete deliverables:
 
-BUG-15 walk + BUG-8 Track-A pin folded into 11.1 as the non-blocking warmup.
+- New emitter path in `internal/codegen/emit/` that emits `awsJson1_1` handlers alongside the existing REST-XML path. Pick a per-protocol template or a parameterized one; the trade-off is duplication vs. branching complexity.
+- Routing on `X-Amz-Target` instead of HTTP method/path.
+- JSON request decode with Smithy field-level validation honored at the decode boundary (required, enum, pattern, length / range constraints from the spec → source-cloud error envelope, not generic 500).
+- JSON error envelope emit: `{"__type": "...", "message": "..."}` with the `X-Amzn-Errortype` header.
+- Negative-conformance test suite in `internal/codegen/emit/` (or a new package) covering malformed JSON, missing required fields, bad enum, bad timestamp, bad number, wrong `X-Amz-Target` → assert source-cloud error envelope.
+
+Output: `make codegen` regenerates AWS Secrets Manager (or a small pilot operation set) to confirm the path works before 11.3 migrates the service.
 
 ## Invariants snapshot
 

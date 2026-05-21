@@ -91,12 +91,71 @@ The first draft of this plan made several wrong-library assumptions; the correct
 3. **GCP routing layer** — reuse `google.golang.org/api/<svc>/v1` wire types; emit only routing + dispatch. AGENTS.md SDK-row reconciliation happens here.
 4. **Smithy protocol extensions per AWS surface as we reach them** — `awsJson1_0` (SQS), `awsQuery` (SNS / RDS / ElastiCache), `restJson1` (Lambda / APIGW v2). Each is new emitter work, not addition.
 
+### Architecture decisions (locked-in during 11.1)
+
+These are the verifier-library decisions for BUG-18 and the GCP SDK-row reconciliation. They lock the per-frontend boundary so Phase 11's per-service migrations don't re-litigate the auth design.
+
+#### AWS SigV4 verifier
+
+The shim builds a server-side SigV4 verifier in `internal/sigv4verifier/` using the `aws-sdk-go-v2/aws/signer/v4` package's canonical-request building blocks (NOT its `SignHTTP` directly — that's the signer side). The verifier:
+
+1. Parses the request's `Authorization` header (or the presigned-URL query string) into algorithm + credential scope + signed-headers list + signature.
+2. Looks up the access-key-id against the shim's allowed-credentials store (in tests: a deterministic project-owned access-key + secret-key the shim trusts only when `SHIMANISM_TEST_TRUSTED_KEY` is set; in production: configured at deploy time).
+3. Recomputes the canonical request from the actual incoming request, signs with the looked-up secret-key, constant-time compares against the presented signature.
+4. Validates the signed time is within ±15 minutes of server time (AWS-standard skew window).
+5. Special cases: `x-amz-content-sha256: UNSIGNED-PAYLOAD` (body not in canonical request — accepted for streaming uploads); presigned URLs (signature in query string, different canonical construction); `X-Amz-Security-Token` (session token included in canonical request — looked up alongside the access-key).
+6. On failure: emits the source cloud's own `InvalidSignatureException` / `SignatureDoesNotMatch` / `MissingAuthenticationTokenException` envelope, not a generic 401.
+
+**What we explicitly don't do:** call AWS STS to validate temporary credentials, propagate the caller's credential to the backend (the shim uses its own backend-configured identity), or trust any header beyond what the canonical request covers.
+
+#### GCP bearer verifier
+
+The honest path is bifurcated by token type:
+
+- **ID tokens (JWT, signed by Google).** Validated via `google.golang.org/api/idtoken.Validate(ctx, token, audience)`. This handles JWKS fetch + signature verification + `iss` / `aud` / `exp` claim checks. Works for Workload Identity Federation flows and service-to-service ID-token issuance.
+- **OAuth2 access tokens (opaque).** **Cannot be verified offline.** `gcloud auth print-access-token` emits opaque tokens; verifying them honestly requires calling `https://oauth2.googleapis.com/tokeninfo?access_token=…` per request, which adds a network round-trip and a Google dependency the shim shouldn't have in its hot path. Documented gap; the test-mode signing key emits ID-token-shaped JWTs to exercise the verifier path. Real-cloud lanes (Track A) hit this for honest token validation against Google.
+
+**Conformance posture:** test-mode emits well-formed JWTs signed by the project-owned test key with `iss`, `aud`, `exp` claims; the shim validates against the test JWKS. Real-cloud lanes use real Google tokens — that path validates ID tokens via the production verifier and accepts opaque access tokens as "bearer presence + format check" (documented limitation).
+
+`golang.org/x/oauth2` is **not** the verifier — it's client-side token acquisition. It is irrelevant to Phase 11.
+
+#### Azure Bearer verifier (Key Vault, Service Bus, ARM)
+
+The Key Vault frontend already issues the WWW-Authenticate challenge on first request (no change there). The verifier:
+
+1. Extracts the Bearer JWT from the `Authorization: Bearer <token>` header.
+2. Validates the JWT signature against Microsoft's published JWKS at `https://login.microsoftonline.com/common/discovery/v2.0/keys` (cached locally; refreshed on `kid` miss).
+3. Validates `iss` matches a configured Entra tenant URI, `aud` matches the resource URI for the frontend's service (e.g. `https://vault.azure.net` for Key Vault), `exp` / `nbf` are within the allowed window.
+4. On failure: emits the Azure 401 envelope with the appropriate WWW-Authenticate hint, not a generic 401.
+
+Test-mode: project-owned signing key + well-formed JWT with the right `iss` / `aud` / `exp` claims; the shim trusts the key's `kid` only in test mode.
+
+Service Bus uses SAS / Entra ID — Phase 11 wires the Entra ID path for the Service Bus admin frontend (Phase 11.7 queue / 11.8 pubsub). SAS-only flows are out of intersection for the queue / pubsub control plane and stay on the existing Phase 4 receipt-handle code.
+
+#### Azure SharedKey verifier (Storage retrofit only)
+
+Storage retrofit (11.13). The verifier:
+
+1. Extracts the SharedKey signature from `Authorization: SharedKey <account>:<sig>` or the equivalent SAS query parameters.
+2. Reconstructs the canonical string per Azure Blob's SharedKey signing rules (verb, headers, canonical resource).
+3. Recomputes HMAC-SHA256 with the configured account key, constant-time compares.
+4. On failure: emits Azure's `AuthenticationFailed` envelope (HTTP 403 + the canonical XML body).
+
+Key Vault does **not** use SharedKey. Service Bus does not use SharedKey. SharedKey is Storage-only.
+
+#### GCP gRPC vs REST AGENTS.md reconciliation
+
+The earlier AGENTS.md row required `cloud.google.com/go/<svc>` (gRPC) as the canonical Go SDK. Actual conformance tests use `google.golang.org/api/<svc>/v1` (REST). Phase 11 takes the pragmatic path:
+
+- **For Phase 11**, REST is canonical. The shim's GCP frontends speak REST; conformance via `google.golang.org/api/<svc>/v1` is honest and full-coverage. AGENTS.md is updated to widen the SDK row: *"GCP services — REST conformance via `google.golang.org/api/<svc>/v1` is canonical for the shim today. gRPC conformance via `cloud.google.com/go/<svc>` is future expansion (out of Phase 11 scope) — adding a gRPC frontend requires a Go gRPC server + protobuf serialization + HTTP/2 multiplexing per service, none of which the shim has today."*
+- **Where a gRPC-only operation matters cross-cloud** (e.g. Pub/Sub streaming pull), the shim returns the source cloud's own `Unimplemented` envelope on the gRPC path; the REST path remains the conformance contract. Stays documented in per-service `INTERSECTION.md`.
+
 ### Sub-phases
 
 | Sub | Status | Headline |
 |---|---|---|
-| 11.0 | ◐ | Plan baseline + codex review (this section + PR #18). |
-| 11.1 | ◻ | Architecture spike: per-cloud verifier libraries (what library actually verifies, not signs) + GCP gRPC-vs-REST AGENTS.md reconciliation. Output: a doc that locks in the per-frontend verifier path before any code lands. BUG-15 walk + BUG-8 Track-A pin folded in. |
+| 11.0 | ✅ | Plan baseline + codex review (this section + PR #18). |
+| 11.1 | ✅ | Architecture spike landed: per-cloud verifier libraries documented above (§ Architecture decisions); GCP SDK row reconciled in AGENTS.md to widen for REST; BUG-15 walked (drift persists with the Phase 10.3 partial fix; pinned to Track A for real-cloud comparison); BUG-8 confirmed Track-A only (no code change). |
 | 11.2 | ◻ | **Smithy emitter — `awsJson1_1` protocol path.** New protocol serde alongside the existing REST-XML path. Negative-conformance tests for malformed JSON, missing required fields, bad enum / timestamp / number values, wrong `X-Amz-Target` header → assert source-cloud's error envelope (not generic 500). Smithy field-level validation honored at decode (not silently swallowed as today). |
 | 11.3 | ◻ | AWS Secrets Manager service migration to `services/secrets/gen/aws/`. Hand-written wire deleted. Conformance unchanged externally. |
 | 11.4 | ◻ | **OpenAPI v3 (Azure) pilot for Key Vault.** `oapi-codegen` net/http server stubs + `kin-openapi` request-validation middleware + Azure error-envelope mapping + Bearer challenge issuance + ARM LRO polling. Migrate Key Vault frontend to `services/secrets/gen/azure/`. |

@@ -97,10 +97,10 @@ A frontend's drivers are always the matching cloud's tooling — not a cross-clo
 | Frontend | SDK | CLI | Terraform provider |
 |---|---|---|---|
 | AWS | `aws-sdk-go-v2/*` | `aws` | `hashicorp/aws` with `endpoints { ... }` |
-| GCP | `cloud.google.com/go/*` | `gcloud` with `--api-endpoint-overrides` | `hashicorp/google` with endpoint overrides |
+| GCP | `google.golang.org/api/<svc>/v1` (REST, canonical for the shim today) — `cloud.google.com/go/<svc>` (gRPC) is future expansion | `gcloud` with `--api-endpoint-overrides` | `hashicorp/google` with endpoint overrides |
 | Azure | `github.com/Azure/azure-sdk-for-go/*` | `az` | `hashicorp/azurerm` |
 
-Go is canonical for the SDK row; Python + Node added per-service when relevant.
+Go is canonical for the SDK row; Python + Node added per-service when relevant. The GCP row is REST today because the shim doesn't have a gRPC server (no protobuf serialization layer, no HTTP/2 multiplexing per service). Adding gRPC support is per-service follow-on work; gRPC-only operations return `Unimplemented` envelopes on the gRPC path, and the REST path stays the conformance contract.
 
 Tests live in `services/<svc>/conformance/<frontend>/<driver>-tests/` — one driver-test directory per (frontend, driver) pair. A pre-commit / CI hook will (eventually) block any commit that registers a new operation without touching at least one test file for each frontend × each driver. Operations that genuinely aren't exposed via SDK / CLI / Terraform (rare; e.g. internal control-plane probes) go on `services/<svc>/conformance/exempt.txt` with one operation per line.
 
