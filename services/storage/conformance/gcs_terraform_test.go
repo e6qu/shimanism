@@ -11,7 +11,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/e6qu/shimanism/internal/gcpbearer"
 	"github.com/e6qu/shimanism/internal/harness"
 	"github.com/e6qu/shimanism/services/storage/backends/inmem"
 )
@@ -32,7 +34,7 @@ terraform {
 provider "google" {
   project                 = "shim-conformance"
   region                  = "us-central1"
-  access_token            = "shim-fake-token"
+  access_token            = "%s"
   storage_custom_endpoint = "%s/storage/v1/"
 }
 
@@ -57,8 +59,14 @@ func TestTerraform_GCS_ResourceLifecycle(t *testing.T) {
 	bin := requireTerraform(t)
 	srv := harness.StartStorageServerGCS(t, inmem.New())
 
+	jwt := gcpbearer.TestJWT(
+		[]byte("test-key-do-not-use-in-prod"),
+		"https://shim.test/",
+		"https://storage.googleapis.com/",
+		15*time.Minute,
+	)
 	dir := t.TempDir()
-	hcl := fmt.Sprintf(terraformGCSConfig, srv.URL)
+	hcl := fmt.Sprintf(terraformGCSConfig, jwt, srv.URL)
 	if err := os.WriteFile(filepath.Join(dir, "main.tf"), []byte(hcl), 0o644); err != nil {
 		t.Fatalf("write main.tf: %v", err)
 	}

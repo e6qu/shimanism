@@ -105,7 +105,15 @@ func (e *Error) Error() string { return e.Code + ": " + e.Message }
 // The verifier does NOT modify the request other than to restore the
 // (already-buffered) body — the Authorization header / X-Amz-Date /
 // X-Amz-Security-Token stay intact for downstream observation.
+//
+// Presigned URLs (X-Amz-Algorithm query param present) take the
+// presigned-URL verification path: the signature is in the query
+// string, the payload hash is UNSIGNED-PAYLOAD, and the canonical
+// query string excludes X-Amz-Signature from itself.
 func (v *Verifier) Verify(r *http.Request) error {
+	if r.URL.Query().Get("X-Amz-Algorithm") != "" {
+		return v.verifyPresigned(r)
+	}
 	authHdr := r.Header.Get("Authorization")
 	if authHdr == "" {
 		return &Error{
@@ -212,6 +220,71 @@ func (v *Verifier) Verify(r *http.Request) error {
 			Code:       "SignatureDoesNotMatch",
 			Message:    "request signature is not valid for the credential and request",
 		}
+	}
+	return nil
+}
+
+// verifyPresigned handles requests whose SigV4 signature is carried
+// in query parameters (X-Amz-Algorithm, X-Amz-Credential, X-Amz-Date,
+// X-Amz-Expires, X-Amz-SignedHeaders, X-Amz-Signature). The canonical
+// request excludes X-Amz-Signature from the canonical query string;
+// the payload hash defaults to UNSIGNED-PAYLOAD.
+func (v *Verifier) verifyPresigned(r *http.Request) error {
+	q := r.URL.Query()
+	if alg := q.Get("X-Amz-Algorithm"); alg != "AWS4-HMAC-SHA256" {
+		return &Error{HTTPStatus: http.StatusForbidden, Code: "InvalidSignatureException",
+			Message: "unsupported presigned signing algorithm: " + alg}
+	}
+	credential := q.Get("X-Amz-Credential")
+	signedHeaders := q.Get("X-Amz-SignedHeaders")
+	signature := q.Get("X-Amz-Signature")
+	dateStr := q.Get("X-Amz-Date")
+	if credential == "" || signedHeaders == "" || signature == "" || dateStr == "" {
+		return &Error{HTTPStatus: http.StatusForbidden, Code: "InvalidSignatureException",
+			Message: "presigned URL missing required SigV4 query parameters"}
+	}
+	signedTime, err := parseAmzDate(dateStr)
+	if err != nil {
+		return &Error{HTTPStatus: http.StatusForbidden, Code: "InvalidSignatureException",
+			Message: "X-Amz-Date: " + err.Error()}
+	}
+	if skew := time.Since(signedTime); skew > v.opts.MaxClockSkew || -skew > v.opts.MaxClockSkew {
+		return &Error{HTTPStatus: http.StatusForbidden, Code: "RequestTimeTooSkewed",
+			Message: "Signed time is outside ±" + v.opts.MaxClockSkew.String() + " of server time"}
+	}
+	credParts := strings.Split(credential, "/")
+	if len(credParts) != 5 || credParts[4] != "aws4_request" {
+		return &Error{HTTPStatus: http.StatusForbidden, Code: "InvalidSignatureException",
+			Message: "malformed Credential scope: " + credential}
+	}
+	accessKey, region, service := credParts[0], credParts[2], credParts[3]
+	if region != v.opts.Region || service != v.opts.Service {
+		return &Error{HTTPStatus: http.StatusForbidden, Code: "SignatureDoesNotMatch",
+			Message: fmt.Sprintf("credential scope does not match this frontend; got %s/%s, want %s/%s",
+				region, service, v.opts.Region, v.opts.Service)}
+	}
+	secret, _, ok := v.store.Lookup(r.Context(), accessKey)
+	if !ok {
+		return &Error{HTTPStatus: http.StatusForbidden, Code: "InvalidAccessKeyId",
+			Message: "access key id is not recognised"}
+	}
+	// Presigned URLs use UNSIGNED-PAYLOAD by default. Drain body to
+	// keep the downstream handler happy with the buffered copy.
+	if _, err := readAndRestoreBody(r); err != nil {
+		return &Error{HTTPStatus: http.StatusBadRequest, Code: "InvalidRequest",
+			Message: "could not read request body: " + err.Error()}
+	}
+	payloadHash := "UNSIGNED-PAYLOAD"
+	signedTimeFull := signedTime.UTC().Format("20060102T150405Z")
+	signedTimeYYYYMMDD := signedTime.UTC().Format("20060102")
+	expected := computePresignedSigV4Signature(r, signedHeaders, payloadHash,
+		secret, service, region, signedTimeYYYYMMDD, signedTimeFull)
+	if subtle.ConstantTimeCompare([]byte(signature), []byte(expected)) != 1 {
+		if os.Getenv("SHIMANISM_SIGV4_DEBUG") == "1" {
+			fmt.Fprintf(os.Stderr, "[sigv4verifier presigned] mismatch:\n  presented: %s\n  expected:  %s\n", signature, expected)
+		}
+		return &Error{HTTPStatus: http.StatusForbidden, Code: "SignatureDoesNotMatch",
+			Message: "request signature is not valid for the credential and request"}
 	}
 	return nil
 }

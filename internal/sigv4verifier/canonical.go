@@ -42,6 +42,37 @@ func computeSigV4Signature(r *http.Request, body []byte, signedHeaders, payloadH
 	return signature
 }
 
+// computePresignedSigV4Signature reproduces the SigV4 signature for
+// a presigned URL request. The canonical query string excludes the
+// X-Amz-Signature parameter (the signature is what we're computing).
+// Payload hash is the caller-supplied value (typically
+// UNSIGNED-PAYLOAD for presigned URLs).
+func computePresignedSigV4Signature(r *http.Request, signedHeaders, payloadHash, secret, service, region, signedTimeYYYYMMDD, signedTimeFull string) string {
+	method := r.Method
+	canonURI := canonicalURI(r.URL.Path)
+	q := r.URL.Query()
+	q.Del("X-Amz-Signature")
+	canonQuery := canonicalQueryString(q)
+	canonHeaders, signedHeadersList := canonicalHeaders(r, signedHeaders)
+	canonicalReq := method + "\n" +
+		canonURI + "\n" +
+		canonQuery + "\n" +
+		canonHeaders + "\n" +
+		signedHeadersList + "\n" +
+		payloadHash
+	hashedCR := sha256.Sum256([]byte(canonicalReq))
+	credScope := signedTimeYYYYMMDD + "/" + region + "/" + service + "/aws4_request"
+	stringToSign := "AWS4-HMAC-SHA256\n" +
+		signedTimeFull + "\n" +
+		credScope + "\n" +
+		hex.EncodeToString(hashedCR[:])
+	kDate := hmacSHA256([]byte("AWS4"+secret), []byte(signedTimeYYYYMMDD))
+	kRegion := hmacSHA256(kDate, []byte(region))
+	kService := hmacSHA256(kRegion, []byte(service))
+	kSigning := hmacSHA256(kService, []byte("aws4_request"))
+	return hex.EncodeToString(hmacSHA256(kSigning, []byte(stringToSign)))
+}
+
 // buildCanonicalRequest builds the SigV4 canonical request from the
 // incoming HTTP request + the original signed-headers list +
 // pre-computed payload hash.

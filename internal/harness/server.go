@@ -65,21 +65,19 @@ type StorageServer struct {
 	Close func()
 }
 
-// init: AWS conformance lanes have been migrated to sign with the
-// verifier's trusted credentials (Phase 11.14a-h) and the verifier's
-// manual SigV4 canonical-request implementation handles both the
-// Go SDK and the `aws` CLI signing shapes — so the AWS bypass is
-// dropped. Verification runs end-to-end in every AWS conformance
-// test now.
+// init: AWS + GCP conformance lanes have been migrated to sign with
+// the verifier's trusted credentials (Phase 11.14a-k). AWS signs
+// SigV4 with AKIAIOSFODNN7EXAMPLE/wJalrXUtnFEMI…; GCP signs HS256
+// JWTs with the gcpbearer trusted test key. Both lanes run with
+// verification enforced end-to-end and no per-cloud bypass.
 //
-// GCP + Azure tests still use `option.WithoutAuthentication()` /
-// `fakeAzureCred` and need bearer / SharedKey-aware test signing to
-// drop their per-cloud bypass; those stay set here.
+// Azure tests still use `fakeAzureCred` (azcore's stub) and need
+// real SharedKey / Bearer signing in their stack to drop the last
+// bypass. That migration is the remaining 11.14 task.
 //
 // Per-cloud env vars (SHIMANISM_TEST_UNAUTHENTICATED_{AWS,GCP,AZURE})
 // let individual tests t.Setenv a specific lane back on if needed.
 func init() {
-	os.Setenv("SHIMANISM_TEST_UNAUTHENTICATED_GCP", "1")
 	os.Setenv("SHIMANISM_TEST_UNAUTHENTICATED_AZURE", "1")
 }
 
