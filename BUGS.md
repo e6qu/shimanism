@@ -1,6 +1,6 @@
 # Known Bugs
 
-**14 filed · 7 fixed · 6 open · 1 false positive.**
+**15 filed · 7 fixed · 7 open · 1 false positive.**
 
 Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLAN.md](PLAN.md) · narrative [WHAT_WE_DID.md](WHAT_WE_DID.md) · rules [AGENTS.md](AGENTS.md).
 
@@ -20,6 +20,7 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 | BUG-6 | P2 | apigateway/azure-backend | Azure APIM `APIClient.Delete` | `armapimanagement/v3` exposes `Delete(ctx, rg, svc, name, deleteRevisions string, options *Options)` requiring an If-Match etag + a deleteRevisions decision; the v1 SDK exposed `Delete(ctx, rg, svc, name)` directly. Phase 8's Azure backend returns `domain.InvalidArgument` honestly until a v3-correct etag-fetching delete is written. Blocks Track A azure-backend conformance for `DeleteGateway`. |
 | BUG-7 | P3 | apigateway/azure-cli-frontend | `az` CLI | `az` exposes no documented per-resource endpoint override that targets only APIM (the closest mechanism is the cloud-environment switch, which forces every resource type through the shim — incompatible with multi-cloud workflows). `services/apigateway/conformance/azure_cli_test.go` is smoke-skipped pending this. |
 | BUG-8 | P3 | apigateway/gcp-tf-frontend | `hashicorp/google` | API Gateway endpoint-override attribute name changed across provider major versions and the current provider's API Gateway resource lifecycle requires real OAuth-signed requests the mock httptest server can't sign. `services/apigateway/conformance/gcp_terraform_test.go` is smoke-skipped pending Track A real-cloud TF coverage. |
+| BUG-15 | P3 | queue/gcp-frontend | GCP Pub/Sub `subscriptions.get` | After `terraform apply` of a `google_pubsub_subscription` without `message_retention_duration` declared, the shim's Read returns the field absent; real GCP returns the default `"604800s"` (7 days). `terraform plan` after apply proposes `message_retention_duration = "604800s"` as an in-place update — a Create-then-Read drift. Fix: emit the GCP default at Read time when retention wasn't user-declared. Same pattern likely applies to other GCP-default fields (`expiration_policy`, `retain_acked_messages = false`, `enable_message_ordering = false`); audit during fix. Surfaced by `TestTerraform_GCPQueue_Apply_NoDrift`. |
 
 ## False positives
 
