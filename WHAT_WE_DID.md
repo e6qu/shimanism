@@ -4,7 +4,7 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 
 > Reverse chronological. One section per phase. The *why*, the surprises, the root causes — not per-PR detail. For commit-level history, `git log`. For per-bug detail, [BUGS.md](BUGS.md).
 
-## Phase 11 — tighten the wire boundary (in-flight on `phase-11`)
+## Phase 11 — tighten the wire boundary (CLOSED — PR #18, `phase-11`)
 
 The big restructuring phase: replace hand-written wire layers with spec-driven generated stubs across every AWS-shaped frontend, and wire real signature verification (BUG-18) at the new decode boundary. Started with codex review correcting several wrong premises in the initial plan (SigV4 in `signer/v4` is signer-only not verifier; `golang.org/x/oauth2` is token-acquisition not JWT verification; Azure Key Vault is Bearer-only not SharedKey; the existing Smithy emitter was REST-XML-only — extending to awsJson / awsQuery / restJson1 is new emitter work, not a routing-table addition).
 
@@ -63,14 +63,27 @@ The reject path is enforced end-to-end: 23 unit tests across the 4 verifier pack
 - **Lambda's required-Role makes cross-cloud Create-via-Lambda-SDK intersection-out.** The AWS Lambda SDK enforces Role as a required client-side field; non-AWS backends honestly reject non-empty Role. The matrix test for non-AWS cells now asserts the InvalidParameterValueException (negative conformance for the cross-cloud Role contract).
 - **`http.Request.Form` is populated lazily.** `awsquery.Router` calls `r.ParseForm()` in ServeHTTP; generated per-op handlers then stash `r.Form` on the request context so adapters can retrieve it via `awsquery.FormFromContext(ctx)` for collection decoding the template doesn't emit (SNS MessageAttributes, etc).
 
-### What's left for Phase 11 closure
+### Phase 11.14 closer — BUG-18 closed end-to-end
 
-- GCP routing emitter + 8 GCP adapter migrations (low priority — hand-written GCP frontends already work; the value is consistency).
-- Azure oapi-codegen pilot + 8 Azure adapter migrations (same reasoning).
-- RS256 JWKS support for production GCP / Azure tokens (test mode is HS256).
-- Conformance lane rewrite: drop `SHIMANISM_TEST_UNAUTHENTICATED=1` from harness; convert each test's AWS SDK / GCP SDK / Azure SDK client to sign with the trusted test key. Substantial test-file churn.
-- The positive-case SigV4 sign-and-accept conformance test (header normalisation debugging).
-- 11.14 closer — BUG-18 marked resolved once bypass is dropped.
+The closer turned out to be substantially more than "flip a flag." Each cloud needed a specific fix to make end-to-end signed conformance work:
+
+- **AWS-CLI vs. aws-sdk-go-v2 SigV4 divergence.** `aws-sdk-go-v2/aws/signer/v4`'s `Signer.SignHTTP` auto-includes `Content-Length` in the SignedHeaders list when `ContentLength > 0`; boto3 (the `aws` CLI's signer) does not. The verifier that re-used `v4.SignHTTP` produced a canonical request with one extra signed header vs. what the CLI actually signed, so CLI-driven conformance failed. Fix: implement SigV4 from scratch in `internal/sigv4verifier/canonical.go`. The verifier computes the canonical request using ONLY the `SignedHeaders` list the original client declared, with explicit special-cases for Host (from `r.Host`) and Content-Length (from `r.ContentLength` since `net/http` stores it out-of-band). This handles every signer uniformly because it follows the spec, not any one SDK's auto-detection. Same `canonical.go` also handles SigV4 presigned URLs — query-string signature, `UNSIGNED-PAYLOAD`, canonical query excludes `X-Amz-Signature` from itself.
+
+- **GCP test JWT helper.** `internal/gcpbearer/testjwt.go` builds well-formed HS256 JWTs the verifier accepts; conformance tests assemble bearer tokens via `option.WithTokenSource(oauth2.StaticTokenSource{gcpbearer.TestJWT(...)})` per service audience. 17 GCP-shaped tests migrated from `option.WithoutAuthentication()` to signed tokens; gcloud CLI tests use `CLOUDSDK_AUTH_ACCESS_TOKEN=<jwt>`; Terraform tests thread the JWT into the `google` provider's `access_token`.
+
+- **Azure test JWT + SharedKey helpers.** `internal/azurebearer/testjwt.go` symmetric to gcpbearer. Conformance tests use `azcore.TokenCredential` implementations that return a real signed JWT; raw-HTTP Azure Service Bus REST tests inject `Authorization: Bearer <jwt>` per request. Storage Blob tests switch from `NewClientWithNoCredential` to `NewSharedKeyCredential` with the verifier's trusted (account, key) pair base64-encoded. `azuresharedkey` verifier defect surfaced and fixed: was using `r.URL.Path` (URL-decoded by net/http) but the azblob SDK signs over `r.URL.EscapedPath()`; object keys with slashes produced spurious signature mismatches.
+
+- **awsQuery map-shape XML marshal.** Go's `encoding/xml` doesn't natively serialise map types. The Smithy emitter generated `TopicAttributesMap = map[string]string` (and friends) tagged with the XML field name, but the runtime emitted them as empty elements. terraform-provider-aws's SNS importer parsed the empty `<Attributes/>` and concluded the topic didn't exist. Fix: emitter now generates a `MarshalXML` method per Smithy map shape that writes `<Field><entry><key>...</key><value>...</value></entry>...</Field>` in sorted-key order.
+
+- **SNS GetTopicAttributes fidelity gaps.** hashicorp/aws's importer parses the `Policy` field via the AWS IAM-policy parser and aborts the import on empty / `{}`. Adapter now emits the canonical SNS default-policy JSON document (Version 2008-10-17, `__default_policy_ID`, every default Allow action). Separately, terraform-provider-aws's `aws_sns_topic` Create flow unconditionally calls `SetTopicAttributes` for every feedback-sample-rate / feedback-role-ARN / KMS / fifo / tracing attribute, even when HCL doesn't declare them. Returning `InvalidParameter` for these blocked every `aws_sns_topic` apply. Adapter now no-ops these AWS-only attributes via an explicit `awsOnlySNSAttribute` allowlist; attributes that would change cross-cloud state (DisplayName, custom Policy) still reject non-default values.
+
+Bypass dropped from harness `init()` — no per-cloud bypass env var is set anymore. Every conformance test signs end-to-end with verification enforced. BUG-18 marked Closed.
+
+### Phase 11 deferrals
+
+- **GCP routing emitter** + 8 GCP adapter migrations (deferred). Hand-written GCP frontends work; consistency value alone doesn't justify the churn during this PR. Pick up when a GCP Discovery spec change forces a regeneration cadence.
+- **Azure oapi-codegen pilot** + 8 Azure adapter migrations (deferred — same rationale).
+- **Production RS256 JWKS** for real Google / Microsoft Entra tokens. Test mode is HS256 with a static shared key; the verifier comments document the production code path (`google.golang.org/api/idtoken.Validate`, Microsoft's JWKS) for when a deployment target requires it.
 
 ## Phase 10 — cross-cloud `terraform apply` through the shim (PR #17, merged 2026-05-21 at `ebc30f7`)
 
