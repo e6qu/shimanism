@@ -30,10 +30,7 @@ func New(s domain.RDBMS) http.Handler {
 		AccessKey: "AKIAIOSFODNN7EXAMPLE",
 		Secret:    "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
 	}, sigv4verifier.Options{Service: "rds", Region: "us-east-1"})
-	emitErr := func(w http.ResponseWriter, status int, errorType, message string) {
-		awsquery.WriteError(w, status, "Sender", errorType, message)
-	}
-	return sigv4verifier.Middleware(verifier, emitErr)(router)
+	return sigv4verifier.Middleware(verifier, awsquery.EmitVerifierError)(router)
 }
 
 func strPtr(s string) *string { return &s }

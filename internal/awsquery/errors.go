@@ -78,6 +78,22 @@ func WriteBackendError(w http.ResponseWriter, err error) {
 	WriteError(w, http.StatusInternalServerError, "Receiver", "InternalFailure", err.Error())
 }
 
+// EmitVerifierError adapts the 3-arg sigv4verifier.EmitError
+// signature (status, errorType, message) to awsQuery's 4-arg
+// WriteError (status, type, code, message). awsQuery splits the
+// error identity across `Type` ("Sender" / "Receiver" for client-
+// vs server-side faults) and `Code` (the AWS-canonical exception
+// short name). For sigv4 verifier failures the type is always
+// "Sender"; the error code maps directly from the verifier's
+// emitted code. Per-adapter `New()` constructors use this:
+//
+//	sigv4verifier.Middleware(verifier, awsquery.EmitVerifierError)
+//
+// instead of inline closures.
+func EmitVerifierError(w http.ResponseWriter, status int, errorType, message string) {
+	WriteError(w, status, "Sender", errorType, message)
+}
+
 // WriteResult writes a successful awsQuery operation response. The
 // envelope wraps the per-op result in `<OpResponse><OpResult>...
 // </OpResult><ResponseMetadata><RequestId>...</RequestId>

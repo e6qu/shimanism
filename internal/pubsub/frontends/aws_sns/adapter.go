@@ -32,17 +32,7 @@ func New(s domain.Pubsub) http.Handler {
 		AccessKey: "AKIAIOSFODNN7EXAMPLE",
 		Secret:    "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
 	}, sigv4verifier.Options{Service: "sns", Region: "us-east-1"})
-	mw := sigv4verifier.Middleware(verifier, awsqueryEmitErr)
-	return mw(router)
-}
-
-// awsqueryEmitErr adapts awsquery.WriteError (which takes
-// (status, type, code, message) — 4 args) to sigv4verifier's
-// EmitError signature (status, errorType, message — 3 args). For
-// SigV4 verifier failures the awsQuery error envelope expects
-// "Sender" type plus the source-cloud error code in errorType.
-func awsqueryEmitErr(w http.ResponseWriter, status int, errorType, message string) {
-	awsquery.WriteError(w, status, "Sender", errorType, message)
+	return sigv4verifier.Middleware(verifier, awsquery.EmitVerifierError)(router)
 }
 
 const (
