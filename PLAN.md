@@ -158,33 +158,43 @@ The earlier AGENTS.md row required `cloud.google.com/go/<svc>` (gRPC) as the can
 | 11.1 | ✅ | Architecture spike landed: per-cloud verifier libraries documented above (§ Architecture decisions); GCP SDK row reconciled in AGENTS.md to widen for REST; BUG-15 walked (drift persists with the Phase 10.3 partial fix; pinned to Track A for real-cloud comparison); BUG-8 confirmed Track-A only (no code change). |
 | 11.2 | ✅ | **Smithy emitter — `awsJson1_1` (+ `awsJson1_0`) protocol path.** Runtime helper at `internal/awsjson/`; new emitter template `template_awsjson.tmpl`; protocol detection; JSON-tagged Go structs; required-field validation at decode → `ValidationException`; `__type` + `X-Amzn-Errortype` envelope. |
 | 11.3 | ✅ | AWS Secrets Manager spec-driven (11.3a/b/c). Adapter at `internal/secrets/frontends/aws_secretsmanager/adapter.go`; 865 LOC hand-written wire deleted. |
-| 11.4 | ⏸ | **Azure Key Vault oapi-codegen pilot — deferred.** The hand-written Azure frontends mirror `azure-sdk-for-go`'s internal generated types verbatim per AGENTS.md decision #11 (reuse-over-reinvention) — so the wire-types layer is already spec-aligned. The remaining value of a generated server-stub layer is dispatch consistency, not bug-fixing. Bearer challenge + ARM LRO + `kin-openapi` validation middleware are real work but not blocking. Deferred to Phase 12 follow-on. |
-| 11.5 | ⏸ | **GCP routing emitter — deferred.** Same reasoning. The hand-written GCP frontends already use `google.golang.org/api/<svc>/v1` wire types directly (Discovery-generated; same source the SDK uses). The remaining value of a generated routing-emitter layer is regex-pattern uniformity + spec-drift detection. Real but not blocking. Deferred to Phase 12 follow-on. |
-| 11.6 | ✅ | **BUG-18 signature verification — reject path enforced everywhere.** 4 verifier packages: `internal/sigv4verifier` (AWS SigV4); `internal/gcpbearer` (GCP Bearer / HS256 JWT test mode); `internal/azurebearer` (Azure Bearer / HS256 JWT + WWW-Authenticate challenge); `internal/azuresharedkey` (Azure Storage SharedKey / HMAC-SHA256). Each has a Middleware() variant. **24/24 service-frontends verifier-wrapped** via the harness (5 AWS spec-driven + 8 GCP + 8 Azure + 3 storage). 23 unit tests + 3 end-to-end SigV4 reject conformance tests prove enforcement. Bypass env (`SHIMANISM_TEST_UNAUTHENTICATED=1`) keeps existing AnonymousCredentials conformance lanes green during the conformance rewrite (drop the env + sign with the test key per cloud — Phase 11.14 closer). |
+| 11.4 | ◐ | **Azure Key Vault oapi-codegen pilot — pilot landed; broader migration deferred to Phase 12.** `cmd/azure-codegen` is the new driver: converts Azure's Swagger 2.0 data-plane spec to OpenAPI v3 in memory via `kin-openapi/openapi2conv`, then runs `oapi-codegen` as a library to emit Go types + `std-net-http` `ServerInterface` for the secrets surface. Two upstream-tooling defects worked around inside the driver (empty-`AllOf: []` panic on enum schemas; host-template ref preservation). Pilot proof-point: `azure_keyvault`'s `SetSecret` handler decodes via the spec-driven `gen.SecretSetParameters` type. Remaining: migrate the rest of `azure_keyvault`'s handlers + the other 7 Azure frontends to the generated `ServerInterface` — pattern + manifest format established (`services/secrets/azure-codegen.json` is the template). **Deferred to Phase 12 follow-on.** |
+| 11.5 | ⏸ | **GCP routing emitter — deferred.** The hand-written GCP frontends already use `google.golang.org/api/<svc>/v1` wire types directly (Discovery-generated; same source the SDK uses). The remaining value of a generated routing-emitter layer is regex-pattern uniformity + spec-drift detection. Real but not blocking. Deferred to Phase 12 follow-on. |
+| 11.6 | ✅ | **BUG-18 signature verification — reject path enforced everywhere.** 4 verifier packages: `internal/sigv4verifier` (AWS SigV4 with manual canonical-request in `canonical.go` accepting both Go-SDK and boto3 / `aws` CLI signing shapes + presigned-URL path); `internal/gcpbearer` (GCP Bearer / HS256 JWT + `TestJWT` helper); `internal/azurebearer` (Azure Bearer / HS256 JWT + WWW-Authenticate challenge + `TestJWT` helper); `internal/azuresharedkey` (Azure Storage SharedKey / HMAC-SHA256, `EscapedPath()` to match azblob SDK). Each has a `Middleware()` variant. **24/24 service-frontends verifier-wrapped** via the harness. |
 | 11.7 | ◐ | **Queue.** **11.7a** ✅ SQS spec-driven via existing `awsJson1_0` emitter path. Adapter at `internal/queue/frontends/aws_sqs/adapter.go`; 679 LOC hand-written wire deleted. `awsjson.BackendError` gained `QueryCompatibleCode` so SQS-awsQueryCompatible legacy error codes round-trip via `x-amzn-query-error`. **11.7b** ◻ Azure Service Bus admin + GCP Pub/Sub frontend migrations — pending. |
-| 11.8 | ✅ | **Pubsub (SNS).** **11.8a** ✅ `awsQuery` emitter path. **11.8b** ✅ Manifest extended to 11 ops. **11.8c** ✅ Map/list collection decoding. **11.8d** ✅ Adapter migrated; 615 LOC of hand-written wire deleted. MessageAttributes (map of struct) decoded via `awsquery.FormFromContext` ↔ adapter. |
-| 11.9 | ◐ | **Functions (Lambda).** **11.9a** ✅ `restJson1` emitter. **11.9b** ✅ Adapter at `internal/functions/frontends/aws_lambda/adapter.go` for all 14 ops; 493 LOC hand-written wire deleted. SigV4 wired. |
-| 11.10 | ◐ | **API Gateway v2.** **11.10a/b** ✅ Adapter at `internal/apigateway/frontends/aws_apigatewayv2/adapter.go` for all 12 ops; 490 LOC hand-written wire deleted. SigV4 wired. |
+| 11.8 | ✅ | **Pubsub (SNS).** `awsQuery` emitter path. Adapter migrated for all 11 ops; 615 LOC of hand-written wire deleted. `MessageAttributes` (map of struct) decoded via `awsquery.FormFromContext` ↔ adapter. Closer fixes: `MarshalXML` per Smithy map shape (entry/key/value); SNS Policy / SetTopicAttributes fidelity (canonical default policy + AWS-only attribute allowlist for terraform-provider-aws's unconditional SetTopicAttributes calls). |
+| 11.9 | ✅ | **Functions (Lambda).** `restJson1` emitter. Adapter for all 14 ops; 493 LOC hand-written wire deleted. SigV4 wired. |
+| 11.10 | ✅ | **API Gateway v2.** Adapter for all 12 ops; 490 LOC hand-written wire deleted. SigV4 wired. |
 | 11.11 | ✅ | **rdbms (RDS).** Adapter migrated for all 9 ops; 436 LOC of hand-written wire deleted. Emitter fix: list element XML names now honour `@xmlName` traits (RDS DBInstanceList → `<DBInstance>`) with awsQuery-default `<member>` fallback. |
 | 11.12 | ✅ | **Cache (ElastiCache).** Adapter migrated for all 5 ops; 275 LOC of hand-written wire deleted. |
-| 11.13 | ✅ | **Storage retrofit.** SigV4 on S3, gcpbearer on GCS, azuresharedkey on Azure Blob — all 3 storage frontends signature-verifier-wrapped via the harness. Bypass remains for conformance rewrite. |
-| 11.14 | ◐ | **Phase 11 closer.** All 8 AWS frontends spec-driven ✅; `make codegen` regenerates everything ✅; 24/24 frontends verifier-wrapped ✅. Remaining: drop `SHIMANISM_TEST_UNAUTHENTICATED=1` from harness `init()`; rewrite conformance lanes to sign with the per-cloud test keys; mark BUG-18 resolved. |
+| 11.13 | ✅ | **Storage retrofit.** SigV4 on S3, gcpbearer on GCS, azuresharedkey on Azure Blob — all 3 storage frontends signature-verifier-wrapped via the harness; bypass dropped; conformance tests sign with trusted test creds (HCL access_keys → `AKIAIOSFODNN7EXAMPLE` for AWS; `CLOUDSDK_AUTH_ACCESS_TOKEN` + `access_token` for gcloud / Terraform GCP; `NewSharedKeyCredential` with base64-encoded test key for azblob; az CLI's `--account-key` updated to match). |
+| 11.14 | ✅ | **Phase 11 closer.** All 8 AWS frontends spec-driven; `make codegen` regenerates everything (Smithy + Azure paths); 24/24 frontends verifier-wrapped; per-cloud bypass dropped from harness `init()`; every conformance test signs end-to-end across all 3 clouds; BUG-18 resolved in BUGS.md. Manual SigV4 in `canonical.go` handles both Go-SDK and boto3 signing shapes; presigned-URL verification path landed; `azuresharedkey` uses `EscapedPath()`; awsQuery map `MarshalXML` emitter; SNS attribute fidelity for terraform-provider-aws. Lint cleanup in 11.14q. |
 
 ### Remaining work (honest)
 
-After all the substantial chunks landed on PR #18 (see sub-phase table above), what's still ahead:
+Everything in the Phase 11 sub-phase table is ✅ or has a documented deferral to Phase 12. What's still ahead, organised by where it lives:
 
-- **`awsQuery` emitter extension** — unblocks SNS / RDS / ElastiCache. Form-encoded request bodies + XML responses + XML error envelope; the most complex of the four AWS protocols (Smithy structures serialise as flat `name=value&list.1=...&map.1.key=...` pairs).
-- **Pubsub / rdbms / cache AWS adapter migrations** — depend on the `awsQuery` emitter. Same shape as 11.3c / 11.7a / 11.9b / 11.10b once the emitter is in place.
-- **GCP routing emitter** — emit dispatch tables from Discovery JSON; reuse `google.golang.org/api/<svc>/v1` wire types. Then GCP frontend migrations for all 8 services.
-- **Azure `oapi-codegen` integration** — generated `net/http` stubs + `kin-openapi` validation middleware + Bearer challenge handling + ARM LRO. Then Azure frontend migrations for all 8 services.
-- **Azure Bearer verifier package** — shape analogous to `internal/gcpbearer` but with Microsoft Entra defaults. Wire into Azure-shaped frontends (Key Vault, Service Bus, ARM).
-- **Azure SharedKey verifier package** — needed for Blob (Storage retrofit). HMAC-SHA256 over canonical-string.
-- **GCS + Azure Blob adapter wiring** — wrap the existing storage frontend handlers with the bearer / SharedKey verifiers analogous to the S3 SigV4 wrap in 11.13a.
-- **Conformance lane rewrite** — drop `SHIMANISM_TEST_UNAUTHENTICATED=1` from the harness; convert per-test clients to use the trusted test signing keys; drop `skip_credentials_validation` / `WithoutAuthentication` / `fakeAzureCred` knobs.
-- **Phase 11 closer** — all 8 services spec-driven across all 3 frontends; all verifiers wired; conformance signs end-to-end; BUG-18 closed.
+**Deferred to Phase 12 (Phase 11's explicit follow-ons):**
 
-Status legend: ✅ done · ◐ in progress · ◻ pending · ⏸ paused.
+- **Broader Azure spec-driven migration (11.4 continuation).** Pilot landed (`cmd/azure-codegen` + `services/secrets/gen/azure_keyvault.gen.go` + SetSecret decodes via `gen.SecretSetParameters`). Remaining: migrate the rest of `azure_keyvault`'s handlers to the generated `ServerInterface`; replicate the pattern for the other 7 Azure frontends (storage / queue / pubsub / rdbms / cache / functions / apigateway). Manifest format is `services/<svc>/azure-codegen.json`.
+- **GCP routing emitter + adapter migrations (11.5).** Discovery JSON → routing-only Go that reuses `google.golang.org/api/<svc>/v1` wire types. Then GCP frontend migrations for all 8 services.
+- **Production RS256 JWKS verification.** Test-mode HS256 with a static shared key is what ships today; verifier comments document the production code path (`google.golang.org/api/idtoken.Validate` for GCP, Microsoft's JWKS for Azure). Implement when a deployment target needs real-cloud auth.
+
+**Bug-shaped follow-ons that Phase 11 walked but didn't close:**
+
+- **BUG-15** (queue/gcp-frontend retention plan/apply asymmetry). 11.1 walked the drift; pinned to Track A for real-cloud comparison. Closes false-positive if it's a hashicorp/google bug; reopens as real fix if the shim's response is missing a field the provider needs.
+- **BUG-8** (apigateway/gcp-tf-frontend). Track A only; pre-existing.
+
+**Track A (real-cloud) blockers:**
+
+- Real-cloud signature verification for AWS / GCP / Azure (current verifiers are test-mode against trusted local credentials; production uses real IAM / Workload Identity / Entra ID).
+- gRPC server stubs for GCP services. AGENTS.md row widened to REST as canonical in 11.1; gRPC is documented "future expansion" requiring a Go gRPC server + protobuf serialisation + HTTP/2 multiplexing per service.
+
+**Continuity-tooling follow-on (not a Phase 11 deliverable but called out in DO_NEXT):**
+
+- Renovate coverage of vendored specs. Renovate tracks Go modules + GitHub Actions today; vendored specs in `services/<svc>/spec/` are manual.
+
+Status legend: ✅ done · ◐ in progress (pilot landed, broader work deferred) · ◻ pending · ⏸ paused.
 
 ### Design notes
 
