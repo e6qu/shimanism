@@ -39,9 +39,14 @@ const (
 )
 {{ end }}
 {{ range .Lists }}
-// {{ .GoName }} is a generated Smithy list.
+// {{ .GoName }} is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent), so
+// SDK clients see the per-list element name they expect — e.g.
+// `<DBInstance>` for RDS DBInstanceList, `<member>` for SNS
+// TopicsList.
 type {{ .GoName }} struct {
-	Member []{{ .ElemGoType }} `xml:"member"`
+	Member []{{ .ElemGoType }} `xml:"{{ .ElemXML }}"`
 }
 {{ end }}
 {{ range .Maps }}

@@ -107,129 +107,254 @@ const (
 	UpgradeRolloutOrderSECOND UpgradeRolloutOrder = "second"
 )
 
-// AdditionalStorageVolumesList is a generated Smithy list.
+// AdditionalStorageVolumesList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent), so
+// SDK clients see the per-list element name they expect — e.g.
+// `<DBInstance>` for RDS DBInstanceList, `<member>` for SNS
+// TopicsList.
 type AdditionalStorageVolumesList struct {
 	Member []AdditionalStorageVolume `xml:"member"`
 }
 
-// DBSecurityGroupNameList is a generated Smithy list.
+// DBSecurityGroupNameList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent), so
+// SDK clients see the per-list element name they expect — e.g.
+// `<DBInstance>` for RDS DBInstanceList, `<member>` for SNS
+// TopicsList.
 type DBSecurityGroupNameList struct {
-	Member []string `xml:"member"`
+	Member []string `xml:"DBSecurityGroupName"`
 }
 
-// StringList is a generated Smithy list.
+// StringList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent), so
+// SDK clients see the per-list element name they expect — e.g.
+// `<DBInstance>` for RDS DBInstanceList, `<member>` for SNS
+// TopicsList.
 type StringList struct {
 	Member []string `xml:"member"`
 }
 
-// LogTypeList is a generated Smithy list.
+// LogTypeList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent), so
+// SDK clients see the per-list element name they expect — e.g.
+// `<DBInstance>` for RDS DBInstanceList, `<member>` for SNS
+// TopicsList.
 type LogTypeList struct {
 	Member []string `xml:"member"`
 }
 
-// ProcessorFeatureList is a generated Smithy list.
+// ProcessorFeatureList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent), so
+// SDK clients see the per-list element name they expect — e.g.
+// `<DBInstance>` for RDS DBInstanceList, `<member>` for SNS
+// TopicsList.
 type ProcessorFeatureList struct {
-	Member []ProcessorFeature `xml:"member"`
+	Member []ProcessorFeature `xml:"ProcessorFeature"`
 }
 
-// TagList is a generated Smithy list.
+// TagList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent), so
+// SDK clients see the per-list element name they expect — e.g.
+// `<DBInstance>` for RDS DBInstanceList, `<member>` for SNS
+// TopicsList.
 type TagList struct {
-	Member []Tag `xml:"member"`
+	Member []Tag `xml:"Tag"`
 }
 
-// TagSpecificationList is a generated Smithy list.
+// TagSpecificationList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent), so
+// SDK clients see the per-list element name they expect — e.g.
+// `<DBInstance>` for RDS DBInstanceList, `<member>` for SNS
+// TopicsList.
 type TagSpecificationList struct {
-	Member []TagSpecification `xml:"member"`
+	Member []TagSpecification `xml:"item"`
 }
 
-// VpcSecurityGroupIdList is a generated Smithy list.
+// VpcSecurityGroupIdList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent), so
+// SDK clients see the per-list element name they expect — e.g.
+// `<DBInstance>` for RDS DBInstanceList, `<member>` for SNS
+// TopicsList.
 type VpcSecurityGroupIdList struct {
-	Member []string `xml:"member"`
+	Member []string `xml:"VpcSecurityGroupId"`
 }
 
-// AdditionalStorageVolumesOutputList is a generated Smithy list.
+// AdditionalStorageVolumesOutputList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent), so
+// SDK clients see the per-list element name they expect — e.g.
+// `<DBInstance>` for RDS DBInstanceList, `<member>` for SNS
+// TopicsList.
 type AdditionalStorageVolumesOutputList struct {
 	Member []AdditionalStorageVolumeOutput `xml:"member"`
 }
 
-// DBInstanceRoles is a generated Smithy list.
+// DBInstanceRoles is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent), so
+// SDK clients see the per-list element name they expect — e.g.
+// `<DBInstance>` for RDS DBInstanceList, `<member>` for SNS
+// TopicsList.
 type DBInstanceRoles struct {
-	Member []DBInstanceRole `xml:"member"`
+	Member []DBInstanceRole `xml:"DBInstanceRole"`
 }
 
-// DBInstanceAutomatedBackupsReplicationList is a generated Smithy list.
+// DBInstanceAutomatedBackupsReplicationList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent), so
+// SDK clients see the per-list element name they expect — e.g.
+// `<DBInstance>` for RDS DBInstanceList, `<member>` for SNS
+// TopicsList.
 type DBInstanceAutomatedBackupsReplicationList struct {
-	Member []DBInstanceAutomatedBackupsReplication `xml:"member"`
+	Member []DBInstanceAutomatedBackupsReplication `xml:"DBInstanceAutomatedBackupsReplication"`
 }
 
-// DBParameterGroupStatusList is a generated Smithy list.
+// DBParameterGroupStatusList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent), so
+// SDK clients see the per-list element name they expect — e.g.
+// `<DBInstance>` for RDS DBInstanceList, `<member>` for SNS
+// TopicsList.
 type DBParameterGroupStatusList struct {
-	Member []DBParameterGroupStatus `xml:"member"`
+	Member []DBParameterGroupStatus `xml:"DBParameterGroup"`
 }
 
-// DBSecurityGroupMembershipList is a generated Smithy list.
+// DBSecurityGroupMembershipList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent), so
+// SDK clients see the per-list element name they expect — e.g.
+// `<DBInstance>` for RDS DBInstanceList, `<member>` for SNS
+// TopicsList.
 type DBSecurityGroupMembershipList struct {
-	Member []DBSecurityGroupMembership `xml:"member"`
+	Member []DBSecurityGroupMembership `xml:"DBSecurityGroup"`
 }
 
-// SubnetList is a generated Smithy list.
+// SubnetList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent), so
+// SDK clients see the per-list element name they expect — e.g.
+// `<DBInstance>` for RDS DBInstanceList, `<member>` for SNS
+// TopicsList.
 type SubnetList struct {
-	Member []Subnet `xml:"member"`
+	Member []Subnet `xml:"Subnet"`
 }
 
-// DomainMembershipList is a generated Smithy list.
+// DomainMembershipList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent), so
+// SDK clients see the per-list element name they expect — e.g.
+// `<DBInstance>` for RDS DBInstanceList, `<member>` for SNS
+// TopicsList.
 type DomainMembershipList struct {
-	Member []DomainMembership `xml:"member"`
+	Member []DomainMembership `xml:"DomainMembership"`
 }
 
-// OptionGroupMembershipList is a generated Smithy list.
+// OptionGroupMembershipList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent), so
+// SDK clients see the per-list element name they expect — e.g.
+// `<DBInstance>` for RDS DBInstanceList, `<member>` for SNS
+// TopicsList.
 type OptionGroupMembershipList struct {
-	Member []OptionGroupMembership `xml:"member"`
+	Member []OptionGroupMembership `xml:"OptionGroupMembership"`
 }
 
-// ReadReplicaDBClusterIdentifierList is a generated Smithy list.
+// ReadReplicaDBClusterIdentifierList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent), so
+// SDK clients see the per-list element name they expect — e.g.
+// `<DBInstance>` for RDS DBInstanceList, `<member>` for SNS
+// TopicsList.
 type ReadReplicaDBClusterIdentifierList struct {
-	Member []string `xml:"member"`
+	Member []string `xml:"ReadReplicaDBClusterIdentifier"`
 }
 
-// ReadReplicaDBInstanceIdentifierList is a generated Smithy list.
+// ReadReplicaDBInstanceIdentifierList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent), so
+// SDK clients see the per-list element name they expect — e.g.
+// `<DBInstance>` for RDS DBInstanceList, `<member>` for SNS
+// TopicsList.
 type ReadReplicaDBInstanceIdentifierList struct {
-	Member []string `xml:"member"`
+	Member []string `xml:"ReadReplicaDBInstanceIdentifier"`
 }
 
-// DBInstanceStatusInfoList is a generated Smithy list.
+// DBInstanceStatusInfoList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent), so
+// SDK clients see the per-list element name they expect — e.g.
+// `<DBInstance>` for RDS DBInstanceList, `<member>` for SNS
+// TopicsList.
 type DBInstanceStatusInfoList struct {
-	Member []DBInstanceStatusInfo `xml:"member"`
+	Member []DBInstanceStatusInfo `xml:"DBInstanceStatusInfo"`
 }
 
-// VpcSecurityGroupMembershipList is a generated Smithy list.
+// VpcSecurityGroupMembershipList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent), so
+// SDK clients see the per-list element name they expect — e.g.
+// `<DBInstance>` for RDS DBInstanceList, `<member>` for SNS
+// TopicsList.
 type VpcSecurityGroupMembershipList struct {
-	Member []VpcSecurityGroupMembership `xml:"member"`
+	Member []VpcSecurityGroupMembership `xml:"VpcSecurityGroupMembership"`
 }
 
-// FilterValueList is a generated Smithy list.
+// FilterValueList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent), so
+// SDK clients see the per-list element name they expect — e.g.
+// `<DBInstance>` for RDS DBInstanceList, `<member>` for SNS
+// TopicsList.
 type FilterValueList struct {
-	Member []string `xml:"member"`
+	Member []string `xml:"Value"`
 }
 
-// FilterList is a generated Smithy list.
+// FilterList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent), so
+// SDK clients see the per-list element name they expect — e.g.
+// `<DBInstance>` for RDS DBInstanceList, `<member>` for SNS
+// TopicsList.
 type FilterList struct {
-	Member []Filter `xml:"member"`
+	Member []Filter `xml:"Filter"`
 }
 
-// DBInstanceList is a generated Smithy list.
+// DBInstanceList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent), so
+// SDK clients see the per-list element name they expect — e.g.
+// `<DBInstance>` for RDS DBInstanceList, `<member>` for SNS
+// TopicsList.
 type DBInstanceList struct {
-	Member []DBInstance `xml:"member"`
+	Member []DBInstance `xml:"DBInstance"`
 }
 
-// ModifyAdditionalStorageVolumesList is a generated Smithy list.
+// ModifyAdditionalStorageVolumesList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent), so
+// SDK clients see the per-list element name they expect — e.g.
+// `<DBInstance>` for RDS DBInstanceList, `<member>` for SNS
+// TopicsList.
 type ModifyAdditionalStorageVolumesList struct {
 	Member []ModifyAdditionalStorageVolume `xml:"member"`
 }
 
-// DBSnapshotList is a generated Smithy list.
+// DBSnapshotList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent), so
+// SDK clients see the per-list element name they expect — e.g.
+// `<DBInstance>` for RDS DBInstanceList, `<member>` for SNS
+// TopicsList.
 type DBSnapshotList struct {
-	Member []DBSnapshot `xml:"member"`
+	Member []DBSnapshot `xml:"DBSnapshot"`
 }
 
 // AdditionalStorageVolume is a generated Smithy structure.

@@ -29,17 +29,32 @@ var (
 	_ awsquery.Decoder
 )
 
-// TagList is a generated Smithy list.
+// TagList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent), so
+// SDK clients see the per-list element name they expect — e.g.
+// `<DBInstance>` for RDS DBInstanceList, `<member>` for SNS
+// TopicsList.
 type TagList struct {
 	Member []Tag `xml:"member"`
 }
 
-// TopicsList is a generated Smithy list.
+// TopicsList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent), so
+// SDK clients see the per-list element name they expect — e.g.
+// `<DBInstance>` for RDS DBInstanceList, `<member>` for SNS
+// TopicsList.
 type TopicsList struct {
 	Member []Topic `xml:"member"`
 }
 
-// SubscriptionsList is a generated Smithy list.
+// SubscriptionsList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent), so
+// SDK clients see the per-list element name they expect — e.g.
+// `<DBInstance>` for RDS DBInstanceList, `<member>` for SNS
+// TopicsList.
 type SubscriptionsList struct {
 	Member []Subscription `xml:"member"`
 }

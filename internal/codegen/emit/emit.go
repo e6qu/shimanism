@@ -536,7 +536,16 @@ func (g *gen) listView(id string, sh *smithy.Shape) (listView, error) {
 	v.ElemGoType = strings.TrimPrefix(elemType, "*")
 	xml := sh.Member.XMLName()
 	if xml == "" {
-		xml = smithy.ShortName(sh.Member.Target)
+		// REST-XML default: list element name = target shape's short
+		// name. awsQuery default: "member". When the spec doesn't
+		// declare @xmlName the protocol-default applies — for
+		// awsQuery this matters because the list-element name on the
+		// wire is observed by SDKs.
+		if g.protocol == "aws-query" {
+			xml = "member"
+		} else {
+			xml = smithy.ShortName(sh.Member.Target)
+		}
 	}
 	v.ElemXML = xml
 	return v, nil
