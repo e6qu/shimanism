@@ -15,10 +15,10 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 
 1. **Push final Phase 11 commits + flip PR #18 from draft to ready.** Local serial conformance run is green across all 8 services; CI on push.
 2. **Phase 12 — Cross-cloud migration cell expansion.** See [PLAN.md § Phase 12](PLAN.md#phase-12--cross-cloud-migration-cell-expansion). Independent of Phase 11.
-3. **Deferred Phase 11 follow-ons (not blockers):**
-   - Broader Azure migration: pilot landed for SetSecret in secrets/azure_keyvault; migrate the remaining handlers + the other 7 Azure frontends to the generated `ServerInterface`. Pattern + manifest format established in `cmd/azure-codegen/main.go` and `services/secrets/azure-codegen.json`.
-   - 11.5: GCP Secret Manager routing emitter (Discovery JSON → routing Go) — hand-written GCP frontends work today.
-   - Production Entra ID / Google ID token verification (RS256 JWKS): current verifiers run in test-mode HS256 with a static shared key. The verifier comments document the production code path that wires `google.golang.org/api/idtoken.Validate` / Microsoft's JWKS — implement when a deployment target requires it.
+3. **Phase 12 follow-on tracks (absorbed Phase 11 deferrals — see [PLAN.md § Phase 12](PLAN.md#phase-12--cross-cloud-migration-cell-expansion--phase-11-follow-ons)):**
+   - **12.A — Broader Azure spec-driven migration.** Pilot landed for SetSecret in `azure_keyvault`; migrate the rest of `azure_keyvault`'s handlers + the other 7 Azure frontends to the generated `ServerInterface`. Pattern + manifest format established (`cmd/azure-codegen/main.go` + `services/secrets/azure-codegen.json`).
+   - **12.B — GCP routing emitter + 8 adapter migrations.** Discovery JSON → routing-only Go reusing `google.golang.org/api/<svc>/v1` wire types.
+   - **12.C — Production RS256 JWKS** for real Google + Microsoft Entra tokens. Verifiers run test-mode HS256 today; verifier comments document the production paths (`google.golang.org/api/idtoken.Validate`, Microsoft's JWKS).
 
 ## Invariants snapshot
 

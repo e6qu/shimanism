@@ -96,11 +96,15 @@ Two upstream-tooling defects surfaced during the pilot and got worked around in 
 
 Pilot proof-point: `internal/secrets/frontends/azure_keyvault/server.go`'s `setSecret` handler now decodes via `gen.SecretSetParameters` (spec-driven) instead of the hand-written `setSecretRequest`. Full secrets conformance (AWS + GCP + Azure SDK / CLI / Terraform / cross-cloud / matrix) passes with the pilot in place. The remaining handlers stay on hand-written wire types — the pilot's job was to prove the toolchain produces SDK-wire-compatible types, not to delete the existing frontend wholesale. `make codegen` now runs an `azure-codegen` sub-loop after the Smithy loop; `services/secrets/azure-codegen.json` is the manifest (parallel to the AWS `codegen.json`).
 
-### Phase 11 deferrals
+### Phase 11 deferrals → Phase 12 follow-on tracks
 
-- **GCP routing emitter** + 8 GCP adapter migrations (deferred). Hand-written GCP frontends work; consistency value alone doesn't justify the churn during this PR. Pick up when a GCP Discovery spec change forces a regeneration cadence.
-- **Broader Azure migration** — the pilot covers one operation (SetSecret) decoded via generated types. Migrating the rest of `azure_keyvault` + the other 7 Azure frontends to the generated `ServerInterface` is a follow-on phase.
-- **Production RS256 JWKS** for real Google / Microsoft Entra tokens. Test mode is HS256 with a static shared key; the verifier comments document the production code path (`google.golang.org/api/idtoken.Validate`, Microsoft's JWKS) for when a deployment target requires it.
+All three deferrals are absorbed into [Phase 12](PLAN.md#phase-12--cross-cloud-migration-cell-expansion--phase-11-follow-ons) Track 2 so the wire-boundary work stays in one continuous arc:
+
+- **12.A — Broader Azure spec-driven migration.** Pilot covers `SetSecret` only; migrating the rest of `azure_keyvault` + the other 7 Azure frontends to the generated `ServerInterface` uses the same `cmd/azure-codegen` pipeline.
+- **12.B — GCP routing emitter** + 8 GCP adapter migrations. Hand-written GCP frontends already use Discovery-generated wire types; the emitter adds dispatch consistency + spec-drift detection.
+- **12.C — Production RS256 JWKS** for real Google / Microsoft Entra tokens. Test mode is HS256 with a static shared key; the verifier comments document the production code path (`google.golang.org/api/idtoken.Validate`, Microsoft's JWKS).
+
+Track-A continuations (real-cloud comparison required, not Phase 12-bound): BUG-15 (queue/gcp retention drift), BUG-8 (apigateway/gcp-tf), real-cloud signature verification.
 
 ## Phase 10 — cross-cloud `terraform apply` through the shim (PR #17, merged 2026-05-21 at `ebc30f7`)
 

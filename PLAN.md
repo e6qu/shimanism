@@ -221,11 +221,16 @@ Status legend: ✅ done · ◐ in progress (pilot landed, broader work deferred)
 - **GCP gRPC vs REST.** AGENTS.md canonical SDK row says gRPC; current tests use REST. 11.1 picks a per-service path and updates AGENTS.md.
 - **Renovate coverage of vendored specs in `services/<svc>/spec/`.** Wire spec-freshness into CI as a tracked task during 11.1.
 
-## Phase 12 — Cross-cloud migration cell expansion
+## Phase 12 — Cross-cloud migration cell expansion + Phase 11 follow-ons
 
-> **Goal:** Phase 9 + 10 proved cross-cloud migration via Terraform on one cell (storage AWS→GCS). Phase 12 takes one honest cross-cloud cell per service end-to-end across all 8.
+> **Goal:** Phase 9 + 10 proved cross-cloud migration via Terraform on one cell (storage AWS→GCS). Phase 12 takes one honest cross-cloud cell per service end-to-end across all 8, and absorbs the Phase 11 follow-ons that were deferred so the wire-boundary work stays in one continuous arc.
 
-Doesn't depend on Phase 11 — can run in parallel or before. Each service-PR picks the cell with the smallest asymmetry surface (typically AWS → K8s peer, since the K8s peer's contract is the shim's domain-level intersection by construction), implements the missing translate-table entries, and lands `TestCrossCloudApply_Roundtrip_<svc>_<src>To<dst>` as the per-service exit criterion.
+Two parallel tracks:
+
+- **Track 1 — Cross-cloud cell expansion (the original Phase 12 plan).** Each service-PR picks the cell with the smallest asymmetry surface (typically AWS → K8s peer, since the K8s peer's contract is the shim's domain-level intersection by construction), implements the missing translate-table entries, and lands `TestCrossCloudApply_Roundtrip_<svc>_<src>To<dst>` as the per-service exit criterion.
+- **Track 2 — Phase 11 follow-ons.** The wire-boundary work that landed in Phase 11 left three explicit deferrals; this is where they close.
+
+### Track 1 — Cross-cloud cells
 
 Cell selection per service is part of Phase 12.0 scoping; for now the candidates are:
 
@@ -240,15 +245,43 @@ Cell selection per service is part of Phase 12.0 scoping; for now the candidates
 | functions | AWS→Knative | Phase 7's invoke-connectivity test demonstrates the path; Apply-side just needs the matching drift-assert wiring. |
 | apigateway | AWS→Envoy Gateway | Phase 8's exit criterion already runs end-to-end; Apply-side adds the cross-cloud roundtrip assertion. |
 
-Sub-phase structure (drafted; refined in 12.0):
+### Track 2 — Phase 11 follow-ons
+
+Three explicit deferrals from Phase 11; each carries forward its own design context (not redoing the spike).
 
 | Sub | Headline |
 |---|---|
-| 12.0 | Scope baseline + per-service cell selection. |
-| 12.1–12.8 | One PR per service, landing the chosen cross-cloud Apply cell as a roundtrip test. |
-| 12.9 | Closer: cross-cloud Apply matrix has one honest cell per service; per-service `MIGRATION.md` updated with the runnable recipe. |
+| **12.A — Broader Azure spec-driven migration.** | Pilot landed in 11.4 (`cmd/azure-codegen` converts Swagger 2.0 → OpenAPI v3 via `kin-openapi/openapi2conv`, runs `oapi-codegen` as a library to emit types + `ServerInterface`; `azure_keyvault`'s `SetSecret` decodes via the spec-driven `gen.SecretSetParameters`). The remaining handlers in `azure_keyvault` plus the other 7 Azure frontends (storage / queue / pubsub / rdbms / cache / functions / apigateway) migrate using the same pattern. Manifest format is `services/<svc>/azure-codegen.json`. The two upstream-tooling workarounds (empty-`AllOf` panic; host-template ref preservation) live in `cmd/azure-codegen` and apply uniformly to all Azure specs. |
+| **12.B — GCP routing emitter + adapter migrations.** | Discovery JSON → routing-only Go that reuses `google.golang.org/api/<svc>/v1` wire types (the same Discovery-generated types the SDK uses, per AGENTS.md decision #11). Emitter ships only the dispatch layer; per-service adapter glue mirrors the AWS Smithy migrations from 11.7–11.12. 8 GCP frontends in scope. |
+| **12.C — Production RS256 JWKS for real Google + Microsoft Entra tokens.** | The 4 verifier packages currently run HS256 with a static shared key for conformance. Production paths are documented inline (`google.golang.org/api/idtoken.Validate` for GCP, Microsoft's JWKS endpoint for Azure). Wire when a deployment target requires real-cloud auth. Touches `internal/gcpbearer/` + `internal/azurebearer/`; no change to test-mode behaviour. |
 
-**Exit criteria:** every service has `TestCrossCloudApply_Roundtrip_<svc>_<cell>` green in CI; `shimctl env` covers the chosen cell; per-service `MIGRATION.md` includes a copy-pasteable Terraform + endpoint-override walkthrough.
+### Track 3 — Phase 11 bug-shaped continuations (Track A blocked)
+
+These walked but couldn't close in Phase 11 because real-cloud comparison is the only way forward:
+
+- **BUG-15** (queue/gcp-frontend retention plan/apply asymmetry). 11.1 walked the drift; pinned to Track A. Closes false-positive if hashicorp/google's flatten path is the source of the diff; reopens as a real shim fix if the response is missing a field the provider needs to disable its default-substitution path.
+- **BUG-8** (apigateway/gcp-tf-frontend). Pre-existing; Track A only.
+- **Real-cloud signature verification.** AWS / GCP / Azure verifiers run against trusted local credentials today; production runs against real IAM / Workload Identity / Entra ID. Track A gating.
+- **gRPC server stubs for GCP services.** AGENTS.md row widened to REST as canonical in 11.1; gRPC is "future expansion" — needs a Go gRPC server + protobuf serialisation + HTTP/2 multiplexing per service. Out of Phase 12 scope; reopened separately when a service genuinely needs gRPC-only ops.
+
+### Continuity-tooling follow-on
+
+Not a Phase 11 deliverable but called out in DO_NEXT as the next-best maintenance pass:
+
+- **Renovate coverage of vendored specs.** Renovate tracks Go modules + GitHub Actions today; vendored specs in `services/<svc>/spec/` are manual. Wire spec freshness into CI (compare vendored hash vs upstream HEAD; alert on drift). 12.0 candidate.
+
+### Sub-phase structure (drafted; refined in 12.0)
+
+| Sub | Headline |
+|---|---|
+| 12.0 | Scope baseline + per-service cross-cloud cell selection + Renovate-spec-coverage candidate. |
+| 12.1–12.8 | One PR per service, landing the chosen cross-cloud Apply cell as a roundtrip test (Track 1). |
+| 12.A | Broader Azure spec-driven migration (Track 2). |
+| 12.B | GCP routing emitter + 8 adapter migrations (Track 2). |
+| 12.C | Production RS256 JWKS (Track 2) — when a deployment target requires it. |
+| 12.9 | Closer: cross-cloud Apply matrix has one honest cell per service; per-service `MIGRATION.md` updated with the runnable recipe; spec-drift CI lane lit up. |
+
+**Exit criteria:** every service has `TestCrossCloudApply_Roundtrip_<svc>_<cell>` green in CI (Track 1); 8/8 Azure frontends + 8/8 GCP frontends spec-driven (Track 2 A+B); per-service `MIGRATION.md` includes a copy-pasteable Terraform + endpoint-override walkthrough.
 
 ## Standing open questions (not phase-gated)
 
