@@ -9,6 +9,7 @@ import (
 	"encoding/xml"
 	"io"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -24,6 +25,7 @@ var (
 	_ time.Time
 	_ xml.Name
 	_ io.Reader
+	_ = sort.Strings
 	_ = strconv.ParseInt
 	_ = strings.HasPrefix
 	_ awsquery.Decoder
@@ -62,11 +64,128 @@ type SubscriptionsList struct {
 // TopicAttributesMap is a generated Smithy map.
 type TopicAttributesMap map[string]string
 
+// MarshalXML serialises the map per awsQuery response semantics —
+// AWS marshals map<string,string> response fields as
+//
+//	<TopicAttributesMap><entry><key>K</key><value>V</value></entry>...</TopicAttributesMap>
+//
+// using the parent element name as the outer wrapper (Go's
+// encoding/xml passes the wrapper start element via `start`).
+// Entries are emitted in sorted-key order so the output is stable
+// across runs.
+func (m TopicAttributesMap) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
+	if len(m) == 0 {
+		return nil
+	}
+	if err := e.EncodeToken(start); err != nil {
+		return err
+	}
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		ent := xml.StartElement{Name: xml.Name{Local: "entry"}}
+		if err := e.EncodeToken(ent); err != nil {
+			return err
+		}
+		if err := e.EncodeElement(k, xml.StartElement{Name: xml.Name{Local: "key"}}); err != nil {
+			return err
+		}
+		if err := e.EncodeElement(m[k], xml.StartElement{Name: xml.Name{Local: "value"}}); err != nil {
+			return err
+		}
+		if err := e.EncodeToken(ent.End()); err != nil {
+			return err
+		}
+	}
+	return e.EncodeToken(start.End())
+}
+
 // SubscriptionAttributesMap is a generated Smithy map.
 type SubscriptionAttributesMap map[string]string
 
+// MarshalXML serialises the map per awsQuery response semantics —
+// AWS marshals map<string,string> response fields as
+//
+//	<SubscriptionAttributesMap><entry><key>K</key><value>V</value></entry>...</SubscriptionAttributesMap>
+//
+// using the parent element name as the outer wrapper (Go's
+// encoding/xml passes the wrapper start element via `start`).
+// Entries are emitted in sorted-key order so the output is stable
+// across runs.
+func (m SubscriptionAttributesMap) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
+	if len(m) == 0 {
+		return nil
+	}
+	if err := e.EncodeToken(start); err != nil {
+		return err
+	}
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		ent := xml.StartElement{Name: xml.Name{Local: "entry"}}
+		if err := e.EncodeToken(ent); err != nil {
+			return err
+		}
+		if err := e.EncodeElement(k, xml.StartElement{Name: xml.Name{Local: "key"}}); err != nil {
+			return err
+		}
+		if err := e.EncodeElement(m[k], xml.StartElement{Name: xml.Name{Local: "value"}}); err != nil {
+			return err
+		}
+		if err := e.EncodeToken(ent.End()); err != nil {
+			return err
+		}
+	}
+	return e.EncodeToken(start.End())
+}
+
 // MessageAttributeMap is a generated Smithy map.
 type MessageAttributeMap map[string]*MessageAttributeValue
+
+// MarshalXML serialises the map per awsQuery response semantics —
+// AWS marshals map<string,*MessageAttributeValue> response fields as
+//
+//	<MessageAttributeMap><entry><key>K</key><value>V</value></entry>...</MessageAttributeMap>
+//
+// using the parent element name as the outer wrapper (Go's
+// encoding/xml passes the wrapper start element via `start`).
+// Entries are emitted in sorted-key order so the output is stable
+// across runs.
+func (m MessageAttributeMap) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
+	if len(m) == 0 {
+		return nil
+	}
+	if err := e.EncodeToken(start); err != nil {
+		return err
+	}
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		ent := xml.StartElement{Name: xml.Name{Local: "entry"}}
+		if err := e.EncodeToken(ent); err != nil {
+			return err
+		}
+		if err := e.EncodeElement(k, xml.StartElement{Name: xml.Name{Local: "key"}}); err != nil {
+			return err
+		}
+		if err := e.EncodeElement(m[k], xml.StartElement{Name: xml.Name{Local: "value"}}); err != nil {
+			return err
+		}
+		if err := e.EncodeToken(ent.End()); err != nil {
+			return err
+		}
+	}
+	return e.EncodeToken(start.End())
+}
 
 // Tag is a generated Smithy structure.
 type Tag struct {

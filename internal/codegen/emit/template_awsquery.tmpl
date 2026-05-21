@@ -9,6 +9,7 @@ import (
 	"encoding/xml"
 	"io"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -24,6 +25,7 @@ var (
 	_ time.Time
 	_ xml.Name
 	_ io.Reader
+	_ = sort.Strings
 	_ = strconv.ParseInt
 	_ = strings.HasPrefix
 	_ awsquery.Decoder
@@ -52,6 +54,43 @@ type {{ .GoName }} struct {
 {{ range .Maps }}
 // {{ .GoName }} is a generated Smithy map.
 type {{ .GoName }} map[{{ .KeyType }}]{{ .ValType }}
+
+// MarshalXML serialises the map per awsQuery response semantics —
+// AWS marshals map<{{ .KeyType }},{{ .ValType }}> response fields as
+//   <{{ .GoName }}><entry><key>K</key><value>V</value></entry>...</{{ .GoName }}>
+// using the parent element name as the outer wrapper (Go's
+// encoding/xml passes the wrapper start element via `start`).
+// Entries are emitted in sorted-key order so the output is stable
+// across runs.
+func (m {{ .GoName }}) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
+	if len(m) == 0 {
+		return nil
+	}
+	if err := e.EncodeToken(start); err != nil {
+		return err
+	}
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		ent := xml.StartElement{Name: xml.Name{Local: "entry"}}
+		if err := e.EncodeToken(ent); err != nil {
+			return err
+		}
+		if err := e.EncodeElement(k, xml.StartElement{Name: xml.Name{Local: "key"}}); err != nil {
+			return err
+		}
+		if err := e.EncodeElement(m[k], xml.StartElement{Name: xml.Name{Local: "value"}}); err != nil {
+			return err
+		}
+		if err := e.EncodeToken(ent.End()); err != nil {
+			return err
+		}
+	}
+	return e.EncodeToken(start.End())
+}
 {{ end }}
 {{ range .Structs }}
 // {{ .GoName }} is a generated Smithy structure.{{ if .IsError }} It is an error response (HTTP {{ .HTTPError }}).{{ end }}

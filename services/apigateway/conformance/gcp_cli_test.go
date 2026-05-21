@@ -8,7 +8,9 @@ import (
 	"os/exec"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/e6qu/shimanism/internal/gcpbearer"
 	"github.com/e6qu/shimanism/internal/harness"
 	"github.com/e6qu/shimanism/services/apigateway/backends/inmem"
 )
@@ -24,10 +26,16 @@ func requireGCloudAPIGW(t *testing.T) string {
 
 func runGCloudAPIGW(t *testing.T, srvURL, bin string, args ...string) ([]byte, []byte, error) {
 	t.Helper()
+	jwt := gcpbearer.TestJWT(
+		[]byte("test-key-do-not-use-in-prod"),
+		"https://shim.test/",
+		"https://apigateway.googleapis.com/",
+		15*time.Minute,
+	)
 	cmd := exec.Command(bin, args...)
 	cmd.Env = append(os.Environ(),
 		"CLOUDSDK_API_ENDPOINT_OVERRIDES_APIGATEWAY="+srvURL+"/",
-		"CLOUDSDK_AUTH_DISABLE_CREDENTIALS=1",
+		"CLOUDSDK_AUTH_ACCESS_TOKEN="+jwt,
 	)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout

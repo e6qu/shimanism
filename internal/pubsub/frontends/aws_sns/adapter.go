@@ -160,14 +160,20 @@ func (a *Adapter) GetTopicAttributes(ctx context.Context, in *gen.GetTopicAttrib
 	}
 	// SNS canonical "freshly created" attributes — what real SNS
 	// returns for a topic that hasn't been configured beyond Create.
+	// Policy must be a valid AWS IAM policy document (not just any
+	// JSON): hashicorp/aws's importer parses it via the AWS policy
+	// document parser, which requires at minimum a Version +
+	// Statement[]. The default-shape document below mirrors what
+	// real SNS auto-emits on CreateTopic.
+	arn := topicArn(t.Name)
+	policy := `{"Version":"2008-10-17","Id":"__default_policy_ID","Statement":[{"Sid":"__default_statement_ID","Effect":"Allow","Principal":{"AWS":"*"},"Action":["SNS:GetTopicAttributes","SNS:SetTopicAttributes","SNS:AddPermission","SNS:RemovePermission","SNS:DeleteTopic","SNS:Subscribe","SNS:ListSubscriptionsByTopic","SNS:Publish"],"Resource":"` + arn + `"}]}`
 	attrs := gen.TopicAttributesMap{
-		"TopicArn":              topicArn(t.Name),
-		"DisplayName":           "",
+		"TopicArn":               arn,
+		"DisplayName":            "",
 		"SubscriptionsConfirmed": "0",
 		"SubscriptionsPending":   "0",
 		"SubscriptionsDeleted":   "0",
-		"DeliveryPolicy":         "",
-		"Policy":                 "",
+		"Policy":                 policy,
 	}
 	return &gen.GetTopicAttributesResponse{Attributes: attrs}, nil
 }
@@ -180,20 +186,63 @@ func (a *Adapter) SetTopicAttributes(ctx context.Context, in *gen.SetTopicAttrib
 	if in.AttributeName == "" {
 		return struct{}{}, &awsquery.BackendError{HTTPStatus: http.StatusBadRequest, Type: "Sender", Code: "InvalidParameter", Message: "AttributeName is required"}
 	}
-	// Validate the topic exists; SetTopicAttributes itself is a no-op
-	// at the domain layer (the cross-cloud intersection doesn't carry
-	// SNS-specific knobs like DeliveryPolicy / Policy).
+	// Validate the topic exists.
 	if _, err := a.s.HeadTopic(ctx, name); err != nil {
 		return struct{}{}, mapDomainErr(err)
 	}
-	// Reject non-default values per the no-silent-fallback rule.
-	if in.AttributeValue != nil && *in.AttributeValue != "" {
-		return struct{}{}, &awsquery.BackendError{
-			HTTPStatus: http.StatusBadRequest, Type: "Sender", Code: "InvalidParameter",
-			Message: "AttributeValue is not supported in the cross-cloud intersection for " + in.AttributeName,
+	// AWS-only attributes (feedback-sample-rates, role ARNs, KMS keys,
+	// signature version, tracing, etc.) have no cross-cloud
+	// counterpart. terraform-provider-aws sends a SetTopicAttributes
+	// call per such attribute during every aws_sns_topic apply, even
+	// when the HCL doesn't declare them. Returning InvalidParameter
+	// for default-shape values would break every aws_sns_topic plan,
+	// while accepting them as no-ops matches real SNS for the
+	// observe-only metric knobs: the value is recorded but the shim
+	// has nothing to sample (we're not the message bus). Honest
+	// no-op — not silent translation. For values that would
+	// genuinely change cross-cloud state (DisplayName, Policy /
+	// DeliveryPolicy with non-default content), we still reject.
+	if !awsOnlySNSAttribute(in.AttributeName) {
+		if in.AttributeValue != nil && *in.AttributeValue != "" {
+			return struct{}{}, &awsquery.BackendError{
+				HTTPStatus: http.StatusBadRequest, Type: "Sender", Code: "InvalidParameter",
+				Message: "AttributeValue is not supported in the cross-cloud intersection for " + in.AttributeName,
+			}
 		}
 	}
 	return struct{}{}, nil
+}
+
+// awsOnlySNSAttribute reports whether an SNS attribute name names an
+// AWS-only feature with no cross-cloud counterpart. terraform's
+// aws_sns_topic resource sets these on every apply; the shim accepts
+// them as observe-only no-ops (per the comment in SetTopicAttributes).
+func awsOnlySNSAttribute(name string) bool {
+	switch name {
+	case "SQSSuccessFeedbackSampleRate",
+		"SQSSuccessFeedbackRoleArn",
+		"SQSFailureFeedbackRoleArn",
+		"FirehoseSuccessFeedbackSampleRate",
+		"FirehoseSuccessFeedbackRoleArn",
+		"FirehoseFailureFeedbackRoleArn",
+		"LambdaSuccessFeedbackSampleRate",
+		"LambdaSuccessFeedbackRoleArn",
+		"LambdaFailureFeedbackRoleArn",
+		"HTTPSuccessFeedbackSampleRate",
+		"HTTPSuccessFeedbackRoleArn",
+		"HTTPFailureFeedbackRoleArn",
+		"ApplicationSuccessFeedbackSampleRate",
+		"ApplicationSuccessFeedbackRoleArn",
+		"ApplicationFailureFeedbackRoleArn",
+		"KmsMasterKeyId",
+		"SignatureVersion",
+		"TracingConfig",
+		"ContentBasedDeduplication",
+		"FifoTopic",
+		"ArchivePolicy":
+		return true
+	}
+	return false
 }
 
 // ---------------------------------------------------------------------

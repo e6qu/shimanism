@@ -8,7 +8,9 @@ import (
 	"os/exec"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/e6qu/shimanism/internal/gcpbearer"
 	"github.com/e6qu/shimanism/internal/harness"
 	"github.com/e6qu/shimanism/services/secrets/backends/inmem"
 )
@@ -25,10 +27,16 @@ func requireGcloud(t *testing.T) string {
 func runGcloudSecrets(t *testing.T, srvURL, bin string, args ...string) ([]byte, []byte, error) {
 	t.Helper()
 	full := strings.TrimRight(srvURL, "/") + "/"
+	jwt := gcpbearer.TestJWT(
+		[]byte("test-key-do-not-use-in-prod"),
+		"https://shim.test/",
+		"https://secretmanager.googleapis.com/",
+		15*time.Minute,
+	)
 	cmd := exec.Command(bin, append([]string{"--quiet"}, args...)...)
 	cmd.Env = append(os.Environ(),
 		"CLOUDSDK_API_ENDPOINT_OVERRIDES_SECRETMANAGER="+full,
-		"CLOUDSDK_AUTH_DISABLE_CREDENTIALS=true",
+		"CLOUDSDK_AUTH_ACCESS_TOKEN="+jwt,
 		"CLOUDSDK_CORE_DISABLE_PROMPTS=1",
 		"CLOUDSDK_CORE_PROJECT=shim-conformance",
 	)

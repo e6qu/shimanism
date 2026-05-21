@@ -9,6 +9,7 @@ import (
 	"encoding/xml"
 	"io"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -24,6 +25,7 @@ var (
 	_ time.Time
 	_ xml.Name
 	_ io.Reader
+	_ = sort.Strings
 	_ = strconv.ParseInt
 	_ = strings.HasPrefix
 	_ awsquery.Decoder
