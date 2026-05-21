@@ -93,6 +93,9 @@ type MessageSystemAttributeList []MessageSystemAttributeName
 // MessageList is a generated Smithy list.
 type MessageList []Message
 
+// TagKeyList is a generated Smithy list.
+type TagKeyList []string
+
 // QueueAttributeMap is a generated Smithy map.
 type QueueAttributeMap map[QueueAttributeName]string
 
@@ -205,6 +208,17 @@ type GetQueueAttributesResult struct {
 	Attributes QueueAttributeMap `json:"Attributes,omitempty"`
 }
 
+// SetQueueAttributesRequest is a generated Smithy structure.
+type SetQueueAttributesRequest struct {
+	Attributes QueueAttributeMap `json:"Attributes,omitempty"`
+	QueueUrl   string            `json:"QueueUrl,omitempty"`
+}
+
+// OverLimit is a generated Smithy structure. It is an error response (HTTP 403).
+type OverLimit struct {
+	Message *string `json:"message,omitempty"`
+}
+
 // MessageAttributeValue is a generated Smithy structure.
 type MessageAttributeValue struct {
 	BinaryListValues [][]byte `json:"BinaryListValues,omitempty"`
@@ -311,11 +325,6 @@ type ReceiveMessageResult struct {
 	Messages []Message `json:"Messages,omitempty"`
 }
 
-// OverLimit is a generated Smithy structure. It is an error response (HTTP 403).
-type OverLimit struct {
-	Message *string `json:"message,omitempty"`
-}
-
 // DeleteMessageRequest is a generated Smithy structure.
 type DeleteMessageRequest struct {
 	QueueUrl      string `json:"QueueUrl,omitempty"`
@@ -342,6 +351,38 @@ type ChangeMessageVisibilityRequest struct {
 type MessageNotInflight struct {
 }
 
+// ListQueueTagsRequest is a generated Smithy structure.
+type ListQueueTagsRequest struct {
+	QueueUrl string `json:"QueueUrl,omitempty"`
+}
+
+// ListQueueTagsResult is a generated Smithy structure.
+type ListQueueTagsResult struct {
+	Tags TagMap `json:"Tags,omitempty"`
+}
+
+// TagQueueRequest is a generated Smithy structure.
+type TagQueueRequest struct {
+	QueueUrl string `json:"QueueUrl,omitempty"`
+	Tags     TagMap `json:"Tags,omitempty"`
+}
+
+// UntagQueueRequest is a generated Smithy structure.
+type UntagQueueRequest struct {
+	QueueUrl string   `json:"QueueUrl,omitempty"`
+	TagKeys  []string `json:"TagKeys,omitempty"`
+}
+
+// PurgeQueueRequest is a generated Smithy structure.
+type PurgeQueueRequest struct {
+	QueueUrl string `json:"QueueUrl,omitempty"`
+}
+
+// PurgeQueueInProgress is a generated Smithy structure. It is an error response (HTTP 403).
+type PurgeQueueInProgress struct {
+	Message *string `json:"message,omitempty"`
+}
+
 // SQSBackend is the union of every per-operation
 // backend interface emitted from the spec. A real backend
 // implementation satisfies this union; the harness's in-memory backend
@@ -354,10 +395,15 @@ type SQSBackend interface {
 	ListQueuesBackend
 	GetQueueUrlBackend
 	GetQueueAttributesBackend
+	SetQueueAttributesBackend
 	SendMessageBackend
 	ReceiveMessageBackend
 	DeleteMessageBackend
 	ChangeMessageVisibilityBackend
+	ListQueueTagsBackend
+	TagQueueBackend
+	UntagQueueBackend
+	PurgeQueueBackend
 }
 
 // RegisterSQSRoutes mounts every shimmed operation
@@ -371,10 +417,15 @@ func RegisterSQSRoutes(b SQSBackend) *awsjson.Router {
 	rt.Register("ListQueues", ListQueuesHandler(b))
 	rt.Register("GetQueueUrl", GetQueueUrlHandler(b))
 	rt.Register("GetQueueAttributes", GetQueueAttributesHandler(b))
+	rt.Register("SetQueueAttributes", SetQueueAttributesHandler(b))
 	rt.Register("SendMessage", SendMessageHandler(b))
 	rt.Register("ReceiveMessage", ReceiveMessageHandler(b))
 	rt.Register("DeleteMessage", DeleteMessageHandler(b))
 	rt.Register("ChangeMessageVisibility", ChangeMessageVisibilityHandler(b))
+	rt.Register("ListQueueTags", ListQueueTagsHandler(b))
+	rt.Register("TagQueue", TagQueueHandler(b))
+	rt.Register("UntagQueue", UntagQueueHandler(b))
+	rt.Register("PurgeQueue", PurgeQueueHandler(b))
 	return rt
 }
 
@@ -538,6 +589,35 @@ func GetQueueAttributesHandler(b GetQueueAttributesBackend) http.Handler {
 	})
 }
 
+// SetQueueAttributesBackend serves the SetQueueAttributes operation.
+type SetQueueAttributesBackend interface {
+	SetQueueAttributes(ctx context.Context, in *SetQueueAttributesRequest) (struct{}, error)
+}
+
+// SetQueueAttributesHandler decodes a SetQueueAttributes request, dispatches to
+// the backend, and encodes the response per awsJson1_x semantics.
+// Missing required fields surface ValidationException; backend errors
+// flow through awsjson.WriteBackendError.
+func SetQueueAttributesHandler(b SetQueueAttributesBackend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		in := &SetQueueAttributesRequest{}
+		if !awsjson.DecodeJSON(w, r, in) {
+			return
+		}
+		if in.QueueUrl == "" {
+			awsjson.MissingRequiredField(w, "QueueUrl")
+			return
+		}
+
+		if _, err := b.SetQueueAttributes(ctx, in); err != nil {
+			awsjson.WriteBackendError(w, err)
+			return
+		}
+		awsjson.WriteJSON(w, 200, struct{}{})
+	})
+}
+
 // SendMessageBackend serves the SendMessage operation.
 type SendMessageBackend interface {
 	SendMessage(ctx context.Context, in *SendMessageRequest) (*SendMessageResult, error)
@@ -672,6 +752,127 @@ func ChangeMessageVisibilityHandler(b ChangeMessageVisibilityBackend) http.Handl
 		}
 
 		if _, err := b.ChangeMessageVisibility(ctx, in); err != nil {
+			awsjson.WriteBackendError(w, err)
+			return
+		}
+		awsjson.WriteJSON(w, 200, struct{}{})
+	})
+}
+
+// ListQueueTagsBackend serves the ListQueueTags operation.
+type ListQueueTagsBackend interface {
+	ListQueueTags(ctx context.Context, in *ListQueueTagsRequest) (*ListQueueTagsResult, error)
+}
+
+// ListQueueTagsHandler decodes a ListQueueTags request, dispatches to
+// the backend, and encodes the response per awsJson1_x semantics.
+// Missing required fields surface ValidationException; backend errors
+// flow through awsjson.WriteBackendError.
+func ListQueueTagsHandler(b ListQueueTagsBackend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		in := &ListQueueTagsRequest{}
+		if !awsjson.DecodeJSON(w, r, in) {
+			return
+		}
+		if in.QueueUrl == "" {
+			awsjson.MissingRequiredField(w, "QueueUrl")
+			return
+		}
+
+		out, err := b.ListQueueTags(ctx, in)
+		if err != nil {
+			awsjson.WriteBackendError(w, err)
+			return
+		}
+		if out == nil {
+			awsjson.WriteJSON(w, 200, struct{}{})
+			return
+		}
+		awsjson.WriteJSON(w, 200, out)
+	})
+}
+
+// TagQueueBackend serves the TagQueue operation.
+type TagQueueBackend interface {
+	TagQueue(ctx context.Context, in *TagQueueRequest) (struct{}, error)
+}
+
+// TagQueueHandler decodes a TagQueue request, dispatches to
+// the backend, and encodes the response per awsJson1_x semantics.
+// Missing required fields surface ValidationException; backend errors
+// flow through awsjson.WriteBackendError.
+func TagQueueHandler(b TagQueueBackend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		in := &TagQueueRequest{}
+		if !awsjson.DecodeJSON(w, r, in) {
+			return
+		}
+		if in.QueueUrl == "" {
+			awsjson.MissingRequiredField(w, "QueueUrl")
+			return
+		}
+
+		if _, err := b.TagQueue(ctx, in); err != nil {
+			awsjson.WriteBackendError(w, err)
+			return
+		}
+		awsjson.WriteJSON(w, 200, struct{}{})
+	})
+}
+
+// UntagQueueBackend serves the UntagQueue operation.
+type UntagQueueBackend interface {
+	UntagQueue(ctx context.Context, in *UntagQueueRequest) (struct{}, error)
+}
+
+// UntagQueueHandler decodes a UntagQueue request, dispatches to
+// the backend, and encodes the response per awsJson1_x semantics.
+// Missing required fields surface ValidationException; backend errors
+// flow through awsjson.WriteBackendError.
+func UntagQueueHandler(b UntagQueueBackend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		in := &UntagQueueRequest{}
+		if !awsjson.DecodeJSON(w, r, in) {
+			return
+		}
+		if in.QueueUrl == "" {
+			awsjson.MissingRequiredField(w, "QueueUrl")
+			return
+		}
+
+		if _, err := b.UntagQueue(ctx, in); err != nil {
+			awsjson.WriteBackendError(w, err)
+			return
+		}
+		awsjson.WriteJSON(w, 200, struct{}{})
+	})
+}
+
+// PurgeQueueBackend serves the PurgeQueue operation.
+type PurgeQueueBackend interface {
+	PurgeQueue(ctx context.Context, in *PurgeQueueRequest) (struct{}, error)
+}
+
+// PurgeQueueHandler decodes a PurgeQueue request, dispatches to
+// the backend, and encodes the response per awsJson1_x semantics.
+// Missing required fields surface ValidationException; backend errors
+// flow through awsjson.WriteBackendError.
+func PurgeQueueHandler(b PurgeQueueBackend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		in := &PurgeQueueRequest{}
+		if !awsjson.DecodeJSON(w, r, in) {
+			return
+		}
+		if in.QueueUrl == "" {
+			awsjson.MissingRequiredField(w, "QueueUrl")
+			return
+		}
+
+		if _, err := b.PurgeQueue(ctx, in); err != nil {
 			awsjson.WriteBackendError(w, err)
 			return
 		}

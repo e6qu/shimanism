@@ -9,9 +9,14 @@
     "ListQueues",
     "GetQueueUrl",
     "GetQueueAttributes",
+    "SetQueueAttributes",
     "SendMessage",
     "ReceiveMessage",
     "DeleteMessage",
-    "ChangeMessageVisibility"
+    "ChangeMessageVisibility",
+    "ListQueueTags",
+    "TagQueue",
+    "UntagQueue",
+    "PurgeQueue"
   ]
 }

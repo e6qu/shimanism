@@ -94,10 +94,17 @@ func (rt *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // surfaces a typed error that maps cleanly to one of the operation's
 // declared Smithy error shapes. The HTTP status and error type get
 // written via WriteBackendError; the message lands in the JSON body.
+//
+// QueryCompatibleCode is set when the service is `awsQueryCompatible`
+// (currently: SQS). The SDK's awsQuery-compatibility shim matches on
+// the `x-amzn-query-error` header for the legacy code; the adapter
+// fills this so the SDK's pre-Smithy waiters and error mappers see
+// the expected code.
 type BackendError struct {
-	HTTPStatus int
-	Type       string // Smithy error short name (e.g. "ResourceNotFoundException").
-	Message    string
+	HTTPStatus          int
+	Type                string // Smithy error short name (e.g. "ResourceNotFoundException").
+	Message             string
+	QueryCompatibleCode string // Legacy awsQuery code (e.g. "AWS.SimpleQueueService.NonExistentQueue"); blank for non-awsQueryCompatible services.
 }
 
 func (e *BackendError) Error() string { return e.Type + ": " + e.Message }
@@ -109,6 +116,9 @@ func (e *BackendError) Error() string { return e.Type + ": " + e.Message }
 func WriteBackendError(w http.ResponseWriter, err error) {
 	var be *BackendError
 	if errors.As(err, &be) {
+		if be.QueryCompatibleCode != "" {
+			w.Header().Set("x-amzn-query-error", be.QueryCompatibleCode+";Sender")
+		}
 		WriteError(w, be.HTTPStatus, be.Type, be.Message)
 		return
 	}
