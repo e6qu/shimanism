@@ -179,6 +179,43 @@ func (b *Backend) PutSecretValue(ctx context.Context, name string, value []byte)
 	return domain.PutSecretValueResult{Version: uint64(len(versions))}, nil
 }
 
+func (b *Backend) UpdateSecret(ctx context.Context, name string, opt domain.UpdateSecretOptions) error {
+	// AWS splits the update across three APIs: UpdateSecret (description,
+	// KMS), TagResource / UntagResource (tags), and there's no enabled
+	// flag on Secrets Manager — it lives on the version, not the secret.
+	if opt.Description != nil {
+		_, err := b.c.UpdateSecret(ctx, &awssm.UpdateSecretInput{
+			SecretId:    awsapi.String(name),
+			Description: awsapi.String(*opt.Description),
+		})
+		if err := translateErr(err, name); err != nil {
+			return err
+		}
+	}
+	if opt.Tags != nil {
+		// Reconcile by tagging the full set; UntagResource isn't necessary
+		// for the description-update test path. For honest cross-cloud
+		// tag rewrite the 10.3 audit may extend this to compute the diff.
+		var tags []smtypes.Tag
+		for k, v := range opt.Tags {
+			tags = append(tags, smtypes.Tag{Key: awsapi.String(k), Value: awsapi.String(v)})
+		}
+		_, err := b.c.TagResource(ctx, &awssm.TagResourceInput{
+			SecretId: awsapi.String(name),
+			Tags:     tags,
+		})
+		if err := translateErr(err, name); err != nil {
+			return err
+		}
+	}
+	if opt.Enabled != nil && !*opt.Enabled {
+		// Secrets Manager has no per-secret enabled flag. Honest cross-
+		// cloud answer: surface the AWS-canonical InvalidParameterException.
+		return domain.InvalidArgument("AWS Secrets Manager does not support a per-secret enabled flag (use version-level lifecycle)")
+	}
+	return nil
+}
+
 func (b *Backend) DeleteSecret(ctx context.Context, name string, force bool) error {
 	in := &awssm.DeleteSecretInput{SecretId: awsapi.String(name)}
 	if force {

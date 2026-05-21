@@ -83,6 +83,32 @@ type describeSecretRequest struct {
 	SecretId string `json:"SecretId"`
 }
 
+type updateSecretRequest struct {
+	SecretId           string  `json:"SecretId"`
+	ClientRequestToken string  `json:"ClientRequestToken,omitempty"`
+	Description        *string `json:"Description,omitempty"`
+	KmsKeyId           *string `json:"KmsKeyId,omitempty"`
+	// SecretString / SecretBinary are accepted by the AWS UpdateSecret
+	// API too, but they fold into PutSecretValue semantics (append a
+	// new version). The shim handles those via PutSecretValue; the
+	// UpdateSecret path here is metadata-only.
+}
+
+type updateSecretResponse struct {
+	ARN  string `json:"ARN"`
+	Name string `json:"Name"`
+}
+
+type tagResourceRequest struct {
+	SecretId string `json:"SecretId"`
+	Tags     []tag  `json:"Tags"`
+}
+
+type untagResourceRequest struct {
+	SecretId string   `json:"SecretId"`
+	TagKeys  []string `json:"TagKeys"`
+}
+
 type describeSecretResponse struct {
 	ARN                string              `json:"ARN"`
 	Name               string              `json:"Name"`
@@ -399,6 +425,83 @@ func (srv *Server) deleteSecret(w http.ResponseWriter, r *http.Request) {
 		resp.DeletionDate = timeToEpochSeconds(time.Now().UTC().Add(7 * 24 * time.Hour))
 	}
 	writeJSON(w, http.StatusOK, &resp)
+}
+
+func (srv *Server) updateSecret(w http.ResponseWriter, r *http.Request) {
+	var in updateSecretRequest
+	if !decode(w, r, &in) {
+		return
+	}
+	if in.SecretId == "" {
+		writeError(w, http.StatusBadRequest, "InvalidParameterException", "SecretId is required")
+		return
+	}
+	name := normaliseSecretID(in.SecretId)
+	opt := domain.UpdateSecretOptions{Description: in.Description}
+	if err := srv.s.UpdateSecret(r.Context(), name, opt); err != nil {
+		mapDomainError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, &updateSecretResponse{ARN: fakeARN(name), Name: name})
+}
+
+func (srv *Server) tagResource(w http.ResponseWriter, r *http.Request) {
+	var in tagResourceRequest
+	if !decode(w, r, &in) {
+		return
+	}
+	if in.SecretId == "" {
+		writeError(w, http.StatusBadRequest, "InvalidParameterException", "SecretId is required")
+		return
+	}
+	name := normaliseSecretID(in.SecretId)
+	// Merge with existing tags: AWS TagResource is additive.
+	existing, err := srv.s.HeadSecret(r.Context(), name)
+	if err != nil {
+		mapDomainError(w, err)
+		return
+	}
+	merged := map[string]string{}
+	for k, v := range existing.Tags {
+		merged[k] = v
+	}
+	for _, t := range in.Tags {
+		merged[t.Key] = t.Value
+	}
+	if err := srv.s.UpdateSecret(r.Context(), name, domain.UpdateSecretOptions{Tags: merged}); err != nil {
+		mapDomainError(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
+func (srv *Server) untagResource(w http.ResponseWriter, r *http.Request) {
+	var in untagResourceRequest
+	if !decode(w, r, &in) {
+		return
+	}
+	if in.SecretId == "" {
+		writeError(w, http.StatusBadRequest, "InvalidParameterException", "SecretId is required")
+		return
+	}
+	name := normaliseSecretID(in.SecretId)
+	existing, err := srv.s.HeadSecret(r.Context(), name)
+	if err != nil {
+		mapDomainError(w, err)
+		return
+	}
+	remaining := map[string]string{}
+	for k, v := range existing.Tags {
+		remaining[k] = v
+	}
+	for _, k := range in.TagKeys {
+		delete(remaining, k)
+	}
+	if err := srv.s.UpdateSecret(r.Context(), name, domain.UpdateSecretOptions{Tags: remaining}); err != nil {
+		mapDomainError(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
 }
 
 func (srv *Server) describeSecret(w http.ResponseWriter, r *http.Request) {

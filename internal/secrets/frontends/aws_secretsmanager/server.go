@@ -69,6 +69,12 @@ func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		srv.deleteSecret(w, r)
 	case "DescribeSecret":
 		srv.describeSecret(w, r)
+	case "UpdateSecret":
+		srv.updateSecret(w, r)
+	case "TagResource":
+		srv.tagResource(w, r)
+	case "UntagResource":
+		srv.untagResource(w, r)
 	case "ListSecrets":
 		srv.listSecrets(w, r)
 	case "ListSecretVersionIds":

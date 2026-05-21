@@ -22,6 +22,7 @@ import (
 	"google.golang.org/api/iterator"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/fieldmaskpb"
 
 	"github.com/e6qu/shimanism/internal/secrets/domain"
 )
@@ -180,6 +181,37 @@ func (b *Backend) PutSecretValue(ctx context.Context, name string, value []byte)
 		}
 	}
 	return domain.PutSecretValueResult{}, fmt.Errorf("gcp: could not parse version from %q", out.GetName())
+}
+
+func (b *Backend) UpdateSecret(ctx context.Context, name string, opt domain.UpdateSecretOptions) error {
+	if opt.Enabled != nil && !*opt.Enabled {
+		// GCP Secret Manager has no per-secret enabled flag (versions
+		// have enabled/disabled; the secret itself is always live).
+		return domain.InvalidArgument("GCP Secret Manager does not support a per-secret enabled flag (use version-level enable/disable)")
+	}
+	if opt.Description == nil && opt.Tags == nil {
+		return nil
+	}
+	// Build the patched Secret + FieldMask. Description rides on the
+	// reserved "shim-description" label (same encoding as CreateSecret).
+	secret := &smpb.Secret{Name: b.secretResource(name)}
+	var paths []string
+	if opt.Tags != nil || opt.Description != nil {
+		labels := gcpLabels(opt.Tags)
+		if labels == nil {
+			labels = map[string]string{}
+		}
+		if opt.Description != nil {
+			labels["shim-description"] = *opt.Description
+		}
+		secret.Labels = labels
+		paths = append(paths, "labels")
+	}
+	_, err := b.c.UpdateSecret(ctx, &smpb.UpdateSecretRequest{
+		Secret:     secret,
+		UpdateMask: &fieldmaskpb.FieldMask{Paths: paths},
+	})
+	return translateErr(err, name)
 }
 
 func (b *Backend) DeleteSecret(ctx context.Context, name string, force bool) error {

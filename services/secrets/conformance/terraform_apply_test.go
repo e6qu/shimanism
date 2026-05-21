@@ -117,28 +117,44 @@ func TestTerraform_AWSSecrets_Apply_NoDrift(t *testing.T) {
 
 	mustRun("init", "-no-color")
 
-	// Phase 10.2: Create-then-Read no drift.
-	mustRun("apply", "-no-color", "-auto-approve")
-	stdout, stderr, err := runTf("plan", "-no-color", "-detailed-exitcode")
-	switch {
-	case err == nil:
-	case isExitCodeSecretsApply(err, 2):
-		t.Errorf("terraform plan after apply reports pending changes (10.2 fidelity gap)\nstdout:\n%s\nstderr:\n%s",
-			stdout, stderr)
-	default:
-		t.Fatalf("terraform plan:\nstdout: %s\nstderr: %s\nerr: %v",
-			stdout, stderr, err)
+	assertNoPendingChanges := func(stage string) {
+		t.Helper()
+		stdout, stderr, err := runTf("plan", "-no-color", "-detailed-exitcode")
+		switch {
+		case err == nil:
+		case isExitCodeSecretsApply(err, 2):
+			t.Errorf("terraform plan after %s reports pending changes (10.2 fidelity gap)\nstdout:\n%s\nstderr:\n%s",
+				stage, stdout, stderr)
+		default:
+			t.Fatalf("terraform plan after %s:\nstdout: %s\nstderr: %s\nerr: %v",
+				stage, stdout, stderr, err)
+		}
 	}
 
-	// Phase 10.5 (Create→Read→Update→Read→Destroy lifecycle) for
-	// secrets is gated by BUG-17: UpdateSecret is marked ✅ in
-	// services/secrets/INTERSECTION.md but isn't in domain.Secrets,
-	// and both AWS + GCP frontends return UnknownOperationException.
-	// The 10.3 (Update intersection audit) pass closes this; until
-	// then the description-update step that belongs here is
-	// commented out as a future delta. The 10.2 create-then-read
-	// audit above is the load-bearing assertion.
-	_ = writeHCL // keep the helper for the 10.5 follow-up — see BUG-17.
+	// Phase 10.2: Create-then-Read no drift.
+	mustRun("apply", "-no-color", "-auto-approve")
+	assertNoPendingChanges("apply (create)")
+
+	// Phase 10.5: Update-in-place. Description is in-contract per
+	// services/secrets/APPLY_INTERSECTION.md — round-trips through
+	// domain.Secret.Description without ForceNew. BUG-17 closed in
+	// this PR: domain.Secrets now has UpdateSecret, AWS frontend
+	// dispatches to it. After re-apply, a second plan should report
+	// no pending changes.
+	writeHCL("phase 10.5 description rotation")
+	mustRun("apply", "-no-color", "-auto-approve")
+	assertNoPendingChanges("apply (update description)")
+
+	// Verify the backend actually saw the new description (i.e. the
+	// shim's UpdateSecret path dispatched honestly, not a no-op).
+	got, err := backend.HeadSecret(context.Background(), "shim-applied-secret")
+	if err != nil {
+		t.Fatalf("backend.HeadSecret post-update: %v", err)
+	}
+	if got.Description != "phase 10.5 description rotation" {
+		t.Errorf("backend description after update: got %q want %q",
+			got.Description, "phase 10.5 description rotation")
+	}
 
 	mustRun("destroy", "-no-color", "-auto-approve")
 
