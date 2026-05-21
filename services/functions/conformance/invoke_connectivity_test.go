@@ -1,7 +1,15 @@
 // Phase 7 exit criterion (sub-phase 7.15): the shim deploys a
-// container to Knative via the AWS Lambda frontend, then the test
-// opens a real HTTP connection to the returned URL and asserts the
-// function's response.
+// container to Knative and HTTP-invoke against the returned URL
+// returns the function's response.
+//
+// The function is created via the Knative backend directly because
+// the AWS Lambda SDK requires a Role on CreateFunction and non-AWS
+// backends honestly reject non-empty Role per
+// services/functions/APPLY_INTERSECTION.md — the Role contract is
+// intersection-out, surfaced as InvalidParameterValueException.
+// matrix_test.go covers the AWS-frontend → non-AWS-backend dispatch
+// and asserts that honest-reject; here the focus is the deploy +
+// HTTP-invoke path which doesn't require the Role contract.
 //
 // The shim is invisible to the HTTP invocation — that's what makes
 // this honest. The function image is the upstream
@@ -23,12 +31,7 @@ import (
 	"testing"
 	"time"
 
-	awsapi "github.com/aws/aws-sdk-go-v2/aws"
-	awsconfig "github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/service/lambda"
-	lambdatypes "github.com/aws/aws-sdk-go-v2/service/lambda/types"
-
-	"github.com/e6qu/shimanism/internal/harness"
+	"github.com/e6qu/shimanism/internal/functions/domain"
 	"github.com/e6qu/shimanism/services/functions/conformance"
 )
 
@@ -38,34 +41,16 @@ func TestInvokeConnectivity_Knative(t *testing.T) {
 	}
 	ctx := context.Background()
 	be := conformance.NewKnative(t)
-	srv := harness.StartFunctionsServerAWS(t, be)
-	cfg, err := awsconfig.LoadDefaultConfig(ctx,
-		awsconfig.WithRegion("us-east-1"),
-		awsconfig.WithCredentialsProvider(awsapi.AnonymousCredentials{}),
-	)
-	if err != nil {
-		t.Fatalf("aws config: %v", err)
-	}
-	client := lambda.NewFromConfig(cfg, func(o *lambda.Options) {
-		o.BaseEndpoint = awsapi.String(srv.URL)
-	})
 
 	const name = "invoke-test"
-	if _, err := client.CreateFunction(ctx, &lambda.CreateFunctionInput{
-		FunctionName: awsapi.String(name),
-		PackageType:  lambdatypes.PackageTypeImage,
-		Code: &lambdatypes.FunctionCode{
-			ImageUri: awsapi.String("gcr.io/knative-samples/helloworld-go"),
-		},
-		Role:    awsapi.String("arn:aws:iam::000000000000:role/lambda"),
-		Timeout: awsapi.Int32(60),
+	if _, err := be.CreateFunction(ctx, name, domain.CreateFunctionOptions{
+		Image:          "gcr.io/knative-samples/helloworld-go",
+		TimeoutSeconds: 60,
 	}); err != nil {
 		t.Fatalf("CreateFunction: %v", err)
 	}
 	t.Cleanup(func() {
-		_, _ = client.DeleteFunction(ctx, &lambda.DeleteFunctionInput{
-			FunctionName: awsapi.String(name),
-		})
+		_ = be.DeleteFunction(ctx, name)
 	})
 
 	// The Lambda frontend doesn't expose the real Knative URL via

@@ -5,6 +5,7 @@ package conformance_test
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -40,13 +41,15 @@ func TestFunctionsMatrix_AWSFrontend(t *testing.T) {
 			// docker.io/library/hello-world exits immediately so the
 			// Knative Pod is never healthy and Service never Ready.
 			//
-			// Role is AWS Lambda-specific. The AWS frontend takes it
-			// from the request body and passes it through to the
-			// domain; non-AWS backends reject non-empty Role with
-			// InvalidArgument (per services/functions/APPLY_INTERSECTION
-			// .md). The matrix exercises the AWS *frontend* against
-			// every backend, so we omit Role for non-AWS cells. The
-			// inmem + aws cells receive it.
+			// Role is AWS Lambda-specific. The AWS Lambda SDK enforces
+			// Role as a required field client-side, so the request
+			// must carry one. The AWS frontend forwards Role through
+			// to the domain; non-AWS backends honestly reject non-
+			// empty Role with InvalidArgument (per
+			// services/functions/APPLY_INTERSECTION.md). For non-AWS
+			// cells the matrix therefore asserts the honest-reject
+			// behaviour and stops there — the cross-cloud CreateFunction
+			// path with a Role is intersection-out.
 			input := &lambda.CreateFunctionInput{
 				FunctionName: awsapi.String(name),
 				PackageType:  lambdatypes.PackageTypeImage,
@@ -55,11 +58,19 @@ func TestFunctionsMatrix_AWSFrontend(t *testing.T) {
 				},
 				MemorySize: awsapi.Int32(128),
 				Timeout:    awsapi.Int32(60),
+				Role:       awsapi.String("arn:aws:iam::000000000000:role/lambda"),
 			}
-			if f.Name == "inmem" || f.Name == "aws" {
-				input.Role = awsapi.String("arn:aws:iam::000000000000:role/lambda")
+			_, err = client.CreateFunction(ctx, input)
+			if f.Name != "inmem" && f.Name != "aws" {
+				if err == nil {
+					t.Fatalf("%s: expected InvalidParameterValueException for Role on non-AWS backend; got success", f.Name)
+				}
+				if !strings.Contains(err.Error(), "InvalidParameterValueException") {
+					t.Fatalf("%s: expected InvalidParameterValueException, got: %v", f.Name, err)
+				}
+				return
 			}
-			if _, err := client.CreateFunction(ctx, input); err != nil {
+			if err != nil {
 				t.Fatalf("CreateFunction: %v", err)
 			}
 			t.Cleanup(func() {
