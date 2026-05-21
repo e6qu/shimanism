@@ -105,6 +105,26 @@ When the Terraform provider plans changes to these and Apply hits the shim, the 
 
 Azure Key Vault stores a `contentType` string on each secret version. Cross-cloud there's no equivalent. **Decision:** out of contract for Phase 10; provider HCL that sets `content_type` against an Azure backend works (Azure-to-Azure passthrough honors it); against any other backend, shim returns `OperationNotSupported`. Users wanting MIME-like discrimination cross-cloud must encode it in the value (JSON envelope).
 
+## Cross-cloud Apply: AWS → Azure asymmetry
+
+A real cross-cloud asymmetry surfaced by 10.7: hashicorp/aws issues
+`CreateSecret` first (no value), then `PutSecretValue` via the
+separate `aws_secretsmanager_secret_version` resource. AWS Secrets
+Manager accepts the value-less CreateSecret; Azure Key Vault doesn't
+(`SetSecret` is the only create path and requires a `Value`).
+
+The shim's Azure backend honestly rejects the value-less CreateSecret
+with `InvalidArgument("Azure Key Vault requires an initial value")`.
+Terraform Apply against the AWS→Azure cell fails on the secret-create
+step; the separation of secret + secret_version resources in the
+hashicorp/aws schema means there's no fixture-side workaround
+(secret_string is not exposed on `aws_secretsmanager_secret`).
+
+`TestCrossCloudApply_Roundtrip_SecretsAWStoAzure` documents this and
+diamond-skips. It's not a shim bug — it's a structural difference
+between AWS Secrets Manager and Azure Key Vault that affects this
+specific migration path.
+
 ## What this contract commits the shim to
 
 For every (source A × backend B) cell in the Phase 10 secrets Apply matrix:
