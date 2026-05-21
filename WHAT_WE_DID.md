@@ -4,6 +4,74 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 
 > Reverse chronological. One section per phase. The *why*, the surprises, the root causes — not per-PR detail. For commit-level history, `git log`. For per-bug detail, [BUGS.md](BUGS.md).
 
+## Phase 11 — tighten the wire boundary (in-flight on `phase-11`)
+
+The big restructuring phase: replace hand-written wire layers with spec-driven generated stubs across every AWS-shaped frontend, and wire real signature verification (BUG-18) at the new decode boundary. Started with codex review correcting several wrong premises in the initial plan (SigV4 in `signer/v4` is signer-only not verifier; `golang.org/x/oauth2` is token-acquisition not JWT verification; Azure Key Vault is Bearer-only not SharedKey; the existing Smithy emitter was REST-XML-only — extending to awsJson / awsQuery / restJson1 is new emitter work, not a routing-table addition).
+
+### Four wire-protocol emitter paths
+
+Pre-Phase 11 the emitter at `internal/codegen/emit/` only spoke REST-XML (S3). Phase 11 added three more templates + protocol detection:
+
+- **awsJson1_x** (`template_awsjson.tmpl`) — POST `/` dispatched by `X-Amz-Target` header; JSON request + response bodies; `__type` + `X-Amzn-Errortype` error envelope. Powers Secrets Manager (1_1) and SQS (1_0).
+- **restJson1** (`template_restjson.tmpl`) — HTTP-route dispatched (method + URI template, same as REST-XML); JSON bodies + awsJson-shaped error envelope. Powers Lambda + APIGW v2.
+- **awsQuery** (`template_awsquery.tmpl`) — POST `/` dispatched by `Action` form parameter; form-encoded request; XML response wrapped in `<OpResponse><OpResult>...</OpResult><ResponseMetadata>...</ResponseMetadata></OpResponse>`. Powers SNS, RDS, ElastiCache.
+
+Each template lives alongside REST-XML and is selected by `pickTemplate()` based on the service shape's protocol trait. The emitter detects `aws.protocols#awsJson1_1` / `#awsJson1_0` / `#awsQuery` / `#restJson1` / `#restXml` and routes to the right template.
+
+### Three runtime helper packages
+
+- `internal/awsjson/` — Router (X-Amz-Target dispatch), BackendError, EpochTime (epoch-seconds timestamp serialisation; Go's default RFC3339 broke awsJson1_x SDK compat), QueryCompatibleCode (legacy SDK error-code header for SQS).
+- `internal/awsquery/` — Router (Action dispatch), BackendError, WriteResult (OpResponse/OpResult/ResponseMetadata envelope), WithForm/FormFromContext (gives adapters access to raw form values for collections the template doesn't decode).
+- The existing `internal/restxml/` is shared by REST-XML and restJson1 (only the body encoding differs — restJson1 emits JSON, REST-XML emits XML; both use the same router).
+
+### Spec-driven AWS frontends — 8/8 migrated
+
+| Service | Wire | Hand-written LOC deleted |
+|---|---|---|
+| storage / aws_s3 | REST-XML | (pre-Phase 11, already spec-driven) |
+| secrets / aws_secretsmanager | awsJson1_1 | 865 |
+| queue / aws_sqs | awsJson1_0 | 679 |
+| pubsub / aws_sns | awsQuery | 615 |
+| rdbms / aws_rds | awsQuery | 436 |
+| cache / aws_elasticache | awsQuery | 275 |
+| functions / aws_lambda | restJson1 | 493 |
+| apigateway / aws_apigatewayv2 | restJson1 | 490 |
+| **Total** | | **3853** |
+
+Each migration follows the same pattern: write a per-service adapter implementing the generated `<Service>Backend` interface; the adapter translates each generated request type into the existing domain layer and back. Helpers (ARN forging, ID encoding, status mapping) carry verbatim from the hand-written wire.
+
+### Signature verification — BUG-18 P1 → P3
+
+Four verifier packages, each with HMAC-SHA256 test mode + per-cloud error envelope + Middleware() variant + unit-test coverage:
+
+- `internal/sigv4verifier/` — re-uses `aws-sdk-go-v2/aws/signer/v4`'s canonical-request building blocks. Verify reconstructs the canonical request from the incoming HTTP request, re-signs with the looked-up secret, constant-time compares. Handles clock skew (±15 min default), credential-scope validation, body buffer-and-restore for downstream handlers.
+- `internal/gcpbearer/` — HS256 JWT with iss/aud/exp/iat claims validation. Production RS256 JWKS path is a follow-on. Documents the opaque-OAuth2-access-token gap (those require a network round-trip to tokeninfo per request).
+- `internal/azurebearer/` — HS256 JWT + Microsoft Entra-style claims. WithChallenge option emits the WWW-Authenticate header Key Vault's SDK requires to trigger its token-acquisition retry.
+- `internal/azuresharedkey/` — HMAC-SHA256 over Azure Storage's canonical string (12-line header block + canonical x-ms-* headers + canonical resource path/query). Used by Blob; Key Vault uses Bearer, Service Bus uses SAS / Entra ID.
+
+24/24 service-frontends are now wrapped: 5 SigV4 (AWS) + 8 GCP bearer + 8 Azure bearer + 3 Azure SharedKey (Storage) + 3 storage (one each for AWS/GCP/Azure). Bypass gated on `SHIMANISM_TEST_UNAUTHENTICATED=1` (harness `init()` sets it so existing conformance lanes that use `aws.AnonymousCredentials{}` / `option.WithoutAuthentication()` / `fakeAzureCred` keep passing during the conformance-lane rewrite). The bypass reads env on every call (no `sync.Once` caching) so per-test `t.Setenv` flips take effect.
+
+The reject path is enforced end-to-end: 23 unit tests across the 4 verifier packages + 3 end-to-end SigV4 reject conformance tests in `services/secrets/conformance/aws_sigv4_test.go` prove the verifier rejects unsigned / wrong-key / tampered requests with the correct source-cloud error envelope. The positive-case `TestAWSSigV4_AcceptsSignedRequest` is deferred — needs header normalisation work (Content-Length set at sign-time vs. transport-time, httptest Host quirks).
+
+### Surprises along the way
+
+- **Smithy emitter is REST-XML-shaped under the hood.** Generated handlers `import restxml`, route from `smithy.api#http` operation traits, encode XML responses. Codex review correctly flagged the original plan's "extending to AWS surfaces beyond S3 is a routing-table addition" as wrong — `awsJson1_1`, `awsJson1_0`, `awsQuery`, `restJson1` are each new protocol serde at the emitter level. Phase 11 added them all.
+- **awsJson1_x timestamps are epoch-seconds floats, not RFC3339.** Go's default `time.Time.MarshalJSON` emits RFC3339 strings; AWS SDKs reject them. New `awsjson.EpochTime` type with HMAC-aware MarshalJSON; emitter substitutes `*awsjson.EpochTime` for `*time.Time` when the protocol uses epoch-seconds.
+- **awsQuery list element names differ per spec.** SNS uses `<member>` (the protocol default); RDS / ElastiCache use `<DBInstance>` / `<CacheCluster>` (via `@xmlName` traits). The emitter respects the trait when set; falls back to `<member>` for awsQuery, target-shape short-name for REST-XML.
+- **awsQuery error envelope's outer element is awkward to emit.** `xml.Marshal(result)` produces `<ResultType>...</ResultType>` by default; wrapping that inside `<OpResult>` produced double-nested output the SDK couldn't parse. `WriteResult` now strips the result struct's own outer element so its fields inline cleanly inside the OpResult wrapper.
+- **APIGateway v2 frontend carries per-process state for the multi-step deploy flow.** AWS splits gateway creation into Api + Routes + Integrations + Deployment; the domain has a single atomic DeployGateway. The adapter retains the pending-routes / integration-IDs map in per-process memory — explicitly documented as a known compromise of the stateless-shim rule (the deployed routing table itself still lives in the backend; only in-flight accumulation is per-process).
+- **Lambda's required-Role makes cross-cloud Create-via-Lambda-SDK intersection-out.** The AWS Lambda SDK enforces Role as a required client-side field; non-AWS backends honestly reject non-empty Role. The matrix test for non-AWS cells now asserts the InvalidParameterValueException (negative conformance for the cross-cloud Role contract).
+- **`http.Request.Form` is populated lazily.** `awsquery.Router` calls `r.ParseForm()` in ServeHTTP; generated per-op handlers then stash `r.Form` on the request context so adapters can retrieve it via `awsquery.FormFromContext(ctx)` for collection decoding the template doesn't emit (SNS MessageAttributes, etc).
+
+### What's left for Phase 11 closure
+
+- GCP routing emitter + 8 GCP adapter migrations (low priority — hand-written GCP frontends already work; the value is consistency).
+- Azure oapi-codegen pilot + 8 Azure adapter migrations (same reasoning).
+- RS256 JWKS support for production GCP / Azure tokens (test mode is HS256).
+- Conformance lane rewrite: drop `SHIMANISM_TEST_UNAUTHENTICATED=1` from harness; convert each test's AWS SDK / GCP SDK / Azure SDK client to sign with the trusted test key. Substantial test-file churn.
+- The positive-case SigV4 sign-and-accept conformance test (header normalisation debugging).
+- 11.14 closer — BUG-18 marked resolved once bypass is dropped.
+
 ## Phase 10 — cross-cloud `terraform apply` through the shim (PR #17, merged 2026-05-21 at `ebc30f7`)
 
 The write-side proof, symmetric to Phase 9's read-side. A user writes AWS-shape Terraform; `terraform apply` creates / updates / destroys the resource in cloud B through shimanism, with the source-cloud provider unaware of the translation. Eight BUGs closed; all 8 services have active drift assertions; full developer + contributing docs under `docs/`.
