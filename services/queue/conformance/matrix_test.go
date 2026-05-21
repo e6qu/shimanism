@@ -22,14 +22,17 @@ import (
 	"io"
 	"net/http"
 	"testing"
+	"time"
 
 	awsapi "github.com/aws/aws-sdk-go-v2/aws"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	awscredentials "github.com/aws/aws-sdk-go-v2/credentials"
 	awssqs "github.com/aws/aws-sdk-go-v2/service/sqs"
+	"golang.org/x/oauth2"
 	"google.golang.org/api/option"
 	pubsubraw "google.golang.org/api/pubsub/v1"
 
+	"github.com/e6qu/shimanism/internal/gcpbearer"
 	"github.com/e6qu/shimanism/internal/harness"
 	"github.com/e6qu/shimanism/services/queue/conformance"
 )
@@ -121,9 +124,15 @@ func TestQueueMatrix_GCPFrontend(t *testing.T) {
 		t.Run(f.Name, func(t *testing.T) {
 			be := f.Fn(t)
 			srv := harness.StartQueueServerGCP(t, be)
+			jwt := gcpbearer.TestJWT(
+				[]byte("test-key-do-not-use-in-prod"),
+				"https://shim.test/",
+				"https://pubsub.googleapis.com/",
+				15*time.Minute,
+			)
 			svc, err := pubsubraw.NewService(ctx,
 				option.WithEndpoint(srv.URL),
-				option.WithoutAuthentication(),
+				option.WithTokenSource(oauth2.StaticTokenSource(&oauth2.Token{AccessToken: jwt})),
 			)
 			if err != nil {
 				t.Fatalf("new pubsub service: %v", err)

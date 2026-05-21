@@ -11,24 +11,32 @@ import (
 	"io"
 	"strings"
 	"testing"
+	"time"
 
 	gcsstorage "cloud.google.com/go/storage"
+	"golang.org/x/oauth2"
 	"google.golang.org/api/option"
 
+	"github.com/e6qu/shimanism/internal/gcpbearer"
 	"github.com/e6qu/shimanism/internal/harness"
 	"github.com/e6qu/shimanism/services/storage/backends/inmem"
 )
 
-// newGCSClient returns a storage.Client pointed at the shim. The
-// `option.WithoutAuthentication()` is what lets the SDK skip OAuth2
-// token resolution; we accept the shim's no-auth posture for
-// conformance tests (real deployments add SigV4-equivalent auth
-// later).
+// newGCSClient returns a storage.Client pointed at the shim, signed
+// with the gcpbearer verifier's trusted test JWT for the storage
+// audience. Bearer verification runs end-to-end through the
+// gcpbearer middleware.
 func newGCSClient(t *testing.T, endpoint string) *gcsstorage.Client {
 	t.Helper()
+	jwt := gcpbearer.TestJWT(
+		[]byte("test-key-do-not-use-in-prod"),
+		"https://shim.test/",
+		"https://storage.googleapis.com/",
+		15*time.Minute,
+	)
 	c, err := gcsstorage.NewClient(context.Background(),
 		option.WithEndpoint(endpoint),
-		option.WithoutAuthentication(),
+		option.WithTokenSource(oauth2.StaticTokenSource(&oauth2.Token{AccessToken: jwt})),
 	)
 	if err != nil {
 		t.Fatalf("new GCS client: %v", err)
