@@ -22,8 +22,13 @@ func newSQSClient(t *testing.T, endpoint string) *sqs.Client {
 	t.Helper()
 	cfg, err := config.LoadDefaultConfig(context.Background(),
 		config.WithRegion("us-east-1"),
+		// Verifier's trusted test credentials (matches sigv4verifier.StaticStore
+		// wired in internal/queue/frontends/aws_sqs/adapter.go).
 		config.WithCredentialsProvider(credentials.StaticCredentialsProvider{
-			Value: aws.Credentials{AccessKeyID: "test", SecretAccessKey: "test"},
+			Value: aws.Credentials{
+				AccessKeyID:     "AKIAIOSFODNN7EXAMPLE",
+				SecretAccessKey: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+			},
 		}),
 	)
 	if err != nil {

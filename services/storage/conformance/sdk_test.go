@@ -34,8 +34,13 @@ func newS3Client(t *testing.T, endpoint string) *s3.Client {
 	t.Helper()
 	cfg, err := config.LoadDefaultConfig(context.Background(),
 		config.WithRegion("us-east-1"),
+		// Verifier's trusted test credentials (matches sigv4verifier.StaticStore
+		// wired in internal/harness/server.go's StartStorageServer).
 		config.WithCredentialsProvider(credentials.StaticCredentialsProvider{
-			Value: aws.Credentials{AccessKeyID: "test", SecretAccessKey: "test"},
+			Value: aws.Credentials{
+				AccessKeyID:     "AKIAIOSFODNN7EXAMPLE",
+				SecretAccessKey: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+			},
 		}),
 	)
 	if err != nil {
