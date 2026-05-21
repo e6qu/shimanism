@@ -194,9 +194,16 @@ func (v *Verifier) Verify(r *http.Request) error {
 	// Authorization (and X-Amz-Date which the signer will set itself).
 	// The signer rewrites the Authorization header on the cloned
 	// request; we then compare.
+	//
+	// Critical: restrict the clone's headers to ONLY those the original
+	// signer declared in the SignedHeaders list. Go's
+	// http.Transport auto-adds headers like `Accept-Encoding: gzip`
+	// AFTER the request was signed by the client. If those headers
+	// leak into the verifier's re-sign, the SDK signer expands the
+	// SignedHeaders list and the canonical request diverges from
+	// what the client signed, producing a spurious mismatch.
 	clone := r.Clone(r.Context())
-	clone.Header.Del("Authorization")
-	clone.Header.Del("X-Amz-Date")
+	clone.Header = filterToSignedHeaders(r.Header, parsed.SignedHeaders)
 	clone.Body = io.NopCloser(bytes.NewReader(body))
 
 	creds := aws.Credentials{

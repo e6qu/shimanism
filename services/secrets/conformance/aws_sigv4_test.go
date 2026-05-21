@@ -34,28 +34,50 @@ const (
 	testService   = "secretsmanager"
 )
 
-// TestAWSSigV4_AcceptsSignedRequestViaSDK is deferred to Phase 12.
+// TestAWSSigV4_AcceptsSignedRequestViaSDK exercises the positive
+// path with the real AWS Secrets Manager SDK pointed at the shim
+// and configured with the trusted test credentials. The SDK signs
+// the request via its own pipeline; the verifier must accept.
 //
-// Attempt 1: raw http.NewRequest + v4.Signer.SignHTTP + http.DefaultClient.Do
-// failed because the signer's canonical request didn't match what the
-// server side reconstructs from the inbound request (likely
-// Host / Content-Length / Accept-Encoding mismatches that Go's
-// net/http auto-adds during transport).
-//
-// Attempt 2: the real AWS SDK pointed at the shim with the trusted
-// test credentials also fails — SDK's own auto-added transport
-// headers don't round-trip through the signer's IgnoredHeaders set.
-//
-// The 3 reject tests in this file (RejectsUnsignedRequest,
-// RejectsWrongKey, RejectsTamperedSignature) prove the verifier is
-// enforcing end-to-end; the verifier package's unit tests
-// (internal/sigv4verifier/sigv4verifier_test.go
-// TestVerifier_AcceptsValidSignature) prove the round-trip works
-// against an in-process signed request. The end-to-end real-SDK
-// positive-case test requires deeper canonical-request alignment
-// work — tracked alongside BUG-18 closure.
-var _ = secretsmanager.NewFromConfig
-var _ = awsconfig.LoadDefaultConfig
+// Verifier fix that unblocked this case: restrict the verifier's
+// re-sign-clone headers to ONLY the original Authorization's
+// SignedHeaders set. Go's http.Transport auto-adds
+// `Accept-Encoding: gzip` AFTER the SDK signs, so the inbound
+// request to the server has it but the SDK's signature didn't
+// cover it; without filtering, the verifier's re-sign would
+// include Accept-Encoding in the SignedHeaders, expanding the
+// canonical request and producing a spurious mismatch.
+func TestAWSSigV4_AcceptsSignedRequestViaSDK(t *testing.T) {
+	t.Setenv("SHIMANISM_TEST_UNAUTHENTICATED", "")
+	srv := startSignedSecretsServer(t)
+
+	cfg, err := awsconfig.LoadDefaultConfig(context.Background(),
+		awsconfig.WithRegion(testRegion),
+		awsconfig.WithCredentialsProvider(awsapi.CredentialsProviderFunc(func(ctx context.Context) (awsapi.Credentials, error) {
+			return awsapi.Credentials{AccessKeyID: testAccessKey, SecretAccessKey: testSecret}, nil
+		})),
+	)
+	if err != nil {
+		t.Fatalf("load aws config: %v", err)
+	}
+	client := secretsmanager.NewFromConfig(cfg, func(o *secretsmanager.Options) {
+		o.BaseEndpoint = awsapi.String(srv.URL)
+	})
+
+	// DescribeSecret on a non-existent secret. The verifier accepting
+	// the signature lets the request reach the adapter, which surfaces
+	// ResourceNotFoundException — proving the signed request made it
+	// past the verifier.
+	_, err = client.DescribeSecret(context.Background(), &secretsmanager.DescribeSecretInput{
+		SecretId: awsapi.String("nonexistent"),
+	})
+	if err == nil {
+		t.Fatal("expected ResourceNotFoundException; got success")
+	}
+	if !strings.Contains(err.Error(), "ResourceNotFoundException") {
+		t.Errorf("expected ResourceNotFoundException (verifier accepted, op ran), got: %v", err)
+	}
+}
 
 func TestAWSSigV4_RejectsUnsignedRequest(t *testing.T) {
 	t.Setenv("SHIMANISM_TEST_UNAUTHENTICATED", "")

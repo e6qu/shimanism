@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"net/http"
 	"strings"
 	"time"
 )
@@ -76,4 +77,26 @@ func parseAmzDate(s string) (time.Time, error) {
 func sha256Hex(body []byte) string {
 	h := sha256.Sum256(body)
 	return hex.EncodeToString(h[:])
+}
+
+// filterToSignedHeaders returns a copy of `h` containing only the
+// headers named in `signedHeaders` (a `;`-separated lowercase list
+// from the original Authorization header's `SignedHeaders=...`
+// field). The signer needs this exact set on its clone so the
+// canonical-request it builds matches what the client built; any
+// extra headers (Accept-Encoding added by Go's net/http transport,
+// Authorization/X-Amz-Date that the signer itself owns) get
+// dropped.
+func filterToSignedHeaders(h http.Header, signedHeaders string) http.Header {
+	keep := map[string]bool{}
+	for _, name := range strings.Split(signedHeaders, ";") {
+		keep[strings.ToLower(strings.TrimSpace(name))] = true
+	}
+	out := http.Header{}
+	for k, v := range h {
+		if keep[strings.ToLower(k)] {
+			out[k] = v
+		}
+	}
+	return out
 }
