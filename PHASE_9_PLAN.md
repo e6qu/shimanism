@@ -8,18 +8,31 @@
 
 State [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](BUGS.md) · roadmap [PLAN.md](PLAN.md) · philosophy [PHILOSOPHY.md](PHILOSOPHY.md) · rules [AGENTS.md](AGENTS.md).
 
-## Where Phase 9 stands (live status on PR #13)
+## Where Phase 9 stands
 
-A substantial chunk of Phase 9 landed on the Phase 8 PR per user instruction "keep phase 9 to the same open PR." Concretely:
+PR #13 (Phase 8 + Phase 9 substantial chunk) merged at `ad85ddf` on 2026-05-20. The merge included all 8 cross-cloud cells the branch had accumulated, but the in-tree PHASE_9_PLAN narrative at merge time still said "six services validated" because the closing roll-up commit (`e3fd695`) was pushed after the merge fired. This PR corrects the documentation.
 
-- **9.0 ✅** This plan + codex review revisions applied.
-- **9.1 ✅** `cmd/shimctl` + `internal/clientconfig/overrides.yaml` (per-cloud × per-service endpoint-override registry).
-- **9.2 ✅** Importer-read contract traces captured per service in `services/<svc>/conformance/importer_contract.md` (storage, secrets, queue, pubsub, apigateway, functions, rdbms, cache).
-- **9.2-A ✅** No-fakes audit + `services/<svc>/INTERSECTION.md` per service. Surfaced and fixed 6 real fidelity bugs (BUG-9/10/11 closed; 6 inline fixes: SNS XML double-nesting + Policy JSON + ListTagsForResource + DisplayName; APIGW selection-expression defaults; 7 Lambda Read-path subresources; RDS DBInstanceArn + DbiResourceId; queue ListQueueTags handler).
-- **9.2-B ✅** `services/<svc>/MIGRATION.md` per service — runnable walkthroughs proving the intersection is migration-useful.
-- **9.5 ✅** `terraform_import_test.go` per service — 8 single-cloud import tests, all green.
-- **9.11 ✅** `cmd/shim mock` subcommand — bundle inmem-backed cloud-shaped APIs on localhost ports.
-- **9.13 ✅** Cross-cloud exit criterion — **six services validated**: AWS → GCS (storage), AWS → GCP Pub/Sub (queue), AWS → GCP API Gateway (apigateway), AWS → GCP Memorystore (cache), AWS → GCP Cloud Run (functions), AWS → GCP Cloud SQL (rdbms). Reverse direction (GCS → AWS) skeleton landed, skipped pending hashicorp/google credentials Track A work.
+- **9.0 ✅** Plan + codex review revisions applied.
+- **9.1 ✅** `cmd/shimctl` + `internal/clientconfig/overrides.yaml`.
+- **9.2 ✅** Importer-read contracts per service.
+- **9.2-A ✅** No-fakes audit + INTERSECTION.md per service. 6 real fidelity bugs fixed inline.
+- **9.2-B ✅** MIGRATION.md per service.
+- **9.5 ✅** `terraform_import_test.go` per service — 8 single-cloud import tests.
+- **9.11 ✅** `cmd/shim mock` subcommand.
+- **9.13 ✅** Cross-cloud exit criterion — **all 8 services validated**:
+
+  | service     | AWS frontend wire | backend cloud (mock) | result |
+  |---|---|---|---|
+  | storage     | S3 XML            | GCS REST             | ✅ (PR #13) |
+  | secrets     | awsJson1_1        | Azure KV (TLS)       | ✅ (this PR) |
+  | queue       | awsJson1_0        | GCP Pub/Sub          | ✅ (PR #13) |
+  | pubsub      | awsQuery XML      | GCP Pub/Sub          | ✅ (this PR) |
+  | apigateway  | restJson1         | GCP API Gateway      | ✅ (PR #13) |
+  | cache       | awsQuery XML      | GCP Memorystore      | ✅ (PR #13) |
+  | functions   | restJson1         | GCP Cloud Run        | ✅ (PR #13) |
+  | rdbms       | awsQuery XML      | GCP Cloud SQL Admin  | ✅ (PR #13) |
+
+  Every AWS wire-protocol family (S3 XML, awsJson1_0, awsJson1_1, restJson1, awsQuery) is exercised against at least one non-AWS backend cloud (GCP, Azure) through real `hashicorp/aws` provider tooling. Reverse direction (GCS → AWS) skeleton landed for storage, skipped pending hashicorp/google credentials Track A work.
 
 **Filed in BUGS.md (not yet fixed):** BUG-12 (queue domain tag storage), BUG-13 (Lambda memory_size/role/publish defaults).
 

@@ -39,6 +39,8 @@ var (
 	reInstanceRestore = regexp.MustCompile(`^/v1/projects/([^/]+)/instances/([^/]+)/restoreBackup$`)
 	reBackupRuns      = regexp.MustCompile(`^/v1/projects/([^/]+)/instances/([^/]+)/backupRuns/?$`)
 	reBackupRun       = regexp.MustCompile(`^/v1/projects/([^/]+)/instances/([^/]+)/backupRuns/([^/]+)$`)
+	reOperation       = regexp.MustCompile(`^/v1/projects/([^/]+)/operations/([^/]+)$`)
+	reOperations      = regexp.MustCompile(`^/v1/projects/([^/]+)/operations/?$`)
 )
 
 func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -97,6 +99,14 @@ func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			srv.createInstance(w, r)
 			return
 		}
+	}
+	if m := reOperation.FindStringSubmatch(path); m != nil && method == http.MethodGet {
+		srv.getOperation(w, r, m[2])
+		return
+	}
+	if reOperations.MatchString(path) && method == http.MethodGet {
+		srv.listOperations(w, r)
+		return
 	}
 
 	writeError(w, http.StatusNotFound, "NOT_FOUND",
@@ -331,13 +341,89 @@ func backupStatusString(s domain.Status) string {
 	}
 }
 
+// writeOperation returns the canonical Operation envelope. The
+// Operation Name encodes the opType + target so a later
+// Operations.Get call can resolve the current state by reading the
+// target resource — stateless, no shim-side operation table.
 func writeOperation(w http.ResponseWriter, target, opType string) {
 	writeJSON(w, http.StatusOK, &sqladmin.Operation{
-		Name:          fmt.Sprintf("op-%d", time.Now().UnixNano()),
+		Name:          encodeOperationName(opType, target),
 		OperationType: opType,
 		TargetId:      target,
 		Status:        "PENDING",
 	})
+}
+
+// encodeOperationName packs (opType, target) into a single string
+// safe as an Operation.Name. Format: "op-<opType>-<target>".
+// Operations.Get reverses this to find the target resource.
+func encodeOperationName(opType, target string) string {
+	return "op-" + strings.ToLower(opType) + "-" + target
+}
+
+// decodeOperationName unpacks the Operation.Name produced by
+// encodeOperationName. Returns (opType, target, ok). For names the
+// shim didn't produce (foreign IDs, malformed strings), returns
+// ok=false; the caller surfaces a 404.
+func decodeOperationName(name string) (opType, target string, ok bool) {
+	rest, found := strings.CutPrefix(name, "op-")
+	if !found {
+		return "", "", false
+	}
+	// opType is one of create/delete/update/restart/restorebackup.
+	for _, t := range []string{"create", "delete", "update", "restart", "restorebackup"} {
+		if suf, ok := strings.CutPrefix(rest, t+"-"); ok {
+			return t, suf, true
+		}
+	}
+	return "", "", false
+}
+
+func (srv *Server) getOperation(w http.ResponseWriter, r *http.Request, name string) {
+	opType, target, ok := decodeOperationName(name)
+	if !ok {
+		writeError(w, http.StatusNotFound, "NOT_FOUND",
+			"operation "+name+" not found (shim only resolves operations it issued)")
+		return
+	}
+	inst, err := srv.s.DescribeInstance(r.Context(), target)
+	op := &sqladmin.Operation{
+		Name:          name,
+		OperationType: strings.ToUpper(opType),
+		TargetId:      target,
+	}
+	if err != nil {
+		// For delete ops, NoSuchInstance is the success signal —
+		// the resource has been destroyed.
+		if opType == "delete" {
+			op.Status = "DONE"
+			writeJSON(w, http.StatusOK, op)
+			return
+		}
+		// Other op types: instance missing means something's wrong.
+		mapDomainError(w, err)
+		return
+	}
+	// Resource exists. Map its current status to operation status.
+	switch inst.Status {
+	case domain.StatusAvailable:
+		op.Status = "DONE"
+	case domain.StatusCreating, domain.StatusModifying, domain.StatusRebooting, domain.StatusDeleting:
+		op.Status = "RUNNING"
+	default:
+		op.Status = "PENDING"
+	}
+	writeJSON(w, http.StatusOK, op)
+}
+
+func (srv *Server) listOperations(w http.ResponseWriter, r *http.Request) {
+	// The shim doesn't keep an operation log — there's no honest
+	// way to list past operations without persistent state. Real
+	// Cloud SQL Admin returns the recent ops; the shim's intersection
+	// is "Operations.Get only" (the SDK + Terraform polling paths
+	// only call Get, never List). Return empty list honestly.
+	_ = r
+	writeJSON(w, http.StatusOK, &sqladmin.OperationsListResponse{Items: nil})
 }
 
 func decodeJSON(w http.ResponseWriter, r *http.Request, target interface{}) bool {
