@@ -52,7 +52,17 @@ type Function struct {
 	MemoryBytes    int64 // domain uses bytes; backends translate
 	CPUMilliCores  int   // 0 = backend default
 	TimeoutSeconds int   // 1-900; 0 = backend default
-	CreatedAt      time.Time
+	// Role is AWS Lambda's execution-role ARN. In-contract only for
+	// the AWS-to-AWS passthrough cell (per
+	// services/functions/APPLY_INTERSECTION.md). Other backends
+	// reject non-empty values with InvalidArgument — they have no
+	// per-function role concept that translates honestly.
+	Role string
+	// Publish is AWS Lambda's "publish a new version on update" flag.
+	// In-contract for AWS-to-AWS only; non-AWS backends reject true
+	// with OperationNotSupportedException.
+	Publish   bool
+	CreatedAt time.Time
 }
 
 // Endpoint is the HTTP URL clients invoke the function on. Populated
@@ -68,6 +78,8 @@ type CreateFunctionOptions struct {
 	MemoryBytes    int64
 	CPUMilliCores  int
 	TimeoutSeconds int
+	Role           string // AWS-only; see Function.Role.
+	Publish        bool   // AWS-only; see Function.Publish.
 }
 
 // UpdateFunctionOptions controls UpdateFunction. All fields optional.
@@ -77,6 +89,8 @@ type UpdateFunctionOptions struct {
 	MemoryBytes    int64
 	CPUMilliCores  int
 	TimeoutSeconds int
+	Role           string
+	Publish        bool
 }
 
 // ListFunctionsOptions controls ListFunctions.

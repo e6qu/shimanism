@@ -144,6 +144,15 @@ func parseTimeoutSeconds(s string) int {
 }
 
 func (b *Backend) CreateFunction(ctx context.Context, name string, opt domain.CreateFunctionOptions) (domain.Function, error) {
+	// Role + Publish are AWS Lambda-specific; honest cross-cloud
+	// answer is to reject rather than silently drop. See
+	// services/functions/APPLY_INTERSECTION.md.
+	if opt.Role != "" {
+		return domain.Function{}, domain.InvalidArgument("Role is AWS Lambda-specific; not supported on GCP Cloud Run")
+	}
+	if opt.Publish {
+		return domain.Function{}, domain.InvalidArgument("Publish is AWS Lambda-specific; not supported on GCP Cloud Run")
+	}
 	container := &runapi.GoogleCloudRunV2Container{
 		Image: opt.Image,
 	}

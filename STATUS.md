@@ -25,7 +25,7 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 | CI | Five required checks: `branch rebased on origin/main`, `tracked symlinks resolve`, `continuity docs present`, `go vet + test + build`, `dependency licenses AGPL-compatible`. |
 | Renovate | Config committed (48h minimum release age, weekly batches, pinned GitHub Actions SHAs); **user must install the Renovate GitHub App** at https://github.com/apps/renovate. |
 | Dep policy | [`doc/DEPENDENCY_POLICY.md`](doc/DEPENDENCY_POLICY.md): min release age 48h, prefer pure-Go over cgo, pnpm + no lifecycle scripts when JS lands. |
-| Bugs | 17 filed · 9 fixed · 7 open · 1 false positive. Phase 10 to-date: filed BUG-14 (false positive), BUG-15 (GCP queue retention), BUG-16 (rdbms GCP v1 vs v1beta4 path mismatch), BUG-17 (secrets UpdateSecret); BUG-5 (10.1), BUG-17 (10.3 first chunk), BUG-2 (10.3 second chunk — AWS SQS SetQueueAttributes across 5 backends + read-side attribute surface + awsQueryCompatible legacy error codes) closed. AWS SNS SetTopicAttributes wired (third 10.3 chunk; no new BUG — same class as BUG-2). |
+| Bugs | 17 filed · 10 fixed · 6 open · 1 false positive. Phase 10 to-date: filed BUG-14 (false positive), BUG-15 (GCP queue retention), BUG-16 (rdbms GCP v1 vs v1beta4 path mismatch), BUG-17 (secrets UpdateSecret); BUG-5 (10.1), BUG-17, BUG-2, BUG-13 (10.3 first / second / fourth chunks — secrets UpdateSecret, AWS SQS SetQueueAttributes + awsQueryCompatible error codes, functions domain Role/Publish + AWS Lambda round-trip) closed. AWS SNS SetTopicAttributes wired (third 10.3 chunk). |
 | Live infra | None. |
 
 ## Invariants (carry across compactions / fresh sessions)

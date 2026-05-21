@@ -122,6 +122,8 @@ type createFunctionRequest struct {
 	MemorySize   int                `json:"MemorySize,omitempty"`
 	Timeout      int                `json:"Timeout,omitempty"`
 	Environment  *environmentConfig `json:"Environment,omitempty"`
+	Role         string             `json:"Role,omitempty"`
+	Publish      bool               `json:"Publish,omitempty"`
 }
 
 type functionCode struct {
@@ -155,6 +157,7 @@ type functionConfiguration struct {
 	CodeSha256       string                `json:"CodeSha256,omitempty"`
 	LastModified     string                `json:"LastModified,omitempty"`
 	Version          string                `json:"Version,omitempty"`
+	Role             string                `json:"Role,omitempty"`
 }
 
 type environmentResponse struct {
@@ -195,6 +198,8 @@ func (srv *Server) createFunction(w http.ResponseWriter, r *http.Request) {
 		Image:          body.Code.ImageUri,
 		MemoryBytes:    int64(body.MemorySize) * 1024 * 1024,
 		TimeoutSeconds: body.Timeout,
+		Role:           body.Role,
+		Publish:        body.Publish,
 	}
 	if body.Environment != nil {
 		opt.Environment = body.Environment.Variables
@@ -388,21 +393,42 @@ func awsLastUpdateStatus(s domain.Status) string {
 }
 
 func functionToAWS(fn domain.Function) *functionConfiguration {
+	memMB := int(fn.MemoryBytes / (1024 * 1024))
+	if memMB == 0 {
+		// AWS Lambda's default memory size is 128 MiB; the canonical
+		// "feature unset" surface value real Lambda returns.
+		memMB = 128
+	}
 	out := &functionConfiguration{
 		FunctionName:     fn.Name,
 		FunctionArn:      "arn:aws:lambda:us-east-1:000000000000:function:" + fn.Name,
 		PackageType:      "Image",
 		State:            awsStateFromDomain(fn.Status),
 		LastUpdateStatus: awsLastUpdateStatus(fn.Status),
-		MemorySize:       int(fn.MemoryBytes / (1024 * 1024)),
+		MemorySize:       memMB,
 		Timeout:          fn.TimeoutSeconds,
 		Code:             &functionCodeLocation{ImageUri: fn.Image},
 		LastModified:     time.Now().UTC().Format(time.RFC3339),
+		Role:             fn.Role,
+		// Version "$LATEST" is the unpublished tip of the function; real
+		// Lambda always returns this on Get unless Publish was true.
+		Version: lambdaVersionFor(fn),
 	}
 	if len(fn.Environment) > 0 {
 		out.Environment = &environmentResponse{Variables: fn.Environment}
 	}
 	return out
+}
+
+// lambdaVersionFor returns the canonical Lambda version string for a
+// function. Publish=false → "$LATEST" (the unpublished tip). Publish=true
+// → "1" (the first published version). The shim doesn't model version
+// history beyond Publish boolean.
+func lambdaVersionFor(fn domain.Function) string {
+	if fn.Publish {
+		return "1"
+	}
+	return "$LATEST"
 }
 
 func decodeJSON(w http.ResponseWriter, r *http.Request, target interface{}) bool {

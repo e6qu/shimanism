@@ -129,6 +129,12 @@ func parseMemoryString(s string) int64 {
 }
 
 func (b *Backend) CreateFunction(ctx context.Context, name string, opt domain.CreateFunctionOptions) (domain.Function, error) {
+	if opt.Role != "" {
+		return domain.Function{}, domain.InvalidArgument("Role is AWS Lambda-specific; not supported on Azure Container Apps")
+	}
+	if opt.Publish {
+		return domain.Function{}, domain.InvalidArgument("Publish is AWS Lambda-specific; not supported on Azure Container Apps")
+	}
 	image := opt.Image
 	container := &armappcontainers.Container{
 		Name:  &name,

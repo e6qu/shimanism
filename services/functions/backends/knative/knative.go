@@ -50,6 +50,12 @@ func (b *Backend) CreateFunction(ctx context.Context, name string, opt domain.Cr
 	if opt.Image == "" {
 		return domain.Function{}, domain.InvalidArgument("Image is required")
 	}
+	if opt.Role != "" {
+		return domain.Function{}, domain.InvalidArgument("Role is AWS Lambda-specific; not supported on Knative")
+	}
+	if opt.Publish {
+		return domain.Function{}, domain.InvalidArgument("Publish is AWS Lambda-specific; not supported on Knative")
+	}
 	svc := &unstructured.Unstructured{}
 	svc.SetAPIVersion("serving.knative.dev/v1")
 	svc.SetKind("Service")

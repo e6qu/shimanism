@@ -26,6 +26,8 @@ type functionState struct {
 	memoryBytes    int64
 	cpuMilliCores  int
 	timeoutSeconds int
+	role           string
+	publish        bool
 	createdAt      time.Time
 }
 
@@ -58,6 +60,8 @@ func (b *Backend) toDomain(s *functionState) domain.Function {
 		MemoryBytes:    s.memoryBytes,
 		CPUMilliCores:  s.cpuMilliCores,
 		TimeoutSeconds: s.timeoutSeconds,
+		Role:           s.role,
+		Publish:        s.publish,
 		CreatedAt:      s.createdAt,
 	}
 	if s.status == domain.StatusAvailable {
@@ -96,6 +100,8 @@ func (b *Backend) CreateFunction(ctx context.Context, name string, opt domain.Cr
 		memoryBytes:    opt.MemoryBytes,
 		cpuMilliCores:  opt.CPUMilliCores,
 		timeoutSeconds: opt.TimeoutSeconds,
+		role:           opt.Role,
+		publish:        opt.Publish,
 		createdAt:      time.Now().UTC(),
 	}
 	b.functions[name] = s
