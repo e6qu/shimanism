@@ -13,16 +13,21 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 
 ## Next concrete action
 
-**11.3** — Migrate AWS Secrets Manager frontend to the generated stubs.
+**11.3c** — Wire generated `gen.SecretsManagerBackend` into `harness.StartSecretsServerAWS`; delete hand-written wire.
 
-The 11.2 emitter path produces gofmt-clean Go for AWS Secrets Manager with handlers + routing + types. 11.3 wires the generated stubs into the frontend:
+The codegen artifacts + EpochTime fidelity foundation are in tree. 11.3c writes the per-op adapter:
 
-- `make codegen` regenerates `services/secrets/gen/aws_secretsmanager.gen.go` (the Makefile target needs to fan out across `services/*/codegen.json` manifests, not just storage — fold that generalization in).
-- Replace the hand-written wire layer at `internal/secrets/frontends/aws_secretsmanager/` with a thin adapter that satisfies the generated `SecretsManagerBackend` interface and dispatches to the existing domain.
-- The `translate.go` files stay; the wire-decode boundary moves into generated code.
-- AWS SDK / CLI / Terraform conformance tests in `services/secrets/conformance/` should pass unchanged — the wire-protocol contract didn't change, only its implementation.
+- New file `internal/secrets/frontends/aws_secretsmanager/adapter.go` implementing every generated `<Op>Backend` interface method. Each method maps `gen.*Request` → existing domain types → calls `srv.s.<Op>(...)` → maps result → `*gen.*Response`. The existing helpers (versionIDFor, fakeARN, normaliseSecretID, tagsFromMap) move into the adapter file or a `wire.go`.
+- Update `internal/harness/server.go` `StartSecretsServerAWS` to use `gen.RegisterSecretsManagerRoutes(adapter)` instead of `awssmfront.New(backend)`.
+- Delete `internal/secrets/frontends/aws_secretsmanager/handlers.go` + `server.go` + `errors.go`. The package becomes the adapter only.
+- AWS SDK / CLI / Terraform conformance tests in `services/secrets/conformance/` must pass unchanged.
 
-Output: the hand-written `aws_secretsmanager` wire layer is deleted; the secrets service serves AWS via spec-driven generated stubs end-to-end.
+Two tricky bits to keep in mind:
+
+- `GetResourcePolicy` probe: the hand-written handler returns the canonical "no policy" response (no actual policy storage). The generated `GetResourcePolicyResponse` has the same shape; the adapter just constructs the empty-policy form.
+- Version-handle translation: the hand-written code uses `versionIDFor(n uint64)` to render the domain's monotonic uint64 as a zero-UUID. The adapter carries this verbatim.
+
+After 11.3c, **11.4** opens (Azure Key Vault oapi-codegen pilot).
 
 ## Invariants snapshot
 
