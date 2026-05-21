@@ -9,13 +9,26 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
+	"golang.org/x/oauth2"
 	apigwapi "google.golang.org/api/apigateway/v1"
 	"google.golang.org/api/option"
 
+	"github.com/e6qu/shimanism/internal/gcpbearer"
 	"github.com/e6qu/shimanism/internal/harness"
 	"github.com/e6qu/shimanism/services/apigateway/backends/inmem"
 )
+
+func apigwTokenSource() oauth2.TokenSource {
+	jwt := gcpbearer.TestJWT(
+		[]byte("test-key-do-not-use-in-prod"),
+		"https://shim.test/",
+		"https://apigateway.googleapis.com/",
+		15*time.Minute,
+	)
+	return oauth2.StaticTokenSource(&oauth2.Token{AccessToken: jwt})
+}
 
 func TestGCPSDK_APIGatewayLifecycle(t *testing.T) {
 	srv := harness.StartAPIGatewayServerGCP(t, inmem.New())
@@ -28,7 +41,7 @@ func TestGCPSDK_APIGatewayLifecycle(t *testing.T) {
 	_ = u
 	svc, err := apigwapi.NewService(ctx,
 		option.WithEndpoint(endpoint),
-		option.WithoutAuthentication(),
+		option.WithTokenSource(apigwTokenSource()),
 	)
 	if err != nil {
 		t.Fatalf("NewService: %v", err)
@@ -72,7 +85,7 @@ func TestGCPSDK_APIGateway_ApiConfigRouteDeploy(t *testing.T) {
 	endpoint := strings.TrimSuffix(srv.URL, "/")
 	svc, err := apigwapi.NewService(ctx,
 		option.WithEndpoint(endpoint),
-		option.WithoutAuthentication(),
+		option.WithTokenSource(apigwTokenSource()),
 	)
 	if err != nil {
 		t.Fatalf("NewService: %v", err)
