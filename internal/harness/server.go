@@ -11,6 +11,7 @@ package harness
 import (
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
 	apigatewaydomain "github.com/e6qu/shimanism/internal/apigateway/domain"
@@ -58,6 +59,18 @@ type StorageServer struct {
 	// Close shuts down the test server. Registered with t.Cleanup so
 	// callers rarely need to invoke it directly.
 	Close func()
+}
+
+// init opts the harness into the SigV4 auth-bypass path so existing
+// conformance tests (which use AnonymousCredentials at the AWS SDK
+// level, no SigV4 signing) keep passing. Real-signed-request tests
+// don't import the harness — they instantiate the frontend directly
+// and the verifier runs without bypass. Phase 11.6c drops this and
+// rewrites each conformance test to sign with the test key; this is
+// the transitional gate that keeps the conformance lane green while
+// the verifier is wired into each adapter.
+func init() {
+	os.Setenv("SHIMANISM_TEST_UNAUTHENTICATED", "1")
 }
 
 // StartStorageServer starts a shim instance with the AWS S3 frontend

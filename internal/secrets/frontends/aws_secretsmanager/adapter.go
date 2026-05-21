@@ -38,6 +38,7 @@ import (
 
 	"github.com/e6qu/shimanism/internal/awsjson"
 	"github.com/e6qu/shimanism/internal/secrets/domain"
+	"github.com/e6qu/shimanism/internal/sigv4verifier"
 	gen "github.com/e6qu/shimanism/services/secrets/gen"
 )
 
@@ -50,10 +51,24 @@ type Adapter struct {
 
 // New returns the http.Handler dispatching through the generated
 // awsJson1_1 router into the adapter bound to the given backend.
-// Replaces the prior Server.ServeHTTP entry point; the package's
-// public API stays the same single function.
+// The handler is wrapped with the SigV4 verifier middleware; the
+// verifier short-circuits on bad signatures unless
+// SHIMANISM_TEST_UNAUTHENTICATED=1 is set in the environment (the
+// transitional gate during the Phase 11 conformance-lane rollover).
+//
+// Test mode signing key — single AccessKey/Secret pair the shim
+// trusts whenever the env var is not set. Real-cloud lanes (Track A)
+// wire their own CredentialStore.
 func New(s domain.Secrets) http.Handler {
-	return gen.RegisterSecretsManagerRoutes(&Adapter{s: s})
+	verifier := sigv4verifier.New(sigv4verifier.StaticStore{
+		AccessKey: "AKIAIOSFODNN7EXAMPLE",
+		Secret:    "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+	}, sigv4verifier.Options{
+		Service: "secretsmanager",
+		Region:  "us-east-1",
+	})
+	mw := sigv4verifier.Middleware(verifier, awsjson.WriteError)
+	return mw(gen.RegisterSecretsManagerRoutes(&Adapter{s: s}))
 }
 
 // ---------------------------------------------------------------------
