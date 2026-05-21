@@ -65,16 +65,25 @@ type StorageServer struct {
 	Close func()
 }
 
-// init opts the harness into the SigV4 auth-bypass path so existing
-// conformance tests (which use AnonymousCredentials at the AWS SDK
-// level, no SigV4 signing) keep passing. Real-signed-request tests
-// don't import the harness — they instantiate the frontend directly
-// and the verifier runs without bypass. Phase 11.6c drops this and
-// rewrites each conformance test to sign with the test key; this is
-// the transitional gate that keeps the conformance lane green while
-// the verifier is wired into each adapter.
+// init: per-cloud bypass env vars are set so the harness can keep
+// the conformance lanes green during the per-cloud signed-test
+// rollout. The AWS conformance tests have been migrated to sign
+// with the SigV4 verifier's trusted credentials (Phase 11.14a-f);
+// the Go SDK path passes with bypass dropped (verified via
+// TestAWSSigV4_AcceptsSignedRequestViaSDK), but the `aws` CLI
+// signs requests with a slightly different canonical-request shape
+// that the verifier hasn't been aligned to yet — the CLI bypass
+// stays on. GCP + Azure tests use `option.WithoutAuthentication()`
+// / `fakeAzureCred` and need bearer / SharedKey-aware test signing
+// to drop their bypass.
+//
+// Per-cloud env vars (SHIMANISM_TEST_UNAUTHENTICATED_{AWS,GCP,AZURE})
+// let individual tests t.Setenv("SHIMANISM_TEST_UNAUTHENTICATED_AWS",
+// "") to opt into enforced verification on a specific lane.
 func init() {
-	os.Setenv("SHIMANISM_TEST_UNAUTHENTICATED", "1")
+	os.Setenv("SHIMANISM_TEST_UNAUTHENTICATED_AWS", "1")
+	os.Setenv("SHIMANISM_TEST_UNAUTHENTICATED_GCP", "1")
+	os.Setenv("SHIMANISM_TEST_UNAUTHENTICATED_AZURE", "1")
 }
 
 // StartStorageServer starts a shim instance with the AWS S3 frontend

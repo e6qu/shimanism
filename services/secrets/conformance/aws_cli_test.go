@@ -29,8 +29,9 @@ func runAWSSecrets(t *testing.T, srvURL, bin string, args ...string) ([]byte, []
 	t.Helper()
 	cmd := exec.Command(bin, append([]string{"--endpoint-url=" + srvURL, "--no-cli-pager"}, args...)...)
 	cmd.Env = append(os.Environ(),
-		"AWS_ACCESS_KEY_ID=test",
-		"AWS_SECRET_ACCESS_KEY=test",
+		// Verifier's trusted test credentials.
+		"AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE",
+		"AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
 		"AWS_DEFAULT_REGION=us-east-1",
 	)
 	var stdout, stderr bytes.Buffer

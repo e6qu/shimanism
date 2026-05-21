@@ -49,9 +49,12 @@ func writeGCPError(w http.ResponseWriter, code int, status, message string) {
 	})
 }
 
-// bypass reads SHIMANISM_TEST_UNAUTHENTICATED on every call so
-// per-test t.Setenv overrides take effect even after the harness
-// init() set the var process-wide.
+// bypass reads SHIMANISM_TEST_UNAUTHENTICATED (global) or
+// SHIMANISM_TEST_UNAUTHENTICATED_GCP (GCP-only override). Per-test
+// t.Setenv overrides take effect.
 func bypass() bool {
-	return os.Getenv("SHIMANISM_TEST_UNAUTHENTICATED") == "1"
+	if os.Getenv("SHIMANISM_TEST_UNAUTHENTICATED") == "1" {
+		return true
+	}
+	return os.Getenv("SHIMANISM_TEST_UNAUTHENTICATED_GCP") == "1"
 }

@@ -32,8 +32,8 @@ func runAWS(t *testing.T, srvURL, bin string, args ...string) ([]byte, []byte, e
 	t.Helper()
 	cmd := exec.Command(bin, append([]string{"--endpoint-url=" + srvURL, "--no-cli-pager"}, args...)...)
 	cmd.Env = append(os.Environ(),
-		"AWS_ACCESS_KEY_ID=test",
-		"AWS_SECRET_ACCESS_KEY=test",
+		"AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE",
+		"AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
 		"AWS_DEFAULT_REGION=us-east-1",
 		// Force path-style addressing; the harness lives on a random
 		// localhost port and virtual-hosted style would resolve

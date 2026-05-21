@@ -55,6 +55,11 @@ func writeStorageError(w http.ResponseWriter, code int, errorCode, message strin
 	_ = xml.NewEncoder(w).Encode(storageErrorEnvelope{Code: errorCode, Message: message})
 }
 
+// bypass reads SHIMANISM_TEST_UNAUTHENTICATED (global) or
+// SHIMANISM_TEST_UNAUTHENTICATED_AZURE (Azure-only override).
 func bypass() bool {
-	return os.Getenv("SHIMANISM_TEST_UNAUTHENTICATED") == "1"
+	if os.Getenv("SHIMANISM_TEST_UNAUTHENTICATED") == "1" {
+		return true
+	}
+	return os.Getenv("SHIMANISM_TEST_UNAUTHENTICATED_AZURE") == "1"
 }
