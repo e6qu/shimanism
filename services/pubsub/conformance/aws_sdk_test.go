@@ -11,6 +11,7 @@ import (
 
 	awsapi "github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/sns"
 	snstypes "github.com/aws/aws-sdk-go-v2/service/sns/types"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
@@ -25,7 +26,12 @@ func TestAWSSDK_PubsubFanout(t *testing.T) {
 
 	cfg, err := config.LoadDefaultConfig(ctx,
 		config.WithRegion("us-east-1"),
-		config.WithCredentialsProvider(awsapi.AnonymousCredentials{}),
+		config.WithCredentialsProvider(credentials.StaticCredentialsProvider{
+			Value: awsapi.Credentials{
+				AccessKeyID:     "AKIAIOSFODNN7EXAMPLE",
+				SecretAccessKey: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+			},
+		}),
 	)
 	if err != nil {
 		t.Fatalf("load config: %v", err)
