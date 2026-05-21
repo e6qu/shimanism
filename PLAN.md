@@ -270,16 +270,21 @@ Not a Phase 11 deliverable but called out in DO_NEXT as the next-best maintenanc
 
 - **Renovate coverage of vendored specs.** Renovate tracks Go modules + GitHub Actions today; vendored specs in `services/<svc>/spec/` are manual. Wire spec freshness into CI (compare vendored hash vs upstream HEAD; alert on drift). 12.0 candidate.
 
-### Sub-phase structure (drafted; refined in 12.0)
+### Sub-phase structure
 
-| Sub | Headline |
-|---|---|
-| 12.0 | Scope baseline + per-service cross-cloud cell selection + Renovate-spec-coverage candidate. |
-| 12.1–12.8 | One PR per service, landing the chosen cross-cloud Apply cell as a roundtrip test (Track 1). |
-| 12.A | Broader Azure spec-driven migration (Track 2). |
-| 12.B | GCP routing emitter + 8 adapter migrations (Track 2). |
-| 12.C | Production RS256 JWKS (Track 2) — when a deployment target requires it. |
-| 12.9 | Closer: cross-cloud Apply matrix has one honest cell per service; per-service `MIGRATION.md` updated with the runnable recipe; spec-drift CI lane lit up. |
+Both tracks land on the same `phase-12` branch / PR (same one-PR-per-phase rule as Phase 11). Sub-phases below are the natural breakpoints for granular commits, not separate PRs.
+
+| Sub | Status | Headline |
+|---|---|---|
+| 12.0 | ◐ | Phase 12 opener: branch + continuity docs + draft PR. |
+| 12.A.1 | ◻ | Complete `azure_keyvault` spec-driven migration — remaining handlers decode/encode via the spec-driven `gen.*` types (11.4 pilot migrated only `SetSecret`). |
+| 12.A.2 | ◻ | Replace `azure_keyvault`'s regex router with `gen.HandlerWithOptions`; adapter implements `gen.ServerInterface`. |
+| 12.A.3–7 | ◻ | Vendor + codegen + adapter migration for the other 7 Azure frontends (storage / queue / pubsub / rdbms / cache / functions / apigateway). |
+| 12.B.0 | ◻ | GCP routing emitter — Discovery JSON → routing-only Go that reuses `google.golang.org/api/<svc>/v1` wire types. |
+| 12.B.1–8 | ◻ | GCP adapter migrations across the 8 services. |
+| 12.1–12.8 | ◻ | Track 1 cross-cloud Apply cells per service (storage already proves; 7 remaining). |
+| 12.C | ⏸ | Production RS256 JWKS for real Google + Microsoft Entra tokens. Deferred until a deployment target requires it. |
+| 12.9 | ◻ | Closer: 8/8 Azure + GCP frontends spec-driven; cross-cloud Apply matrix has one honest cell per service; per-service `MIGRATION.md` updated with the runnable recipe; spec-drift CI lane (Renovate coverage) candidate. |
 
 **Exit criteria:** every service has `TestCrossCloudApply_Roundtrip_<svc>_<cell>` green in CI (Track 1); 8/8 Azure frontends + 8/8 GCP frontends spec-driven (Track 2 A+B); per-service `MIGRATION.md` includes a copy-pasteable Terraform + endpoint-override walkthrough.
 
