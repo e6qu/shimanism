@@ -31,34 +31,6 @@ import (
 	"github.com/e6qu/shimanism/services/queue/backends/inmem"
 )
 
-const terraformApplyQueueAWSConfig = `
-terraform {
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 5.0"
-    }
-  }
-}
-
-provider "aws" {
-  region                      = "us-east-1"
-  access_key                  = "test"
-  secret_key                  = "test"
-  skip_credentials_validation = true
-  skip_metadata_api_check     = true
-  skip_requesting_account_id  = true
-
-  endpoints {
-    sqs = "%s"
-  }
-}
-
-resource "aws_sqs_queue" "applied" {
-  name = "shim-applied-queue"
-}
-`
-
 func TestTerraform_AWSQueue_Apply_NoDrift(t *testing.T) {
 	// BUG-2: aws_sqs_queue reconciles via SetQueueAttributes after
 	// CreateQueue; the domain doesn't carry that op so apply fails.
