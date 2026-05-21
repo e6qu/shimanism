@@ -17,6 +17,8 @@ import (
 	awsapigwfront "github.com/e6qu/shimanism/internal/apigateway/frontends/aws_apigatewayv2"
 	azureapimfront "github.com/e6qu/shimanism/internal/apigateway/frontends/azure_apim"
 	gcpapigwfront "github.com/e6qu/shimanism/internal/apigateway/frontends/gcp_apigateway"
+	"github.com/e6qu/shimanism/internal/azurebearer"
+	"github.com/e6qu/shimanism/internal/azuresharedkey"
 	cachedomain "github.com/e6qu/shimanism/internal/cache/domain"
 	awsecfront "github.com/e6qu/shimanism/internal/cache/frontends/aws_elasticache"
 	azureredisfront "github.com/e6qu/shimanism/internal/cache/frontends/azure_redis"
@@ -25,6 +27,7 @@ import (
 	awslambdafront "github.com/e6qu/shimanism/internal/functions/frontends/aws_lambda"
 	azurecafront "github.com/e6qu/shimanism/internal/functions/frontends/azure_containerapps"
 	gcpcrfront "github.com/e6qu/shimanism/internal/functions/frontends/gcp_cloudrun"
+	"github.com/e6qu/shimanism/internal/gcpbearer"
 	pubsubdomain "github.com/e6qu/shimanism/internal/pubsub/domain"
 	awssnsfront "github.com/e6qu/shimanism/internal/pubsub/frontends/aws_sns"
 	awssqsreceivefront "github.com/e6qu/shimanism/internal/pubsub/frontends/aws_sqs_receive"
@@ -38,15 +41,12 @@ import (
 	awsrdsfront "github.com/e6qu/shimanism/internal/rdbms/frontends/aws_rds"
 	azuredbadminfront "github.com/e6qu/shimanism/internal/rdbms/frontends/azure_dbadmin"
 	gcpcloudsqlfront "github.com/e6qu/shimanism/internal/rdbms/frontends/gcp_cloudsql"
-	"github.com/e6qu/shimanism/internal/azurebearer"
-	"github.com/e6qu/shimanism/internal/azuresharedkey"
-	"github.com/e6qu/shimanism/internal/gcpbearer"
 	"github.com/e6qu/shimanism/internal/restxml"
 	secretsdomain "github.com/e6qu/shimanism/internal/secrets/domain"
-	"github.com/e6qu/shimanism/internal/sigv4verifier"
 	awssmfront "github.com/e6qu/shimanism/internal/secrets/frontends/aws_secretsmanager"
 	azurekvfront "github.com/e6qu/shimanism/internal/secrets/frontends/azure_keyvault"
 	gcpsmfront "github.com/e6qu/shimanism/internal/secrets/frontends/gcp_secretmanager"
+	"github.com/e6qu/shimanism/internal/sigv4verifier"
 	"github.com/e6qu/shimanism/internal/storage/domain"
 	awsfront "github.com/e6qu/shimanism/internal/storage/frontends/aws_s3"
 	azurefront "github.com/e6qu/shimanism/internal/storage/frontends/azure_blob"
@@ -70,7 +70,7 @@ type StorageServer struct {
 //   - AWS:   SigV4 with AKIAIOSFODNN7EXAMPLE / wJalrXUtnFEMI…
 //   - GCP:   HS256 JWTs via gcpbearer.TestJWT
 //   - Azure: HS256 JWTs via azurebearer.TestJWT (Bearer-shaped
-//            frontends), SharedKey for Azure Blob Storage
+//     frontends), SharedKey for Azure Blob Storage
 //
 // Every lane runs with verification enforced end-to-end. No
 // per-cloud bypass is set here. The

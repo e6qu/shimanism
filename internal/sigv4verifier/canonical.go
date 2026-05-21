@@ -234,4 +234,3 @@ func hmacSHA256(key, data []byte) []byte {
 	h.Write(data)
 	return h.Sum(nil)
 }
-

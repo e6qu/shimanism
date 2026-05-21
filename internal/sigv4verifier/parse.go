@@ -67,4 +67,3 @@ func sha256Hex(body []byte) string {
 	h := sha256.Sum256(body)
 	return hex.EncodeToString(h[:])
 }
-

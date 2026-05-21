@@ -337,9 +337,10 @@ func (a *Adapter) Publish(ctx context.Context, in *gen.PublishInput) (*gen.Publi
 // messageAttributesFromContext extracts SNS Publish's
 // MessageAttributes map from the form on the request context.
 // AWS serialises this as
-//   MessageAttributes.entry.N.Name=key
-//   MessageAttributes.entry.N.Value.DataType=String
-//   MessageAttributes.entry.N.Value.StringValue=val
+//
+//	MessageAttributes.entry.N.Name=key
+//	MessageAttributes.entry.N.Value.DataType=String
+//	MessageAttributes.entry.N.Value.StringValue=val
 //
 // The domain stores only StringValue.
 func messageAttributesFromContext(ctx context.Context) map[string]string {

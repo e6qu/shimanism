@@ -106,15 +106,15 @@ func functionToAWS(fn domain.Function) *gen.FunctionConfiguration {
 	state := stateFromDomain(fn.Status)
 	lus := lastUpdateStatusFromDomain(fn.Status)
 	cfg := &gen.FunctionConfiguration{
-		FunctionName:     strPtr(fn.Name),
-		FunctionArn:      strPtr(arn),
-		PackageType:      &pkg,
-		State:            &state,
-		MemorySize:       &memMB,
-		Timeout:          i32Ptr(int32(fn.TimeoutSeconds)),
-		LastModified:     strPtr(time.Now().UTC().Format(time.RFC3339)),
-		Role:             strPtr(fn.Role),
-		Version:          strPtr(lambdaVersionFor(fn)),
+		FunctionName: strPtr(fn.Name),
+		FunctionArn:  strPtr(arn),
+		PackageType:  &pkg,
+		State:        &state,
+		MemorySize:   &memMB,
+		Timeout:      i32Ptr(int32(fn.TimeoutSeconds)),
+		LastModified: strPtr(time.Now().UTC().Format(time.RFC3339)),
+		Role:         strPtr(fn.Role),
+		Version:      strPtr(lambdaVersionFor(fn)),
 	}
 	if lus != "" {
 		cfg.LastUpdateStatus = &lus

@@ -9,12 +9,12 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"net/http"
 	"strings"
 	"testing"
 	"time"
 
 	gcsstorage "cloud.google.com/go/storage"
-	"golang.org/x/oauth2"
 	"google.golang.org/api/option"
 
 	"github.com/e6qu/shimanism/internal/gcpbearer"
@@ -22,10 +22,26 @@ import (
 	"github.com/e6qu/shimanism/services/storage/backends/inmem"
 )
 
-// newGCSClient returns a storage.Client pointed at the shim, signed
-// with the gcpbearer verifier's trusted test JWT for the storage
-// audience. Bearer verification runs end-to-end through the
-// gcpbearer middleware.
+// bearerTransport injects Authorization: Bearer <jwt> on every
+// outbound request. We can't rely on option.WithTokenSource for the
+// storage client because cloud.google.com/go/storage strips auth
+// when STORAGE_EMULATOR_HOST is set (CI's gcs job sets it so the
+// fake-gcs-server backend is reachable). A round-tripper that adds
+// the header unconditionally bypasses that SDK-internal stripping.
+type bearerTransport struct {
+	token string
+	base  http.RoundTripper
+}
+
+func (b *bearerTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	r2 := r.Clone(r.Context())
+	r2.Header.Set("Authorization", "Bearer "+b.token)
+	if b.base != nil {
+		return b.base.RoundTrip(r2)
+	}
+	return http.DefaultTransport.RoundTrip(r2)
+}
+
 func newGCSClient(t *testing.T, endpoint string) *gcsstorage.Client {
 	t.Helper()
 	jwt := gcpbearer.TestJWT(
@@ -34,9 +50,10 @@ func newGCSClient(t *testing.T, endpoint string) *gcsstorage.Client {
 		"https://storage.googleapis.com/",
 		15*time.Minute,
 	)
+	hc := &http.Client{Transport: &bearerTransport{token: jwt}}
 	c, err := gcsstorage.NewClient(context.Background(),
 		option.WithEndpoint(endpoint),
-		option.WithTokenSource(oauth2.StaticTokenSource(&oauth2.Token{AccessToken: jwt})),
+		option.WithHTTPClient(hc),
 	)
 	if err != nil {
 		t.Fatalf("new GCS client: %v", err)
