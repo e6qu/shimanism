@@ -11,6 +11,7 @@ import (
 
 	"github.com/e6qu/shimanism/internal/awsquery"
 	"github.com/e6qu/shimanism/internal/rdbms/domain"
+	"github.com/e6qu/shimanism/internal/sigv4verifier"
 	gen "github.com/e6qu/shimanism/services/rdbms/gen"
 )
 
@@ -21,8 +22,18 @@ type Adapter struct {
 
 // New returns the http.Handler dispatching through the generated
 // awsQuery router into the adapter bound to the given backend.
+// SigV4 verification is wired in; SHIMANISM_TEST_UNAUTHENTICATED=1
+// short-circuits during the conformance-lane rewrite.
 func New(s domain.RDBMS) http.Handler {
-	return gen.RegisterRDSRoutes(&Adapter{s: s})
+	router := gen.RegisterRDSRoutes(&Adapter{s: s})
+	verifier := sigv4verifier.New(sigv4verifier.StaticStore{
+		AccessKey: "AKIAIOSFODNN7EXAMPLE",
+		Secret:    "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+	}, sigv4verifier.Options{Service: "rds", Region: "us-east-1"})
+	emitErr := func(w http.ResponseWriter, status int, errorType, message string) {
+		awsquery.WriteError(w, status, "Sender", errorType, message)
+	}
+	return sigv4verifier.Middleware(verifier, emitErr)(router)
 }
 
 func strPtr(s string) *string { return &s }
