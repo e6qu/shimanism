@@ -11,6 +11,7 @@ import (
 
 	awsapi "github.com/aws/aws-sdk-go-v2/aws"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
+	awscredentials "github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/lambda"
 	lambdatypes "github.com/aws/aws-sdk-go-v2/service/lambda/types"
 
@@ -26,7 +27,12 @@ func TestFunctionsMatrix_AWSFrontend(t *testing.T) {
 			srv := harness.StartFunctionsServerAWS(t, be)
 			cfg, err := awsconfig.LoadDefaultConfig(ctx,
 				awsconfig.WithRegion("us-east-1"),
-				awsconfig.WithCredentialsProvider(awsapi.AnonymousCredentials{}),
+				awsconfig.WithCredentialsProvider(awscredentials.StaticCredentialsProvider{
+					Value: awsapi.Credentials{
+						AccessKeyID:     "AKIAIOSFODNN7EXAMPLE",
+						SecretAccessKey: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+					},
+				}),
 			)
 			if err != nil {
 				t.Fatalf("aws config: %v", err)

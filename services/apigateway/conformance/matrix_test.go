@@ -22,6 +22,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/apimanagement/armapimanagement/v3"
 	awsapi "github.com/aws/aws-sdk-go-v2/aws"
 	awscfg "github.com/aws/aws-sdk-go-v2/config"
+	awscredentials "github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/apigatewayv2"
 	apigwtypes "github.com/aws/aws-sdk-go-v2/service/apigatewayv2/types"
 	apigwapi "google.golang.org/api/apigateway/v1"
@@ -40,7 +41,12 @@ func TestAPIGatewayMatrix_AWSFrontend(t *testing.T) {
 			ctx := context.Background()
 			cfg, err := awscfg.LoadDefaultConfig(ctx,
 				awscfg.WithRegion("us-east-1"),
-				awscfg.WithCredentialsProvider(awsapi.AnonymousCredentials{}),
+				awscfg.WithCredentialsProvider(awscredentials.StaticCredentialsProvider{
+					Value: awsapi.Credentials{
+						AccessKeyID:     "AKIAIOSFODNN7EXAMPLE",
+						SecretAccessKey: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+					},
+				}),
 			)
 			if err != nil {
 				t.Fatalf("load aws config: %v", err)

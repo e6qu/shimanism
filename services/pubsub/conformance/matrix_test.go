@@ -25,6 +25,7 @@ import (
 
 	awsapi "github.com/aws/aws-sdk-go-v2/aws"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
+	awscredentials "github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/sns"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"google.golang.org/api/option"
@@ -42,7 +43,12 @@ func TestPubsubMatrix_AWSFrontend(t *testing.T) {
 			srv := harness.StartPubsubServerAWS(t, be)
 			cfg, err := awsconfig.LoadDefaultConfig(ctx,
 				awsconfig.WithRegion("us-east-1"),
-				awsconfig.WithCredentialsProvider(awsapi.AnonymousCredentials{}),
+				awsconfig.WithCredentialsProvider(awscredentials.StaticCredentialsProvider{
+					Value: awsapi.Credentials{
+						AccessKeyID:     "AKIAIOSFODNN7EXAMPLE",
+						SecretAccessKey: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+					},
+				}),
 			)
 			if err != nil {
 				t.Fatalf("aws config: %v", err)
