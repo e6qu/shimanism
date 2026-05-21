@@ -49,16 +49,21 @@ These are **S3-compatible storage backends**. They implement the S3 wire on top 
 
 [Crossplane](https://www.crossplane.io/) is multi-cloud infrastructure-as-code via Kubernetes CRDs. Users define `XR` (composite resource) types and `XRD` definitions; Crossplane reconciles them against cloud APIs.
 
+The headline difference: **Crossplane requires you to stop using your cloud SDK / IaC provider and adopt its CRD model.** Your existing `aws-sdk-go` / `boto3` calls don't talk to Crossplane; your existing `hashicorp/aws` Terraform plans don't either. You re-express each resource as a Crossplane CR (`XRD` + `Composition`) and reconcile via `kubectl`. The application code that *uses* the resources (reads from S3, sends to SQS, etc.) is unchanged — but the infrastructure-as-code surface is fully replaced.
+
+shimanism inverts that: **the original SDK and IaC keep working unchanged.** `aws s3 mb`, `boto3.client("s3").put_object(...)`, `hashicorp/aws`'s `aws_s3_bucket` resource — same calls, same plans, just pointed at a different endpoint. Crossplane is a new abstraction to learn; shimanism is a redirect.
+
 | Axis | Crossplane | shimanism |
 |---|---|---|
-| Abstraction layer | IaC + control plane (its own CRDs) | Wire-protocol passthrough (cloud's existing APIs) |
-| User code changes | Rewrite to Crossplane CRDs | None — keep existing SDK / CLI / Terraform |
+| Cloud SDK in your code | Replace usage — provisioning moves to Crossplane CRDs | **Keep the original SDK** (`aws-sdk-go`, `boto3`, `cloud.google.com/go/...`, Azure SDK) |
+| IaC tooling | Replace with Crossplane CRs / Compositions | **Keep `hashicorp/aws`, `hashicorp/google`, `hashicorp/azurerm`** — same modules, same plans |
+| Abstraction layer | New control-plane API (CRDs) | Wire-protocol passthrough (cloud's existing APIs) |
 | Runtime | Kubernetes-required | Standalone Go binary (also runnable on K8s) |
 | Data-plane proxying | No (control plane only) | Both control + data plane |
 
 **Use Crossplane when** you want a Kubernetes-native unified control plane for your multi-cloud infra, and you're willing to express resources as CRDs.
 
-**Use shimanism when** you want to keep your existing AWS / GCP / Azure SDK + Terraform code and progressively retarget where the bytes land.
+**Use shimanism when** you want to keep your existing cloud SDK + IaC tooling and reroute cloud services one at a time without rewriting anything.
 
 ### Dapr
 
