@@ -39,6 +39,7 @@ import (
 	awsrdsfront "github.com/e6qu/shimanism/internal/rdbms/frontends/aws_rds"
 	azuredbadminfront "github.com/e6qu/shimanism/internal/rdbms/frontends/azure_dbadmin"
 	gcpcloudsqlfront "github.com/e6qu/shimanism/internal/rdbms/frontends/gcp_cloudsql"
+	"github.com/e6qu/shimanism/internal/azurebearer"
 	"github.com/e6qu/shimanism/internal/azuresharedkey"
 	"github.com/e6qu/shimanism/internal/gcpbearer"
 	"github.com/e6qu/shimanism/internal/restxml"
@@ -177,7 +178,12 @@ func StartSecretsServerAWS(t *testing.T, backend secretsdomain.Secrets) *Secrets
 func StartSecretsServerGCP(t *testing.T, backend secretsdomain.Secrets) *SecretsServer {
 	t.Helper()
 	srv := gcpsmfront.New(backend)
-	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
+	verifier := gcpbearer.New(gcpbearer.Options{
+		Audience: "https://secretmanager.googleapis.com/",
+		TestKey:  []byte("test-key-do-not-use-in-prod"),
+	})
+	mw := gcpbearer.Middleware(verifier)
+	ts := httptest.NewServer(&logRoundTrip{t: t, mux: mw(srv)})
 	t.Cleanup(ts.Close)
 	return &SecretsServer{URL: ts.URL, Close: ts.Close}
 }
@@ -195,7 +201,12 @@ func StartSecretsServerGCP(t *testing.T, backend secretsdomain.Secrets) *Secrets
 func StartSecretsServerAzure(t *testing.T, backend secretsdomain.Secrets) *SecretsServer {
 	t.Helper()
 	srv := azurekvfront.New(backend)
-	ts := httptest.NewTLSServer(&logRoundTrip{t: t, mux: srv})
+	verifier := azurebearer.New(azurebearer.Options{
+		Audience: "https://vault.azure.net",
+		TestKey:  []byte("test-key-do-not-use-in-prod"),
+	})
+	mw := azurebearer.Middleware(verifier, azurebearer.WithChallenge("https://vault.azure.net"))
+	ts := httptest.NewTLSServer(&logRoundTrip{t: t, mux: mw(srv)})
 	t.Cleanup(ts.Close)
 	return &SecretsServer{URL: ts.URL, Close: ts.Close}
 }
@@ -221,7 +232,12 @@ func StartQueueServerAWS(t *testing.T, backend queuedomain.Queues) *QueueServer 
 func StartQueueServerGCP(t *testing.T, backend queuedomain.Queues) *QueueServer {
 	t.Helper()
 	srv := gcpsubfront.New(backend)
-	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
+	verifier := gcpbearer.New(gcpbearer.Options{
+		Audience: "https://pubsub.googleapis.com/",
+		TestKey:  []byte("test-key-do-not-use-in-prod"),
+	})
+	mw := gcpbearer.Middleware(verifier)
+	ts := httptest.NewServer(&logRoundTrip{t: t, mux: mw(srv)})
 	t.Cleanup(ts.Close)
 	return &QueueServer{URL: ts.URL, Close: ts.Close}
 }
@@ -234,7 +250,12 @@ func StartQueueServerGCP(t *testing.T, backend queuedomain.Queues) *QueueServer 
 func StartQueueServerAzure(t *testing.T, backend queuedomain.Queues) *QueueServer {
 	t.Helper()
 	srv := azuresbfront.New(backend)
-	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
+	verifier := azurebearer.New(azurebearer.Options{
+		Audience: "https://servicebus.azure.net",
+		TestKey:  []byte("test-key-do-not-use-in-prod"),
+	})
+	mw := azurebearer.Middleware(verifier)
+	ts := httptest.NewServer(&logRoundTrip{t: t, mux: mw(srv)})
 	t.Cleanup(ts.Close)
 	return &QueueServer{URL: ts.URL, Close: ts.Close}
 }
