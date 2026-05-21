@@ -8,7 +8,7 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 
 - **Last merged:** PR #17 at `ebc30f7` on `origin/main`, 2026-05-21. Phase 10 closed.
 - **Active branch:** `phase-11`. PR #18 (draft) — **all Phase 11 work landed. Ready for review + merge.**
-- **Phase 11 — CLOSED.** 8/8 AWS frontends spec-driven (REST-XML / awsJson1_x / restJson1 / awsQuery emitters; 3853 LOC of hand-written wire deleted). BUG-18 CLOSED — all 24 service-frontends verifier-wrapped (sigv4verifier / gcpbearer / azurebearer / azuresharedkey); bypass dropped from harness init(); every conformance test signs end-to-end across all 3 clouds. Two collateral defects fixed during closure: awsQuery map-shape XML marshal (emitter-emitted MarshalXML per map shape) + SNS attribute fidelity (canonical default policy + AWS-only attribute allowlist for terraform-provider-aws's unconditional SetTopicAttributes calls).
+- **Phase 11 — CLOSED.** 8/8 AWS frontends spec-driven via Smithy emitters (REST-XML / awsJson1_x / restJson1 / awsQuery; 3853 LOC of hand-written wire deleted). Azure Key Vault oapi-codegen pilot landed (cmd/azure-codegen: v2→v3 via kin-openapi → oapi-codegen library; SetSecret handler decodes via spec-driven gen.SecretSetParameters). BUG-18 CLOSED — all 24 service-frontends verifier-wrapped (sigv4verifier / gcpbearer / azurebearer / azuresharedkey); bypass dropped; every conformance test signs end-to-end across all 3 clouds. Three collateral defects fixed during closure: awsQuery map-shape XML marshal (`MarshalXML` emitter); SNS attribute fidelity (canonical default policy + AWS-only attribute allowlist for terraform-provider-aws's unconditional SetTopicAttributes calls); kin-openapi empty `AllOf` workaround in cmd/azure-codegen.
 - **Phase 12 sub-task table:** lives in [PLAN.md § Phase 12](PLAN.md#phase-12--cross-cloud-migration-cell-expansion). Doesn't depend on Phase 11.
 
 ## Next concrete actions (in priority order)
@@ -16,8 +16,8 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 1. **Push final Phase 11 commits + flip PR #18 from draft to ready.** Local serial conformance run is green across all 8 services; CI on push.
 2. **Phase 12 — Cross-cloud migration cell expansion.** See [PLAN.md § Phase 12](PLAN.md#phase-12--cross-cloud-migration-cell-expansion). Independent of Phase 11.
 3. **Deferred Phase 11 follow-ons (not blockers):**
-   - 11.4: Azure Key Vault oapi-codegen pilot — currently the Azure frontends are hand-written and work. Migrate when an Azure spec change forces a regeneration cadence.
-   - 11.5: GCP Secret Manager routing emitter (Discovery JSON → routing Go) — same rationale. Hand-written GCP frontends work today.
+   - Broader Azure migration: pilot landed for SetSecret in secrets/azure_keyvault; migrate the remaining handlers + the other 7 Azure frontends to the generated `ServerInterface`. Pattern + manifest format established in `cmd/azure-codegen/main.go` and `services/secrets/azure-codegen.json`.
+   - 11.5: GCP Secret Manager routing emitter (Discovery JSON → routing Go) — hand-written GCP frontends work today.
    - Production Entra ID / Google ID token verification (RS256 JWKS): current verifiers run in test-mode HS256 with a static shared key. The verifier comments document the production code path that wires `google.golang.org/api/idtoken.Validate` / Microsoft's JWKS — implement when a deployment target requires it.
 
 ## Invariants snapshot

@@ -79,10 +79,27 @@ The closer turned out to be substantially more than "flip a flag." Each cloud ne
 
 Bypass dropped from harness `init()` — no per-cloud bypass env var is set anymore. Every conformance test signs end-to-end with verification enforced. BUG-18 marked Closed.
 
+### Phase 11.4 — Azure Key Vault oapi-codegen pilot
+
+The Azure spec-driven lane lands as a pilot, proving the toolchain end-to-end without rewriting every Azure frontend in this PR.
+
+Azure publishes data-plane specs as Swagger 2.0 (OpenAPI v2) today; the upstream v3 cutover is still in progress. The path that works:
+
+1. Vendor the spec (`services/secrets/spec/azure-keyvault-secrets.json`, `Azure/azure-rest-api-specs` commit `9473ef10`, MIT).
+2. `cmd/azure-codegen` (new driver) converts v2 → v3 in memory via `kin-openapi/openapi2conv.ToV3`.
+3. Calls `oapi-codegen.Generate(v3, …)` as a library to emit Go types + std-net-http `ServerInterface`.
+
+Two upstream-tooling defects surfaced during the pilot and got worked around in `cmd/azure-codegen` itself:
+
+- **`kin-openapi` attaches empty `AllOf: []` to scalar enum schemas during v2→v3 conversion** (e.g. Key Vault's `DeletionRecoveryLevel`). `oapi-codegen.MergeSchemas` then panics with out-of-range `allOf[0]`. `normalizeAllOf` walks every schema in the converted spec and nil-replaces empty `AllOf` slices before generation.
+- **`kin-openapi` preserves global host-template parameters as operation-level `$ref`s without resolving them** (Azure's `vaultBaseUrl` pattern). Not a blocker — the resulting refs point at well-formed component parameters and oapi-codegen handles them; documented in `cmd/azure-codegen` so a future reader doesn't relitigate.
+
+Pilot proof-point: `internal/secrets/frontends/azure_keyvault/server.go`'s `setSecret` handler now decodes via `gen.SecretSetParameters` (spec-driven) instead of the hand-written `setSecretRequest`. Full secrets conformance (AWS + GCP + Azure SDK / CLI / Terraform / cross-cloud / matrix) passes with the pilot in place. The remaining handlers stay on hand-written wire types — the pilot's job was to prove the toolchain produces SDK-wire-compatible types, not to delete the existing frontend wholesale. `make codegen` now runs an `azure-codegen` sub-loop after the Smithy loop; `services/secrets/azure-codegen.json` is the manifest (parallel to the AWS `codegen.json`).
+
 ### Phase 11 deferrals
 
 - **GCP routing emitter** + 8 GCP adapter migrations (deferred). Hand-written GCP frontends work; consistency value alone doesn't justify the churn during this PR. Pick up when a GCP Discovery spec change forces a regeneration cadence.
-- **Azure oapi-codegen pilot** + 8 Azure adapter migrations (deferred — same rationale).
+- **Broader Azure migration** — the pilot covers one operation (SetSecret) decoded via generated types. Migrating the rest of `azure_keyvault` + the other 7 Azure frontends to the generated `ServerInterface` is a follow-on phase.
 - **Production RS256 JWKS** for real Google / Microsoft Entra tokens. Test mode is HS256 with a static shared key; the verifier comments document the production code path (`google.golang.org/api/idtoken.Validate`, Microsoft's JWKS) for when a deployment target requires it.
 
 ## Phase 10 — cross-cloud `terraform apply` through the shim (PR #17, merged 2026-05-21 at `ebc30f7`)
