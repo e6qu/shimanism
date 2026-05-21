@@ -162,6 +162,26 @@ func (b *Backend) PutSecretValue(ctx context.Context, name string, value []byte)
 	return domain.PutSecretValueResult{Version: nextNumber}, nil
 }
 
+func (b *Backend) UpdateSecret(ctx context.Context, name string, opt domain.UpdateSecretOptions) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	st, ok := b.secrets[name]
+	if !ok {
+		return domain.NoSuchSecret(name)
+	}
+	if opt.Description != nil {
+		st.description = *opt.Description
+	}
+	if opt.Tags != nil {
+		st.tags = copyTags(opt.Tags)
+	}
+	if opt.Enabled != nil {
+		st.enabled = *opt.Enabled
+	}
+	st.updatedAt = time.Now().UTC()
+	return nil
+}
+
 func (b *Backend) DeleteSecret(ctx context.Context, name string, force bool) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()

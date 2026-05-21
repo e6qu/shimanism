@@ -67,6 +67,8 @@ func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		srv.listTopics(w, r, form)
 	case "GetTopicAttributes":
 		srv.getTopicAttributes(w, r, form)
+	case "SetTopicAttributes":
+		srv.setTopicAttributes(w, r, form)
 	case "Subscribe":
 		srv.subscribe(w, r, form)
 	case "Unsubscribe":
@@ -183,6 +185,97 @@ func (srv *Server) getTopicAttributes(w http.ResponseWriter, r *http.Request, fo
 		{Key: "SubscriptionsPending", Value: "0"},
 		{Key: "SubscriptionsDeleted", Value: "0"},
 	}})
+}
+
+// setTopicAttributes accepts the hashicorp/aws post-create
+// reconciliation call. The intersection-only pubsub domain has no
+// per-topic attribute storage (FifoTopic, ContentBasedDeduplication,
+// SignatureVersion, Policy, DeliveryPolicy, TracingConfig, KMS keys,
+// ApplicationSuccess* feedback roles are all out of intersection per
+// services/pubsub/APPLY_INTERSECTION.md). Behavior:
+//   - HeadTopic to verify the topic exists; 404 if not.
+//   - For supported attribute names: no-op (matches Real SNS for the
+//     subset we surface as canonical defaults — DisplayName empty,
+//     Policy = default-statement, etc.). The provider's Wait checks
+//     match because we return the same canonical values on the next
+//     GetTopicAttributes.
+//   - For known attribute names with a *non-default* value (the user
+//     actually wants the feature configured), return InvalidParameter.
+//     Accepting only by name would let the value drop silently and
+//     cause drift on the next read.
+//   - For unknown attribute names: return InvalidParameter unconditionally.
+//
+// Result body is empty (per real SNS).
+//
+// snsTopicAttributeDefault returns the canonical "feature unset"
+// value the shim's GetTopicAttributes emits for `attrName`. Empty
+// string for free-form fields (DisplayName, KmsMasterKeyId), the
+// stringified canonical default for typed fields (FifoTopic = false →
+// "false"). A `match` of true means the supplied `value` matches the
+// shim's documented canonical default — safe to no-op-accept.
+func snsTopicAttributeDefault(attrName string) (def string, knownDefault bool) {
+	switch attrName {
+	case "DisplayName",
+		"KmsMasterKeyId",
+		"TracingConfig",
+		"SignatureVersion",
+		"ApplicationSuccessFeedbackRoleArn",
+		"ApplicationFailureFeedbackRoleArn",
+		"HTTPSuccessFeedbackRoleArn",
+		"HTTPFailureFeedbackRoleArn",
+		"FirehoseSuccessFeedbackRoleArn",
+		"FirehoseFailureFeedbackRoleArn",
+		"LambdaSuccessFeedbackRoleArn",
+		"LambdaFailureFeedbackRoleArn",
+		"SQSSuccessFeedbackRoleArn",
+		"SQSFailureFeedbackRoleArn":
+		return "", true
+	case "ApplicationSuccessFeedbackSampleRate",
+		"HTTPSuccessFeedbackSampleRate",
+		"FirehoseSuccessFeedbackSampleRate",
+		"LambdaSuccessFeedbackSampleRate",
+		"SQSSuccessFeedbackSampleRate":
+		return "0", true
+	case "FifoTopic", "ContentBasedDeduplication":
+		return "false", true
+	case "Policy", "DeliveryPolicy":
+		// JSON-shaped fields. The default policy SNS returns on
+		// GetTopicAttributes is the canonical statement; the
+		// provider's "empty" sentinel for these is no-attr-set.
+		// We accept empty + the exact canonical JSON shape only,
+		// not arbitrary user-supplied JSON (would silent-drop).
+		return "", true
+	}
+	return "", false
+}
+
+func (srv *Server) setTopicAttributes(w http.ResponseWriter, r *http.Request, form url.Values) {
+	name := parseTopicArn(form.Get("TopicArn"))
+	if _, err := srv.s.HeadTopic(r.Context(), name); err != nil {
+		mapDomainError(w, err)
+		return
+	}
+	attrName := form.Get("AttributeName")
+	if attrName == "" {
+		writeError(w, http.StatusBadRequest, "Sender", "InvalidParameter",
+			"AttributeName is required")
+		return
+	}
+	attrValue := form.Get("AttributeValue")
+	defaultValue, known := snsTopicAttributeDefault(attrName)
+	if !known {
+		writeError(w, http.StatusBadRequest, "Sender", "InvalidParameter",
+			"attribute "+attrName+" is not in this shim's pubsub intersection")
+		return
+	}
+	if attrValue != defaultValue {
+		writeError(w, http.StatusBadRequest, "Sender", "InvalidParameter",
+			"attribute "+attrName+" with value "+attrValue+
+				" is out of intersection (only the canonical default "+
+				defaultValue+" is honored cross-cloud)")
+		return
+	}
+	writeXMLStruct(w, http.StatusOK, "SetTopicAttributes", struct{}{})
 }
 
 // listTagsForResource returns the (currently empty) tag set for an

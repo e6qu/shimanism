@@ -51,6 +51,11 @@ type getQueueAttributesRequest struct {
 	AttributeNames []string `json:"AttributeNames,omitempty"`
 }
 
+type setQueueAttributesRequest struct {
+	QueueUrl   string            `json:"QueueUrl"`
+	Attributes map[string]string `json:"Attributes"`
+}
+
 type getQueueAttributesResponse struct {
 	Attributes map[string]string `json:"Attributes"`
 }
@@ -151,6 +156,26 @@ func (srv *Server) createQueue(w http.ResponseWriter, r *http.Request) {
 		mapDomainError(w, err)
 		return
 	}
+	if len(in.Tags) > 0 {
+		// AWS SQS CreateQueue accepts Tags in the same call (atomic
+		// from the caller's perspective). The domain splits this into
+		// CreateQueue + TagQueue. If the follow-on TagQueue fails
+		// (e.g. Azure rejects per-queue tags; GCP rejects an invalid
+		// label key), the queue still exists and the caller has no
+		// resource in their state to destroy on retry. Roll back the
+		// CreateQueue to preserve atomicity, then surface the tag
+		// error so the caller knows what to fix.
+		if err := srv.s.TagQueue(r.Context(), in.QueueName, in.Tags); err != nil {
+			if delErr := srv.s.DeleteQueue(r.Context(), in.QueueName); delErr != nil {
+				// Best-effort rollback. Surface the original tag
+				// error to the caller; rollback failure is logged
+				// but doesn't override the user-facing diagnostic.
+				_ = delErr
+			}
+			mapDomainError(w, err)
+			return
+		}
+	}
 	writeJSON(w, http.StatusOK, &createQueueResponse{QueueUrl: fakeQueueURL(in.QueueName)})
 }
 
@@ -220,6 +245,25 @@ func (srv *Server) getQueueAttributes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, &getQueueAttributesResponse{Attributes: attributesToAWS(q.Attributes)})
+}
+
+func (srv *Server) setQueueAttributes(w http.ResponseWriter, r *http.Request) {
+	var in setQueueAttributesRequest
+	if !decode(w, r, &in) {
+		return
+	}
+	if in.QueueUrl == "" {
+		writeError(w, http.StatusBadRequest, "InvalidParameterValue", "QueueUrl is required")
+		return
+	}
+	name := normaliseQueueURL(in.QueueUrl)
+	attrs := attributesFromAWS(in.Attributes)
+	if err := srv.s.SetQueueAttributes(r.Context(), name, attrs); err != nil {
+		mapDomainError(w, err)
+		return
+	}
+	// AWS SetQueueAttributes returns an empty response body on success.
+	writeJSON(w, http.StatusOK, struct{}{})
 }
 
 func (srv *Server) sendMessage(w http.ResponseWriter, r *http.Request) {
@@ -303,14 +347,9 @@ func (srv *Server) changeMessageVisibility(w http.ResponseWriter, r *http.Reques
 	writeJSON(w, http.StatusOK, map[string]string{})
 }
 
-// listQueueTags returns the (currently always empty) tag set for a
-// queue. The domain.Queues interface has no tag concept yet — tag
-// storage as a real read/write domain op is tracked in BUGS.md.
-// Until then, this is a category-2 "feature unset" response: the
-// queue genuinely has no tags configured, and the shim returns the
-// honest empty-set envelope. Without this handler, the
-// hashicorp/aws aws_sqs_queue importer crashes on
-// ListQueueTags → UnknownOperationException.
+// listQueueTags returns the queue's tag set. BUG-12 closed: tag
+// storage is now a domain primitive backed across all five queue
+// backends.
 func (srv *Server) listQueueTags(w http.ResponseWriter, r *http.Request) {
 	var in struct {
 		QueueUrl string `json:"QueueUrl"`
@@ -318,11 +357,45 @@ func (srv *Server) listQueueTags(w http.ResponseWriter, r *http.Request) {
 	if !decode(w, r, &in) {
 		return
 	}
-	if _, err := srv.s.HeadQueue(r.Context(), normaliseQueueURL(in.QueueUrl)); err != nil {
+	tags, err := srv.s.ListQueueTags(r.Context(), normaliseQueueURL(in.QueueUrl))
+	if err != nil {
 		mapDomainError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]map[string]string{"Tags": {}})
+	if tags == nil {
+		tags = map[string]string{}
+	}
+	writeJSON(w, http.StatusOK, map[string]map[string]string{"Tags": tags})
+}
+
+func (srv *Server) tagQueue(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		QueueUrl string            `json:"QueueUrl"`
+		Tags     map[string]string `json:"Tags"`
+	}
+	if !decode(w, r, &in) {
+		return
+	}
+	if err := srv.s.TagQueue(r.Context(), normaliseQueueURL(in.QueueUrl), in.Tags); err != nil {
+		mapDomainError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, struct{}{})
+}
+
+func (srv *Server) untagQueue(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		QueueUrl string   `json:"QueueUrl"`
+		TagKeys  []string `json:"TagKeys"`
+	}
+	if !decode(w, r, &in) {
+		return
+	}
+	if err := srv.s.UntagQueue(r.Context(), normaliseQueueURL(in.QueueUrl), in.TagKeys); err != nil {
+		mapDomainError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, struct{}{})
 }
 
 // ----------------------------------------------------------------------
@@ -355,14 +428,36 @@ func attributesFromAWS(attrs map[string]string) domain.QueueAttributes {
 }
 
 func attributesToAWS(a domain.QueueAttributes) map[string]string {
-	return map[string]string{
-		"VisibilityTimeout":           strconv.Itoa(a.VisibilityTimeoutSeconds),
-		"MessageRetentionPeriod":      strconv.Itoa(a.MessageRetentionSeconds),
-		"MaximumMessageSize":          strconv.Itoa(a.MaxMessageSizeBytes),
-		"DelaySeconds":                strconv.Itoa(a.DelaySeconds),
-		"ApproximateNumberOfMessages": strconv.Itoa(a.ApproximateMessageCount),
-		"CreatedTimestamp":            strconv.FormatInt(a.CreatedAt.Unix(), 10),
+	out := map[string]string{
+		// The 4 intersection attributes mirror what's in the domain.
+		"VisibilityTimeout":      strconv.Itoa(a.VisibilityTimeoutSeconds),
+		"MessageRetentionPeriod": strconv.Itoa(a.MessageRetentionSeconds),
+		"MaximumMessageSize":     strconv.Itoa(a.MaxMessageSizeBytes),
+		"DelaySeconds":           strconv.Itoa(a.DelaySeconds),
+		// Read-only telemetry.
+		"ApproximateNumberOfMessages":           strconv.Itoa(a.ApproximateMessageCount),
+		"ApproximateNumberOfMessagesNotVisible": "0",
+		"ApproximateNumberOfMessagesDelayed":    "0",
+		"CreatedTimestamp":                      strconv.FormatInt(a.CreatedAt.Unix(), 10),
+		"LastModifiedTimestamp":                 strconv.FormatInt(a.CreatedAt.Unix(), 10),
+		// AWS-only attributes the hashicorp/aws provider polls during
+		// its post-create attribute-stabilisation wait. The shim doesn't
+		// store these (out of the cross-cloud intersection) but it does
+		// need to surface the canonical "unset" value so the provider's
+		// wait function sees a stable match against its schema defaults.
+		"ReceiveMessageWaitTimeSeconds": "0",
+		"Policy":                        "",
+		"RedrivePolicy":                 "",
+		"RedriveAllowPolicy":            "",
+		"KmsMasterKeyId":                "",
+		"KmsDataKeyReusePeriodSeconds":  "300",
+		"SqsManagedSseEnabled":          "false",
+		"FifoQueue":                     "false",
+		"ContentBasedDeduplication":     "false",
+		"DeduplicationScope":            "",
+		"FifoThroughputLimit":           "",
 	}
+	return out
 }
 
 func messageAttrsFromAWS(in map[string]messageAttributeValue) map[string]string {

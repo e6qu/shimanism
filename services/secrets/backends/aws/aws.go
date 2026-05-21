@@ -179,6 +179,66 @@ func (b *Backend) PutSecretValue(ctx context.Context, name string, value []byte)
 	return domain.PutSecretValueResult{Version: uint64(len(versions))}, nil
 }
 
+func (b *Backend) UpdateSecret(ctx context.Context, name string, opt domain.UpdateSecretOptions) error {
+	// AWS splits the update across three APIs: UpdateSecret (description,
+	// KMS), TagResource / UntagResource (tags), and there's no enabled
+	// flag on Secrets Manager — it lives on the version, not the secret.
+	if opt.Description != nil {
+		_, err := b.c.UpdateSecret(ctx, &awssm.UpdateSecretInput{
+			SecretId:    awsapi.String(name),
+			Description: awsapi.String(*opt.Description),
+		})
+		if err := translateErr(err, name); err != nil {
+			return err
+		}
+	}
+	if opt.Tags != nil {
+		// Reconcile: opt.Tags is the *desired* full tag set. AWS's
+		// TagResource is additive, so to make AWS state match the
+		// desired set we have to (1) compute the current tag set,
+		// (2) UntagResource the keys present in current-but-not-
+		// desired, (3) TagResource the desired set (covers both
+		// new keys and existing-key value updates).
+		curOut, err := b.c.DescribeSecret(ctx, &awssm.DescribeSecretInput{SecretId: awsapi.String(name)})
+		if err != nil {
+			return translateErr(err, name)
+		}
+		var removeKeys []string
+		for _, t := range curOut.Tags {
+			k := awsapi.ToString(t.Key)
+			if _, keep := opt.Tags[k]; !keep {
+				removeKeys = append(removeKeys, k)
+			}
+		}
+		if len(removeKeys) > 0 {
+			if _, err := b.c.UntagResource(ctx, &awssm.UntagResourceInput{
+				SecretId: awsapi.String(name),
+				TagKeys:  removeKeys,
+			}); err != nil {
+				return translateErr(err, name)
+			}
+		}
+		if len(opt.Tags) > 0 {
+			var tags []smtypes.Tag
+			for k, v := range opt.Tags {
+				tags = append(tags, smtypes.Tag{Key: awsapi.String(k), Value: awsapi.String(v)})
+			}
+			if _, err := b.c.TagResource(ctx, &awssm.TagResourceInput{
+				SecretId: awsapi.String(name),
+				Tags:     tags,
+			}); err != nil {
+				return translateErr(err, name)
+			}
+		}
+	}
+	if opt.Enabled != nil && !*opt.Enabled {
+		// Secrets Manager has no per-secret enabled flag. Honest cross-
+		// cloud answer: surface the AWS-canonical InvalidParameterException.
+		return domain.InvalidArgument("AWS Secrets Manager does not support a per-secret enabled flag (use version-level lifecycle)")
+	}
+	return nil
+}
+
 func (b *Backend) DeleteSecret(ctx context.Context, name string, force bool) error {
 	in := &awssm.DeleteSecretInput{SecretId: awsapi.String(name)}
 	if force {

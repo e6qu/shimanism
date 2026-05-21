@@ -233,6 +233,66 @@ func (b *Backend) DeleteQueue(ctx context.Context, name string) error {
 	return translateErr(err, name)
 }
 
+func (b *Backend) SetQueueAttributes(ctx context.Context, name string, attrs domain.QueueAttributes) error {
+	// Azure UpdateQueue replaces the full set of properties — we read
+	// the current state, patch the fields the caller set, and write
+	// back. Zero-valued inputs leave the existing value unchanged
+	// (AWS-shape merge semantics).
+	cur, err := b.adminClient.GetQueue(ctx, name, nil)
+	if err != nil {
+		return translateErr(err, name)
+	}
+	props := cur.QueueProperties
+	if attrs.VisibilityTimeoutSeconds > 0 {
+		ld := iso8601(attrs.VisibilityTimeoutSeconds)
+		props.LockDuration = &ld
+	}
+	if attrs.MessageRetentionSeconds > 0 {
+		ttl := iso8601(attrs.MessageRetentionSeconds)
+		props.DefaultMessageTimeToLive = &ttl
+	}
+	// MaxMessageSize is not directly settable on Azure Service Bus
+	// (MaxSizeInMegabytes is the queue's storage cap, not per-message
+	// size — those are AWS-specific). Ignored on this backend.
+	_, err = b.adminClient.UpdateQueue(ctx, name, props, nil)
+	return translateErr(err, name)
+}
+
+// Azure Service Bus queues don't expose per-queue tags via the
+// admin SDK (the closest analog is resource-group-level tags on the
+// `Microsoft.ServiceBus/namespaces/queues` ARM resource, which sits
+// at a different scope). Honest cross-cloud answer: return the
+// canonical empty set on List and reject Tag/Untag with
+// InvalidArgument. Migration users targeting this backend who set
+// tags via Terraform will see the rejection at the call site, not
+// silent data-loss.
+func (b *Backend) ListQueueTags(ctx context.Context, name string) (map[string]string, error) {
+	if _, err := b.adminClient.GetQueue(ctx, name, nil); err != nil {
+		return nil, translateErr(err, name)
+	}
+	return map[string]string{}, nil
+}
+
+func (b *Backend) TagQueue(ctx context.Context, name string, tags map[string]string) error {
+	if len(tags) == 0 {
+		return nil
+	}
+	if _, err := b.adminClient.GetQueue(ctx, name, nil); err != nil {
+		return translateErr(err, name)
+	}
+	return domain.InvalidArgument("Azure Service Bus queue-level tags aren't exposed via the admin SDK; tag the parent namespace at the ARM scope instead")
+}
+
+func (b *Backend) UntagQueue(ctx context.Context, name string, keys []string) error {
+	if len(keys) == 0 {
+		return nil
+	}
+	if _, err := b.adminClient.GetQueue(ctx, name, nil); err != nil {
+		return translateErr(err, name)
+	}
+	return domain.InvalidArgument("Azure Service Bus queue-level tags aren't exposed via the admin SDK; tag the parent namespace at the ARM scope instead")
+}
+
 func (b *Backend) HeadQueue(ctx context.Context, name string) (domain.Queue, error) {
 	props, err := b.adminClient.GetQueue(ctx, name, nil)
 	if err != nil {

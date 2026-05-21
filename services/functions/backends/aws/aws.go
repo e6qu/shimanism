@@ -79,15 +79,22 @@ func (b *Backend) toDomain(out *lambdatypes.FunctionConfiguration, image string)
 }
 
 func (b *Backend) CreateFunction(ctx context.Context, name string, opt domain.CreateFunctionOptions) (domain.Function, error) {
+	// Prefer caller-supplied role (10.3 close of BUG-13); fall back to
+	// the backend-configured default for callers that don't set one.
+	role := opt.Role
+	if role == "" {
+		role = b.role
+	}
 	in := &lambda.CreateFunctionInput{
 		FunctionName: awsapi.String(name),
 		PackageType:  lambdatypes.PackageTypeImage,
 		Code: &lambdatypes.FunctionCode{
 			ImageUri: awsapi.String(opt.Image),
 		},
-		Role:       awsapi.String(b.role),
+		Role:       awsapi.String(role),
 		MemorySize: awsapi.Int32(int32(opt.MemoryBytes / (1024 * 1024))),
 		Timeout:    awsapi.Int32(int32(opt.TimeoutSeconds)),
+		Publish:    opt.Publish,
 	}
 	if len(opt.Environment) > 0 {
 		in.Environment = &lambdatypes.Environment{Variables: opt.Environment}

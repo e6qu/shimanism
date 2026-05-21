@@ -80,14 +80,13 @@ func terraformQueuePluginCacheDir() string {
 }
 
 func TestTerraform_AWSQueue_ResourceLifecycle(t *testing.T) {
-	// hashicorp/aws aws_sqs_queue reconciles attributes via
-	// SetQueueAttributes after CreateQueue and waits for the response
-	// to "stabilise". SetQueueAttributes is not in the current 8-op
-	// intersection (see BUGS.md BUG-2); until it lands, this cell is
-	// a documented skip. The SDK + CLI cells cover lifecycle
-	// correctness against the inmem backend.
-	t.Skip("BUG-2: aws_sqs_queue reconciles via SetQueueAttributes (not yet in the queue intersection)")
-
+	// BUG-2 closed in Phase 10.3 — domain.Queues.SetQueueAttributes
+	// is wired across all five backends, GetQueueAttributes surfaces
+	// the canonical AWS attribute keys hashicorp/aws polls during
+	// WaitForStateEqual, and the awsQueryCompatible legacy error
+	// codes (notably AWS.SimpleQueueService.NonExistentQueue for the
+	// post-destroy delete-confirmation wait) are wired via the
+	// x-amzn-query-error header. This cell now runs end-to-end.
 	t.Parallel()
 	bin := requireTerraformQueue(t)
 	srv := harness.StartQueueServerAWS(t, inmem.New())

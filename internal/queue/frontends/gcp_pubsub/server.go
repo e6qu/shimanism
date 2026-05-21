@@ -203,8 +203,10 @@ func (srv *Server) createSubscription(w http.ResponseWriter, r *http.Request, pr
 	if !decodeJSON(w, r, &body) {
 		return
 	}
+	retentionSec := parseDurationSeconds(body.MessageRetentionDuration)
 	opt := domain.CreateQueueOptions{Attributes: domain.QueueAttributes{
 		VisibilityTimeoutSeconds: int(body.AckDeadlineSeconds),
+		MessageRetentionSeconds:  retentionSec,
 	}}
 	if _, err := srv.s.CreateQueue(r.Context(), name, opt); err != nil {
 		var de *domain.Error
@@ -217,9 +219,10 @@ func (srv *Server) createSubscription(w http.ResponseWriter, r *http.Request, pr
 		}
 	}
 	resp := pubsubraw.Subscription{
-		Name:               fmt.Sprintf("projects/%s/subscriptions/%s", project, name),
-		Topic:              body.Topic,
-		AckDeadlineSeconds: body.AckDeadlineSeconds,
+		Name:                     fmt.Sprintf("projects/%s/subscriptions/%s", project, name),
+		Topic:                    body.Topic,
+		AckDeadlineSeconds:       body.AckDeadlineSeconds,
+		MessageRetentionDuration: messageRetentionDurationOrDefault(retentionSec),
 	}
 	if resp.AckDeadlineSeconds == 0 {
 		resp.AckDeadlineSeconds = 10
@@ -234,9 +237,10 @@ func (srv *Server) getSubscription(w http.ResponseWriter, r *http.Request, proje
 		return
 	}
 	writeJSON(w, http.StatusOK, &pubsubraw.Subscription{
-		Name:               fmt.Sprintf("projects/%s/subscriptions/%s", project, name),
-		Topic:              fmt.Sprintf("projects/%s/topics/%s", project, name),
-		AckDeadlineSeconds: int64(q.Attributes.VisibilityTimeoutSeconds),
+		Name:                     fmt.Sprintf("projects/%s/subscriptions/%s", project, name),
+		Topic:                    fmt.Sprintf("projects/%s/topics/%s", project, name),
+		AckDeadlineSeconds:       int64(q.Attributes.VisibilityTimeoutSeconds),
+		MessageRetentionDuration: messageRetentionDurationOrDefault(q.Attributes.MessageRetentionSeconds),
 	})
 }
 
@@ -263,9 +267,10 @@ func (srv *Server) listSubscriptions(w http.ResponseWriter, r *http.Request) {
 	resp := pubsubraw.ListSubscriptionsResponse{}
 	for _, q := range res.Queues {
 		resp.Subscriptions = append(resp.Subscriptions, &pubsubraw.Subscription{
-			Name:               fmt.Sprintf("projects/%s/subscriptions/%s", project, q.Name),
-			Topic:              fmt.Sprintf("projects/%s/topics/%s", project, q.Name),
-			AckDeadlineSeconds: int64(q.Attributes.VisibilityTimeoutSeconds),
+			Name:                     fmt.Sprintf("projects/%s/subscriptions/%s", project, q.Name),
+			Topic:                    fmt.Sprintf("projects/%s/topics/%s", project, q.Name),
+			AckDeadlineSeconds:       int64(q.Attributes.VisibilityTimeoutSeconds),
+			MessageRetentionDuration: messageRetentionDurationOrDefault(q.Attributes.MessageRetentionSeconds),
 		})
 	}
 	writeJSON(w, http.StatusOK, &resp)
@@ -373,3 +378,34 @@ func writeJSON(w http.ResponseWriter, status int, body interface{}) {
 }
 
 var _ = strconv.Itoa
+
+// messageRetentionDurationOrDefault returns the GCP Pub/Sub subscription
+// retention as a duration-formatted string ("604800s"). Real GCP defaults
+// to 604800s (7 days) when no value was set at create time; the shim
+// matches that read-side fidelity so terraform plan after apply doesn't
+// report drift on the field. Domain seconds == 0 means "unset" → emit
+// the GCP default.
+func messageRetentionDurationOrDefault(seconds int) string {
+	if seconds <= 0 {
+		return "604800s"
+	}
+	return strconv.Itoa(seconds) + "s"
+}
+
+// parseDurationSeconds parses a GCP duration-formatted string ("604800s"
+// or "604800.0s") into an integer second count. Returns 0 on any parse
+// failure (interpreted by the domain as "unset, use backend default").
+func parseDurationSeconds(s string) int {
+	if s == "" {
+		return 0
+	}
+	s = strings.TrimSuffix(s, "s")
+	if i := strings.IndexByte(s, '.'); i >= 0 {
+		s = s[:i]
+	}
+	n, err := strconv.Atoi(s)
+	if err != nil {
+		return 0
+	}
+	return n
+}

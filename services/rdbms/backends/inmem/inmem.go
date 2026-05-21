@@ -40,6 +40,7 @@ type instanceState struct {
 	status             domain.Status
 	allocatedStorageGB int
 	instanceClass      string
+	region             string
 	masterUsername     string
 	masterPassword     string
 	createdAt          time.Time
@@ -121,6 +122,7 @@ func (b *Backend) instanceToDomain(s *instanceState) domain.Instance {
 		Status:             s.status,
 		AllocatedStorageGB: s.allocatedStorageGB,
 		InstanceClass:      s.instanceClass,
+		Region:             s.region,
 		CreatedAt:          s.createdAt,
 	}
 	if s.status == domain.StatusAvailable {
@@ -176,6 +178,7 @@ func (b *Backend) CreateInstance(ctx context.Context, name string, opt domain.Cr
 		status:             domain.StatusCreating,
 		allocatedStorageGB: opt.AllocatedStorageGB,
 		instanceClass:      opt.InstanceClass,
+		region:             opt.Region,
 		masterUsername:     opt.MasterUsername,
 		masterPassword:     password,
 		createdAt:          now,

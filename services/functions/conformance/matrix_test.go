@@ -5,6 +5,7 @@ package conformance_test
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -39,16 +40,37 @@ func TestFunctionsMatrix_AWSFrontend(t *testing.T) {
 			// Ready. helloworld-go listens on $PORT and replies;
 			// docker.io/library/hello-world exits immediately so the
 			// Knative Pod is never healthy and Service never Ready.
-			if _, err := client.CreateFunction(ctx, &lambda.CreateFunctionInput{
+			//
+			// Role is AWS Lambda-specific. The AWS Lambda SDK enforces
+			// Role as a required field client-side, so the request
+			// must carry one. The AWS frontend forwards Role through
+			// to the domain; non-AWS backends honestly reject non-
+			// empty Role with InvalidArgument (per
+			// services/functions/APPLY_INTERSECTION.md). For non-AWS
+			// cells the matrix therefore asserts the honest-reject
+			// behaviour and stops there — the cross-cloud CreateFunction
+			// path with a Role is intersection-out.
+			input := &lambda.CreateFunctionInput{
 				FunctionName: awsapi.String(name),
 				PackageType:  lambdatypes.PackageTypeImage,
 				Code: &lambdatypes.FunctionCode{
 					ImageUri: awsapi.String("gcr.io/knative-samples/helloworld-go"),
 				},
-				Role:       awsapi.String("arn:aws:iam::000000000000:role/lambda"),
 				MemorySize: awsapi.Int32(128),
 				Timeout:    awsapi.Int32(60),
-			}); err != nil {
+				Role:       awsapi.String("arn:aws:iam::000000000000:role/lambda"),
+			}
+			_, err = client.CreateFunction(ctx, input)
+			if f.Name != "inmem" && f.Name != "aws" {
+				if err == nil {
+					t.Fatalf("%s: expected InvalidParameterValueException for Role on non-AWS backend; got success", f.Name)
+				}
+				if !strings.Contains(err.Error(), "InvalidParameterValueException") {
+					t.Fatalf("%s: expected InvalidParameterValueException, got: %v", f.Name, err)
+				}
+				return
+			}
+			if err != nil {
 				t.Fatalf("CreateFunction: %v", err)
 			}
 			t.Cleanup(func() {

@@ -9,6 +9,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -93,6 +94,116 @@ func (b *Backend) CreateQueue(ctx context.Context, name string, opt domain.Creat
 		return domain.Queue{}, translateErr(err, name)
 	}
 	return domain.Queue{Name: name, Attributes: opt.Attributes}, nil
+}
+
+func (b *Backend) SetQueueAttributes(ctx context.Context, name string, attrs domain.QueueAttributes) error {
+	// GCP Pub/Sub subscriptions support in-place patch of
+	// ackDeadlineSeconds + messageRetentionDuration via
+	// subscriptions.patch. DelaySeconds + MaxMessageSize have no GCP
+	// analog; per services/queue/APPLY_INTERSECTION.md they must
+	// surface a source-shaped unsupported error rather than silently
+	// no-op (caller would think the attribute was honored while the
+	// next read returns the GCP default).
+	if attrs.DelaySeconds > 0 {
+		return domain.InvalidArgument("DelaySeconds has no GCP Pub/Sub analog; out of cross-cloud intersection")
+	}
+	if attrs.MaxMessageSizeBytes > 0 {
+		return domain.InvalidArgument("MaxMessageSize has no GCP Pub/Sub analog; out of cross-cloud intersection")
+	}
+	if attrs.VisibilityTimeoutSeconds <= 0 && attrs.MessageRetentionSeconds <= 0 {
+		// No-op when nothing in-contract is being set. Still verify
+		// the subscription exists so callers see NoSuchQueue if it
+		// doesn't, instead of a silently-successful empty call.
+		if _, err := b.svc.Projects.Subscriptions.Get(b.subscriptionName(name)).Context(ctx).Do(); err != nil {
+			return translateErr(err, name)
+		}
+		return nil
+	}
+	sub := &pubsubraw.Subscription{}
+	var mask []string
+	if attrs.VisibilityTimeoutSeconds > 0 {
+		ack := attrs.VisibilityTimeoutSeconds
+		if ack > 600 {
+			ack = 600
+		}
+		sub.AckDeadlineSeconds = int64(ack)
+		mask = append(mask, "ackDeadlineSeconds")
+	}
+	if attrs.MessageRetentionSeconds > 0 {
+		sub.MessageRetentionDuration = strconv.Itoa(attrs.MessageRetentionSeconds) + "s"
+		mask = append(mask, "messageRetentionDuration")
+	}
+	req := &pubsubraw.UpdateSubscriptionRequest{
+		Subscription: sub,
+		UpdateMask:   strings.Join(mask, ","),
+	}
+	_, err := b.svc.Projects.Subscriptions.Patch(b.subscriptionName(name), req).Context(ctx).Do()
+	return translateErr(err, name)
+}
+
+// Tags map to GCP subscription labels. GCP label keys + values are
+// constrained (lowercase, dashes, underscores, ≤63 chars) — invalid
+// tags surface as GCP's native InvalidArgument from the patch RPC,
+// which translateErr surfaces honestly. No silent normalisation.
+func (b *Backend) ListQueueTags(ctx context.Context, name string) (map[string]string, error) {
+	sub, err := b.svc.Projects.Subscriptions.Get(b.subscriptionName(name)).Context(ctx).Do()
+	if err != nil {
+		return nil, translateErr(err, name)
+	}
+	if sub.Labels == nil {
+		return map[string]string{}, nil
+	}
+	out := make(map[string]string, len(sub.Labels))
+	for k, v := range sub.Labels {
+		out[k] = v
+	}
+	return out, nil
+}
+
+func (b *Backend) TagQueue(ctx context.Context, name string, tags map[string]string) error {
+	if len(tags) == 0 {
+		return nil
+	}
+	cur, err := b.svc.Projects.Subscriptions.Get(b.subscriptionName(name)).Context(ctx).Do()
+	if err != nil {
+		return translateErr(err, name)
+	}
+	labels := map[string]string{}
+	for k, v := range cur.Labels {
+		labels[k] = v
+	}
+	for k, v := range tags {
+		labels[k] = v
+	}
+	req := &pubsubraw.UpdateSubscriptionRequest{
+		Subscription: &pubsubraw.Subscription{Labels: labels},
+		UpdateMask:   "labels",
+	}
+	_, err = b.svc.Projects.Subscriptions.Patch(b.subscriptionName(name), req).Context(ctx).Do()
+	return translateErr(err, name)
+}
+
+func (b *Backend) UntagQueue(ctx context.Context, name string, keys []string) error {
+	if len(keys) == 0 {
+		return nil
+	}
+	cur, err := b.svc.Projects.Subscriptions.Get(b.subscriptionName(name)).Context(ctx).Do()
+	if err != nil {
+		return translateErr(err, name)
+	}
+	labels := map[string]string{}
+	for k, v := range cur.Labels {
+		labels[k] = v
+	}
+	for _, k := range keys {
+		delete(labels, k)
+	}
+	req := &pubsubraw.UpdateSubscriptionRequest{
+		Subscription: &pubsubraw.Subscription{Labels: labels},
+		UpdateMask:   "labels",
+	}
+	_, err = b.svc.Projects.Subscriptions.Patch(b.subscriptionName(name), req).Context(ctx).Do()
+	return translateErr(err, name)
 }
 
 func (b *Backend) DeleteQueue(ctx context.Context, name string) error {

@@ -5,6 +5,7 @@ package gcp_memorystore
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"regexp"
@@ -22,11 +23,19 @@ type Server struct {
 
 func New(s domain.Cache) *Server { return &Server{s: s} }
 
+// Memorystore URL families:
+//
+//	/v1/projects/{p}/... — google.golang.org/api/redis/v1 (SDK)
+//	/v1beta1/projects/{p}/... — hashicorp/google google_redis_instance
+//
+// Both shapes route to the same handler.
+const memorystorePathPrefix = `^/(?:v1|v1beta1)`
+
 var (
-	reInstances        = regexp.MustCompile(`^/v1/projects/([^/]+)/locations/([^/]+)/instances/?$`)
-	reInstance         = regexp.MustCompile(`^/v1/projects/([^/]+)/locations/([^/]+)/instances/([^/:]+)$`)
-	reInstanceFailover = regexp.MustCompile(`^/v1/projects/([^/]+)/locations/([^/]+)/instances/([^/:]+):failover$`)
-	reOperation        = regexp.MustCompile(`^/v1/projects/([^/]+)/locations/([^/]+)/operations/([^/]+)$`)
+	reInstances        = regexp.MustCompile(memorystorePathPrefix + `/projects/([^/]+)/locations/([^/]+)/instances/?$`)
+	reInstance         = regexp.MustCompile(memorystorePathPrefix + `/projects/([^/]+)/locations/([^/]+)/instances/([^/:]+)$`)
+	reInstanceFailover = regexp.MustCompile(memorystorePathPrefix + `/projects/([^/]+)/locations/([^/]+)/instances/([^/:]+):failover$`)
+	reOperation        = regexp.MustCompile(memorystorePathPrefix + `/projects/([^/]+)/locations/([^/]+)/operations/([^/]+)$`)
 )
 
 func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -78,12 +87,13 @@ func (srv *Server) createInstance(w http.ResponseWriter, r *http.Request) {
 	opt := domain.CreateInstanceOptions{
 		EngineVersion: body.RedisVersion,
 		NodeType:      body.Tier,
+		MemorySizeGB:  int(body.MemorySizeGb),
 	}
 	if _, err := srv.s.CreateInstance(r.Context(), name, opt); err != nil {
 		mapDomainError(w, err)
 		return
 	}
-	writeOperation(w, name, "CREATE")
+	writeOperation(w, projectFromPath(r.URL.Path), locationFromPath(r.URL.Path), name, "CREATE")
 }
 
 func (srv *Server) getInstance(w http.ResponseWriter, r *http.Request, name string) {
@@ -92,7 +102,7 @@ func (srv *Server) getInstance(w http.ResponseWriter, r *http.Request, name stri
 		mapDomainError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, instanceToGCP(inst))
+	writeJSON(w, http.StatusOK, instanceToGCPWithPath(inst, projectFromPath(r.URL.Path), locationFromPath(r.URL.Path)))
 }
 
 func (srv *Server) listInstances(w http.ResponseWriter, r *http.Request) {
@@ -101,9 +111,11 @@ func (srv *Server) listInstances(w http.ResponseWriter, r *http.Request) {
 		mapDomainError(w, err)
 		return
 	}
+	project := projectFromPath(r.URL.Path)
+	location := locationFromPath(r.URL.Path)
 	out := redisapi.ListInstancesResponse{}
 	for _, i := range res.Instances {
-		out.Instances = append(out.Instances, instanceToGCP(i))
+		out.Instances = append(out.Instances, instanceToGCPWithPath(i, project, location))
 	}
 	writeJSON(w, http.StatusOK, &out)
 }
@@ -113,7 +125,7 @@ func (srv *Server) deleteInstance(w http.ResponseWriter, r *http.Request, name s
 		mapDomainError(w, err)
 		return
 	}
-	writeOperation(w, name, "DELETE")
+	writeOperation(w, projectFromPath(r.URL.Path), locationFromPath(r.URL.Path), name, "DELETE")
 }
 
 func (srv *Server) patchInstance(w http.ResponseWriter, r *http.Request, name string) {
@@ -126,7 +138,7 @@ func (srv *Server) patchInstance(w http.ResponseWriter, r *http.Request, name st
 		mapDomainError(w, err)
 		return
 	}
-	writeOperation(w, name, "UPDATE")
+	writeOperation(w, projectFromPath(r.URL.Path), locationFromPath(r.URL.Path), name, "UPDATE")
 }
 
 func (srv *Server) failover(w http.ResponseWriter, r *http.Request, name string) {
@@ -134,15 +146,26 @@ func (srv *Server) failover(w http.ResponseWriter, r *http.Request, name string)
 		mapDomainError(w, err)
 		return
 	}
-	writeOperation(w, name, "FAILOVER")
+	writeOperation(w, projectFromPath(r.URL.Path), locationFromPath(r.URL.Path), name, "FAILOVER")
 }
 
 // ----------------------------------------------------------------------
 // Helpers
 // ----------------------------------------------------------------------
 
+// stripVersionPrefix removes the "/v1/" or "/v1beta1/" segment so
+// downstream parsers can work with the version-neutral remainder.
+func stripVersionPrefix(path string) string {
+	for _, p := range []string{"/v1/", "/v1beta1/"} {
+		if strings.HasPrefix(path, p) {
+			return path[len(p)-1:]
+		}
+	}
+	return path
+}
+
 func projectFromPath(path string) string {
-	parts := strings.Split(strings.TrimPrefix(path, "/v1/projects/"), "/")
+	parts := strings.Split(strings.TrimPrefix(stripVersionPrefix(path), "/projects/"), "/")
 	if len(parts) > 0 {
 		return parts[0]
 	}
@@ -150,7 +173,7 @@ func projectFromPath(path string) string {
 }
 
 func locationFromPath(path string) string {
-	parts := strings.Split(strings.TrimPrefix(path, "/v1/projects/"), "/")
+	parts := strings.Split(strings.TrimPrefix(stripVersionPrefix(path), "/projects/"), "/")
 	if len(parts) >= 3 && parts[1] == "locations" {
 		return parts[2]
 	}
@@ -172,13 +195,30 @@ func gcpStatusFromDomain(s domain.Status) string {
 	}
 }
 
-func instanceToGCP(in domain.Instance) *redisapi.Instance {
+// instanceToGCPWithPath surfaces the canonical Memorystore Instance
+// shape including the full resource Name + the read-side defaults
+// hashicorp/google's `google_redis_instance` schema expects. Honest
+// defaults — they describe "an instance with the default network /
+// encryption posture", not fabricated state.
+func instanceToGCPWithPath(in domain.Instance, project, location string) *redisapi.Instance {
 	out := &redisapi.Instance{
-		Tier:         in.NodeType,
-		RedisVersion: in.EngineVersion,
-		State:        gcpStatusFromDomain(in.Status),
-		Host:         in.Connection.Host,
-		Port:         int64(in.Connection.Port),
+		Tier:                  in.NodeType,
+		RedisVersion:          in.EngineVersion,
+		MemorySizeGb:          int64(in.MemorySizeGB),
+		State:                 gcpStatusFromDomain(in.Status),
+		Host:                  in.Connection.Host,
+		Port:                  int64(in.Connection.Port),
+		ConnectMode:           "DIRECT_PEERING",
+		TransitEncryptionMode: "DISABLED",
+		AuthEnabled:           false,
+		ReadReplicasMode:      "READ_REPLICAS_DISABLED",
+		ReplicaCount:          0,
+	}
+	if project != "" && location != "" && in.Name != "" {
+		out.Name = fmt.Sprintf("projects/%s/locations/%s/instances/%s", project, location, in.Name)
+	}
+	if location != "" {
+		out.LocationId = location
 	}
 	if !in.CreatedAt.IsZero() {
 		out.CreateTime = in.CreatedAt.UTC().Format(time.RFC3339)
@@ -190,9 +230,16 @@ func instanceToGCP(in domain.Instance) *redisapi.Instance {
 // Operation Name encodes (opType, target) so Operations.Get can
 // resolve the current state by reading the target — stateless, no
 // shim-side operation table (Phase 10.1 / BUG-5 closure).
-func writeOperation(w http.ResponseWriter, target, opType string) {
+//
+// Memorystore Operation names follow the full GCP resource-name
+// convention: `projects/{p}/locations/{l}/operations/{op-id}`.
+// hashicorp/google google_redis_instance polls the operation by
+// using the response's Name field directly to construct the URL,
+// so the prefix must be present.
+func writeOperation(w http.ResponseWriter, project, location, target, opType string) {
 	writeJSON(w, http.StatusOK, &redisapi.Operation{
-		Name: encodeOperationName(opType, target),
+		Name: fmt.Sprintf("projects/%s/locations/%s/operations/%s",
+			project, location, encodeOperationName(opType, target)),
 		Done: false,
 	})
 }
@@ -222,7 +269,9 @@ func (srv *Server) getOperation(w http.ResponseWriter, r *http.Request, name str
 		return
 	}
 	inst, err := srv.s.DescribeInstance(r.Context(), target)
-	op := &redisapi.Operation{Name: name}
+	fullName := fmt.Sprintf("projects/%s/locations/%s/operations/%s",
+		projectFromPath(r.URL.Path), locationFromPath(r.URL.Path), name)
+	op := &redisapi.Operation{Name: fullName}
 	if err != nil {
 		// Delete success signals via NoSuchInstance.
 		if opType == "delete" {

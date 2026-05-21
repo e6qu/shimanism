@@ -50,6 +50,14 @@ func (b *Backend) CreateFunction(ctx context.Context, name string, opt domain.Cr
 	if opt.Image == "" {
 		return domain.Function{}, domain.InvalidArgument("Image is required")
 	}
+	// Role + Publish are AWS-only with no Knative analog; reject non-
+	// empty values per the no-silent-fallback rule.
+	if opt.Role != "" {
+		return domain.Function{}, domain.InvalidArgument("Role is AWS Lambda-specific; Knative Services use the Pod's ServiceAccount.")
+	}
+	if opt.Publish {
+		return domain.Function{}, domain.InvalidArgument("Publish is AWS Lambda-specific; Knative revisions are atomic.")
+	}
 	svc := &unstructured.Unstructured{}
 	svc.SetAPIVersion("serving.knative.dev/v1")
 	svc.SetKind("Service")

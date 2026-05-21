@@ -29,6 +29,7 @@ type instanceState struct {
 	name          string
 	engineVersion string
 	nodeType      string
+	memorySizeGB  int
 	status        domain.Status
 	authToken     string
 	createdAt     time.Time
@@ -65,6 +66,7 @@ func (b *Backend) toDomain(s *instanceState) domain.Instance {
 		Name:          s.name,
 		EngineVersion: s.engineVersion,
 		NodeType:      s.nodeType,
+		MemorySizeGB:  s.memorySizeGB,
 		Status:        s.status,
 		CreatedAt:     s.createdAt,
 	}
@@ -96,6 +98,7 @@ func (b *Backend) CreateInstance(ctx context.Context, name string, opt domain.Cr
 		name:          name,
 		engineVersion: opt.EngineVersion,
 		nodeType:      opt.NodeType,
+		memorySizeGB:  opt.MemorySizeGB,
 		status:        domain.StatusCreating,
 		authToken:     token,
 		createdAt:     now,

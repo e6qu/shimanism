@@ -4,6 +4,105 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 
 > Reverse chronological. One section per phase. The *why*, the surprises, the root causes — not per-PR detail. For commit-level history, `git log`. For per-bug detail, [BUGS.md](BUGS.md).
 
+## Phase 10 — cross-cloud `terraform apply` through the shim (in-flight on `phase-10`)
+
+The write-side proof, symmetric to Phase 9's read-side. Same headline: a user writes AWS-shape Terraform; `terraform apply` creates/updates/destroys the resource in cloud B through shimanism, with the source-cloud provider unaware of the translation. The PR closes 6 BUGs and lands active drift assertions for all 8 shimmed services.
+
+### Sub-phase delivery
+
+| Sub | Headline |
+|---|---|
+| **10.0-A** | Per-service `APPLY_INTERSECTION.md` contracts (8 files). The gate codex flagged — matrix tests assert against the contract, not "whatever the provider tries." |
+| **10.1** | BUG-5 closed (PR #16 prior to this branch): stateless `Operations.Get` across all 4 GCP-shape frontends. |
+| **10.2** | Create-then-Read drift audit. All 8 services have apply test scaffolding; 8 of 8 have active drift assertions (the original Phase-10 plan targeted 7; cache GCP brought us to full coverage via the BUG-16-family fix). |
+| **10.2-C** | Invalid-input fidelity tests (storage first chunk). |
+| **10.3** | Update intersection audit — 6 BUG-closing chunks landed: BUG-17 (secrets `UpdateSecret`), BUG-2 (queue `SetQueueAttributes`), AWS SNS `SetTopicAttributes`, BUG-13 (functions Lambda Role/Publish), BUG-16 (rdbms GCP `/sql/v1beta4/` paths + canonical Settings defaults + `/users`+`/databases` sub-resources), cache GCP Memorystore `/v1beta1/` paths + Operation Name canonicalization + full Instance round-trip. |
+| **10.5** | Per-service full lifecycle (secrets exercises Create→Read→Update(description)→Read→Destroy; other services exercise their backends' implicit Update via the provider's post-create reconcile). |
+| **10.7** | `TestCrossCloudApply_Roundtrip` per service. Storage AWS→GCS is the **active exit criterion** (init → apply → assert-in-mock-GCS → plan no-drift → destroy → mock-GCS empty). Six other services document the cross-cloud asymmetries that prevent a single-PR close (provider `WaitForStateEqual` on cloud-specific attribute sets; secrets AWS→Azure value-on-create asymmetry; cache/rdbms/functions/apigateway multi-step reconcile semantics that don't translate without deeper work). |
+| **10.8** | Phase 10 closer (this entry). |
+
+### What closing BUG-2 actually required
+
+BUG-2 (queue `SetQueueAttributes`) had carried through 5 phases. The cycle of failed closes followed a recurring shape: someone added `SetQueueAttributes` to a backend, the provider's `WaitForStateEqual` after CreateQueue still timed out, the work got shelved. The Phase 10 close took 4 distinct moves:
+
+1. **Domain extension.** `domain.Queues` gained `SetQueueAttributes(name, QueueAttributes)`. Zero-valued fields = "leave unchanged" (AWS-merge semantics; same shape as `UpdateSecretOptions` from BUG-17).
+2. **Per-backend honest implementations.** inmem patches in place; AWS calls `SetQueueAttributes`; GCP `subscriptions.patch` (only honors ackDeadline + retention, others ignored as documented); Azure `GetQueue → UpdateQueue` read-modify-write; NATS `UpdateStream` + `UpdateConsumer`.
+3. **Read-side attribute surface.** `attributesToAWS` extended to emit all the AWS-specific attribute keys the hashicorp/aws provider sets schema-defaults for (`Policy`, `RedrivePolicy`, `KmsMasterKeyId`, `FifoQueue`, etc). Empty/zero values for out-of-intersection attributes — honest defaults representing "no extra features configured," not fabricated state.
+4. **awsQueryCompatible legacy error codes.** The `x-amzn-query-error` header maps the new Smithy error codes to their legacy Query-XML equivalents (notably `AWS.SimpleQueueService.NonExistentQueue` for `QueueDoesNotExist`). hashicorp/aws's wait functions are keyed on the legacy codes; without the header they'd treat a delete-confirmation 404 as an unrecoverable error.
+
+The same shape — domain extension + per-backend impl + read-side surface + error-code compatibility — applied to BUG-13 (functions Role/Publish), BUG-16 (rdbms paths/defaults), and BUG-17 (secrets UpdateSecret/TagResource). Phase 10.3 is the methodical application of this template across the open Apply-blocking BUGs.
+
+### Cross-cloud asymmetries: documented, not faked
+
+Phase 10.7's storage cell proves the cross-cloud Apply headline. The other six services document specific cross-cloud asymmetries that make a single-PR close infeasible:
+
+- **secrets AWS→Azure:** AWS Secrets Manager's CreateSecret accepts value-less creates; Azure Key Vault genuinely doesn't (SetSecret is the only create path and requires Value). The provider's separate `aws_secretsmanager_secret` + `aws_secretsmanager_secret_version` resources mean the user can't seed a value at create time through HCL.
+- **queue/pubsub AWS→GCP:** hashicorp/aws's `WaitForStateEqual` after CreateQueue + SetQueueAttributes expects all SQS-shape attributes to round-trip exactly. GCP Pub/Sub honors visibility_timeout_seconds + message_retention_seconds; DelaySeconds + MaxMessageSize don't have GCP analogs.
+- **cache/rdbms/functions/apigateway:** AWS-shape Apply requires post-create reconcile state (parameter-groups, subnet-groups, LayerVersions, multi-step Create) that GCP's equivalent services don't surface.
+
+Each is honest cross-cloud behavior — not a shim bug. The destinations genuinely don't have the source's concepts. Real migration tools handle these via fixture-side workarounds + identity/networking rebinding on the destination; that's the Track A follow-on.
+
+### Bug ledger: 6 BUGs closed + 4 filed (1 reclassified false-positive)
+
+Closed in this PR: BUG-2, BUG-5 (prior), BUG-13, BUG-16, BUG-17, plus a near-equivalent SNS `SetTopicAttributes` close that didn't get a BUG number (same class as BUG-2).
+
+Filed: BUG-14 (S3 tags drift — reclassified false positive after the shim's `NoSuchTagSet` envelope was confirmed bit-for-bit identical to real AWS), BUG-15 (GCP queue retention plan/apply asymmetry — partial fix in tree), BUG-16 (closed), BUG-17 (closed).
+
+Final count: **17 filed · 11 fixed · 5 open · 1 false positive.** The 5 open BUGs are all NATS-specific (BUG-3, BUG-4 — receive/delete paths, orthogonal to Apply), one apigateway Azure-delete (BUG-6 — v3 SDK etag requirement), and two conformance-skip gaps (BUG-7, BUG-8 — apigateway driver-specific overrides).
+
+## Phase 10.1 — close BUG-5 (stateless GCP `Operations.Get`)
+
+Carried since Phase 5. Codex's Phase 10 review flagged it as the hard gate for Phase 10 — `terraform apply` against GCP-shape frontends hangs without long-running-operation polling, so it has to land *before* any Apply cell runs. PR #16 closed it across all four GCP-shape frontends in one sweep: rdbms (Cloud SQL Admin) `/v1/projects/{p}/operations/{op}`, cache (Memorystore) and apigateway (API Gateway) `/v1/projects/{p}/locations/{l}/operations/{op}`, functions (Cloud Run) `/v2/projects/{p}/locations/{l}/operations/{op}`.
+
+### Stateless polling via Name-encoded target
+
+The Operation `Name` encodes `(opType, target)`. A polling client GETs the operation; the shim parses the name, looks up the underlying resource, and maps its current `domain.Status` to RUNNING / DONE. For delete ops, `NoSuchResource` signals DONE. **No shim-side operation table** — every poll re-derives status from the backend's actual state. Same posture as every other persistent state in the shim.
+
+`Operations.List` returns empty: there's no honest way to enumerate past operations without state, and SDK polling paths only call `Get`. Documented as intentional, not a gap.
+
+### Why a single sweep across four frontends
+
+The four GCP frontends had ~identical polling-endpoint shapes (path templates differ in whether they include `locations/{l}`; status mapping is the same domain `Status` enum). Doing them all in one commit (rather than per-service) means there's no "we'll get to the rest later" debt — the bug is closed as a class, not as one of four instances.
+
+## Phase 9 — cross-cloud `terraform import` (in-flight on `phase-9-import` then closed via `phase-9-closer`)
+
+Phase 9 was the read-side proof. The thesis: if the shim is honest, then `terraform import` against an A-shaped HCL pointing at a backend cloud B should round-trip — `terraform plan` after import sees no drift, because the shim translates the B-side state back into the A-side shape with full fidelity.
+
+### `shimctl env` and the endpoint-override registry
+
+Migration users don't write endpoint-override boilerplate by hand. Sub-phase 9.1 added `shimctl env`, which prints the env-var / SDK / CLI / Terraform overrides needed to route a given (cloud, service) pair through the shim. The registry lives at `internal/clientconfig/overrides.yaml` and enumerates the per-cloud override knobs the official tooling actually exposes. This is what makes the migration story runnable from a README.
+
+### The per-service `INTERSECTION.md` audits (9.2-A)
+
+Every wire-level operation each frontend serves got classified into one of three categories: (1) real work — must dispatch to a real backend call; (2) feature genuinely unset — returns the cloud's real "unset" envelope (e.g. `NOT_FOUND` for an absent sub-resource); (3) out of intersection — returns the cloud's real "not supported" envelope. A fourth implicit category — "returns something plausible without doing real work" — is by definition a fake and got filed as a bug or removed.
+
+This audit surfaced **three real fidelity gaps that had been hiding under matrix-test passes**: GCP API Gateway frontend missing the `Apis` + `ApiConfigs` endpoint families entirely (BUG-9), Azure APIM frontend missing the `Operations` subresource (BUG-10), and AWS APIGW v2 frontend's 404 envelope missing the `__type` field (BUG-11). All three got fixed in Phase 9.
+
+### Per-service `MIGRATION.md` walkthroughs (9.2-B)
+
+For each service, a runnable migration recipe per (source cloud × target cloud × K8s peer) — actual `aws s3` / `gcloud storage` / `az storage` / Terraform invocations against the shim, with the `shimctl env` overrides applied. This is what closes the philosophical loop: the intersection is real because the recipes work end-to-end against real backends.
+
+### `TestCrossCloudImport_Roundtrip` exit criterion (9.5 + 9.13)
+
+`terraform_import_test.go` exists for every service; the per-frontend tests pass through the shim against a mock-cloud backend. The headline exit criterion `TestCrossCloudImport_Roundtrip_StorageAWStoGCS` is the symmetric proof: AWS-shape Terraform imports a bucket that *lives in mock-GCS* through the shim, with zero fidelity diffs. Same pattern instantiates for every (source A, backend B) cell.
+
+### Six real fidelity fixes surfaced by the import tests
+
+Phase 9.5 wasn't just test-writing — every service's import driver found something:
+
+- **XML double-nesting** in restxml responses (AWS frontend marshalling).
+- **Missing Policy JSON** sub-resource (would have failed `terraform plan` after import on policy attributes).
+- **Missing tag-list handlers** (category-2 honest-empty responses for List*Tags ops the providers always call).
+- **Missing selection-expression defaults** (apigateway).
+- **Missing Lambda subresources** (functions).
+- **Missing RDS ARN** in describe responses (rdbms).
+
+Each got filed as a bug and fixed inline. **No fakes survived.** This is what "intersection-only scope" looks like in practice — the import path doesn't pass until every Read the provider issues has an honest answer.
+
+### The docs roll-up (PR #16 closer)
+
+PR #13 squash-merged with all 8 services' cross-cloud import tests on tree, but the closer commit that updated `PHASE_9_PLAN.md` + `STATUS.md` from "six services" to "all 8 services" was still in flight on the branch and didn't make the squash. PR #16 fixed the doc narrative drift in the same PR as Phase 10.1's BUG-5 fix and the Phase 10 plan adoption. Lesson: docs-roll-up commits at the end of a multi-chunk PR are race-prone with the merge fire; for Phase 10, the doc updates happen *with* each granular commit, not as a single tail.
+
 ## Phase 8 — API Gateway (in-flight on `phase-8-apigateway`)
 
 Control-plane shim for HTTP API gateways. Same shape as Phases 5–7 — provision + return URL, clients HTTP-request the URL — with one new wrinkle: the gateway has to translate a *set of routes* to a backend-native primitive that varies wildly across clouds. Declarative-replace via `DeployGateway(routes)` is what makes the cross-cloud semantics tractable.

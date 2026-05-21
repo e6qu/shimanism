@@ -246,6 +246,54 @@ func (b *Backend) PutSecretValue(ctx context.Context, name string, value []byte)
 	return domain.PutSecretValueResult{}, fmt.Errorf("vault: write response missing 'version' field for %s", name)
 }
 
+func (b *Backend) UpdateSecret(ctx context.Context, name string, opt domain.UpdateSecretOptions) error {
+	if opt.Enabled != nil && !*opt.Enabled {
+		// Vault KV v2 has no per-secret enabled flag; versions can be
+		// destroyed but the secret itself is always live. Honest reject.
+		return domain.InvalidArgument("Vault KV v2 does not support a per-secret enabled flag (use version destroy)")
+	}
+	// Read current metadata so we can preserve fields the caller didn't
+	// touch (description vs tags update should be independent).
+	resp, err := b.c.Logical().ReadWithContext(ctx, b.metadataPath(name))
+	if err != nil {
+		return translateErr(err, name)
+	}
+	if resp == nil || resp.Data == nil {
+		return domain.NoSuchSecret(name)
+	}
+	cur := map[string]string{}
+	if cm, ok := resp.Data["custom_metadata"].(map[string]interface{}); ok {
+		for k, v := range cm {
+			if s, ok := v.(string); ok {
+				cur[k] = s
+			}
+		}
+	}
+	if opt.Tags != nil {
+		// Preserve only the shim-reserved keys; replace user-visible tags.
+		preserved := cur["shim-description"]
+		cur = map[string]string{}
+		for k, v := range opt.Tags {
+			cur[k] = v
+		}
+		if preserved != "" {
+			cur["shim-description"] = preserved
+		}
+	}
+	if opt.Description != nil {
+		if *opt.Description == "" {
+			delete(cur, "shim-description")
+		} else {
+			cur["shim-description"] = *opt.Description
+		}
+	}
+	body := map[string]interface{}{"custom_metadata": cur}
+	if _, err := b.c.Logical().WriteWithContext(ctx, b.metadataPath(name), body); err != nil {
+		return translateErr(err, name)
+	}
+	return nil
+}
+
 func (b *Backend) DeleteSecret(ctx context.Context, name string, force bool) error {
 	// Force delete: remove all version history + metadata via DELETE
 	// on the metadata endpoint.

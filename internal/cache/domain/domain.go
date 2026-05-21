@@ -48,9 +48,16 @@ type Instance struct {
 	Name          string
 	EngineVersion string // "7.0", "6.2", etc.
 	NodeType      string // per-cloud sizing tier
-	Status        Status
-	Connection    Connection
-	CreatedAt     time.Time
+	// MemorySizeGB is the in-memory capacity in gibibytes. Cross-cloud
+	// the field maps to ElastiCache `cache_node_type` implicit memory
+	// (e.g. cache.t3.micro → 0.5 GiB), GCP Memorystore `memory_size_gb`,
+	// Azure Cache for Redis `sku.capacity`. The shim accepts the value
+	// at Create + round-trips it at Read; backends with implicit
+	// memory derive it from NodeType.
+	MemorySizeGB int
+	Status       Status
+	Connection   Connection
+	CreatedAt    time.Time
 }
 
 // Connection is what clients need to open a direct RESP connection
@@ -70,6 +77,7 @@ type Connection struct {
 type CreateInstanceOptions struct {
 	EngineVersion string
 	NodeType      string
+	MemorySizeGB  int
 	// AuthToken is optional. If empty, backends that can generate
 	// one will do so and return it once in the result. AWS / GCP /
 	// Azure accept either caller-supplied or generated.

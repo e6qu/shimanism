@@ -104,6 +104,77 @@ func (b *Backend) DeleteQueue(ctx context.Context, name string) error {
 	return translateErr(err, name)
 }
 
+func (b *Backend) SetQueueAttributes(ctx context.Context, name string, attrs domain.QueueAttributes) error {
+	url, err := b.queueURL(ctx, name)
+	if err != nil {
+		return err
+	}
+	a := map[string]string{}
+	if attrs.VisibilityTimeoutSeconds > 0 {
+		a["VisibilityTimeout"] = strconv.Itoa(attrs.VisibilityTimeoutSeconds)
+	}
+	if attrs.MessageRetentionSeconds > 0 {
+		a["MessageRetentionPeriod"] = strconv.Itoa(attrs.MessageRetentionSeconds)
+	}
+	if attrs.MaxMessageSizeBytes > 0 {
+		a["MaximumMessageSize"] = strconv.Itoa(attrs.MaxMessageSizeBytes)
+	}
+	if attrs.DelaySeconds > 0 {
+		a["DelaySeconds"] = strconv.Itoa(attrs.DelaySeconds)
+	}
+	if len(a) == 0 {
+		return nil
+	}
+	_, err = b.c.SetQueueAttributes(ctx, &sqs.SetQueueAttributesInput{
+		QueueUrl:   awsapi.String(url),
+		Attributes: a,
+	})
+	return translateErr(err, name)
+}
+
+func (b *Backend) ListQueueTags(ctx context.Context, name string) (map[string]string, error) {
+	url, err := b.queueURL(ctx, name)
+	if err != nil {
+		return nil, err
+	}
+	out, err := b.c.ListQueueTags(ctx, &sqs.ListQueueTagsInput{QueueUrl: awsapi.String(url)})
+	if err != nil {
+		return nil, translateErr(err, name)
+	}
+	if out.Tags == nil {
+		return map[string]string{}, nil
+	}
+	tags := make(map[string]string, len(out.Tags))
+	for k, v := range out.Tags {
+		tags[k] = v
+	}
+	return tags, nil
+}
+
+func (b *Backend) TagQueue(ctx context.Context, name string, tags map[string]string) error {
+	if len(tags) == 0 {
+		return nil
+	}
+	url, err := b.queueURL(ctx, name)
+	if err != nil {
+		return err
+	}
+	_, err = b.c.TagQueue(ctx, &sqs.TagQueueInput{QueueUrl: awsapi.String(url), Tags: tags})
+	return translateErr(err, name)
+}
+
+func (b *Backend) UntagQueue(ctx context.Context, name string, keys []string) error {
+	if len(keys) == 0 {
+		return nil
+	}
+	url, err := b.queueURL(ctx, name)
+	if err != nil {
+		return err
+	}
+	_, err = b.c.UntagQueue(ctx, &sqs.UntagQueueInput{QueueUrl: awsapi.String(url), TagKeys: keys})
+	return translateErr(err, name)
+}
+
 func (b *Backend) HeadQueue(ctx context.Context, name string) (domain.Queue, error) {
 	url, err := b.queueURL(ctx, name)
 	if err != nil {

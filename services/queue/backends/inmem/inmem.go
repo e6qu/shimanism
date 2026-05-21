@@ -31,6 +31,7 @@ type queueState struct {
 	name       string
 	createdAt  time.Time
 	attributes domain.QueueAttributes
+	tags       map[string]string
 	pending    []*messageState
 	inflight   map[string]*messageState // keyed by receipt handle
 }
@@ -163,6 +164,72 @@ func (b *Backend) DeleteQueue(ctx context.Context, name string) error {
 		return domain.NoSuchQueue(name)
 	}
 	delete(b.queues, name)
+	return nil
+}
+
+func (b *Backend) SetQueueAttributes(ctx context.Context, name string, attrs domain.QueueAttributes) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	st, ok := b.queues[name]
+	if !ok {
+		return domain.NoSuchQueue(name)
+	}
+	// AWS SetQueueAttributes merges — zero values mean "leave as-is".
+	if attrs.VisibilityTimeoutSeconds > 0 {
+		st.attributes.VisibilityTimeoutSeconds = attrs.VisibilityTimeoutSeconds
+	}
+	if attrs.MessageRetentionSeconds > 0 {
+		st.attributes.MessageRetentionSeconds = attrs.MessageRetentionSeconds
+	}
+	if attrs.MaxMessageSizeBytes > 0 {
+		st.attributes.MaxMessageSizeBytes = attrs.MaxMessageSizeBytes
+	}
+	if attrs.DelaySeconds > 0 {
+		st.attributes.DelaySeconds = attrs.DelaySeconds
+	}
+	return nil
+}
+
+func (b *Backend) ListQueueTags(ctx context.Context, name string) (map[string]string, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	st, ok := b.queues[name]
+	if !ok {
+		return nil, domain.NoSuchQueue(name)
+	}
+	out := make(map[string]string, len(st.tags))
+	for k, v := range st.tags {
+		out[k] = v
+	}
+	return out, nil
+}
+
+func (b *Backend) TagQueue(ctx context.Context, name string, tags map[string]string) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	st, ok := b.queues[name]
+	if !ok {
+		return domain.NoSuchQueue(name)
+	}
+	if st.tags == nil {
+		st.tags = make(map[string]string, len(tags))
+	}
+	for k, v := range tags {
+		st.tags[k] = v
+	}
+	return nil
+}
+
+func (b *Backend) UntagQueue(ctx context.Context, name string, keys []string) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	st, ok := b.queues[name]
+	if !ok {
+		return domain.NoSuchQueue(name)
+	}
+	for _, k := range keys {
+		delete(st.tags, k)
+	}
 	return nil
 }
 

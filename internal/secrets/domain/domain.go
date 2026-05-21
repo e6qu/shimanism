@@ -79,6 +79,18 @@ type PutSecretValueResult struct {
 	Version uint64
 }
 
+// UpdateSecretOptions controls UpdateSecret. All fields are
+// pointer-typed so callers can distinguish "leave as-is" (nil) from
+// "set to the zero value" (non-nil empty). Description and Tags are
+// honoured across the four-backend intersection; Enabled is only
+// honoured on AWS + Azure (GCP + Vault adapters reject non-nil
+// false with InvalidArgument per services/secrets/APPLY_INTERSECTION.md).
+type UpdateSecretOptions struct {
+	Description *string
+	Tags        map[string]string
+	Enabled     *bool
+}
+
 // ListSecretsOptions controls ListSecrets pagination + filtering.
 type ListSecretsOptions struct {
 	Prefix     string
@@ -108,6 +120,12 @@ type Secrets interface {
 	// the new monotonic version number. Returns NoSuchSecret if the
 	// secret doesn't exist.
 	PutSecretValue(ctx context.Context, name string, value []byte) (PutSecretValueResult, error)
+
+	// UpdateSecret patches a secret's metadata (Description, Tags,
+	// Enabled). Backends that don't honour a particular field return
+	// InvalidArgument rather than silently dropping. Returns
+	// NoSuchSecret if the secret doesn't exist.
+	UpdateSecret(ctx context.Context, name string, opt UpdateSecretOptions) error
 
 	// DeleteSecret removes a secret. With force=false the backend's
 	// soft-delete path is used (AWS recovery window, Azure soft-delete,

@@ -72,7 +72,7 @@ az apim api operation create --service-name svc --api-id api --operation-id rout
 
 ## Coverage
 
-AWS frontend → all backends: ✅ (with Azure backend's Delete deferred to Track A per BUG-6).
+AWS frontend → all backends: ✅ (Azure backend's Delete now wired with `BeginDelete(... ifMatch = "*")` per BUG-6 closure; real-Azure conformance gated on Track A).
 GCP frontend: missing route deployment (BUG-9) → can only do `Gateway` CRUD, not full migration.
 Azure frontend: missing route deployment (BUG-10) → same shape.
 

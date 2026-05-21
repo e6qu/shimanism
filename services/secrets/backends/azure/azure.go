@@ -163,6 +163,35 @@ func (b *Backend) PutSecretValue(ctx context.Context, name string, value []byte)
 	return domain.PutSecretValueResult{Version: uint64(len(versions))}, nil
 }
 
+func (b *Backend) UpdateSecret(ctx context.Context, name string, opt domain.UpdateSecretOptions) error {
+	// Azure Key Vault: UpdateSecretProperties patches the latest
+	// version's metadata. Description has no direct Key Vault field —
+	// the closest analogue is the contentType / tag store. shimanism's
+	// cross-cloud convention stores description in a tag with key
+	// "shim-description"; the Azure adapter round-trips that.
+	params := azsecrets.UpdateSecretPropertiesParameters{}
+	if opt.Tags != nil || opt.Description != nil {
+		tags := map[string]*string{}
+		if opt.Tags != nil {
+			for k, v := range opt.Tags {
+				v := v
+				tags[k] = &v
+			}
+		}
+		if opt.Description != nil {
+			d := *opt.Description
+			tags["shim-description"] = &d
+		}
+		params.Tags = tags
+	}
+	if opt.Enabled != nil {
+		e := *opt.Enabled
+		params.SecretAttributes = &azsecrets.SecretAttributes{Enabled: &e}
+	}
+	_, err := b.c.UpdateSecretProperties(ctx, name, "", params, nil)
+	return translateErr(err, name)
+}
+
 func (b *Backend) DeleteSecret(ctx context.Context, name string, force bool) error {
 	// Soft delete (default): DeleteSecret initiates the recovery
 	// window. Force: follow with PurgeDeletedSecret.
