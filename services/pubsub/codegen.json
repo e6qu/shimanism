@@ -12,6 +12,8 @@
     "ListSubscriptions",
     "ListSubscriptionsByTopic",
     "Publish",
-    "GetTopicAttributes"
+    "GetTopicAttributes",
+    "SetTopicAttributes",
+    "ListTagsForResource"
   ]
 }

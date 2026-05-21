@@ -300,6 +300,28 @@ type GetTopicAttributesResponse struct {
 	Attributes TopicAttributesMap `xml:"Attributes,omitempty"`
 }
 
+// SetTopicAttributesInput is a generated Smithy structure.
+type SetTopicAttributesInput struct {
+	AttributeName  string  `xml:"AttributeName,omitempty"`
+	AttributeValue *string `xml:"AttributeValue,omitempty"`
+	TopicArn       string  `xml:"TopicArn,omitempty"`
+}
+
+// ListTagsForResourceRequest is a generated Smithy structure.
+type ListTagsForResourceRequest struct {
+	ResourceArn string `xml:"ResourceArn,omitempty"`
+}
+
+// ListTagsForResourceResponse is a generated Smithy structure.
+type ListTagsForResourceResponse struct {
+	Tags TagList `xml:"Tags,omitempty"`
+}
+
+// ResourceNotFoundException is a generated Smithy structure. It is an error response (HTTP 404).
+type ResourceNotFoundException struct {
+	Message *string `xml:"Message,omitempty"`
+}
+
 // SNSBackend is the union of every per-operation
 // backend interface emitted from the spec.
 type SNSBackend interface {
@@ -312,6 +334,8 @@ type SNSBackend interface {
 	ListSubscriptionsByTopicBackend
 	PublishBackend
 	GetTopicAttributesBackend
+	SetTopicAttributesBackend
+	ListTagsForResourceBackend
 }
 
 // RegisterSNSRoutes mounts every shimmed operation
@@ -329,6 +353,8 @@ func RegisterSNSRoutes(b SNSBackend) *awsquery.Router {
 	rt.Register("ListSubscriptionsByTopic", ListSubscriptionsByTopicHandler(b))
 	rt.Register("Publish", PublishHandler(b))
 	rt.Register("GetTopicAttributes", GetTopicAttributesHandler(b))
+	rt.Register("SetTopicAttributes", SetTopicAttributesHandler(b))
+	rt.Register("ListTagsForResource", ListTagsForResourceHandler(b))
 	return rt
 }
 
@@ -640,5 +666,67 @@ func GetTopicAttributesHandler(b GetTopicAttributesBackend) http.Handler {
 			return
 		}
 		awsquery.WriteResult(w, "GetTopicAttributes", out)
+	})
+}
+
+// SetTopicAttributesBackend serves the SetTopicAttributes operation.
+type SetTopicAttributesBackend interface {
+	SetTopicAttributes(ctx context.Context, in *SetTopicAttributesInput) (struct{}, error)
+}
+
+// SetTopicAttributesHandler decodes a SetTopicAttributes request, dispatches
+// to the backend, and encodes the response per awsQuery semantics.
+// Form-encoded request bodies are decoded field-by-field; nested
+// list / map shapes use the AWS member / entry conventions and are
+// decoded by spec-aware adapter glue (Phase 11 follow-on).
+func SetTopicAttributesHandler(b SetTopicAttributesBackend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		in := &SetTopicAttributesInput{}
+		_ = in
+		// Decode top-level scalar form fields. List / map decode is
+		// adapter responsibility for nested shapes — see the
+		// per-service translate.go.
+		in.AttributeName = r.Form.Get("AttributeName")
+		if v := r.Form.Get("AttributeValue"); v != "" {
+			s := v
+			in.AttributeValue = &s
+		}
+		in.TopicArn = r.Form.Get("TopicArn")
+
+		if _, err := b.SetTopicAttributes(ctx, in); err != nil {
+			awsquery.WriteBackendError(w, err)
+			return
+		}
+		awsquery.WriteResult(w, "SetTopicAttributes", nil)
+	})
+}
+
+// ListTagsForResourceBackend serves the ListTagsForResource operation.
+type ListTagsForResourceBackend interface {
+	ListTagsForResource(ctx context.Context, in *ListTagsForResourceRequest) (*ListTagsForResourceResponse, error)
+}
+
+// ListTagsForResourceHandler decodes a ListTagsForResource request, dispatches
+// to the backend, and encodes the response per awsQuery semantics.
+// Form-encoded request bodies are decoded field-by-field; nested
+// list / map shapes use the AWS member / entry conventions and are
+// decoded by spec-aware adapter glue (Phase 11 follow-on).
+func ListTagsForResourceHandler(b ListTagsForResourceBackend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		in := &ListTagsForResourceRequest{}
+		_ = in
+		// Decode top-level scalar form fields. List / map decode is
+		// adapter responsibility for nested shapes — see the
+		// per-service translate.go.
+		in.ResourceArn = r.Form.Get("ResourceArn")
+
+		out, err := b.ListTagsForResource(ctx, in)
+		if err != nil {
+			awsquery.WriteBackendError(w, err)
+			return
+		}
+		awsquery.WriteResult(w, "ListTagsForResource", out)
 	})
 }
