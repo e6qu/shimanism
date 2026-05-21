@@ -25,6 +25,7 @@ import (
 
 	awsapi "github.com/aws/aws-sdk-go-v2/aws"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
+	awscredentials "github.com/aws/aws-sdk-go-v2/credentials"
 	awssqs "github.com/aws/aws-sdk-go-v2/service/sqs"
 	"google.golang.org/api/option"
 	pubsubraw "google.golang.org/api/pubsub/v1"
@@ -41,7 +42,14 @@ func TestQueueMatrix_AWSFrontend(t *testing.T) {
 			srv := harness.StartQueueServerAWS(t, be)
 			cfg, err := awsconfig.LoadDefaultConfig(ctx,
 				awsconfig.WithRegion("us-east-1"),
-				awsconfig.WithCredentialsProvider(awsapi.AnonymousCredentials{}),
+				// Verifier's trusted test credentials so requests are
+				// signed with a key the shim's SigV4 middleware accepts.
+				awsconfig.WithCredentialsProvider(awscredentials.StaticCredentialsProvider{
+					Value: awsapi.Credentials{
+						AccessKeyID:     "AKIAIOSFODNN7EXAMPLE",
+						SecretAccessKey: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+					},
+				}),
 			)
 			if err != nil {
 				t.Fatalf("aws config: %v", err)
