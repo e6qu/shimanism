@@ -16,20 +16,36 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
 	"github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/azsecrets"
 
+	"github.com/e6qu/shimanism/internal/azurebearer"
 	"github.com/e6qu/shimanism/internal/harness"
 	"github.com/e6qu/shimanism/services/secrets/backends/inmem"
 )
 
-// fakeTokenCredential satisfies azcore.TokenCredential without
-// actually issuing a token. The shim doesn't validate bearer
-// tokens at this phase, so any non-empty string works.
-type fakeTokenCredential struct{}
+// signedTokenCredential satisfies azcore.TokenCredential and returns
+// an HS256 JWT signed with the azurebearer verifier's trusted test
+// key. With the verifier enforced end-to-end, this is what real
+// conformance looks like.
+type signedTokenCredential struct {
+	audience string
+}
 
-func (fakeTokenCredential) GetToken(_ context.Context, _ policy.TokenRequestOptions) (azcore.AccessToken, error) {
-	return azcore.AccessToken{
-		Token:     "shim-conformance-fake-token",
-		ExpiresOn: time.Now().Add(time.Hour),
-	}, nil
+func (s signedTokenCredential) GetToken(_ context.Context, _ policy.TokenRequestOptions) (azcore.AccessToken, error) {
+	jwt := azurebearer.TestJWT(
+		[]byte("test-key-do-not-use-in-prod"),
+		"https://shim.test/",
+		s.audience,
+		15*time.Minute,
+	)
+	return azcore.AccessToken{Token: jwt, ExpiresOn: time.Now().Add(15 * time.Minute)}, nil
+}
+
+// fakeTokenCredential remains aliased for the matrix tests that
+// share this file's package scope (unchanged today). It now signs a
+// real JWT for the Key Vault audience.
+type fakeTokenCredential = signedTokenCredential
+
+func newKeyVaultCred() azcore.TokenCredential {
+	return signedTokenCredential{audience: "https://vault.azure.net"}
 }
 
 func newAzureSecretsClient(t *testing.T, endpoint string) *azsecrets.Client {
@@ -40,7 +56,7 @@ func newAzureSecretsClient(t *testing.T, endpoint string) *azsecrets.Client {
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec
 		},
 	}
-	c, err := azsecrets.NewClient(endpoint, fakeTokenCredential{}, &azsecrets.ClientOptions{
+	c, err := azsecrets.NewClient(endpoint, newKeyVaultCred(), &azsecrets.ClientOptions{
 		DisableChallengeResourceVerification: true,
 		ClientOptions: azcore.ClientOptions{
 			Transport: httpClient,

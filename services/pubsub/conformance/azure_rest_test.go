@@ -10,7 +10,9 @@ import (
 	"io"
 	"net/http"
 	"testing"
+	"time"
 
+	"github.com/e6qu/shimanism/internal/azurebearer"
 	"github.com/e6qu/shimanism/internal/harness"
 	"github.com/e6qu/shimanism/services/pubsub/backends/inmem"
 )
@@ -18,6 +20,12 @@ import (
 func TestAzureREST_PubsubFanout(t *testing.T) {
 	srv := harness.StartPubsubServerAzure(t, inmem.New())
 	cli := srv.URL
+	jwt := azurebearer.TestJWT(
+		[]byte("test-key-do-not-use-in-prod"),
+		"https://shim.test/",
+		"https://servicebus.azure.net",
+		15*time.Minute,
+	)
 
 	mustReq := func(method, path string, body []byte, expect int) *http.Response {
 		t.Helper()
@@ -25,6 +33,7 @@ func TestAzureREST_PubsubFanout(t *testing.T) {
 		if err != nil {
 			t.Fatalf("new %s %s: %v", method, path, err)
 		}
+		req.Header.Set("Authorization", "Bearer "+jwt)
 		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
 			t.Fatalf("%s %s: %v", method, path, err)

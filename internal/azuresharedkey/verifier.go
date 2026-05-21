@@ -197,7 +197,11 @@ func canonicalizedResource(r *http.Request, account string) string {
 	var b strings.Builder
 	b.WriteString("/")
 	b.WriteString(account)
-	b.WriteString(r.URL.Path)
+	// Azure's SDK signs over u.EscapedPath() — the percent-encoded
+	// form — so the verifier must do the same. r.URL.Path is
+	// pre-decoded by net/http, so paths containing %-escaped slashes
+	// (like greetings%2Fhello.txt) would otherwise diverge.
+	b.WriteString(r.URL.EscapedPath())
 	if len(r.URL.Query()) == 0 {
 		return b.String()
 	}

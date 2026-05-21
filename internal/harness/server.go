@@ -11,7 +11,6 @@ package harness
 import (
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 
 	apigatewaydomain "github.com/e6qu/shimanism/internal/apigateway/domain"
@@ -65,21 +64,23 @@ type StorageServer struct {
 	Close func()
 }
 
-// init: AWS + GCP conformance lanes have been migrated to sign with
-// the verifier's trusted credentials (Phase 11.14a-k). AWS signs
-// SigV4 with AKIAIOSFODNN7EXAMPLE/wJalrXUtnFEMI…; GCP signs HS256
-// JWTs with the gcpbearer trusted test key. Both lanes run with
-// verification enforced end-to-end and no per-cloud bypass.
+// init: AWS / GCP / Azure conformance lanes have all been migrated
+// to sign with the verifier's trusted credentials (Phase 11.14a-o).
 //
-// Azure tests still use `fakeAzureCred` (azcore's stub) and need
-// real SharedKey / Bearer signing in their stack to drop the last
-// bypass. That migration is the remaining 11.14 task.
+//   - AWS:   SigV4 with AKIAIOSFODNN7EXAMPLE / wJalrXUtnFEMI…
+//   - GCP:   HS256 JWTs via gcpbearer.TestJWT
+//   - Azure: HS256 JWTs via azurebearer.TestJWT (Bearer-shaped
+//            frontends), SharedKey for Azure Blob Storage
 //
-// Per-cloud env vars (SHIMANISM_TEST_UNAUTHENTICATED_{AWS,GCP,AZURE})
-// let individual tests t.Setenv a specific lane back on if needed.
-func init() {
-	os.Setenv("SHIMANISM_TEST_UNAUTHENTICATED_AZURE", "1")
-}
+// Every lane runs with verification enforced end-to-end. No
+// per-cloud bypass is set here. The
+// SHIMANISM_TEST_UNAUTHENTICATED_{AWS,GCP,AZURE} env vars still
+// exist (each verifier middleware reads them) so a future
+// production-deployment shape that wants to disable enforcement at
+// runtime can do so, and so individual tests can `t.Setenv` a lane
+// back on temporarily during debugging. The harness leaves them
+// unset.
+func init() {}
 
 // StartStorageServer starts a shim instance with the AWS S3 frontend
 // backed by the given storage implementation. AWS-shaped clients

@@ -146,7 +146,7 @@ func TestSecretsMatrix_AzureFrontend(t *testing.T) {
 					TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec
 				},
 			}
-			cli, err := azsecrets.NewClient(srv.URL, fakeTokenCredential{}, &azsecrets.ClientOptions{
+			cli, err := azsecrets.NewClient(srv.URL, newKeyVaultCred(), &azsecrets.ClientOptions{
 				DisableChallengeResourceVerification: true,
 				ClientOptions: azcore.ClientOptions{
 					Transport: httpClient,

@@ -17,14 +17,25 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/runtime"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/apimanagement/armapimanagement/v3"
 
+	"github.com/e6qu/shimanism/internal/azurebearer"
 	"github.com/e6qu/shimanism/internal/harness"
 	"github.com/e6qu/shimanism/services/apigateway/backends/inmem"
 )
 
+// fakeAzureCred returns an HS256 JWT the azurebearer middleware
+// accepts (signed for the ARM audience the apigateway frontend
+// configures). With BUG-18 closure the verifier is enforced, so
+// "fake" here means "test-mode trusted key", not "unsigned".
 type fakeAzureCred struct{}
 
 func (fakeAzureCred) GetToken(_ context.Context, _ policy.TokenRequestOptions) (azcore.AccessToken, error) {
-	return azcore.AccessToken{Token: "shim-conformance-fake-token", ExpiresOn: time.Now().Add(time.Hour)}, nil
+	jwt := azurebearer.TestJWT(
+		[]byte("test-key-do-not-use-in-prod"),
+		"https://shim.test/",
+		"https://management.azure.com/",
+		15*time.Minute,
+	)
+	return azcore.AccessToken{Token: jwt, ExpiresOn: time.Now().Add(15 * time.Minute)}, nil
 }
 
 func TestAzureSDK_APIGatewayLifecycle(t *testing.T) {
