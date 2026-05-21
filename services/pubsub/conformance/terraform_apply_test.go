@@ -60,16 +60,6 @@ resource "aws_sns_topic" "applied" {
 `
 
 func TestTerraform_AWSPubsub_Apply_NoDrift(t *testing.T) {
-	// hashicorp/aws aws_sns_topic calls SetTopicAttributes after
-	// CreateTopic (for ApplicationSuccessFeedbackSampleRate +
-	// other defaults). The shim returns InvalidAction honestly —
-	// SetTopicAttributes is out of the Phase 4 SNS intersection.
-	// Same class of gap as BUG-2 (aws_sqs_queue / SetQueueAttributes);
-	// Phase 10.3 can audit whether SetTopicAttributes joins the
-	// intersection alongside SetQueueAttributes. Diamond-skip with
-	// pointer until then.
-	t.Skip("aws_sns_topic reconciles via SetTopicAttributes (out of Phase 4 intersection; see BUG-2 for the queue analog)")
-
 	t.Parallel()
 	if _, err := exec.LookPath("terraform"); err != nil {
 		t.Skipf("terraform not installed: %v", err)

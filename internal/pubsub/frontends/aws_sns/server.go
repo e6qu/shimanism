@@ -67,6 +67,8 @@ func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		srv.listTopics(w, r, form)
 	case "GetTopicAttributes":
 		srv.getTopicAttributes(w, r, form)
+	case "SetTopicAttributes":
+		srv.setTopicAttributes(w, r, form)
 	case "Subscribe":
 		srv.subscribe(w, r, form)
 	case "Unsubscribe":
@@ -183,6 +185,72 @@ func (srv *Server) getTopicAttributes(w http.ResponseWriter, r *http.Request, fo
 		{Key: "SubscriptionsPending", Value: "0"},
 		{Key: "SubscriptionsDeleted", Value: "0"},
 	}})
+}
+
+// setTopicAttributes accepts the hashicorp/aws post-create
+// reconciliation call. The intersection-only pubsub domain has no
+// per-topic attribute storage (FifoTopic, ContentBasedDeduplication,
+// SignatureVersion, Policy, DeliveryPolicy, TracingConfig, KMS keys,
+// ApplicationSuccess* feedback roles are all out of intersection per
+// services/pubsub/APPLY_INTERSECTION.md). Behavior:
+//   - HeadTopic to verify the topic exists; 404 if not.
+//   - For supported attribute names: no-op (matches Real SNS for the
+//     subset we surface as canonical defaults — DisplayName empty,
+//     Policy = default-statement, etc.). The provider's Wait checks
+//     match because we return the same canonical values on the next
+//     GetTopicAttributes.
+//   - For unsupported attribute names with non-default values: return
+//     InvalidParameter, never silently accept.
+//
+// Result body is empty (per real SNS).
+func (srv *Server) setTopicAttributes(w http.ResponseWriter, r *http.Request, form url.Values) {
+	name := parseTopicArn(form.Get("TopicArn"))
+	if _, err := srv.s.HeadTopic(r.Context(), name); err != nil {
+		mapDomainError(w, err)
+		return
+	}
+	attrName := form.Get("AttributeName")
+	if attrName == "" {
+		writeError(w, http.StatusBadRequest, "Sender", "InvalidParameter",
+			"AttributeName is required")
+		return
+	}
+	// The provider sends one attribute per call. Known-acceptable
+	// names are those category-2 (feature genuinely unset) defaults
+	// the shim already echoes on read. For these, accept the
+	// attribute and write the empty-result envelope.
+	//
+	// Anything else: honest InvalidParameter ("we don't honor that
+	// cross-cloud, here's the real error you'd get").
+	switch attrName {
+	case "DisplayName",
+		"Policy",
+		"DeliveryPolicy",
+		"TracingConfig",
+		"SignatureVersion",
+		"KmsMasterKeyId",
+		"FifoTopic",
+		"ContentBasedDeduplication",
+		"ApplicationSuccessFeedbackRoleArn",
+		"ApplicationSuccessFeedbackSampleRate",
+		"ApplicationFailureFeedbackRoleArn",
+		"HTTPSuccessFeedbackRoleArn",
+		"HTTPSuccessFeedbackSampleRate",
+		"HTTPFailureFeedbackRoleArn",
+		"FirehoseSuccessFeedbackRoleArn",
+		"FirehoseSuccessFeedbackSampleRate",
+		"FirehoseFailureFeedbackRoleArn",
+		"LambdaSuccessFeedbackRoleArn",
+		"LambdaSuccessFeedbackSampleRate",
+		"LambdaFailureFeedbackRoleArn",
+		"SQSSuccessFeedbackRoleArn",
+		"SQSSuccessFeedbackSampleRate",
+		"SQSFailureFeedbackRoleArn":
+		writeXMLStruct(w, http.StatusOK, "SetTopicAttributes", struct{}{})
+	default:
+		writeError(w, http.StatusBadRequest, "Sender", "InvalidParameter",
+			"attribute "+attrName+" is not in this shim's pubsub intersection")
+	}
 }
 
 // listTagsForResource returns the (currently empty) tag set for an
