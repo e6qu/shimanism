@@ -118,38 +118,10 @@ func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		"no Key Vault secrets route matches "+method+" "+path)
 }
 
-type secretAttributes struct {
-	Enabled       *bool  `json:"enabled,omitempty"`
-	Created       int64  `json:"created,omitempty"` // unix seconds
-	Updated       int64  `json:"updated,omitempty"` // unix seconds
-	NotBefore     int64  `json:"nbf,omitempty"`
-	Expires       int64  `json:"exp,omitempty"`
-	RecoveryLevel string `json:"recoveryLevel,omitempty"`
-}
-
-type secretBundle struct {
-	ID         string            `json:"id"`
-	Value      *string           `json:"value,omitempty"`
-	Attributes *secretAttributes `json:"attributes,omitempty"`
-	Tags       map[string]string `json:"tags,omitempty"`
-}
-
-type secretItem struct {
-	ID         string            `json:"id"`
-	Attributes *secretAttributes `json:"attributes,omitempty"`
-	Tags       map[string]string `json:"tags,omitempty"`
-}
-
-type listSecretsResponse struct {
-	Value    []secretItem `json:"value"`
-	NextLink string       `json:"nextLink,omitempty"`
-}
+// Wire types come from services/secrets/gen/azure_keyvault.gen.go
+// (cmd/azure-codegen). Hand-rolled shapes were retired in 12.A.1.
 
 func (srv *Server) setSecret(w http.ResponseWriter, r *http.Request, name string) {
-	// gen.SecretSetParameters is generated from the upstream Azure
-	// Key Vault spec; using it here keeps the SDK-wire decode honest
-	// (sibling handlers still use the local secretAttributes /
-	// secretBundle shapes — incremental migration).
 	var body gen.SecretSetParameters
 	if !decodeJSON(w, r, &body) {
 		return
@@ -230,12 +202,18 @@ func (srv *Server) deleteSecret(w http.ResponseWriter, r *http.Request, name str
 		mapDomainError(w, err)
 		return
 	}
-	// Azure's DeleteSecret returns a DeletedSecretBundle. Approximate.
-	resp := map[string]interface{}{
-		"id":                 vaultBaseFromHeader(r) + "/secrets/" + name,
-		"recoveryLevel":      "Purgeable",
-		"scheduledPurgeDate": time.Now().Add(7 * 24 * time.Hour).Unix(),
-		"deletedDate":        time.Now().Unix(),
+	id := vaultBaseFromHeader(r) + "/secrets/" + name
+	now := int(time.Now().Unix())
+	purge := int(time.Now().Add(7 * 24 * time.Hour).Unix())
+	recovery := gen.DeletionRecoveryLevel("Purgeable")
+	resp := gen.DeletedSecretBundle{
+		Id:                 &id,
+		RecoveryId:         &id,
+		DeletedDate:        &now,
+		ScheduledPurgeDate: &purge,
+		Attributes: &gen.SecretAttributes{
+			RecoveryLevel: &recovery,
+		},
 	}
 	writeJSON(w, http.StatusOK, resp)
 }
@@ -255,15 +233,16 @@ func (srv *Server) listSecrets(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	vaultBase := vaultBaseFromHeader(r)
-	out := listSecretsResponse{}
+	items := make([]gen.SecretItem, 0, len(res.Secrets))
 	for _, s := range res.Secrets {
-		out.Value = append(out.Value, secretItem{
-			ID:         vaultBase + "/secrets/" + s.Name,
+		id := vaultBase + "/secrets/" + s.Name
+		items = append(items, gen.SecretItem{
+			Id:         &id,
 			Attributes: attributesFromSecret(s),
-			Tags:       tagsWithDescription(s.Tags, s.Description),
+			Tags:       tagsWithDescriptionPtr(s.Tags, s.Description),
 		})
 	}
-	writeJSON(w, http.StatusOK, out)
+	writeJSON(w, http.StatusOK, gen.SecretListResult{Value: &items})
 }
 
 func (srv *Server) listSecretVersions(w http.ResponseWriter, r *http.Request, name string) {
@@ -278,42 +257,42 @@ func (srv *Server) listSecretVersions(w http.ResponseWriter, r *http.Request, na
 		return
 	}
 	vaultBase := vaultBaseFromHeader(r)
-	out := listSecretsResponse{}
+	tags := tagsWithDescriptionPtr(s.Tags, s.Description)
+	items := make([]gen.SecretItem, 0, len(versions))
 	for _, v := range versions {
-		guid := guidFromVersion(v.Number)
-		out.Value = append(out.Value, secretItem{
-			ID: vaultBase + "/secrets/" + name + "/" + guid,
-			Attributes: &secretAttributes{
-				Created: v.CreatedAt.Unix(),
-				Updated: v.CreatedAt.Unix(),
+		id := vaultBase + "/secrets/" + name + "/" + guidFromVersion(v.Number)
+		created := int(v.CreatedAt.Unix())
+		items = append(items, gen.SecretItem{
+			Id: &id,
+			Attributes: &gen.SecretAttributes{
+				Created: &created,
+				Updated: &created,
 			},
-			Tags: tagsWithDescription(s.Tags, s.Description),
+			Tags: tags,
 		})
 	}
-	writeJSON(w, http.StatusOK, out)
+	writeJSON(w, http.StatusOK, gen.SecretListResult{Value: &items})
 }
 
 func writeSecretBundle(w http.ResponseWriter, status int, name string, value []byte, version uint64, created time.Time, tags map[string]string, description string, r *http.Request) {
 	val := string(value)
-	vaultBase := vaultBaseFromHeader(r)
-	bundle := secretBundle{
-		ID:    fmt.Sprintf("%s/secrets/%s/%s", vaultBase, name, guidFromVersion(version)),
-		Value: &val,
-		Attributes: &secretAttributes{
-			Enabled: boolPtr(true),
-		},
-		Tags: tagsWithDescription(tags, description),
-	}
+	id := fmt.Sprintf("%s/secrets/%s/%s", vaultBaseFromHeader(r), name, guidFromVersion(version))
+	enabled := true
+	attrs := &gen.SecretAttributes{Enabled: &enabled}
 	if !created.IsZero() {
-		bundle.Attributes.Created = created.Unix()
-		bundle.Attributes.Updated = created.Unix()
+		c := int(created.Unix())
+		attrs.Created = &c
+		attrs.Updated = &c
 	}
-	writeJSON(w, status, bundle)
+	writeJSON(w, status, gen.SecretBundle{
+		Id:         &id,
+		Value:      &val,
+		Attributes: attrs,
+		Tags:       tagsWithDescriptionPtr(tags, description),
+	})
 }
 
-func boolPtr(b bool) *bool { return &b }
-
-func tagsWithDescription(tags map[string]string, description string) map[string]string {
+func tagsWithDescriptionPtr(tags map[string]string, description string) *map[string]string {
 	if description == "" && len(tags) == 0 {
 		return nil
 	}
@@ -324,16 +303,18 @@ func tagsWithDescription(tags map[string]string, description string) map[string]
 	if description != "" {
 		out["shim-description"] = description
 	}
-	return out
+	return &out
 }
 
-func attributesFromSecret(s domain.Secret) *secretAttributes {
-	a := &secretAttributes{Enabled: boolPtr(s.Enabled)}
+func attributesFromSecret(s domain.Secret) *gen.SecretAttributes {
+	a := &gen.SecretAttributes{Enabled: &s.Enabled}
 	if !s.CreatedAt.IsZero() {
-		a.Created = s.CreatedAt.Unix()
+		c := int(s.CreatedAt.Unix())
+		a.Created = &c
 	}
 	if !s.UpdatedAt.IsZero() {
-		a.Updated = s.UpdatedAt.Unix()
+		u := int(s.UpdatedAt.Unix())
+		a.Updated = &u
 	}
 	return a
 }
