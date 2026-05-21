@@ -1,3 +1,5 @@
+<p align="center"><img src="static/logo.png" alt="shimanism" width="200"></p>
+
 # shimanism
 
 **Reroute cloud services, one at a time.**
