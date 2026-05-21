@@ -144,17 +144,21 @@ func parseTimeoutSeconds(s string) int {
 }
 
 func (b *Backend) CreateFunction(ctx context.Context, name string, opt domain.CreateFunctionOptions) (domain.Function, error) {
-	// Role + Publish are AWS Lambda-specific. Cross-cloud, the
-	// destination's identity model (Cloud Run service-account, IAM
-	// binding) replaces the function-level execution role. The shim
-	// accepts the input attribute, doesn't apply it, and leaves the
-	// migration-tool's responsibility to rebind identity on the
-	// destination cloud (see PHASE_10_PLAN.md — IAM rebinding is a
-	// follow-on phase). Same posture for Publish, which has no Cloud
-	// Run analog (revisions are atomic; no separate "published"
-	// concept).
-	_ = opt.Role
-	_ = opt.Publish
+	// Role + Publish are AWS Lambda-specific with no honest GCP Cloud
+	// Run analog (Cloud Run uses service accounts via the function's
+	// own configuration; revisions are atomic with no separate
+	// "publish" concept). Per the no-fakes / no-silent-fallback rule,
+	// non-empty values must surface the source-cloud's "not
+	// supported" envelope rather than being quietly discarded.
+	// Migration users hitting this need to either bind identity at
+	// the destination cloud (a follow-on phase per PHASE_10_PLAN.md)
+	// or omit Role/Publish from cross-cloud HCL.
+	if opt.Role != "" {
+		return domain.Function{}, domain.InvalidArgument("Role is AWS Lambda-specific; cross-cloud identity rebinding is out of scope for this shim. Use the destination cloud's service-account binding directly.")
+	}
+	if opt.Publish {
+		return domain.Function{}, domain.InvalidArgument("Publish is AWS Lambda-specific; Cloud Run revisions are atomic and have no separate published-version concept.")
+	}
 	container := &runapi.GoogleCloudRunV2Container{
 		Image: opt.Image,
 	}

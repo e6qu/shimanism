@@ -193,19 +193,42 @@ func (b *Backend) UpdateSecret(ctx context.Context, name string, opt domain.Upda
 		}
 	}
 	if opt.Tags != nil {
-		// Reconcile by tagging the full set; UntagResource isn't necessary
-		// for the description-update test path. For honest cross-cloud
-		// tag rewrite the 10.3 audit may extend this to compute the diff.
-		var tags []smtypes.Tag
-		for k, v := range opt.Tags {
-			tags = append(tags, smtypes.Tag{Key: awsapi.String(k), Value: awsapi.String(v)})
+		// Reconcile: opt.Tags is the *desired* full tag set. AWS's
+		// TagResource is additive, so to make AWS state match the
+		// desired set we have to (1) compute the current tag set,
+		// (2) UntagResource the keys present in current-but-not-
+		// desired, (3) TagResource the desired set (covers both
+		// new keys and existing-key value updates).
+		curOut, err := b.c.DescribeSecret(ctx, &awssm.DescribeSecretInput{SecretId: awsapi.String(name)})
+		if err != nil {
+			return translateErr(err, name)
 		}
-		_, err := b.c.TagResource(ctx, &awssm.TagResourceInput{
-			SecretId: awsapi.String(name),
-			Tags:     tags,
-		})
-		if err := translateErr(err, name); err != nil {
-			return err
+		var removeKeys []string
+		for _, t := range curOut.Tags {
+			k := awsapi.ToString(t.Key)
+			if _, keep := opt.Tags[k]; !keep {
+				removeKeys = append(removeKeys, k)
+			}
+		}
+		if len(removeKeys) > 0 {
+			if _, err := b.c.UntagResource(ctx, &awssm.UntagResourceInput{
+				SecretId: awsapi.String(name),
+				TagKeys:  removeKeys,
+			}); err != nil {
+				return translateErr(err, name)
+			}
+		}
+		if len(opt.Tags) > 0 {
+			var tags []smtypes.Tag
+			for k, v := range opt.Tags {
+				tags = append(tags, smtypes.Tag{Key: awsapi.String(k), Value: awsapi.String(v)})
+			}
+			if _, err := b.c.TagResource(ctx, &awssm.TagResourceInput{
+				SecretId: awsapi.String(name),
+				Tags:     tags,
+			}); err != nil {
+				return translateErr(err, name)
+			}
 		}
 	}
 	if opt.Enabled != nil && !*opt.Enabled {

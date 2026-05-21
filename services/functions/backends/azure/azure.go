@@ -129,10 +129,14 @@ func parseMemoryString(s string) int64 {
 }
 
 func (b *Backend) CreateFunction(ctx context.Context, name string, opt domain.CreateFunctionOptions) (domain.Function, error) {
-	// Role + Publish are AWS-only; accepted-but-not-applied here.
-	// See gcp/gcp.go and services/functions/APPLY_INTERSECTION.md.
-	_ = opt.Role
-	_ = opt.Publish
+	// Role + Publish are AWS-only with no Azure Container Apps
+	// analog; reject non-empty values per the no-silent-fallback rule.
+	if opt.Role != "" {
+		return domain.Function{}, domain.InvalidArgument("Role is AWS Lambda-specific; Azure Container Apps uses managed-identity binding at the container-app scope.")
+	}
+	if opt.Publish {
+		return domain.Function{}, domain.InvalidArgument("Publish is AWS Lambda-specific; Azure Container Apps revisions are atomic.")
+	}
 	image := opt.Image
 	container := &armappcontainers.Container{
 		Name:  &name,

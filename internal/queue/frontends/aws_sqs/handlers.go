@@ -157,10 +157,21 @@ func (srv *Server) createQueue(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if len(in.Tags) > 0 {
-		// AWS SQS CreateQueue accepts Tags in the same call. The
-		// domain split CreateQueue + TagQueue, so this is a one-step
-		// follow-on tag write.
+		// AWS SQS CreateQueue accepts Tags in the same call (atomic
+		// from the caller's perspective). The domain splits this into
+		// CreateQueue + TagQueue. If the follow-on TagQueue fails
+		// (e.g. Azure rejects per-queue tags; GCP rejects an invalid
+		// label key), the queue still exists and the caller has no
+		// resource in their state to destroy on retry. Roll back the
+		// CreateQueue to preserve atomicity, then surface the tag
+		// error so the caller knows what to fix.
 		if err := srv.s.TagQueue(r.Context(), in.QueueName, in.Tags); err != nil {
+			if delErr := srv.s.DeleteQueue(r.Context(), in.QueueName); delErr != nil {
+				// Best-effort rollback. Surface the original tag
+				// error to the caller; rollback failure is logged
+				// but doesn't override the user-facing diagnostic.
+				_ = delErr
+			}
 			mapDomainError(w, err)
 			return
 		}

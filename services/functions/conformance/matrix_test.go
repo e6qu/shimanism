@@ -39,16 +39,27 @@ func TestFunctionsMatrix_AWSFrontend(t *testing.T) {
 			// Ready. helloworld-go listens on $PORT and replies;
 			// docker.io/library/hello-world exits immediately so the
 			// Knative Pod is never healthy and Service never Ready.
-			if _, err := client.CreateFunction(ctx, &lambda.CreateFunctionInput{
+			//
+			// Role is AWS Lambda-specific. The AWS frontend takes it
+			// from the request body and passes it through to the
+			// domain; non-AWS backends reject non-empty Role with
+			// InvalidArgument (per services/functions/APPLY_INTERSECTION
+			// .md). The matrix exercises the AWS *frontend* against
+			// every backend, so we omit Role for non-AWS cells. The
+			// inmem + aws cells receive it.
+			input := &lambda.CreateFunctionInput{
 				FunctionName: awsapi.String(name),
 				PackageType:  lambdatypes.PackageTypeImage,
 				Code: &lambdatypes.FunctionCode{
 					ImageUri: awsapi.String("gcr.io/knative-samples/helloworld-go"),
 				},
-				Role:       awsapi.String("arn:aws:iam::000000000000:role/lambda"),
 				MemorySize: awsapi.Int32(128),
 				Timeout:    awsapi.Int32(60),
-			}); err != nil {
+			}
+			if f.Name == "inmem" || f.Name == "aws" {
+				input.Role = awsapi.String("arn:aws:iam::000000000000:role/lambda")
+			}
+			if _, err := client.CreateFunction(ctx, input); err != nil {
 				t.Fatalf("CreateFunction: %v", err)
 			}
 			t.Cleanup(func() {

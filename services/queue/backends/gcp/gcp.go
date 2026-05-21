@@ -97,14 +97,26 @@ func (b *Backend) CreateQueue(ctx context.Context, name string, opt domain.Creat
 }
 
 func (b *Backend) SetQueueAttributes(ctx context.Context, name string, attrs domain.QueueAttributes) error {
-	// GCP Pub/Sub subscriptions support an in-place patch of
-	// ackDeadlineSeconds (visibility timeout analog) via
-	// subscriptions.patch with an updateMask. messageRetentionSeconds
-	// maps to subscription messageRetentionDuration. Other AWS-shape
-	// attributes (DelaySeconds, MaxMessageSize) don't have GCP analogs;
-	// the shim ignores them on this backend (the AWS frontend's set-
-	// attributes path returns them unchanged from the existing state).
+	// GCP Pub/Sub subscriptions support in-place patch of
+	// ackDeadlineSeconds + messageRetentionDuration via
+	// subscriptions.patch. DelaySeconds + MaxMessageSize have no GCP
+	// analog; per services/queue/APPLY_INTERSECTION.md they must
+	// surface a source-shaped unsupported error rather than silently
+	// no-op (caller would think the attribute was honored while the
+	// next read returns the GCP default).
+	if attrs.DelaySeconds > 0 {
+		return domain.InvalidArgument("DelaySeconds has no GCP Pub/Sub analog; out of cross-cloud intersection")
+	}
+	if attrs.MaxMessageSizeBytes > 0 {
+		return domain.InvalidArgument("MaxMessageSize has no GCP Pub/Sub analog; out of cross-cloud intersection")
+	}
 	if attrs.VisibilityTimeoutSeconds <= 0 && attrs.MessageRetentionSeconds <= 0 {
+		// No-op when nothing in-contract is being set. Still verify
+		// the subscription exists so callers see NoSuchQueue if it
+		// doesn't, instead of a silently-successful empty call.
+		if _, err := b.svc.Projects.Subscriptions.Get(b.subscriptionName(name)).Context(ctx).Do(); err != nil {
+			return translateErr(err, name)
+		}
 		return nil
 	}
 	sub := &pubsubraw.Subscription{}

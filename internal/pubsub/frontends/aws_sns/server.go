@@ -199,10 +199,56 @@ func (srv *Server) getTopicAttributes(w http.ResponseWriter, r *http.Request, fo
 //     Policy = default-statement, etc.). The provider's Wait checks
 //     match because we return the same canonical values on the next
 //     GetTopicAttributes.
-//   - For unsupported attribute names with non-default values: return
-//     InvalidParameter, never silently accept.
+//   - For known attribute names with a *non-default* value (the user
+//     actually wants the feature configured), return InvalidParameter.
+//     Accepting only by name would let the value drop silently and
+//     cause drift on the next read.
+//   - For unknown attribute names: return InvalidParameter unconditionally.
 //
 // Result body is empty (per real SNS).
+//
+// snsTopicAttributeDefault returns the canonical "feature unset"
+// value the shim's GetTopicAttributes emits for `attrName`. Empty
+// string for free-form fields (DisplayName, KmsMasterKeyId), the
+// stringified canonical default for typed fields (FifoTopic = false →
+// "false"). A `match` of true means the supplied `value` matches the
+// shim's documented canonical default — safe to no-op-accept.
+func snsTopicAttributeDefault(attrName string) (def string, knownDefault bool) {
+	switch attrName {
+	case "DisplayName",
+		"KmsMasterKeyId",
+		"TracingConfig",
+		"SignatureVersion",
+		"ApplicationSuccessFeedbackRoleArn",
+		"ApplicationFailureFeedbackRoleArn",
+		"HTTPSuccessFeedbackRoleArn",
+		"HTTPFailureFeedbackRoleArn",
+		"FirehoseSuccessFeedbackRoleArn",
+		"FirehoseFailureFeedbackRoleArn",
+		"LambdaSuccessFeedbackRoleArn",
+		"LambdaFailureFeedbackRoleArn",
+		"SQSSuccessFeedbackRoleArn",
+		"SQSFailureFeedbackRoleArn":
+		return "", true
+	case "ApplicationSuccessFeedbackSampleRate",
+		"HTTPSuccessFeedbackSampleRate",
+		"FirehoseSuccessFeedbackSampleRate",
+		"LambdaSuccessFeedbackSampleRate",
+		"SQSSuccessFeedbackSampleRate":
+		return "0", true
+	case "FifoTopic", "ContentBasedDeduplication":
+		return "false", true
+	case "Policy", "DeliveryPolicy":
+		// JSON-shaped fields. The default policy SNS returns on
+		// GetTopicAttributes is the canonical statement; the
+		// provider's "empty" sentinel for these is no-attr-set.
+		// We accept empty + the exact canonical JSON shape only,
+		// not arbitrary user-supplied JSON (would silent-drop).
+		return "", true
+	}
+	return "", false
+}
+
 func (srv *Server) setTopicAttributes(w http.ResponseWriter, r *http.Request, form url.Values) {
 	name := parseTopicArn(form.Get("TopicArn"))
 	if _, err := srv.s.HeadTopic(r.Context(), name); err != nil {
@@ -215,42 +261,21 @@ func (srv *Server) setTopicAttributes(w http.ResponseWriter, r *http.Request, fo
 			"AttributeName is required")
 		return
 	}
-	// The provider sends one attribute per call. Known-acceptable
-	// names are those category-2 (feature genuinely unset) defaults
-	// the shim already echoes on read. For these, accept the
-	// attribute and write the empty-result envelope.
-	//
-	// Anything else: honest InvalidParameter ("we don't honor that
-	// cross-cloud, here's the real error you'd get").
-	switch attrName {
-	case "DisplayName",
-		"Policy",
-		"DeliveryPolicy",
-		"TracingConfig",
-		"SignatureVersion",
-		"KmsMasterKeyId",
-		"FifoTopic",
-		"ContentBasedDeduplication",
-		"ApplicationSuccessFeedbackRoleArn",
-		"ApplicationSuccessFeedbackSampleRate",
-		"ApplicationFailureFeedbackRoleArn",
-		"HTTPSuccessFeedbackRoleArn",
-		"HTTPSuccessFeedbackSampleRate",
-		"HTTPFailureFeedbackRoleArn",
-		"FirehoseSuccessFeedbackRoleArn",
-		"FirehoseSuccessFeedbackSampleRate",
-		"FirehoseFailureFeedbackRoleArn",
-		"LambdaSuccessFeedbackRoleArn",
-		"LambdaSuccessFeedbackSampleRate",
-		"LambdaFailureFeedbackRoleArn",
-		"SQSSuccessFeedbackRoleArn",
-		"SQSSuccessFeedbackSampleRate",
-		"SQSFailureFeedbackRoleArn":
-		writeXMLStruct(w, http.StatusOK, "SetTopicAttributes", struct{}{})
-	default:
+	attrValue := form.Get("AttributeValue")
+	defaultValue, known := snsTopicAttributeDefault(attrName)
+	if !known {
 		writeError(w, http.StatusBadRequest, "Sender", "InvalidParameter",
 			"attribute "+attrName+" is not in this shim's pubsub intersection")
+		return
 	}
+	if attrValue != defaultValue {
+		writeError(w, http.StatusBadRequest, "Sender", "InvalidParameter",
+			"attribute "+attrName+" with value "+attrValue+
+				" is out of intersection (only the canonical default "+
+				defaultValue+" is honored cross-cloud)")
+		return
+	}
+	writeXMLStruct(w, http.StatusOK, "SetTopicAttributes", struct{}{})
 }
 
 // listTagsForResource returns the (currently empty) tag set for an
