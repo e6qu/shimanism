@@ -10,6 +10,13 @@
     "GetFunctionConfiguration",
     "ListFunctions",
     "UpdateFunctionCode",
-    "UpdateFunctionConfiguration"
+    "UpdateFunctionConfiguration",
+    "ListVersionsByFunction",
+    "GetFunctionUrlConfig",
+    "ListTags",
+    "GetPolicy",
+    "GetFunctionConcurrency",
+    "GetFunctionEventInvokeConfig",
+    "GetFunctionCodeSigningConfig"
   ]
 }

@@ -288,6 +288,22 @@ const (
 	FunctionVersionALL FunctionVersion = "ALL"
 )
 
+// FunctionUrlAuthType is a generated Smithy enum.
+type FunctionUrlAuthType string
+
+const (
+	FunctionUrlAuthTypeAWS_IAM FunctionUrlAuthType = "AWS_IAM"
+	FunctionUrlAuthTypeNONE    FunctionUrlAuthType = "NONE"
+)
+
+// InvokeMode is a generated Smithy enum.
+type InvokeMode string
+
+const (
+	InvokeModeBUFFERED        InvokeMode = "BUFFERED"
+	InvokeModeRESPONSE_STREAM InvokeMode = "RESPONSE_STREAM"
+)
+
 // ArchitecturesList is a generated Smithy list.
 type ArchitecturesList []Architecture
 
@@ -311,6 +327,15 @@ type LayersReferenceList []Layer
 
 // FunctionList is a generated Smithy list.
 type FunctionList []FunctionConfiguration
+
+// HeadersList is a generated Smithy list.
+type HeadersList []string
+
+// AllowMethodsList is a generated Smithy list.
+type AllowMethodsList []string
+
+// AllowOriginsList is a generated Smithy list.
+type AllowOriginsList []string
 
 // EnvironmentVariables is a generated Smithy map.
 type EnvironmentVariables map[string]string
@@ -718,6 +743,120 @@ type UpdateFunctionConfigurationRequest struct {
 	VpcConfig              *VpcConfig              `json:"VpcConfig,omitempty"`
 }
 
+// ListVersionsByFunctionRequest is a generated Smithy structure.
+type ListVersionsByFunctionRequest struct {
+	FunctionName string  // bound to label=FunctionName
+	Marker       *string // bound to query=Marker
+	MaxItems     *int32  // bound to query=MaxItems
+}
+
+// ListVersionsByFunctionResponse is a generated Smithy structure.
+type ListVersionsByFunctionResponse struct {
+	NextMarker *string      `json:"NextMarker,omitempty"`
+	Versions   FunctionList `json:"Versions,omitempty"`
+}
+
+// GetFunctionUrlConfigRequest is a generated Smithy structure.
+type GetFunctionUrlConfigRequest struct {
+	FunctionName string  // bound to label=FunctionName
+	Qualifier    *string // bound to query=Qualifier
+}
+
+// Cors is a generated Smithy structure.
+type Cors struct {
+	AllowCredentials *bool            `json:"AllowCredentials,omitempty"`
+	AllowHeaders     HeadersList      `json:"AllowHeaders,omitempty"`
+	AllowMethods     AllowMethodsList `json:"AllowMethods,omitempty"`
+	AllowOrigins     AllowOriginsList `json:"AllowOrigins,omitempty"`
+	ExposeHeaders    HeadersList      `json:"ExposeHeaders,omitempty"`
+	MaxAge           *int32           `json:"MaxAge,omitempty"`
+}
+
+// GetFunctionUrlConfigResponse is a generated Smithy structure.
+type GetFunctionUrlConfigResponse struct {
+	AuthType         FunctionUrlAuthType `json:"AuthType,omitempty"`
+	Cors             *Cors               `json:"Cors,omitempty"`
+	CreationTime     string              `json:"CreationTime,omitempty"`
+	FunctionArn      string              `json:"FunctionArn,omitempty"`
+	FunctionUrl      string              `json:"FunctionUrl,omitempty"`
+	InvokeMode       *InvokeMode         `json:"InvokeMode,omitempty"`
+	LastModifiedTime string              `json:"LastModifiedTime,omitempty"`
+}
+
+// ListTagsRequest is a generated Smithy structure.
+type ListTagsRequest struct {
+	Resource string // bound to label=Resource
+}
+
+// ListTagsResponse is a generated Smithy structure.
+type ListTagsResponse struct {
+	Tags Tags `json:"Tags,omitempty"`
+}
+
+// GetPolicyRequest is a generated Smithy structure.
+type GetPolicyRequest struct {
+	FunctionName string  // bound to label=FunctionName
+	Qualifier    *string // bound to query=Qualifier
+}
+
+// GetPolicyResponse is a generated Smithy structure.
+type GetPolicyResponse struct {
+	Policy     *string `json:"Policy,omitempty"`
+	RevisionId *string `json:"RevisionId,omitempty"`
+}
+
+// GetFunctionConcurrencyRequest is a generated Smithy structure.
+type GetFunctionConcurrencyRequest struct {
+	FunctionName string // bound to label=FunctionName
+}
+
+// GetFunctionConcurrencyResponse is a generated Smithy structure.
+type GetFunctionConcurrencyResponse struct {
+	ReservedConcurrentExecutions *int32 `json:"ReservedConcurrentExecutions,omitempty"`
+}
+
+// GetFunctionEventInvokeConfigRequest is a generated Smithy structure.
+type GetFunctionEventInvokeConfigRequest struct {
+	FunctionName string  // bound to label=FunctionName
+	Qualifier    *string // bound to query=Qualifier
+}
+
+// OnFailure is a generated Smithy structure.
+type OnFailure struct {
+	Destination *string `json:"Destination,omitempty"`
+}
+
+// OnSuccess is a generated Smithy structure.
+type OnSuccess struct {
+	Destination *string `json:"Destination,omitempty"`
+}
+
+// DestinationConfig is a generated Smithy structure.
+type DestinationConfig struct {
+	OnFailure *OnFailure `json:"OnFailure,omitempty"`
+	OnSuccess *OnSuccess `json:"OnSuccess,omitempty"`
+}
+
+// FunctionEventInvokeConfig is a generated Smithy structure.
+type FunctionEventInvokeConfig struct {
+	DestinationConfig        *DestinationConfig `json:"DestinationConfig,omitempty"`
+	FunctionArn              *string            `json:"FunctionArn,omitempty"`
+	LastModified             *time.Time         `json:"LastModified,omitempty"`
+	MaximumEventAgeInSeconds *int32             `json:"MaximumEventAgeInSeconds,omitempty"`
+	MaximumRetryAttempts     *int32             `json:"MaximumRetryAttempts,omitempty"`
+}
+
+// GetFunctionCodeSigningConfigRequest is a generated Smithy structure.
+type GetFunctionCodeSigningConfigRequest struct {
+	FunctionName string // bound to label=FunctionName
+}
+
+// GetFunctionCodeSigningConfigResponse is a generated Smithy structure.
+type GetFunctionCodeSigningConfigResponse struct {
+	CodeSigningConfigArn string `json:"CodeSigningConfigArn,omitempty"`
+	FunctionName         string `json:"FunctionName,omitempty"`
+}
+
 // LambdaBackend is the union of every per-operation
 // backend interface emitted from the spec.
 type LambdaBackend interface {
@@ -728,6 +867,13 @@ type LambdaBackend interface {
 	ListFunctionsBackend
 	UpdateFunctionCodeBackend
 	UpdateFunctionConfigurationBackend
+	ListVersionsByFunctionBackend
+	GetFunctionUrlConfigBackend
+	ListTagsBackend
+	GetPolicyBackend
+	GetFunctionConcurrencyBackend
+	GetFunctionEventInvokeConfigBackend
+	GetFunctionCodeSigningConfigBackend
 }
 
 // RegisterLambdaRoutes mounts every shimmed operation
@@ -778,6 +924,55 @@ func RegisterLambdaRoutes(router *restxml.Router, b LambdaBackend) {
 		},
 	)
 	router.Register(UpdateFunctionConfigurationMethod, UpdateFunctionConfigurationURITemplate, "UpdateFunctionConfiguration", UpdateFunctionConfigurationHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{},
+			ForbiddenQueries: []string{},
+		},
+	)
+	router.Register(ListVersionsByFunctionMethod, ListVersionsByFunctionURITemplate, "ListVersionsByFunction", ListVersionsByFunctionHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{},
+			ForbiddenQueries: []string{},
+		},
+	)
+	router.Register(GetFunctionUrlConfigMethod, GetFunctionUrlConfigURITemplate, "GetFunctionUrlConfig", GetFunctionUrlConfigHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{},
+			ForbiddenQueries: []string{},
+		},
+	)
+	router.Register(ListTagsMethod, ListTagsURITemplate, "ListTags", ListTagsHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{},
+			ForbiddenQueries: []string{},
+		},
+	)
+	router.Register(GetPolicyMethod, GetPolicyURITemplate, "GetPolicy", GetPolicyHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{},
+			ForbiddenQueries: []string{},
+		},
+	)
+	router.Register(GetFunctionConcurrencyMethod, GetFunctionConcurrencyURITemplate, "GetFunctionConcurrency", GetFunctionConcurrencyHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{},
+			ForbiddenQueries: []string{},
+		},
+	)
+	router.Register(GetFunctionEventInvokeConfigMethod, GetFunctionEventInvokeConfigURITemplate, "GetFunctionEventInvokeConfig", GetFunctionEventInvokeConfigHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{},
+			ForbiddenQueries: []string{},
+		},
+	)
+	router.Register(GetFunctionCodeSigningConfigMethod, GetFunctionCodeSigningConfigURITemplate, "GetFunctionCodeSigningConfig", GetFunctionCodeSigningConfigHandler(b),
 		restxml.RouteOptions{
 			RequiredHeaders:  []string{},
 			RequiredQueries:  []string{},
@@ -1119,6 +1314,349 @@ func UpdateFunctionConfigurationHandler(b UpdateFunctionConfigurationBackend) ht
 			_ = awsjson.DecodeJSON(w, r, in)
 		}
 		out, err := b.UpdateFunctionConfiguration(ctx, in)
+		if err != nil {
+			awsjson.WriteBackendError(w, err)
+			return
+		}
+		if out == nil {
+			awsjson.WriteJSON(w, 200, struct{}{})
+			return
+		}
+		awsjson.WriteJSON(w, 200, out)
+	})
+}
+
+// ListVersionsByFunctionBackend serves the ListVersionsByFunction operation.
+type ListVersionsByFunctionBackend interface {
+	ListVersionsByFunction(ctx context.Context, in *ListVersionsByFunctionRequest) (*ListVersionsByFunctionResponse, error)
+}
+
+// ListVersionsByFunctionURITemplate is the Smithy URI template for the operation.
+const ListVersionsByFunctionURITemplate = "/2015-03-31/functions/{FunctionName}/versions"
+
+// ListVersionsByFunctionMethod is the HTTP method for the operation.
+const ListVersionsByFunctionMethod = "GET"
+
+// ListVersionsByFunctionHandler decodes a ListVersionsByFunction request, dispatches to
+// the backend, and encodes the response per restJson1 semantics.
+func ListVersionsByFunctionHandler(b ListVersionsByFunctionBackend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		in := &ListVersionsByFunctionRequest{}
+		labels, ok := restxml.MatchURI(r.URL.Path, ListVersionsByFunctionURITemplate)
+		if !ok {
+			awsjson.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
+			return
+		}
+		_ = labels
+		q := r.URL.Query()
+		_ = q
+		if v, ok := labels["FunctionName"]; ok {
+			in.FunctionName = v
+		}
+		if v := q.Get("Marker"); v != "" {
+			s := v
+			in.Marker = &s
+		}
+		if v := q.Get("MaxItems"); v != "" {
+			if p, err := restxml.ParseInt32(v); err == nil && p != nil {
+				in.MaxItems = p
+			}
+		}
+
+		// Body fields decode as JSON when present.
+		if r.ContentLength != 0 {
+			_ = awsjson.DecodeJSON(w, r, in)
+		}
+		out, err := b.ListVersionsByFunction(ctx, in)
+		if err != nil {
+			awsjson.WriteBackendError(w, err)
+			return
+		}
+		if out == nil {
+			awsjson.WriteJSON(w, 200, struct{}{})
+			return
+		}
+		awsjson.WriteJSON(w, 200, out)
+	})
+}
+
+// GetFunctionUrlConfigBackend serves the GetFunctionUrlConfig operation.
+type GetFunctionUrlConfigBackend interface {
+	GetFunctionUrlConfig(ctx context.Context, in *GetFunctionUrlConfigRequest) (*GetFunctionUrlConfigResponse, error)
+}
+
+// GetFunctionUrlConfigURITemplate is the Smithy URI template for the operation.
+const GetFunctionUrlConfigURITemplate = "/2021-10-31/functions/{FunctionName}/url"
+
+// GetFunctionUrlConfigMethod is the HTTP method for the operation.
+const GetFunctionUrlConfigMethod = "GET"
+
+// GetFunctionUrlConfigHandler decodes a GetFunctionUrlConfig request, dispatches to
+// the backend, and encodes the response per restJson1 semantics.
+func GetFunctionUrlConfigHandler(b GetFunctionUrlConfigBackend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		in := &GetFunctionUrlConfigRequest{}
+		labels, ok := restxml.MatchURI(r.URL.Path, GetFunctionUrlConfigURITemplate)
+		if !ok {
+			awsjson.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
+			return
+		}
+		_ = labels
+		q := r.URL.Query()
+		_ = q
+		if v, ok := labels["FunctionName"]; ok {
+			in.FunctionName = v
+		}
+		if v := q.Get("Qualifier"); v != "" {
+			s := v
+			in.Qualifier = &s
+		}
+
+		// Body fields decode as JSON when present.
+		if r.ContentLength != 0 {
+			_ = awsjson.DecodeJSON(w, r, in)
+		}
+		out, err := b.GetFunctionUrlConfig(ctx, in)
+		if err != nil {
+			awsjson.WriteBackendError(w, err)
+			return
+		}
+		if out == nil {
+			awsjson.WriteJSON(w, 200, struct{}{})
+			return
+		}
+		awsjson.WriteJSON(w, 200, out)
+	})
+}
+
+// ListTagsBackend serves the ListTags operation.
+type ListTagsBackend interface {
+	ListTags(ctx context.Context, in *ListTagsRequest) (*ListTagsResponse, error)
+}
+
+// ListTagsURITemplate is the Smithy URI template for the operation.
+const ListTagsURITemplate = "/2017-03-31/tags/{Resource}"
+
+// ListTagsMethod is the HTTP method for the operation.
+const ListTagsMethod = "GET"
+
+// ListTagsHandler decodes a ListTags request, dispatches to
+// the backend, and encodes the response per restJson1 semantics.
+func ListTagsHandler(b ListTagsBackend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		in := &ListTagsRequest{}
+		labels, ok := restxml.MatchURI(r.URL.Path, ListTagsURITemplate)
+		if !ok {
+			awsjson.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
+			return
+		}
+		_ = labels
+		q := r.URL.Query()
+		_ = q
+		if v, ok := labels["Resource"]; ok {
+			in.Resource = v
+		}
+
+		// Body fields decode as JSON when present.
+		if r.ContentLength != 0 {
+			_ = awsjson.DecodeJSON(w, r, in)
+		}
+		out, err := b.ListTags(ctx, in)
+		if err != nil {
+			awsjson.WriteBackendError(w, err)
+			return
+		}
+		if out == nil {
+			awsjson.WriteJSON(w, 200, struct{}{})
+			return
+		}
+		awsjson.WriteJSON(w, 200, out)
+	})
+}
+
+// GetPolicyBackend serves the GetPolicy operation.
+type GetPolicyBackend interface {
+	GetPolicy(ctx context.Context, in *GetPolicyRequest) (*GetPolicyResponse, error)
+}
+
+// GetPolicyURITemplate is the Smithy URI template for the operation.
+const GetPolicyURITemplate = "/2015-03-31/functions/{FunctionName}/policy"
+
+// GetPolicyMethod is the HTTP method for the operation.
+const GetPolicyMethod = "GET"
+
+// GetPolicyHandler decodes a GetPolicy request, dispatches to
+// the backend, and encodes the response per restJson1 semantics.
+func GetPolicyHandler(b GetPolicyBackend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		in := &GetPolicyRequest{}
+		labels, ok := restxml.MatchURI(r.URL.Path, GetPolicyURITemplate)
+		if !ok {
+			awsjson.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
+			return
+		}
+		_ = labels
+		q := r.URL.Query()
+		_ = q
+		if v, ok := labels["FunctionName"]; ok {
+			in.FunctionName = v
+		}
+		if v := q.Get("Qualifier"); v != "" {
+			s := v
+			in.Qualifier = &s
+		}
+
+		// Body fields decode as JSON when present.
+		if r.ContentLength != 0 {
+			_ = awsjson.DecodeJSON(w, r, in)
+		}
+		out, err := b.GetPolicy(ctx, in)
+		if err != nil {
+			awsjson.WriteBackendError(w, err)
+			return
+		}
+		if out == nil {
+			awsjson.WriteJSON(w, 200, struct{}{})
+			return
+		}
+		awsjson.WriteJSON(w, 200, out)
+	})
+}
+
+// GetFunctionConcurrencyBackend serves the GetFunctionConcurrency operation.
+type GetFunctionConcurrencyBackend interface {
+	GetFunctionConcurrency(ctx context.Context, in *GetFunctionConcurrencyRequest) (*GetFunctionConcurrencyResponse, error)
+}
+
+// GetFunctionConcurrencyURITemplate is the Smithy URI template for the operation.
+const GetFunctionConcurrencyURITemplate = "/2019-09-30/functions/{FunctionName}/concurrency"
+
+// GetFunctionConcurrencyMethod is the HTTP method for the operation.
+const GetFunctionConcurrencyMethod = "GET"
+
+// GetFunctionConcurrencyHandler decodes a GetFunctionConcurrency request, dispatches to
+// the backend, and encodes the response per restJson1 semantics.
+func GetFunctionConcurrencyHandler(b GetFunctionConcurrencyBackend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		in := &GetFunctionConcurrencyRequest{}
+		labels, ok := restxml.MatchURI(r.URL.Path, GetFunctionConcurrencyURITemplate)
+		if !ok {
+			awsjson.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
+			return
+		}
+		_ = labels
+		q := r.URL.Query()
+		_ = q
+		if v, ok := labels["FunctionName"]; ok {
+			in.FunctionName = v
+		}
+
+		// Body fields decode as JSON when present.
+		if r.ContentLength != 0 {
+			_ = awsjson.DecodeJSON(w, r, in)
+		}
+		out, err := b.GetFunctionConcurrency(ctx, in)
+		if err != nil {
+			awsjson.WriteBackendError(w, err)
+			return
+		}
+		if out == nil {
+			awsjson.WriteJSON(w, 200, struct{}{})
+			return
+		}
+		awsjson.WriteJSON(w, 200, out)
+	})
+}
+
+// GetFunctionEventInvokeConfigBackend serves the GetFunctionEventInvokeConfig operation.
+type GetFunctionEventInvokeConfigBackend interface {
+	GetFunctionEventInvokeConfig(ctx context.Context, in *GetFunctionEventInvokeConfigRequest) (*FunctionEventInvokeConfig, error)
+}
+
+// GetFunctionEventInvokeConfigURITemplate is the Smithy URI template for the operation.
+const GetFunctionEventInvokeConfigURITemplate = "/2019-09-25/functions/{FunctionName}/event-invoke-config"
+
+// GetFunctionEventInvokeConfigMethod is the HTTP method for the operation.
+const GetFunctionEventInvokeConfigMethod = "GET"
+
+// GetFunctionEventInvokeConfigHandler decodes a GetFunctionEventInvokeConfig request, dispatches to
+// the backend, and encodes the response per restJson1 semantics.
+func GetFunctionEventInvokeConfigHandler(b GetFunctionEventInvokeConfigBackend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		in := &GetFunctionEventInvokeConfigRequest{}
+		labels, ok := restxml.MatchURI(r.URL.Path, GetFunctionEventInvokeConfigURITemplate)
+		if !ok {
+			awsjson.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
+			return
+		}
+		_ = labels
+		q := r.URL.Query()
+		_ = q
+		if v, ok := labels["FunctionName"]; ok {
+			in.FunctionName = v
+		}
+		if v := q.Get("Qualifier"); v != "" {
+			s := v
+			in.Qualifier = &s
+		}
+
+		// Body fields decode as JSON when present.
+		if r.ContentLength != 0 {
+			_ = awsjson.DecodeJSON(w, r, in)
+		}
+		out, err := b.GetFunctionEventInvokeConfig(ctx, in)
+		if err != nil {
+			awsjson.WriteBackendError(w, err)
+			return
+		}
+		if out == nil {
+			awsjson.WriteJSON(w, 200, struct{}{})
+			return
+		}
+		awsjson.WriteJSON(w, 200, out)
+	})
+}
+
+// GetFunctionCodeSigningConfigBackend serves the GetFunctionCodeSigningConfig operation.
+type GetFunctionCodeSigningConfigBackend interface {
+	GetFunctionCodeSigningConfig(ctx context.Context, in *GetFunctionCodeSigningConfigRequest) (*GetFunctionCodeSigningConfigResponse, error)
+}
+
+// GetFunctionCodeSigningConfigURITemplate is the Smithy URI template for the operation.
+const GetFunctionCodeSigningConfigURITemplate = "/2020-06-30/functions/{FunctionName}/code-signing-config"
+
+// GetFunctionCodeSigningConfigMethod is the HTTP method for the operation.
+const GetFunctionCodeSigningConfigMethod = "GET"
+
+// GetFunctionCodeSigningConfigHandler decodes a GetFunctionCodeSigningConfig request, dispatches to
+// the backend, and encodes the response per restJson1 semantics.
+func GetFunctionCodeSigningConfigHandler(b GetFunctionCodeSigningConfigBackend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		in := &GetFunctionCodeSigningConfigRequest{}
+		labels, ok := restxml.MatchURI(r.URL.Path, GetFunctionCodeSigningConfigURITemplate)
+		if !ok {
+			awsjson.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
+			return
+		}
+		_ = labels
+		q := r.URL.Query()
+		_ = q
+		if v, ok := labels["FunctionName"]; ok {
+			in.FunctionName = v
+		}
+
+		// Body fields decode as JSON when present.
+		if r.ContentLength != 0 {
+			_ = awsjson.DecodeJSON(w, r, in)
+		}
+		out, err := b.GetFunctionCodeSigningConfig(ctx, in)
 		if err != nil {
 			awsjson.WriteBackendError(w, err)
 			return
