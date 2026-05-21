@@ -446,17 +446,19 @@ func (g *gen) render() ([]byte, error) {
 // protocol. Each AWS wire protocol has its own template because the
 // dispatch shape (path/method routing vs. X-Amz-Target dispatch),
 // body encoding (XML vs. JSON), and error envelope all differ enough
-// that one parameterised template would be denser than two readable
-// ones.
+// that one parameterised template would be denser than separate
+// readable ones.
 func pickTemplate(protocol string) (string, error) {
 	switch protocol {
 	case "rest-xml", "":
 		return fileTemplate, nil
 	case "aws-json-1.1", "aws-json-1.0":
 		return awsJSONTemplate, nil
+	case "rest-json":
+		return restJSONTemplate, nil
 	default:
 		return "", fmt.Errorf("codegen: unsupported wire protocol %q "+
-			"(supported: rest-xml, aws-json-1.0, aws-json-1.1)", protocol)
+			"(supported: rest-xml, aws-json-1.0, aws-json-1.1, rest-json)", protocol)
 	}
 }
 

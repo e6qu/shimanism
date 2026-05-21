@@ -20,3 +20,12 @@ var fileTemplate string
 //
 //go:embed template_awsjson.tmpl
 var awsJSONTemplate string
+
+// restJSONTemplate holds the text/template source for the restJson1
+// wire protocol (Lambda, API Gateway v2). The protocol is HTTP-route
+// dispatched (method + URI template from `smithy.api#http`, the same
+// shape REST-XML uses) but the request / response bodies are JSON and
+// the error envelope is awsJson-shaped (`__type` + `message`).
+//
+//go:embed template_restjson.tmpl
+var restJSONTemplate string
