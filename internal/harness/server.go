@@ -41,6 +41,7 @@ import (
 	gcpcloudsqlfront "github.com/e6qu/shimanism/internal/rdbms/frontends/gcp_cloudsql"
 	"github.com/e6qu/shimanism/internal/restxml"
 	secretsdomain "github.com/e6qu/shimanism/internal/secrets/domain"
+	"github.com/e6qu/shimanism/internal/sigv4verifier"
 	awssmfront "github.com/e6qu/shimanism/internal/secrets/frontends/aws_secretsmanager"
 	azurekvfront "github.com/e6qu/shimanism/internal/secrets/frontends/azure_keyvault"
 	gcpsmfront "github.com/e6qu/shimanism/internal/secrets/frontends/gcp_secretmanager"
@@ -85,7 +86,18 @@ func StartStorageServer(t *testing.T, backend domain.Storage) *StorageServer {
 	adapter := awsfront.New(backend)
 	router := &restxml.Router{}
 	storagegen.RegisterAmazonS3Routes(router, adapter)
-	ts := httptest.NewServer(&logRoundTrip{t: t, mux: router})
+	// Phase 11.13 retrofit: SigV4 verifier on the S3 frontend. The
+	// emitter for REST-XML uses internal/restxml.WriteError; we wrap
+	// it in a closure that matches sigv4verifier's EmitError signature.
+	verifier := sigv4verifier.New(sigv4verifier.StaticStore{
+		AccessKey: "AKIAIOSFODNN7EXAMPLE",
+		Secret:    "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+	}, sigv4verifier.Options{Service: "s3", Region: "us-east-1"})
+	emitErr := func(w http.ResponseWriter, status int, errorType, message string) {
+		restxml.WriteError(w, status, errorType, message)
+	}
+	mw := sigv4verifier.Middleware(verifier, emitErr)
+	ts := httptest.NewServer(&logRoundTrip{t: t, mux: mw(router)})
 	t.Cleanup(ts.Close)
 	return &StorageServer{URL: ts.URL, Close: ts.Close}
 }
