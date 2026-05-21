@@ -373,9 +373,39 @@ func CreateTopicHandler(b CreateTopicBackend) http.Handler {
 		ctx := r.Context()
 		in := &CreateTopicInput{}
 		_ = in
-		// Decode top-level scalar form fields. List / map decode is
-		// adapter responsibility for nested shapes — see the
-		// per-service translate.go.
+		// Decode top-level scalar + map<string,string> + list<string>
+		// form fields. AWS awsQuery serialises these as flat
+		// name=value pairs with `.entry.N.{key,value}` (maps) and
+		// `.member.N` (lists) conventions.
+		// map<string,string> via `Attributes.entry.N.{key,value}`.
+		{
+			seen := map[string]bool{}
+			for k := range r.Form {
+				prefix := "Attributes.entry."
+				if !strings.HasPrefix(k, prefix) {
+					continue
+				}
+				rest := strings.TrimPrefix(k, prefix)
+				dot := strings.IndexByte(rest, '.')
+				if dot < 0 {
+					continue
+				}
+				idx := rest[:dot]
+				if seen[idx] {
+					continue
+				}
+				seen[idx] = true
+				kv := r.Form.Get(prefix + idx + ".key")
+				vv := r.Form.Get(prefix + idx + ".value")
+				if kv == "" {
+					continue
+				}
+				if in.Attributes == nil {
+					in.Attributes = TopicAttributesMap{}
+				}
+				in.Attributes[kv] = vv
+			}
+		}
 		if v := r.Form.Get("DataProtectionPolicy"); v != "" {
 			s := v
 			in.DataProtectionPolicy = &s
@@ -406,9 +436,10 @@ func DeleteTopicHandler(b DeleteTopicBackend) http.Handler {
 		ctx := r.Context()
 		in := &DeleteTopicInput{}
 		_ = in
-		// Decode top-level scalar form fields. List / map decode is
-		// adapter responsibility for nested shapes — see the
-		// per-service translate.go.
+		// Decode top-level scalar + map<string,string> + list<string>
+		// form fields. AWS awsQuery serialises these as flat
+		// name=value pairs with `.entry.N.{key,value}` (maps) and
+		// `.member.N` (lists) conventions.
 		in.TopicArn = r.Form.Get("TopicArn")
 
 		if _, err := b.DeleteTopic(ctx, in); err != nil {
@@ -434,9 +465,10 @@ func ListTopicsHandler(b ListTopicsBackend) http.Handler {
 		ctx := r.Context()
 		in := &ListTopicsInput{}
 		_ = in
-		// Decode top-level scalar form fields. List / map decode is
-		// adapter responsibility for nested shapes — see the
-		// per-service translate.go.
+		// Decode top-level scalar + map<string,string> + list<string>
+		// form fields. AWS awsQuery serialises these as flat
+		// name=value pairs with `.entry.N.{key,value}` (maps) and
+		// `.member.N` (lists) conventions.
 		if v := r.Form.Get("NextToken"); v != "" {
 			s := v
 			in.NextToken = &s
@@ -466,9 +498,39 @@ func SubscribeHandler(b SubscribeBackend) http.Handler {
 		ctx := r.Context()
 		in := &SubscribeInput{}
 		_ = in
-		// Decode top-level scalar form fields. List / map decode is
-		// adapter responsibility for nested shapes — see the
-		// per-service translate.go.
+		// Decode top-level scalar + map<string,string> + list<string>
+		// form fields. AWS awsQuery serialises these as flat
+		// name=value pairs with `.entry.N.{key,value}` (maps) and
+		// `.member.N` (lists) conventions.
+		// map<string,string> via `Attributes.entry.N.{key,value}`.
+		{
+			seen := map[string]bool{}
+			for k := range r.Form {
+				prefix := "Attributes.entry."
+				if !strings.HasPrefix(k, prefix) {
+					continue
+				}
+				rest := strings.TrimPrefix(k, prefix)
+				dot := strings.IndexByte(rest, '.')
+				if dot < 0 {
+					continue
+				}
+				idx := rest[:dot]
+				if seen[idx] {
+					continue
+				}
+				seen[idx] = true
+				kv := r.Form.Get(prefix + idx + ".key")
+				vv := r.Form.Get(prefix + idx + ".value")
+				if kv == "" {
+					continue
+				}
+				if in.Attributes == nil {
+					in.Attributes = SubscriptionAttributesMap{}
+				}
+				in.Attributes[kv] = vv
+			}
+		}
 		if v := r.Form.Get("Endpoint"); v != "" {
 			s := v
 			in.Endpoint = &s
@@ -505,9 +567,10 @@ func UnsubscribeHandler(b UnsubscribeBackend) http.Handler {
 		ctx := r.Context()
 		in := &UnsubscribeInput{}
 		_ = in
-		// Decode top-level scalar form fields. List / map decode is
-		// adapter responsibility for nested shapes — see the
-		// per-service translate.go.
+		// Decode top-level scalar + map<string,string> + list<string>
+		// form fields. AWS awsQuery serialises these as flat
+		// name=value pairs with `.entry.N.{key,value}` (maps) and
+		// `.member.N` (lists) conventions.
 		in.SubscriptionArn = r.Form.Get("SubscriptionArn")
 
 		if _, err := b.Unsubscribe(ctx, in); err != nil {
@@ -533,9 +596,10 @@ func ListSubscriptionsHandler(b ListSubscriptionsBackend) http.Handler {
 		ctx := r.Context()
 		in := &ListSubscriptionsInput{}
 		_ = in
-		// Decode top-level scalar form fields. List / map decode is
-		// adapter responsibility for nested shapes — see the
-		// per-service translate.go.
+		// Decode top-level scalar + map<string,string> + list<string>
+		// form fields. AWS awsQuery serialises these as flat
+		// name=value pairs with `.entry.N.{key,value}` (maps) and
+		// `.member.N` (lists) conventions.
 		if v := r.Form.Get("NextToken"); v != "" {
 			s := v
 			in.NextToken = &s
@@ -565,9 +629,10 @@ func ListSubscriptionsByTopicHandler(b ListSubscriptionsByTopicBackend) http.Han
 		ctx := r.Context()
 		in := &ListSubscriptionsByTopicInput{}
 		_ = in
-		// Decode top-level scalar form fields. List / map decode is
-		// adapter responsibility for nested shapes — see the
-		// per-service translate.go.
+		// Decode top-level scalar + map<string,string> + list<string>
+		// form fields. AWS awsQuery serialises these as flat
+		// name=value pairs with `.entry.N.{key,value}` (maps) and
+		// `.member.N` (lists) conventions.
 		if v := r.Form.Get("NextToken"); v != "" {
 			s := v
 			in.NextToken = &s
@@ -598,9 +663,10 @@ func PublishHandler(b PublishBackend) http.Handler {
 		ctx := r.Context()
 		in := &PublishInput{}
 		_ = in
-		// Decode top-level scalar form fields. List / map decode is
-		// adapter responsibility for nested shapes — see the
-		// per-service translate.go.
+		// Decode top-level scalar + map<string,string> + list<string>
+		// form fields. AWS awsQuery serialises these as flat
+		// name=value pairs with `.entry.N.{key,value}` (maps) and
+		// `.member.N` (lists) conventions.
 		in.Message = r.Form.Get("Message")
 		if v := r.Form.Get("MessageDeduplicationId"); v != "" {
 			s := v
@@ -655,9 +721,10 @@ func GetTopicAttributesHandler(b GetTopicAttributesBackend) http.Handler {
 		ctx := r.Context()
 		in := &GetTopicAttributesInput{}
 		_ = in
-		// Decode top-level scalar form fields. List / map decode is
-		// adapter responsibility for nested shapes — see the
-		// per-service translate.go.
+		// Decode top-level scalar + map<string,string> + list<string>
+		// form fields. AWS awsQuery serialises these as flat
+		// name=value pairs with `.entry.N.{key,value}` (maps) and
+		// `.member.N` (lists) conventions.
 		in.TopicArn = r.Form.Get("TopicArn")
 
 		out, err := b.GetTopicAttributes(ctx, in)
@@ -684,9 +751,10 @@ func SetTopicAttributesHandler(b SetTopicAttributesBackend) http.Handler {
 		ctx := r.Context()
 		in := &SetTopicAttributesInput{}
 		_ = in
-		// Decode top-level scalar form fields. List / map decode is
-		// adapter responsibility for nested shapes — see the
-		// per-service translate.go.
+		// Decode top-level scalar + map<string,string> + list<string>
+		// form fields. AWS awsQuery serialises these as flat
+		// name=value pairs with `.entry.N.{key,value}` (maps) and
+		// `.member.N` (lists) conventions.
 		in.AttributeName = r.Form.Get("AttributeName")
 		if v := r.Form.Get("AttributeValue"); v != "" {
 			s := v
@@ -717,9 +785,10 @@ func ListTagsForResourceHandler(b ListTagsForResourceBackend) http.Handler {
 		ctx := r.Context()
 		in := &ListTagsForResourceRequest{}
 		_ = in
-		// Decode top-level scalar form fields. List / map decode is
-		// adapter responsibility for nested shapes — see the
-		// per-service translate.go.
+		// Decode top-level scalar + map<string,string> + list<string>
+		// form fields. AWS awsQuery serialises these as flat
+		// name=value pairs with `.entry.N.{key,value}` (maps) and
+		// `.member.N` (lists) conventions.
 		in.ResourceArn = r.Form.Get("ResourceArn")
 
 		out, err := b.ListTagsForResource(ctx, in)

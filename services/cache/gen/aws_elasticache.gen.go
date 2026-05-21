@@ -587,9 +587,10 @@ func CreateCacheClusterHandler(b CreateCacheClusterBackend) http.Handler {
 		ctx := r.Context()
 		in := &CreateCacheClusterMessage{}
 		_ = in
-		// Decode top-level scalar form fields. List / map decode is
-		// adapter responsibility for nested shapes — see the
-		// per-service translate.go.
+		// Decode top-level scalar + map<string,string> + list<string>
+		// form fields. AWS awsQuery serialises these as flat
+		// name=value pairs with `.entry.N.{key,value}` (maps) and
+		// `.member.N` (lists) conventions.
 		if v := r.Form.Get("AuthToken"); v != "" {
 			s := v
 			in.AuthToken = &s
@@ -607,6 +608,15 @@ func CreateCacheClusterHandler(b CreateCacheClusterBackend) http.Handler {
 		if v := r.Form.Get("CacheParameterGroupName"); v != "" {
 			s := v
 			in.CacheParameterGroupName = &s
+		}
+		// list<string> via `CacheSecurityGroupNames.member.N`. The generated
+		// list type is a struct with Member []string for XML.
+		for i := 1; ; i++ {
+			v := r.Form.Get("CacheSecurityGroupNames.member." + strconv.Itoa(i))
+			if v == "" {
+				break
+			}
+			in.CacheSecurityGroupNames.Member = append(in.CacheSecurityGroupNames.Member, v)
 		}
 		if v := r.Form.Get("CacheSubnetGroupName"); v != "" {
 			s := v
@@ -640,6 +650,15 @@ func CreateCacheClusterHandler(b CreateCacheClusterBackend) http.Handler {
 			s := v
 			in.PreferredAvailabilityZone = &s
 		}
+		// list<string> via `PreferredAvailabilityZones.member.N`. The generated
+		// list type is a struct with Member []string for XML.
+		for i := 1; ; i++ {
+			v := r.Form.Get("PreferredAvailabilityZones.member." + strconv.Itoa(i))
+			if v == "" {
+				break
+			}
+			in.PreferredAvailabilityZones.Member = append(in.PreferredAvailabilityZones.Member, v)
+		}
 		if v := r.Form.Get("PreferredMaintenanceWindow"); v != "" {
 			s := v
 			in.PreferredMaintenanceWindow = &s
@@ -648,9 +667,36 @@ func CreateCacheClusterHandler(b CreateCacheClusterBackend) http.Handler {
 			s := v
 			in.PreferredOutpostArn = &s
 		}
+		// list<string> via `PreferredOutpostArns.member.N`. The generated
+		// list type is a struct with Member []string for XML.
+		for i := 1; ; i++ {
+			v := r.Form.Get("PreferredOutpostArns.member." + strconv.Itoa(i))
+			if v == "" {
+				break
+			}
+			in.PreferredOutpostArns.Member = append(in.PreferredOutpostArns.Member, v)
+		}
 		if v := r.Form.Get("ReplicationGroupId"); v != "" {
 			s := v
 			in.ReplicationGroupId = &s
+		}
+		// list<string> via `SecurityGroupIds.member.N`. The generated
+		// list type is a struct with Member []string for XML.
+		for i := 1; ; i++ {
+			v := r.Form.Get("SecurityGroupIds.member." + strconv.Itoa(i))
+			if v == "" {
+				break
+			}
+			in.SecurityGroupIds.Member = append(in.SecurityGroupIds.Member, v)
+		}
+		// list<string> via `SnapshotArns.member.N`. The generated
+		// list type is a struct with Member []string for XML.
+		for i := 1; ; i++ {
+			v := r.Form.Get("SnapshotArns.member." + strconv.Itoa(i))
+			if v == "" {
+				break
+			}
+			in.SnapshotArns.Member = append(in.SnapshotArns.Member, v)
 		}
 		if v := r.Form.Get("SnapshotName"); v != "" {
 			s := v
@@ -696,9 +742,10 @@ func DeleteCacheClusterHandler(b DeleteCacheClusterBackend) http.Handler {
 		ctx := r.Context()
 		in := &DeleteCacheClusterMessage{}
 		_ = in
-		// Decode top-level scalar form fields. List / map decode is
-		// adapter responsibility for nested shapes — see the
-		// per-service translate.go.
+		// Decode top-level scalar + map<string,string> + list<string>
+		// form fields. AWS awsQuery serialises these as flat
+		// name=value pairs with `.entry.N.{key,value}` (maps) and
+		// `.member.N` (lists) conventions.
 		in.CacheClusterId = r.Form.Get("CacheClusterId")
 		if v := r.Form.Get("FinalSnapshotIdentifier"); v != "" {
 			s := v
@@ -729,9 +776,10 @@ func DescribeCacheClustersHandler(b DescribeCacheClustersBackend) http.Handler {
 		ctx := r.Context()
 		in := &DescribeCacheClustersMessage{}
 		_ = in
-		// Decode top-level scalar form fields. List / map decode is
-		// adapter responsibility for nested shapes — see the
-		// per-service translate.go.
+		// Decode top-level scalar + map<string,string> + list<string>
+		// form fields. AWS awsQuery serialises these as flat
+		// name=value pairs with `.entry.N.{key,value}` (maps) and
+		// `.member.N` (lists) conventions.
 		if v := r.Form.Get("CacheClusterId"); v != "" {
 			s := v
 			in.CacheClusterId = &s
@@ -781,9 +829,10 @@ func ModifyCacheClusterHandler(b ModifyCacheClusterBackend) http.Handler {
 		ctx := r.Context()
 		in := &ModifyCacheClusterMessage{}
 		_ = in
-		// Decode top-level scalar form fields. List / map decode is
-		// adapter responsibility for nested shapes — see the
-		// per-service translate.go.
+		// Decode top-level scalar + map<string,string> + list<string>
+		// form fields. AWS awsQuery serialises these as flat
+		// name=value pairs with `.entry.N.{key,value}` (maps) and
+		// `.member.N` (lists) conventions.
 		if v := r.Form.Get("ApplyImmediately"); v != "" {
 			if x, err := strconv.ParseBool(v); err == nil {
 				in.ApplyImmediately = &x
@@ -799,6 +848,15 @@ func ModifyCacheClusterHandler(b ModifyCacheClusterBackend) http.Handler {
 			}
 		}
 		in.CacheClusterId = r.Form.Get("CacheClusterId")
+		// list<string> via `CacheNodeIdsToRemove.member.N`. The generated
+		// list type is a struct with Member []string for XML.
+		for i := 1; ; i++ {
+			v := r.Form.Get("CacheNodeIdsToRemove.member." + strconv.Itoa(i))
+			if v == "" {
+				break
+			}
+			in.CacheNodeIdsToRemove.Member = append(in.CacheNodeIdsToRemove.Member, v)
+		}
 		if v := r.Form.Get("CacheNodeType"); v != "" {
 			s := v
 			in.CacheNodeType = &s
@@ -807,6 +865,15 @@ func ModifyCacheClusterHandler(b ModifyCacheClusterBackend) http.Handler {
 			s := v
 			in.CacheParameterGroupName = &s
 		}
+		// list<string> via `CacheSecurityGroupNames.member.N`. The generated
+		// list type is a struct with Member []string for XML.
+		for i := 1; ; i++ {
+			v := r.Form.Get("CacheSecurityGroupNames.member." + strconv.Itoa(i))
+			if v == "" {
+				break
+			}
+			in.CacheSecurityGroupNames.Member = append(in.CacheSecurityGroupNames.Member, v)
+		}
 		if v := r.Form.Get("Engine"); v != "" {
 			s := v
 			in.Engine = &s
@@ -814,6 +881,15 @@ func ModifyCacheClusterHandler(b ModifyCacheClusterBackend) http.Handler {
 		if v := r.Form.Get("EngineVersion"); v != "" {
 			s := v
 			in.EngineVersion = &s
+		}
+		// list<string> via `NewAvailabilityZones.member.N`. The generated
+		// list type is a struct with Member []string for XML.
+		for i := 1; ; i++ {
+			v := r.Form.Get("NewAvailabilityZones.member." + strconv.Itoa(i))
+			if v == "" {
+				break
+			}
+			in.NewAvailabilityZones.Member = append(in.NewAvailabilityZones.Member, v)
 		}
 		if v := r.Form.Get("NotificationTopicArn"); v != "" {
 			s := v
@@ -832,6 +908,15 @@ func ModifyCacheClusterHandler(b ModifyCacheClusterBackend) http.Handler {
 		if v := r.Form.Get("PreferredMaintenanceWindow"); v != "" {
 			s := v
 			in.PreferredMaintenanceWindow = &s
+		}
+		// list<string> via `SecurityGroupIds.member.N`. The generated
+		// list type is a struct with Member []string for XML.
+		for i := 1; ; i++ {
+			v := r.Form.Get("SecurityGroupIds.member." + strconv.Itoa(i))
+			if v == "" {
+				break
+			}
+			in.SecurityGroupIds.Member = append(in.SecurityGroupIds.Member, v)
 		}
 		if v := r.Form.Get("SnapshotRetentionLimit"); v != "" {
 			if n, err := strconv.Atoi(v); err == nil {
@@ -868,10 +953,20 @@ func RebootCacheClusterHandler(b RebootCacheClusterBackend) http.Handler {
 		ctx := r.Context()
 		in := &RebootCacheClusterMessage{}
 		_ = in
-		// Decode top-level scalar form fields. List / map decode is
-		// adapter responsibility for nested shapes — see the
-		// per-service translate.go.
+		// Decode top-level scalar + map<string,string> + list<string>
+		// form fields. AWS awsQuery serialises these as flat
+		// name=value pairs with `.entry.N.{key,value}` (maps) and
+		// `.member.N` (lists) conventions.
 		in.CacheClusterId = r.Form.Get("CacheClusterId")
+		// list<string> via `CacheNodeIdsToReboot.member.N`. The generated
+		// list type is a struct with Member []string for XML.
+		for i := 1; ; i++ {
+			v := r.Form.Get("CacheNodeIdsToReboot.member." + strconv.Itoa(i))
+			if v == "" {
+				break
+			}
+			in.CacheNodeIdsToReboot.Member = append(in.CacheNodeIdsToReboot.Member, v)
+		}
 
 		out, err := b.RebootCacheCluster(ctx, in)
 		if err != nil {

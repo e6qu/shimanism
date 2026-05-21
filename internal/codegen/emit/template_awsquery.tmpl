@@ -94,10 +94,37 @@ func {{ .GoName }}Handler(b {{ .GoName }}Backend) http.Handler {
 {{- if .InputType }}
 		in := &{{ .InputType }}{}
 		_ = in
-		// Decode top-level scalar form fields. List / map decode is
-		// adapter responsibility for nested shapes — see the
-		// per-service translate.go.
-{{ range .Bindings }}{{ if eq .GoType "string" }}		in.{{ .GoName }} = r.Form.Get("{{ .GoName }}")
+		// Decode top-level scalar + map<string,string> + list<string>
+		// form fields. AWS awsQuery serialises these as flat
+		// name=value pairs with `.entry.N.{key,value}` (maps) and
+		// `.member.N` (lists) conventions.
+{{ range .Bindings }}{{ if .IsStringMap }}		// map<string,string> via `{{ .GoName }}.entry.N.{key,value}`.
+		{
+			seen := map[string]bool{}
+			for k := range r.Form {
+				prefix := "{{ .GoName }}.entry."
+				if !strings.HasPrefix(k, prefix) { continue }
+				rest := strings.TrimPrefix(k, prefix)
+				dot := strings.IndexByte(rest, '.')
+				if dot < 0 { continue }
+				idx := rest[:dot]
+				if seen[idx] { continue }
+				seen[idx] = true
+				kv := r.Form.Get(prefix + idx + ".key")
+				vv := r.Form.Get(prefix + idx + ".value")
+				if kv == "" { continue }
+				if in.{{ .GoName }} == nil { in.{{ .GoName }} = {{ .GoType }}{} }
+				in.{{ .GoName }}[kv] = vv
+			}
+		}
+{{ else if .IsStringList }}		// list<string> via `{{ .GoName }}.member.N`. The generated
+		// list type is a struct with Member []string for XML.
+		for i := 1; ; i++ {
+			v := r.Form.Get("{{ .GoName }}.member." + strconv.Itoa(i))
+			if v == "" { break }
+			in.{{ .GoName }}.Member = append(in.{{ .GoName }}.Member, v)
+		}
+{{ else if eq .GoType "string" }}		in.{{ .GoName }} = r.Form.Get("{{ .GoName }}")
 {{ else if eq .GoType "*string" }}		if v := r.Form.Get("{{ .GoName }}"); v != "" { s := v; in.{{ .GoName }} = &s }
 {{ else if eq .GoType "int32" }}		if v := r.Form.Get("{{ .GoName }}"); v != "" { if n, err := strconv.Atoi(v); err == nil { in.{{ .GoName }} = int32(n) } }
 {{ else if eq .GoType "*int32" }}		if v := r.Form.Get("{{ .GoName }}"); v != "" { if n, err := strconv.Atoi(v); err == nil { x := int32(n); in.{{ .GoName }} = &x } }

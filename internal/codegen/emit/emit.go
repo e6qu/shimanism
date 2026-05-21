@@ -307,6 +307,16 @@ type fieldView struct {
 	JSONTag  string
 	TSFormat string
 	Required bool
+	// IsStringMap reports whether the field's target shape is
+	// `map<string, string>`. The awsQuery template uses this to emit
+	// `Field.entry.N.{key,value}` form decoding loops. False for
+	// non-map shapes and maps whose value type is anything other
+	// than string.
+	IsStringMap bool
+	// IsStringList reports whether the field's target shape is
+	// `list<string>`. The awsQuery template uses this to emit
+	// `Field.member.N` form decoding loops.
+	IsStringList bool
 }
 
 type unionView struct {
@@ -648,7 +658,42 @@ func (g *gen) fieldView(name string, m smithy.Member) (fieldView, error) {
 		return fieldView{}, err
 	}
 	fv.GoType = goType
+	// Inspect the target shape for collection kinds the awsQuery
+	// template knows how to decode (map<string,string>, list<string>).
+	if targetSh, err := g.model.LookupShape(m.Target); err == nil {
+		switch targetSh.Type {
+		case "map":
+			if g.isStringTarget(targetSh.Key) && g.isStringTarget(targetSh.Value) {
+				fv.IsStringMap = true
+			}
+		case "list", "set":
+			if targetSh.Member != nil && g.isStringShape(targetSh.Member.Target) {
+				fv.IsStringList = true
+			}
+		}
+	}
 	return fv, nil
+}
+
+// isStringTarget returns true if the member's target shape resolves
+// (transitively) to a string. Service-specific string aliases like
+// `AttributeValue: string` count; ints, structs, etc. do not.
+func (g *gen) isStringTarget(m *smithy.Member) bool {
+	if m == nil {
+		return false
+	}
+	return g.isStringShape(m.Target)
+}
+
+func (g *gen) isStringShape(id string) bool {
+	if id == "smithy.api#String" || id == "smithy.api#string" {
+		return true
+	}
+	sh, err := g.model.LookupShape(id)
+	if err != nil {
+		return false
+	}
+	return sh.Type == "string"
 }
 
 func (g *gen) opView(op operation) (opView, error) {

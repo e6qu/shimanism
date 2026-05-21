@@ -1073,9 +1073,10 @@ func CreateDBInstanceHandler(b CreateDBInstanceBackend) http.Handler {
 		ctx := r.Context()
 		in := &CreateDBInstanceMessage{}
 		_ = in
-		// Decode top-level scalar form fields. List / map decode is
-		// adapter responsibility for nested shapes — see the
-		// per-service translate.go.
+		// Decode top-level scalar + map<string,string> + list<string>
+		// form fields. AWS awsQuery serialises these as flat
+		// name=value pairs with `.entry.N.{key,value}` (maps) and
+		// `.member.N` (lists) conventions.
 		if v := r.Form.Get("AllocatedStorage"); v != "" {
 			if n, err := strconv.Atoi(v); err == nil {
 				x := int32(n)
@@ -1132,6 +1133,15 @@ func CreateDBInstanceHandler(b CreateDBInstanceBackend) http.Handler {
 			s := v
 			in.DBParameterGroupName = &s
 		}
+		// list<string> via `DBSecurityGroups.member.N`. The generated
+		// list type is a struct with Member []string for XML.
+		for i := 1; ; i++ {
+			v := r.Form.Get("DBSecurityGroups.member." + strconv.Itoa(i))
+			if v == "" {
+				break
+			}
+			in.DBSecurityGroups.Member = append(in.DBSecurityGroups.Member, v)
+		}
 		if v := r.Form.Get("DBSubnetGroupName"); v != "" {
 			s := v
 			in.DBSubnetGroupName = &s
@@ -1158,6 +1168,15 @@ func CreateDBInstanceHandler(b CreateDBInstanceBackend) http.Handler {
 			s := v
 			in.DomainAuthSecretArn = &s
 		}
+		// list<string> via `DomainDnsIps.member.N`. The generated
+		// list type is a struct with Member []string for XML.
+		for i := 1; ; i++ {
+			v := r.Form.Get("DomainDnsIps.member." + strconv.Itoa(i))
+			if v == "" {
+				break
+			}
+			in.DomainDnsIps.Member = append(in.DomainDnsIps.Member, v)
+		}
 		if v := r.Form.Get("DomainFqdn"); v != "" {
 			s := v
 			in.DomainFqdn = &s
@@ -1169,6 +1188,15 @@ func CreateDBInstanceHandler(b CreateDBInstanceBackend) http.Handler {
 		if v := r.Form.Get("DomainOu"); v != "" {
 			s := v
 			in.DomainOu = &s
+		}
+		// list<string> via `EnableCloudwatchLogsExports.member.N`. The generated
+		// list type is a struct with Member []string for XML.
+		for i := 1; ; i++ {
+			v := r.Form.Get("EnableCloudwatchLogsExports.member." + strconv.Itoa(i))
+			if v == "" {
+				break
+			}
+			in.EnableCloudwatchLogsExports.Member = append(in.EnableCloudwatchLogsExports.Member, v)
 		}
 		if v := r.Form.Get("EnableCustomerOwnedIp"); v != "" {
 			if x, err := strconv.ParseBool(v); err == nil {
@@ -1325,6 +1353,15 @@ func CreateDBInstanceHandler(b CreateDBInstanceBackend) http.Handler {
 			s := v
 			in.Timezone = &s
 		}
+		// list<string> via `VpcSecurityGroupIds.member.N`. The generated
+		// list type is a struct with Member []string for XML.
+		for i := 1; ; i++ {
+			v := r.Form.Get("VpcSecurityGroupIds.member." + strconv.Itoa(i))
+			if v == "" {
+				break
+			}
+			in.VpcSecurityGroupIds.Member = append(in.VpcSecurityGroupIds.Member, v)
+		}
 
 		out, err := b.CreateDBInstance(ctx, in)
 		if err != nil {
@@ -1350,9 +1387,10 @@ func DeleteDBInstanceHandler(b DeleteDBInstanceBackend) http.Handler {
 		ctx := r.Context()
 		in := &DeleteDBInstanceMessage{}
 		_ = in
-		// Decode top-level scalar form fields. List / map decode is
-		// adapter responsibility for nested shapes — see the
-		// per-service translate.go.
+		// Decode top-level scalar + map<string,string> + list<string>
+		// form fields. AWS awsQuery serialises these as flat
+		// name=value pairs with `.entry.N.{key,value}` (maps) and
+		// `.member.N` (lists) conventions.
 		in.DBInstanceIdentifier = r.Form.Get("DBInstanceIdentifier")
 		if v := r.Form.Get("DeleteAutomatedBackups"); v != "" {
 			if x, err := strconv.ParseBool(v); err == nil {
@@ -1393,9 +1431,10 @@ func DescribeDBInstancesHandler(b DescribeDBInstancesBackend) http.Handler {
 		ctx := r.Context()
 		in := &DescribeDBInstancesMessage{}
 		_ = in
-		// Decode top-level scalar form fields. List / map decode is
-		// adapter responsibility for nested shapes — see the
-		// per-service translate.go.
+		// Decode top-level scalar + map<string,string> + list<string>
+		// form fields. AWS awsQuery serialises these as flat
+		// name=value pairs with `.entry.N.{key,value}` (maps) and
+		// `.member.N` (lists) conventions.
 		if v := r.Form.Get("DBInstanceIdentifier"); v != "" {
 			s := v
 			in.DBInstanceIdentifier = &s
@@ -1435,9 +1474,10 @@ func ModifyDBInstanceHandler(b ModifyDBInstanceBackend) http.Handler {
 		ctx := r.Context()
 		in := &ModifyDBInstanceMessage{}
 		_ = in
-		// Decode top-level scalar form fields. List / map decode is
-		// adapter responsibility for nested shapes — see the
-		// per-service translate.go.
+		// Decode top-level scalar + map<string,string> + list<string>
+		// form fields. AWS awsQuery serialises these as flat
+		// name=value pairs with `.entry.N.{key,value}` (maps) and
+		// `.member.N` (lists) conventions.
 		if v := r.Form.Get("AllocatedStorage"); v != "" {
 			if n, err := strconv.Atoi(v); err == nil {
 				x := int32(n)
@@ -1498,6 +1538,15 @@ func ModifyDBInstanceHandler(b ModifyDBInstanceBackend) http.Handler {
 				in.DBPortNumber = &x
 			}
 		}
+		// list<string> via `DBSecurityGroups.member.N`. The generated
+		// list type is a struct with Member []string for XML.
+		for i := 1; ; i++ {
+			v := r.Form.Get("DBSecurityGroups.member." + strconv.Itoa(i))
+			if v == "" {
+				break
+			}
+			in.DBSecurityGroups.Member = append(in.DBSecurityGroups.Member, v)
+		}
 		if v := r.Form.Get("DBSubnetGroupName"); v != "" {
 			s := v
 			in.DBSubnetGroupName = &s
@@ -1524,6 +1573,15 @@ func ModifyDBInstanceHandler(b ModifyDBInstanceBackend) http.Handler {
 		if v := r.Form.Get("DomainAuthSecretArn"); v != "" {
 			s := v
 			in.DomainAuthSecretArn = &s
+		}
+		// list<string> via `DomainDnsIps.member.N`. The generated
+		// list type is a struct with Member []string for XML.
+		for i := 1; ; i++ {
+			v := r.Form.Get("DomainDnsIps.member." + strconv.Itoa(i))
+			if v == "" {
+				break
+			}
+			in.DomainDnsIps.Member = append(in.DomainDnsIps.Member, v)
 		}
 		if v := r.Form.Get("DomainFqdn"); v != "" {
 			s := v
@@ -1684,6 +1742,15 @@ func ModifyDBInstanceHandler(b ModifyDBInstanceBackend) http.Handler {
 				in.UseDefaultProcessorFeatures = &x
 			}
 		}
+		// list<string> via `VpcSecurityGroupIds.member.N`. The generated
+		// list type is a struct with Member []string for XML.
+		for i := 1; ; i++ {
+			v := r.Form.Get("VpcSecurityGroupIds.member." + strconv.Itoa(i))
+			if v == "" {
+				break
+			}
+			in.VpcSecurityGroupIds.Member = append(in.VpcSecurityGroupIds.Member, v)
+		}
 
 		out, err := b.ModifyDBInstance(ctx, in)
 		if err != nil {
@@ -1709,9 +1776,10 @@ func RebootDBInstanceHandler(b RebootDBInstanceBackend) http.Handler {
 		ctx := r.Context()
 		in := &RebootDBInstanceMessage{}
 		_ = in
-		// Decode top-level scalar form fields. List / map decode is
-		// adapter responsibility for nested shapes — see the
-		// per-service translate.go.
+		// Decode top-level scalar + map<string,string> + list<string>
+		// form fields. AWS awsQuery serialises these as flat
+		// name=value pairs with `.entry.N.{key,value}` (maps) and
+		// `.member.N` (lists) conventions.
 		in.DBInstanceIdentifier = r.Form.Get("DBInstanceIdentifier")
 		if v := r.Form.Get("ForceFailover"); v != "" {
 			if x, err := strconv.ParseBool(v); err == nil {
@@ -1743,9 +1811,10 @@ func CreateDBSnapshotHandler(b CreateDBSnapshotBackend) http.Handler {
 		ctx := r.Context()
 		in := &CreateDBSnapshotMessage{}
 		_ = in
-		// Decode top-level scalar form fields. List / map decode is
-		// adapter responsibility for nested shapes — see the
-		// per-service translate.go.
+		// Decode top-level scalar + map<string,string> + list<string>
+		// form fields. AWS awsQuery serialises these as flat
+		// name=value pairs with `.entry.N.{key,value}` (maps) and
+		// `.member.N` (lists) conventions.
 		in.DBInstanceIdentifier = r.Form.Get("DBInstanceIdentifier")
 		in.DBSnapshotIdentifier = r.Form.Get("DBSnapshotIdentifier")
 
@@ -1773,9 +1842,10 @@ func DeleteDBSnapshotHandler(b DeleteDBSnapshotBackend) http.Handler {
 		ctx := r.Context()
 		in := &DeleteDBSnapshotMessage{}
 		_ = in
-		// Decode top-level scalar form fields. List / map decode is
-		// adapter responsibility for nested shapes — see the
-		// per-service translate.go.
+		// Decode top-level scalar + map<string,string> + list<string>
+		// form fields. AWS awsQuery serialises these as flat
+		// name=value pairs with `.entry.N.{key,value}` (maps) and
+		// `.member.N` (lists) conventions.
 		in.DBSnapshotIdentifier = r.Form.Get("DBSnapshotIdentifier")
 
 		out, err := b.DeleteDBSnapshot(ctx, in)
@@ -1802,9 +1872,10 @@ func DescribeDBSnapshotsHandler(b DescribeDBSnapshotsBackend) http.Handler {
 		ctx := r.Context()
 		in := &DescribeDBSnapshotsMessage{}
 		_ = in
-		// Decode top-level scalar form fields. List / map decode is
-		// adapter responsibility for nested shapes — see the
-		// per-service translate.go.
+		// Decode top-level scalar + map<string,string> + list<string>
+		// form fields. AWS awsQuery serialises these as flat
+		// name=value pairs with `.entry.N.{key,value}` (maps) and
+		// `.member.N` (lists) conventions.
 		if v := r.Form.Get("DBInstanceIdentifier"); v != "" {
 			s := v
 			in.DBInstanceIdentifier = &s
@@ -1866,9 +1937,10 @@ func RestoreDBInstanceFromDBSnapshotHandler(b RestoreDBInstanceFromDBSnapshotBac
 		ctx := r.Context()
 		in := &RestoreDBInstanceFromDBSnapshotMessage{}
 		_ = in
-		// Decode top-level scalar form fields. List / map decode is
-		// adapter responsibility for nested shapes — see the
-		// per-service translate.go.
+		// Decode top-level scalar + map<string,string> + list<string>
+		// form fields. AWS awsQuery serialises these as flat
+		// name=value pairs with `.entry.N.{key,value}` (maps) and
+		// `.member.N` (lists) conventions.
 		if v := r.Form.Get("AllocatedStorage"); v != "" {
 			if n, err := strconv.Atoi(v); err == nil {
 				x := int32(n)
@@ -1950,6 +2022,15 @@ func RestoreDBInstanceFromDBSnapshotHandler(b RestoreDBInstanceFromDBSnapshotBac
 			s := v
 			in.DomainAuthSecretArn = &s
 		}
+		// list<string> via `DomainDnsIps.member.N`. The generated
+		// list type is a struct with Member []string for XML.
+		for i := 1; ; i++ {
+			v := r.Form.Get("DomainDnsIps.member." + strconv.Itoa(i))
+			if v == "" {
+				break
+			}
+			in.DomainDnsIps.Member = append(in.DomainDnsIps.Member, v)
+		}
 		if v := r.Form.Get("DomainFqdn"); v != "" {
 			s := v
 			in.DomainFqdn = &s
@@ -1961,6 +2042,15 @@ func RestoreDBInstanceFromDBSnapshotHandler(b RestoreDBInstanceFromDBSnapshotBac
 		if v := r.Form.Get("DomainOu"); v != "" {
 			s := v
 			in.DomainOu = &s
+		}
+		// list<string> via `EnableCloudwatchLogsExports.member.N`. The generated
+		// list type is a struct with Member []string for XML.
+		for i := 1; ; i++ {
+			v := r.Form.Get("EnableCloudwatchLogsExports.member." + strconv.Itoa(i))
+			if v == "" {
+				break
+			}
+			in.EnableCloudwatchLogsExports.Member = append(in.EnableCloudwatchLogsExports.Member, v)
 		}
 		if v := r.Form.Get("EnableCustomerOwnedIp"); v != "" {
 			if x, err := strconv.ParseBool(v); err == nil {
@@ -2049,6 +2139,15 @@ func RestoreDBInstanceFromDBSnapshotHandler(b RestoreDBInstanceFromDBSnapshotBac
 			if x, err := strconv.ParseBool(v); err == nil {
 				in.UseDefaultProcessorFeatures = &x
 			}
+		}
+		// list<string> via `VpcSecurityGroupIds.member.N`. The generated
+		// list type is a struct with Member []string for XML.
+		for i := 1; ; i++ {
+			v := r.Form.Get("VpcSecurityGroupIds.member." + strconv.Itoa(i))
+			if v == "" {
+				break
+			}
+			in.VpcSecurityGroupIds.Member = append(in.VpcSecurityGroupIds.Member, v)
 		}
 
 		out, err := b.RestoreDBInstanceFromDBSnapshot(ctx, in)
