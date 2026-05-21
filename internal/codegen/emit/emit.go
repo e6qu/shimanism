@@ -239,10 +239,6 @@ func (g *gen) collectShape(id string) error {
 	return nil
 }
 
-// ============================================================================
-// View structs — shape-to-template data flow.
-// ============================================================================
-
 type fileData struct {
 	Pkg     string
 	Source  string

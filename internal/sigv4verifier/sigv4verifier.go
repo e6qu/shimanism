@@ -2,19 +2,18 @@
 // shimanism needs to reject unsigned / tampered-signature requests
 // with the source cloud's own 401/403 envelope.
 //
-// AWS's `aws-sdk-go-v2/aws/signer/v4` package exposes a *signer* —
-// it builds the canonical request, derives the signing key, and
-// writes the Authorization header. Verification re-uses that exact
-// algorithm: take the incoming request, strip the presented
-// Authorization, re-sign with the same credentials extracted from
-// the request, constant-time compare. Same code paths as the signer
-// produce the same string when the request is honest; anything else
-// reveals tampering.
+// SigV4 is implemented from scratch in canonical.go rather than
+// re-using aws-sdk-go-v2's signer: the SDK's Signer.SignHTTP
+// auto-includes Content-Length in SignedHeaders when ContentLength
+// > 0; boto3 (the `aws` CLI) does not. Re-signing with the SDK to
+// verify diverges from CLI signatures. The verifier follows the
+// spec literally — using only the SignedHeaders list the original
+// client declared — so it accepts every honest signer uniformly.
+// Header-signed and presigned-URL (X-Amz-Algorithm query param)
+// paths are both supported.
 //
 // What this package does NOT do today:
 //
-//   - Presigned URL verification (signature carried in query
-//     parameters, separate canonical-request rules).
 //   - Temporary-credential (X-Amz-Security-Token) lookup against a
 //     real STS-issued session-token store. The test-mode store
 //     trusts any session token; production deployments wire their
@@ -22,7 +21,7 @@
 //   - Streaming-body integrity (UNSIGNED-PAYLOAD is accepted and the
 //     body is not re-hashed). Phase 11 conformance assumes signed
 //     payloads or explicit UNSIGNED-PAYLOAD; chunked SigV4-STREAMING
-//     is a Phase 11+ follow-on.
+//     is a follow-on.
 //
 // Use:
 //

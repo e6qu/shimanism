@@ -107,10 +107,6 @@ func mapDomainErr(err error) error {
 	return be
 }
 
-// ---------------------------------------------------------------------
-// Topic ops.
-// ---------------------------------------------------------------------
-
 func (a *Adapter) CreateTopic(ctx context.Context, in *gen.CreateTopicInput) (*gen.CreateTopicResponse, error) {
 	if in.Name == "" {
 		return nil, &awsquery.BackendError{HTTPStatus: http.StatusBadRequest, Type: "Sender", Code: "InvalidParameter", Message: "Name is required"}
@@ -245,10 +241,6 @@ func awsOnlySNSAttribute(name string) bool {
 	return false
 }
 
-// ---------------------------------------------------------------------
-// Subscription ops.
-// ---------------------------------------------------------------------
-
 func (a *Adapter) Subscribe(ctx context.Context, in *gen.SubscribeInput) (*gen.SubscribeResponse, error) {
 	topic := parseTopicArn(in.TopicArn)
 	if topic == "" || in.Protocol == "" || in.Endpoint == nil || *in.Endpoint == "" {
@@ -321,10 +313,6 @@ func (a *Adapter) listSubs(ctx context.Context, topic string) (*gen.ListSubscrip
 	return out, nil
 }
 
-// ---------------------------------------------------------------------
-// Publish.
-// ---------------------------------------------------------------------
-
 func (a *Adapter) Publish(ctx context.Context, in *gen.PublishInput) (*gen.PublishResponse, error) {
 	if in.TopicArn == nil || *in.TopicArn == "" {
 		return nil, &awsquery.BackendError{HTTPStatus: http.StatusBadRequest, Type: "Sender", Code: "InvalidParameter", Message: "TopicArn is required"}
@@ -375,12 +363,8 @@ func messageAttributesFromContext(ctx context.Context) map[string]string {
 	return out
 }
 
-// ---------------------------------------------------------------------
-// ListTagsForResource — Phase 9 probe shape (the hashicorp/aws SNS
-// importer calls this on every Read). Pubsub domain has no tag
-// concept yet (tracked alongside BUG-12 family); return empty.
-// ---------------------------------------------------------------------
-
+// ListTagsForResource: hashicorp/aws's SNS importer calls this on
+// every Read. The pubsub domain has no tag concept; return empty.
 func (a *Adapter) ListTagsForResource(ctx context.Context, in *gen.ListTagsForResourceRequest) (*gen.ListTagsForResourceResponse, error) {
 	name := parseTopicArn(in.ResourceArn)
 	if name == "" {

@@ -118,10 +118,6 @@ func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		"no Key Vault secrets route matches "+method+" "+path)
 }
 
-// ----------------------------------------------------------------------
-// Wire types — JSON shapes the SDK puts on / reads from the wire.
-// ----------------------------------------------------------------------
-
 type secretAttributes struct {
 	Enabled       *bool  `json:"enabled,omitempty"`
 	Created       int64  `json:"created,omitempty"` // unix seconds
@@ -149,21 +145,11 @@ type listSecretsResponse struct {
 	NextLink string       `json:"nextLink,omitempty"`
 }
 
-// ----------------------------------------------------------------------
-// Handlers
-// ----------------------------------------------------------------------
-
 func (srv *Server) setSecret(w http.ResponseWriter, r *http.Request, name string) {
-	// Phase 11.4 pilot: decode SetSecret bodies via the spec-driven
-	// generated type instead of the hand-written setSecretRequest.
-	// The generated `gen.SecretSetParameters` is emitted by
-	// `cmd/azure-codegen` from the upstream Azure Key Vault Swagger
-	// 2.0 spec (converted to OpenAPI v3 via kin-openapi). This is the
-	// proof-point that the v2-spec → v3 → oapi-codegen pipeline
-	// produces wire-compatible types for an Azure data-plane API;
-	// the remaining handlers stay on the hand-written wire types
-	// pending the next sub-phase. See `services/secrets/spec/` +
-	// `cmd/azure-codegen/main.go`.
+	// gen.SecretSetParameters is generated from the upstream Azure
+	// Key Vault spec; using it here keeps the SDK-wire decode honest
+	// (sibling handlers still use the local secretAttributes /
+	// secretBundle shapes — incremental migration).
 	var body gen.SecretSetParameters
 	if !decodeJSON(w, r, &body) {
 		return
@@ -306,10 +292,6 @@ func (srv *Server) listSecretVersions(w http.ResponseWriter, r *http.Request, na
 	}
 	writeJSON(w, http.StatusOK, out)
 }
-
-// ----------------------------------------------------------------------
-// Helpers
-// ----------------------------------------------------------------------
 
 func writeSecretBundle(w http.ResponseWriter, status int, name string, value []byte, version uint64, created time.Time, tags map[string]string, description string, r *http.Request) {
 	val := string(value)
