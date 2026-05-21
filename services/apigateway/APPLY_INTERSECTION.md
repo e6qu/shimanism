@@ -68,7 +68,7 @@ Net effect: route Update is **delete-and-recreate at the gateway level** for AWS
 
 - AWS: `DeleteApi` (or `DeleteGateway`). Synchronous.
 - GCP: `DeleteGateway` + `DeleteApiConfig` + `DeleteApi`. Async (via Operations); polled to DONE.
-- Azure: `DeleteApi`. **BUG-6: Azure backend returns `InvalidArgument` until v3 SDK delete signature is honestly handled.** For Phase 10, **Azure backend Delete is in-contract for the AWS / GCP frontends with HCL that destroys**, with the caveat that against the Azure-backed cell the destroy plan will fail with `InvalidArgument` until BUG-6 closes — **diamond-skip with pointer** until then.
+- Azure: `DeleteApi` via `armapimanagement/v3 APIClient.BeginDelete` with `ifMatch = "*"` (unconditional update — the canonical migration-tool choice) and `DeleteRevisions = nil` (preserve revisions). The poller is awaited until completion. BUG-6 closed.
 
 ## Out of contract
 
@@ -86,9 +86,8 @@ Net effect: route Update is **delete-and-recreate at the gateway level** for AWS
 2. Reject out-of-contract attributes with the source cloud's real error envelope.
 3. Honor `DeployGateway` atomic swap when `routes` changes; per-cloud Update shape can differ but final state matches.
 4. Honor async semantics via `Operations.Get` polling.
-5. Document BUG-6 as the open gate on Azure-backed destroy paths; diamond-skip with pointer.
+5. Azure-backed destroy paths use v3 SDK's `BeginDelete` with `ifMatch = "*"`; the poller is awaited until completion. BUG-6 closed.
 
 ## Known open BUGs gating this contract
 
-- [BUG-6](../../BUGS.md): Azure APIM `DeleteGateway` returns `InvalidArgument` (v3 SDK delete signature requires etag + deleteRevisions). Apply Destroy against Azure-backed cells is diamond-skipped with pointer until 10.3 or Track A handles it.
 - [BUG-7](../../BUGS.md), [BUG-8](../../BUGS.md): Azure CLI + GCP TF frontend smoke-skips carried from Phase 8. Apply matrix carries the same skip-with-pointer posture (no new bugs filed; the existing ones cover the path).

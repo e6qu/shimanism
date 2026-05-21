@@ -84,15 +84,21 @@ func (b *Backend) CreateGateway(ctx context.Context, name string, opt domain.Cre
 }
 
 func (b *Backend) DeleteGateway(ctx context.Context, name string) error {
-	// armapimanagement v3's API delete signature requires an extra
-	// `deleteRevisions` boolean param and an If-Match etag. Real-
-	// cloud Phase-8 Azure tests are gated on Track A — until that
-	// lights up, the precise wiring is deferred. Returning
-	// InvalidArgument is honest per the never-lie rule.
-	_ = ctx
-	_ = name
-	return domain.InvalidArgument(
-		"azure apim DeleteGateway wiring deferred until Track A; armapimanagement/v3's APIClient.Delete signature requires version-specific etag handling not yet implemented")
+	// armapimanagement v3's APIClient.BeginDelete takes an ifMatch
+	// etag (matching the entity's current state — "*" means
+	// unconditional, the canonical migration-tool choice) and an
+	// optional deleteRevisions flag (we pass nil = default to keep
+	// revisions intact, which matches the v1 SDK behaviour). The
+	// returned poller is awaited until completion so the delete is
+	// observable through subsequent Describe / List calls.
+	poller, err := b.api.BeginDelete(ctx, b.resourceGroup, b.serviceName, name, "*", nil)
+	if err != nil {
+		return translateErr(err, name)
+	}
+	if _, err := poller.PollUntilDone(ctx, nil); err != nil {
+		return translateErr(err, name)
+	}
+	return nil
 }
 
 func (b *Backend) DescribeGateway(ctx context.Context, name string) (domain.Gateway, error) {

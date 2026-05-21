@@ -149,7 +149,12 @@ func TestTerraform_GCPAPIGateway_Apply_NoDrift(t *testing.T) {
 }
 
 func TestTerraform_AzureAPIGateway_Apply_NoDrift(t *testing.T) {
-	t.Skip("BUG-6: armapimanagement/v3 APIClient.Delete v3 etag + deleteRevisions signature; Apply destroy path fails (Phase 8 baseline)")
+	// BUG-6 closed: armapimanagement/v3 APIClient.BeginDelete is
+	// wired with ifMatch="*" + nil DeleteRevisions; poller awaited
+	// to completion. Active drift assertion against the Azure
+	// backend is gated on Track A (real Azure account); the inmem-
+	// backend cell remains the active cross-cloud destination.
+	t.Skip("real-Azure backend conformance gated on Track A; BUG-6 (delete signature) closed in the backend itself")
 }
 
 func isExitCodeAPIGWApply(err error, code int) bool {

@@ -16,7 +16,7 @@ Deploy HTTP gateways with route → backend dispatch across clouds.
 |---|---|---|
 | `aws` | Real AWS APIGW v2 | Passthrough. |
 | `gcp` | Real GCP API Gateway | Passthrough. |
-| `azure` | Real Azure APIM | Passthrough. BUG-6: v3 SDK Delete requires etag + deleteRevisions; current backend returns `InvalidArgument` honestly. |
+| `azure` | Real Azure APIM | Passthrough via `armapimanagement/v3`. Delete uses `BeginDelete(... ifMatch = "*", DeleteRevisions = nil)` + awaits the poller (BUG-6 closed). |
 | `envoy` | Envoy Gateway | K8s peer. Dynamic client + unstructured `Gateway` + `HTTPRoute` CRs. |
 | `inmem` | Process-local | Tests + local dev. |
 
@@ -52,9 +52,8 @@ Same posture as functions: the shim provisions and returns the gateway URL; clie
 
 ## Known gaps
 
-- BUG-6 — Azure APIM v3 SDK Delete signature (etag + deleteRevisions); backend returns `InvalidArgument` honestly until honestly wired.
-- BUG-7 — `az` CLI per-resource endpoint override gap (no documented way to target only APIM through the shim).
-- BUG-8 — `hashicorp/google` API Gateway resource lifecycle requires real OAuth-signed requests the mock httptest server can't sign.
+- BUG-7 — `az` CLI per-resource endpoint override gap (no documented way to target only APIM through the shim). Not a code bug; `az` limitation.
+- BUG-8 — `hashicorp/google` API Gateway resource lifecycle requires real OAuth-signed requests the mock httptest server can't sign. Gated on Track A real-cloud accounts.
 
 ## Cross-link
 

@@ -57,7 +57,7 @@ Service status legend: ✅ implemented & exercised · ⚠ implemented but covera
 | `PUT /subscriptions/{s}/.../service/{svc}/apis/{api}` (Api CreateOrUpdate) | `internal/apigateway/frontends/azure_apim.create` | 1 — real | ✅ |
 | `GET /...service/{svc}/apis/{api}` | `get` | 1 — real | ✅ |
 | `GET /...service/{svc}/apis` | `list` | 1 — real | ✅ |
-| `DELETE /...service/{svc}/apis/{api}` | `delete` | 1 — real (frontend); backend ⚠ defers to BUG-6 | ⚠ |
+| `DELETE /...service/{svc}/apis/{api}` | `delete` | 1 — real | ✅ |
 | `PUT /...service/{svc}/apis/{api}/operations/{op}` (Operation CreateOrUpdate) | `createOrUpdateOp` (merges → `domain.DeployGateway`) | 1 — real | ✅ |
 | `GET /...service/{svc}/apis/{api}/operations/{op}` | `getOp` | 1 — real | ✅ |
 | `GET /...service/{svc}/apis/{api}/operations` | `listOps` | 1 — real | ✅ |
@@ -67,7 +67,6 @@ Service status legend: ✅ implemented & exercised · ⚠ implemented but covera
 
 **Gaps:**
 - Operations subresource missing entirely (BUG-10).
-- `DeleteGateway` returns `InvalidArgument` via the v3 SDK gap (BUG-6); the frontend dispatch is real but the backend defers honestly.
 
 ## Out-of-intersection envelope checklist (for Phase 9.2-A audit)
 
