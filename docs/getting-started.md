@@ -24,11 +24,17 @@ This produces a single `shim` binary in the working directory.
 ./shim storage -backend=inmem -addr=:9001
 ```
 
-This starts the storage service with an in-process inmem backend on port 9001. The inmem backend is intended for development and testing; for production use, swap it for `-backend=minio` (or `aws`, `gcs`, `azure`).
+This starts the storage service with an in-process inmem backend on port 9001. The inmem backend is intended for development and testing; for production use, swap it for `-backend=minio` (or `aws`, `gcs`, `azureblob`).
 
 ## Point the AWS CLI at the shim
 
+The AWS CLI needs *some* credentials + region to construct a SigV4 signature, even though the shim doesn't validate signatures today (see [BUG-18](../BUGS.md)). Stub values work — the shim runs in your trust domain:
+
 ```sh
+export AWS_ACCESS_KEY_ID=test
+export AWS_SECRET_ACCESS_KEY=test
+export AWS_DEFAULT_REGION=us-east-1
+
 aws --endpoint-url=http://localhost:9001 s3 mb s3://my-bucket
 aws --endpoint-url=http://localhost:9001 s3 cp README.md s3://my-bucket/
 aws --endpoint-url=http://localhost:9001 s3 ls s3://my-bucket/
@@ -79,8 +85,11 @@ The shim also speaks GCS and Azure Blob on the *front* — same MinIO data on th
   -minio-access-key=minio -minio-secret-key=miniopass \
   -frontend=gcs -addr=:9002 &
 
-# Use the gcloud CLI against it
-gcloud storage cp README.md gs://my-bucket/ --api-endpoint-overrides=storage=http://localhost:9002
+# Use the gcloud CLI against it. gcloud's storage endpoint override
+# is the CLOUDSDK_API_ENDPOINT_OVERRIDES_STORAGE env var (the
+# --api-endpoint-overrides flag isn't supported on `gcloud storage`).
+CLOUDSDK_API_ENDPOINT_OVERRIDES_STORAGE=http://localhost:9002/ \
+  gcloud storage cp README.md gs://my-bucket/
 ```
 
 The same bytes are now accessible via S3, GCS, and Azure Blob SDKs against three frontend ports, all backed by the same MinIO instance.

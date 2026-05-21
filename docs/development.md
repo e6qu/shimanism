@@ -41,14 +41,14 @@ go run ./cmd/shim functions  -backend=inmem -addr=:9007
 go run ./cmd/shim apigateway -backend=inmem -addr=:9008
 ```
 
-Frontends + ports are documented in each service's [per-service doc](services.md). The default frontend is AWS-shape; pass `-frontend=gcp` or `-frontend=azure` to switch.
+Frontends + ports are documented in each service's [per-service doc](services.md). The default frontend is AWS-shape; pass the service-specific GCP / Azure frontend name to switch, e.g. `-frontend=gcs` / `-frontend=azure_blob` for storage; `-frontend=gcp_secretmanager` / `-frontend=azure_keyvault` for secrets; etc. Run `./shim <svc> -h` to see the exact frontend / backend names per service.
 
 ## `shimctl env`
 
-Generates the env-var / SDK-config / Terraform endpoint-override block for a given service:
+Generates the env-var / SDK-config / Terraform endpoint-override block for a given service. The flag is `--endpoint`, not `--shim-url`:
 
 ```sh
-shimctl env --service=storage --frontend=aws_s3 --shim-url=http://localhost:9001
+shimctl env --frontend=aws --service=storage --endpoint=http://localhost:9001
 ```
 
 Prints a copy-paste-ready block for `aws-sdk-go-v2`, `boto3`, the `aws` CLI, and `hashicorp/aws` Terraform.

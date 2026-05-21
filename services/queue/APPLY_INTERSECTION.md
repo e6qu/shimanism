@@ -8,7 +8,7 @@
 
 | Terraform resource | Maps to (source-cloud op family) | Shim domain ops |
 |---|---|---|
-| `aws_sqs_queue` | AWS `CreateQueue` / `GetQueueUrl` / `GetQueueAttributes` / `SetQueueAttributes` / `DeleteQueue` | `CreateQueue` / `HeadQueue` / **see BUG-2** / `DeleteQueue` |
+| `aws_sqs_queue` | AWS `CreateQueue` / `GetQueueUrl` / `GetQueueAttributes` / `SetQueueAttributes` / `DeleteQueue` | `CreateQueue` / `HeadQueue` / `SetQueueAttributes` (Phase 10.3) / `DeleteQueue` |
 | `google_pubsub_subscription` (when configured pull-style) | GCP `subscriptions.create/get/patch/delete` | `CreateQueue` / `HeadQueue` / (patch) / `DeleteQueue` |
 | `azurerm_servicebus_queue` | Azure `Create Queue` / `Get Queue` / `Update Queue` / `Delete Queue` | same |
 
@@ -37,12 +37,16 @@ AWS SQS FIFO queues guarantee strict per-`MessageGroupId` ordering + exactly-onc
 
 ### Update
 
-`SetQueueAttributes` is the AWS-shape Update path. **Blocked by BUG-2** — not wired through the domain or any backend as of Phase 10.0-A. Until BUG-2 closes (candidate scope for 10.3):
+`SetQueueAttributes` is the AWS-shape Update path. **Closed by Phase 10.3 (BUG-2)** — `domain.Queues.SetQueueAttributes(name, attrs)` is wired through all five backends (inmem patches in place; AWS calls SQS `SetQueueAttributes`; GCP uses `subscriptions.patch` with updateMask; Azure uses `GetQueue → UpdateQueue` read-modify-write; NATS updates the stream + consumer config). The AWS frontend's `GetQueueAttributes` surfaces all canonical AWS attribute keys with honest defaults so hashicorp/aws's `WaitForStateEqual` settles, and `x-amzn-query-error` legacy error codes are wired (e.g. `AWS.SimpleQueueService.NonExistentQueue`).
 
-- Provider HCL changes to `visibility_timeout_seconds`, `message_retention_seconds`, `max_message_size`, `delay_seconds` cause Terraform to plan an update, the shim returns the source cloud's `InvalidParameterValue` (or `OperationNotSupportedException`) envelope.
-- **Tests for queue Apply Update are ◇-skipped with a pointer to BUG-2** until it closes. This is honest; matches Phase 9's posture.
+Per-attribute behaviour:
+- `visibility_timeout_seconds`, `message_retention_seconds` — honored across all backends.
+- `max_message_size` — honored on inmem / AWS / NATS; ignored on GCP (no analog) and Azure (queue-level storage cap is different).
+- `delay_seconds` — honored on AWS / Azure / inmem; GCP / NATS return `OperationNotSupportedException` when non-zero.
 
 `name` is `ForceNew` everywhere.
+
+**Open caveat (BUG-19):** the Phase-3 `TestTerraform_AWSQueue_ResourceLifecycle` in `services/queue/conformance/aws_terraform_test.go` still skips with a stale BUG-2 pointer. The new Phase-10 `TestTerraform_AWSQueue_Apply_NoDrift` exercises the closed-BUG-2 path; the stale skip needs to be either removed or narrowed to the actual remaining gap (likely none).
 
 ### Delete
 
@@ -72,12 +76,13 @@ No async polling. Synchronous everywhere.
 1. Accept the in-contract Create attributes; round-trip through Read with no drift on AWS / GCP / Azure / inmem / NATS cells where the attribute is honored natively.
 2. **Return `OperationNotSupportedException` for cells where an in-contract attribute can't be honored honestly** (`delay_seconds > 0` against GCP / NATS; `fifo_queue = true` against any non-AWS).
 3. Reject out-of-contract attributes with the source cloud's real error envelope.
-4. Update path is BUG-2-blocked across Apply; tests for it are ◇-skipped with a pointer until 10.3 closes BUG-2.
+4. Update path is implemented (BUG-2 closed in 10.3); `TestTerraform_AWSQueue_Apply_NoDrift` exercises it.
 5. Tag write is BUG-12-blocked; same skip posture.
 6. Delete is honest with the backend's native semantics; no synthesized "drain first" behavior.
 
-## Known open BUGs gating this contract
+## Known open BUGs touching this contract
 
-- [BUG-2](../../BUGS.md): queue `SetQueueAttributes` not wired. **Gates Apply Update.**
 - [BUG-12](../../BUGS.md): queue domain tag storage. **Gates tag write.**
+- [BUG-15](../../BUGS.md): GCP queue `message_retention_duration` plan/apply asymmetry (partial fix in tree).
+- [BUG-19](../../BUGS.md): stale Phase-3 `TestTerraform_AWSQueue_ResourceLifecycle` skip carrying the closed BUG-2 pointer; cleanup pending.
 - [BUG-3](../../BUGS.md), [BUG-4](../../BUGS.md): NATS-specific, surface at Receive / Delete time, not at Apply — separate concern.

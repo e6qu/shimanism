@@ -71,13 +71,18 @@ Per [PHASE_10_PLAN.md](../PHASE_10_PLAN.md): shimanism is a *cross-cloud IaC + c
 
 ## Does shimanism need cloud credentials?
 
-The shim itself doesn't authenticate to the source cloud — clients sign their requests with whatever the source cloud expects (SigV4 for AWS, OAuth for GCP, SharedKey/AAD for Azure), and the shim uses the cloud's official signer/verifier libraries to validate.
+The shim itself doesn't authenticate to the source cloud — clients sign their requests with whatever the source cloud expects (SigV4 for AWS, OAuth for GCP, SharedKey/AAD for Azure). The plan is to verify those signatures at the wire-decode boundary using the cloud's official signer/verifier libraries (per [AGENTS.md § reuse](../AGENTS.md#reuse-over-reinvention)). **Today, signature verification isn't wired** — the conformance harness uses `skip_credentials_validation`, `option.WithoutAuthentication()`, and stub bearer tokens because the shim accepts unsigned/malformed-signature requests. This is tracked as [BUG-18](../BUGS.md). It must close before the shim is exposed to untrusted traffic.
 
 The shim *does* need credentials for the **destination backend** — the AWS / GCP / Azure SDK auth for whatever cloud is on the receiving side. Those go in the shim's own config (env vars, IAM roles, workload identity, etc.).
 
 ## Is the shim safe to put in front of production traffic?
 
-That's the design intent (Phase 10 lays the IaC + control-plane groundwork; Phase 10-A handles the real-cloud apply lane). The honest answer is: not yet in production at scale. The conformance lanes exercise the matrix; real-cloud lanes are gated on Track A (cloud test accounts). Use cases beyond local + test today should be limited to non-critical paths until the project completes the Track A real-cloud rollout.
+Not yet. Two prerequisites are open:
+
+1. **[BUG-18](../BUGS.md)** — frontends accept unsigned requests today (see above). Untrusted clients can call the shim without authentication. The shim must wire the cloud's official signer/verifier libraries before it's exposed to untrusted traffic.
+2. **Track A real-cloud lanes.** Conformance against real AWS / GCP / Azure (vs the inmem + emulator backends) is gated on cloud test accounts; until those exist, production claims are unfounded.
+
+Today's safe-to-use bracket: local dev, internal trusted networks, dev/test environments. Anything beyond that should wait for BUG-18 closure + Track A green.
 
 ## How do I know if my application is compatible?
 

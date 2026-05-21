@@ -44,7 +44,7 @@ shimanism is three layers:
 └──────────────────────────────────────────────────────────────────┘
 ```
 
-The frontends and backends are independent. Any frontend can compose with any backend — that's the whole product. AWS-shape Terraform → GCS data. Azure SDK → AWS S3 data. NATS CLI → AWS SQS data. Etc.
+The frontends and backends are independent. Any frontend can compose with any backend — that's the whole product. One running shim instance = one frontend + one backend; running multiple instances in parallel gets you a many-to-many matrix. AWS-shape Terraform → GCS bucket data. Azure SDK → AWS S3 bucket data. AWS Secrets Manager SDK → HashiCorp Vault. Etc.
 
 ## What lives in each layer
 
@@ -100,7 +100,7 @@ The shim's front door speaks the cloud's published API exactly:
 - Async-operation semantics match (Operations.Get endpoints, ETag headers, long-poll behavior).
 - Path templates, query-parameter names, header names — match.
 
-Server stubs are generated from the upstream spec (Smithy for AWS, OpenAPI for Azure, Discovery doc / protobuf for GCP). Hand-written code is restricted to per-operation `translate.go` files that map source-API requests to backend domain operations.
+**Current state (honest):** the codegen pipeline at `cmd/codegen/` is Smithy-only and currently only emits server stubs for the storage service (under `services/storage/gen/`). `make codegen` regenerates storage. The other services compose their wire layer by hand using the cloud SDKs' wire-type packages directly (`google.golang.org/api/<svc>/v1`, `aws-sdk-go-v2/service/<svc>/types`, `azure-sdk-for-go/sdk/<svc>`, etc.) — that's the "reuse-over-reinvention" half of the rule until full codegen rolls out. Per-operation `translate.go` files map source-API requests to backend domain operations. See [docs/codegen.md](codegen.md) for spec sources and roadmap.
 
 ## Cross-cloud routing in practice
 

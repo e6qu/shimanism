@@ -52,7 +52,7 @@ The hashicorp/aws `aws_sns_topic` resource issues `SetTopicAttributes` for each 
 
 ## Known gaps
 
-- `aws_sns_topic_subscription` with SQS endpoint blocked by BUG-2 (queue SetQueueAttributes ripple, since the AWS provider creates a backing queue and reconciles its attributes); the queue-side fix in Phase 10.3 unblocked the queue cell. Pubsub subscription-to-SQS still requires the pubsub frontend to expose a queue admin surface — out of scope (Phase 4 / Phase 10 baseline).
+- `aws_sns_topic_subscription` with SQS endpoint: the queue-side `SetQueueAttributes` gap (BUG-2) closed in Phase 10.3, but the pubsub frontend deliberately omits the full SQS-admin surface (the cross-cloud pubsub intersection is "publish + receive," not "operate a queue from the pubsub plane"). Cell remains documented-skip until the pubsub frontend exposes that surface or fixtures wire `aws_sqs_queue` explicitly.
 - Filter policies, dead-letter, push subscriptions all out-of-contract.
 
 ## Cross-link

@@ -1,6 +1,21 @@
 # Codegen
 
-shimanism's server stubs come from the cloud providers' own published specs. Hand-written code is restricted to per-operation `translate.go` files.
+shimanism's plan is for server stubs to come from the cloud providers' own published specs, with hand-written code restricted to per-operation `translate.go` files. **Today this is partially true: only the storage service has spec-driven generated stubs.** The other services compose their wire layer by hand using the cloud SDKs' wire-type packages directly. Migrating the rest to codegen is on the roadmap.
+
+## Current state vs roadmap
+
+| Service | Generated stubs (today) | Spec source | Status |
+|---|---|---|---|
+| storage | ✅ `services/storage/gen/` | Smithy (AWS) → custom emitter | Active |
+| secrets | ❌ Hand-written wire | AWS Smithy + GCP gRPC + Azure REST | Roadmap |
+| queue | ❌ Hand-written wire | Smithy (`awsJson1_0`) + GCP REST + Azure REST | Roadmap |
+| pubsub | ❌ Hand-written wire | AWS awsQuery XML + GCP REST + Azure REST | Roadmap |
+| rdbms | ❌ Hand-written wire | AWS awsQuery XML + GCP REST + Azure ARM | Roadmap |
+| cache | ❌ Hand-written wire | AWS awsQuery XML + GCP REST + Azure ARM | Roadmap |
+| functions | ❌ Hand-written wire | AWS restJson1 + GCP REST + Azure ARM | Roadmap |
+| apigateway | ❌ Hand-written wire | AWS restJson1 + GCP REST + Azure ARM | Roadmap |
+
+`make codegen` regenerates the storage stubs. The custom emitter at `cmd/codegen/main.go` is Smithy-only today; extending to OpenAPI v3 (Azure) and Discovery / protobuf (GCP) is roadmap work.
 
 ## Why codegen
 
@@ -68,7 +83,7 @@ The cloud's spec carries field-level constraints (string lengths, enum sets, pat
 make codegen
 ```
 
-This walks `services/<svc>/codegen.json` for each service and re-runs the emitter. The diff is what reviewers look at — generated stubs vs hand-written `translate.go` should be cleanly separable.
+Today this only regenerates the storage stubs (the emitter walks `services/storage/codegen.json`). As other services gain spec-driven codegen, the `make` target will fan out. The diff is what reviewers look at — generated stubs vs hand-written `translate.go` should be cleanly separable.
 
 When upstream changes a spec:
 

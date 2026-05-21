@@ -92,7 +92,7 @@ Managed databases and managed Redis: only the **control plane** is shimmed (prov
 
 Every shim is two layers:
 
-- **Frontend:** speaks the cloud's published API exactly (SigV4 + S3 XML; OAuth2 + GCP JSON; SharedKey + Azure REST; etc). Server stubs are generated from the upstream spec.
+- **Frontend:** speaks the cloud's published API exactly (SigV4 + S3 XML; OAuth2 + GCP JSON; SharedKey + Azure REST; etc). The codegen pipeline (currently Smithy-only; see [docs/codegen.md](docs/codegen.md)) produces server stubs from the upstream spec for storage; the other services compose the wire layer by hand using the cloud SDKs' wire-type packages directly. Migrating the rest to codegen is on the roadmap.
 - **Backend:** calls the real destination. AWS frontend over a GCS backend = AWS S3 wire on the front, real `storage.googleapis.com` on the back.
 
 In between sits a neutral **domain** interface — the cross-cloud intersection of what every backend actually supports. Where a feature has no peer (S3 Object Lambda, Azure private endpoints, GCP-only retention), the shim returns the source cloud's own "not supported" error in its own vocabulary. **Never a fabricated success. Never a silent fallback.** See [PHILOSOPHY.md](PHILOSOPHY.md) for the *why*.
@@ -113,13 +113,13 @@ The closest comparison points and how shimanism differs from each:
 
 | Project | What it is | How shimanism differs |
 |---|---|---|
-| **[LocalStack](https://localstack.cloud/)** | In-memory emulator of AWS services for local dev/test. | shimanism is not an emulator. Data lives in real backends. Production-grade migration is the use case; LocalStack is dev/test. |
+| **[LocalStack](https://localstack.cloud/)** | Local cloud emulator (AWS-shape; Pro adds Snowflake + others) for dev/test; state in-process or persisted to disk via the persistence module. | shimanism is not an emulator. Data lives in real backends. Production migration is the use case; LocalStack is dev/test. |
 | **[MinIO](https://min.io/)**, Cloudflare R2, Backblaze B2 | S3-compatible *backends*. They implement the S3 wire on top of their own storage. | shimanism is a *frontend translation layer*, not a backend. It can use MinIO as a backend; the value-add is the cross-cloud frontend matrix (`gcloud` → GCS frontend → MinIO; `aws` → S3 frontend → MinIO; etc.) and the other shimmed services beyond storage. |
-| **[Crossplane](https://www.crossplane.io/)** | Multi-cloud infrastructure-as-code via Kubernetes CRDs. Users write `XR` resources. | **Crossplane requires you to stop using your cloud SDK / IaC provider and rewrite to its CRD model.** shimanism lets you keep the *original* SDK (`aws-sdk-go`, `boto3`, `@aws-sdk/*`, `cloud.google.com/go/...`, Azure SDK) and the *original* IaC (`hashicorp/aws`, `hashicorp/google`, `hashicorp/azurerm`) — same calls, same plans, just pointed at a different endpoint. No new abstraction to learn, no per-resource CRD translation. |
+| **[Crossplane](https://www.crossplane.io/)** | Kubernetes CR-based control plane for multi-cloud infrastructure. Provider CRDs (managed resources) + composed `XR` abstractions via `XRD` + `Composition`. | **Crossplane requires you to stop using your cloud SDK / IaC provider and rewrite to its CRD model.** shimanism lets you keep the *original* SDK (`aws-sdk-go`, `boto3`, `@aws-sdk/*`, `cloud.google.com/go/...`, Azure SDK) and the *original* IaC (`hashicorp/aws`, `hashicorp/google`, `hashicorp/azurerm`) — same calls, same plans, just pointed at a different endpoint. No new abstraction to learn, no per-resource CRD translation. |
 | **[Dapr](https://dapr.io/)** | Distributed-app runtime with multi-cloud bindings for state, pub/sub, secrets, etc. Apps call the Dapr SDK/sidecar. | Dapr requires you to rewrite to its API. shimanism lets you keep the cloud's API. Different target: Dapr is for greenfield apps that want portability; shimanism is for brownfield apps that need migration. |
-| **[gocloud.dev](https://gocloud.dev/)** (Go Cloud Development Kit) | Go library with cloud-agnostic abstractions (blob, pubsub, etc). | Library-level cloud-agnostic abstraction. Apps import `gocloud.dev/blob` instead of `aws-sdk-go`. shimanism keeps the cloud SDK; no library swap. |
-| **[Pulumi](https://www.pulumi.com/)** / **[Terraform](https://www.terraform.io/)** / **AWS CDK** | Infrastructure-as-code with multi-cloud provider plugins. | IaC tools, not data-plane proxies. They provision resources; they don't proxy runtime API calls. shimanism works *with* them — your Terraform plan still uses `hashicorp/aws`, but the bytes land on GCS through the shim. |
-| **OpenStack Swift S3 middleware**, **Ceph RGW** | S3-compatible APIs on top of OpenStack / Ceph storage. | Single-cloud-API, single-backend compat shims. shimanism is many-frontend × many-backend, with the per-service intersection contracts enforced. |
+| **[gocloud.dev](https://gocloud.dev/)** / **[Apache Libcloud](https://libcloud.apache.org/)** / **[Apache jclouds](https://jclouds.apache.org/)** | Neutral cloud-agnostic SDKs (Go / Python / JVM). Apps import the neutral library instead of the cloud SDK. | Library-level abstraction — apps swap SDKs. shimanism keeps the cloud SDK; no library swap, any language. |
+| **[Pulumi](https://www.pulumi.com/)** / **[Terraform](https://www.terraform.io/)** / **[OpenTofu](https://opentofu.org/)** / **AWS CDK** | Infrastructure-as-code with multi-cloud provider plugins. | IaC tools, not data-plane proxies. They provision resources; they don't proxy runtime API calls. shimanism works *with* them — your Terraform / OpenTofu plan still uses `hashicorp/aws`, but the bytes land on GCS through the shim. |
+| **OpenStack Swift S3 middleware**, **Ceph RGW**, **[Garage](https://garagehq.deuxfleurs.fr/)**, **[NooBaa](https://www.noobaa.io/)**, **[s3proxy](https://github.com/gaul/s3proxy)** | S3-compatible APIs on top of various storage backends. | Single-frontend (S3), single-service (object storage) compat shims. shimanism spans multiple frontend shapes × multiple backends × multiple service families. |
 
 The mental model: shimanism is to **rerouting cloud services one at a time** what cross-compilation is to portable binaries. The application doesn't know the target changed; the platform layer below it absorbed the difference, honestly.
 
@@ -134,6 +134,23 @@ For deeper reading: [PHILOSOPHY.md](PHILOSOPHY.md) on the "intersection-only, ne
 - **Not for services where redirection is already trivial.** Postgres, MySQL, and Redis speak the same wire protocol everywhere; their data planes are not shimmed.
 - **Not for services with fundamentally incompatible models across clouds**, such as IAM and identity.
 - **Not for layers already standardized by the industry**: Kubernetes, OCI distribution, OpenTelemetry.
+
+## Maturity
+
+shimanism is pre-1.0 and pre-production. The honest state per surface:
+
+| Surface | Status |
+|---|---|
+| Service catalog | The 8 services in the table above are wired end-to-end against inmem / local emulator backends. |
+| `inmem` backend per service | Works. Used for local dev + the conformance harness. |
+| Local emulator backends (MinIO / NATS / Vault / kind + Knative / kind + Envoy Gateway / cnpg / Redis Operator) | Work; exercised by per-backend conformance lanes in CI. |
+| Cross-cloud terraform import (Phase 9) | Works; `TestCrossCloudImport_Roundtrip_*` per service. |
+| Cross-cloud terraform apply (Phase 10) | Storage exit criterion green (`TestCrossCloudApply_Roundtrip_StorageAWStoGCS`); other services have documented-skip cross-cloud cells with per-cell asymmetry rationale (real cloud-API mismatches, not shim bugs). |
+| Real-cloud backends (passthrough to actual AWS / GCP / Azure accounts) | Gated on "Track A" — cloud test accounts. Not yet exercised in CI. |
+| Request signature verification (SigV4 / OAuth2 / SharedKey) | **Not implemented yet** — see [BUG-18](BUGS.md). The shim accepts unsigned requests today. Do not expose to untrusted traffic until BUG-18 closes. |
+| Codegen pipeline | Smithy-only (`cmd/codegen`); only storage has generated stubs today. Other services compose their wire layer by hand using the cloud SDKs' wire-type packages. See [docs/codegen.md](docs/codegen.md). |
+
+The full bug ledger lives in [BUGS.md](BUGS.md).
 
 ## Documentation
 

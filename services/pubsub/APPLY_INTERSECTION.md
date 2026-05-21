@@ -78,9 +78,9 @@ ForceNew everywhere:
 
 `DeleteSubscription` synchronous everywhere. Removes from the backend's delivery list; in-flight messages handled per backend (AWS: returned to topic for redelivery on other subs; GCP: discarded; Azure: discarded; NATS: discarded).
 
-### `aws_sns_topic_subscription` BUG-2 ripple
+### `aws_sns_topic_subscription` SQS-endpoint ripple
 
-The AWS SNS frontend's subscription create path requires `SetQueueAttributes` (BUG-2) when subscribing to an SQS endpoint via shim → AWS SNS topic → shim queue. Phase 9 ◇-skipped this cell. Phase 10 keeps the skip until 10.3 closes BUG-2.
+The AWS SNS frontend's subscription create path with an SQS endpoint requires the shim's queue frontend to expose a queue-admin surface (the hashicorp/aws provider also reconciles the backing queue's attributes during subscription create). BUG-2 — the queue-side `SetQueueAttributes` gap — closed in Phase 10.3, but the pubsub frontend deliberately omits the full SQS-admin surface (the cross-cloud pubsub intersection is "publish + receive," not "operate a queue from the pubsub plane"). The cell remains documented-skip until either the pubsub frontend exposes the queue-admin surface or the test fixture wires `aws_sqs_queue` explicitly as the backing queue.
 
 ## Out of contract
 
@@ -102,7 +102,8 @@ The AWS SNS frontend's subscription create path requires `SetQueueAttributes` (B
 6. Update path: subscription `ack_deadline_seconds` in-place; everything else is `ForceNew` or out-of-contract.
 7. Delete cascades: topic delete removes all subscriptions atomically across the intersection.
 
-## Known open BUGs gating this contract
+## Known open BUGs touching this contract
 
-- [BUG-2](../../BUGS.md): blocks `aws_sns_topic_subscription` cells that pair an SNS topic with an SQS endpoint via shim. Same skip-with-pointer posture until 10.3.
 - [BUG-12](../../BUGS.md): blocks topic-level tag write.
+
+BUG-2 (queue `SetQueueAttributes`) closed in Phase 10.3; the `aws_sns_topic_subscription` SQS-endpoint cell is still skipped, but the rationale is pubsub-frontend scope (no queue-admin surface), not BUG-2.

@@ -17,14 +17,14 @@ shimanism is the bottom-left: your application keeps using its source cloud's ex
 
 ### LocalStack
 
-[LocalStack](https://localstack.cloud/) is an in-memory emulator of AWS services for local development and testing. Free + Pro tiers. It implements AWS APIs from scratch in Python; state lives in process memory or on local disk.
+[LocalStack](https://localstack.cloud/) is a local cloud emulator for development and testing. Free + Pro tiers. It implements cloud APIs from scratch (primarily AWS; Pro also covers Snowflake and a growing set); state can be in-process or persisted to disk via the Pro persistence module.
 
 | Axis | LocalStack | shimanism |
 |---|---|---|
-| Source-cloud APIs | AWS only | AWS + GCP + Azure (each shim is bidirectional) |
-| Data | In-memory / on-disk emulation | Real backend (real S3 / GCS / Azure Blob / MinIO / etc.) |
-| Production use | No (dev/test only) | Yes (migration on-ramp) |
-| Fidelity | Partial; many AWS services have stubbed or absent behavior | Intersection-only; what's covered is honest |
+| Source-cloud APIs | AWS-shape (Pro adds Snowflake + others) | AWS + GCP + Azure source APIs; any frontend composes with any backend (one shim instance = one frontend + one backend) |
+| Data | Emulated (in-process or persisted to disk) | Real backend (real S3 / GCS / Azure Blob / MinIO / etc.) |
+| Production use | No (dev/test only) | Yes (migration on-ramp; signature verification still pending — see [BUG-18](../BUGS.md)) |
+| Fidelity | Partial; many cloud services have stubbed or absent behavior | Intersection-only; what's covered is honest |
 
 **Use LocalStack when** you want to run AWS-shape code locally without an AWS account and you don't care if the data is real.
 
@@ -47,7 +47,7 @@ These are **S3-compatible storage backends**. They implement the S3 wire on top 
 
 ### Crossplane
 
-[Crossplane](https://www.crossplane.io/) is multi-cloud infrastructure-as-code via Kubernetes CRDs. Users define `XR` (composite resource) types and `XRD` definitions; Crossplane reconciles them against cloud APIs.
+[Crossplane](https://www.crossplane.io/) is a Kubernetes CR-based control plane for multi-cloud infrastructure. It ships managed-resource CRDs per provider (`Bucket`, `RDSInstance`, etc.) and lets platform teams compose them into higher-level `XR` (composite resource) abstractions via `XRD` + `Composition` definitions. All of it is reconciled by controllers against real cloud APIs.
 
 The headline difference: **Crossplane requires you to stop using your cloud SDK / IaC provider and adopt its CRD model.** Your existing `aws-sdk-go` / `boto3` calls don't talk to Crossplane; your existing `hashicorp/aws` Terraform plans don't either. You re-express each resource as a Crossplane CR (`XRD` + `Composition`) and reconcile via `kubectl`. The application code that *uses* the resources (reads from S3, sends to SQS, etc.) is unchanged — but the infrastructure-as-code surface is fully replaced.
 
@@ -109,20 +109,49 @@ These are infrastructure-as-code tools with multi-cloud provider plugins. They d
 
 **Use shimanism when** you want the runtime API calls (and the IaC plan/apply calls) to land on a different cloud.
 
-### OpenStack Swift S3 middleware / Ceph RGW
+### OpenStack Swift S3 middleware / Ceph RGW / Garage / NooBaa / s3proxy
 
-S3-compatible APIs on top of OpenStack Swift or Ceph storage. Single-cloud-API, single-backend compat shims.
+S3-compatible APIs on top of various storage backends:
 
-| Axis | OpenStack/Ceph S3 compat | shimanism |
+- **[Swift S3 middleware](https://docs.openstack.org/swift/latest/s3_compat.html)** — S3-compatible front for OpenStack Swift.
+- **[Ceph RGW](https://docs.ceph.com/en/latest/radosgw/s3/)** — S3 + Swift-compatible front for Ceph object storage.
+- **[Garage](https://garagehq.deuxfleurs.fr/)** — distributed S3-compatible object store for self-hosted / edge.
+- **[NooBaa](https://www.noobaa.io/) (OpenShift Multicloud Object Gateway)** — federates many S3-compatible backends behind one S3 endpoint.
+- **[s3proxy](https://github.com/gaul/s3proxy)** — S3-compatible front for Apache jclouds blob-store backends.
+
+All single-frontend (S3-shape), single-service (object storage). shimanism overlaps in spirit but spans many services and many frontend shapes.
+
+| Axis | S3-compat storage shims | shimanism |
 |---|---|---|
 | Source APIs | S3 only | AWS + GCP + Azure |
-| Backends | OpenStack Swift / Ceph only | Many (real AWS / GCP / Azure / K8s peers / inmem) |
+| Backends | Their respective storage layer | Many (real AWS / GCP / Azure / K8s peers / inmem) |
 | Scope | Storage only | Many service families |
 | Maturity | Stable, narrow | Earlier, broader |
 
-**Use Swift / Ceph S3 compat when** you have an OpenStack / Ceph deployment and need to expose S3-shape access to it.
+**Use one of these when** you have a Swift / Ceph / Garage / NooBaa / jclouds deployment and need to expose S3-shape access to *its* storage.
 
-**Use shimanism when** you need multi-frontend × multi-backend matrix coverage across storage + secrets + queue + pubsub + databases + cache + functions + api gateway.
+**Use shimanism when** you need multi-frontend × multi-backend matrix coverage across multiple service families, not just object storage.
+
+### Apache Libcloud / Apache jclouds
+
+[Apache Libcloud](https://libcloud.apache.org/) (Python) and [Apache jclouds](https://jclouds.apache.org/) (Java) are neutral cloud-provider SDKs — single library API that talks to many clouds underneath.
+
+| Axis | Libcloud / jclouds | shimanism |
+|---|---|---|
+| Layer | Application SDK (Python / Java) | Wire protocol |
+| Code change required | Yes — apps import the neutral SDK | No — keep the cloud SDK |
+| Languages | Python (Libcloud), Java/Scala/JVM (jclouds) | Any (wire-level proxy) |
+| Target audience | Greenfield apps that want portability | Brownfield apps that need migration |
+
+Same trade-off as [gocloud.dev / Dapr](#dapr): you adopt their API up-front to gain portability. shimanism preserves the existing cloud SDK and intercepts at the wire.
+
+### OpenTofu
+
+[OpenTofu](https://opentofu.org/) is the open-source fork of Terraform under the Linux Foundation. Same IaC model, same providers, same plan/apply cycle — drop-in compatible with most Terraform configurations.
+
+shimanism works the same way with OpenTofu as with Terraform: your `hashicorp/aws` provider (or its OpenTofu-compatible equivalent) plans against the shim's endpoint override, and the resources land wherever the shim's backend points. No special handling needed.
+
+If you've moved off Terraform to OpenTofu, your `endpoints { ... }` blocks continue working unchanged with shimanism.
 
 ## When *not* to use shimanism
 
