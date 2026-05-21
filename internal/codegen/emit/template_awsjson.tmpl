@@ -109,18 +109,22 @@ func {{ .GoName }}Handler(b {{ .GoName }}Backend) http.Handler {
 		}
 {{ end }}{{ end }}{{ end }}
 {{- end }}
+{{- if .OutputType }}
 		out, err := b.{{ .GoName }}(ctx{{ if .InputType }}, in{{ end }})
 		if err != nil {
 			awsjson.WriteBackendError(w, err)
 			return
 		}
-{{- if .OutputType }}
 		if out == nil {
 			awsjson.WriteJSON(w, {{ .HTTPStatus }}, struct{}{})
 			return
 		}
 		awsjson.WriteJSON(w, {{ .HTTPStatus }}, out)
 {{- else }}
+		if _, err := b.{{ .GoName }}(ctx{{ if .InputType }}, in{{ end }}); err != nil {
+			awsjson.WriteBackendError(w, err)
+			return
+		}
 		awsjson.WriteJSON(w, {{ .HTTPStatus }}, struct{}{})
 {{- end }}
 	})

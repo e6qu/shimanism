@@ -83,6 +83,16 @@ func main() {
 		Operations:   ops,
 	})
 	if err != nil {
+		// Phase 11 incrementally adds protocols to the emitter
+		// (awsJson1_1 first; then awsJson1_0, awsQuery, restJson1).
+		// Until each lands, `make codegen` walks every manifest; an
+		// unsupported-protocol error is a not-yet-implemented signal,
+		// not a defect. Exit 0 so the Makefile loop continues; the
+		// stderr line carries the skip rationale.
+		if strings.Contains(err.Error(), "unsupported wire protocol") {
+			fmt.Fprintf(os.Stderr, "codegen: %v (skipped — protocol pending Phase 11)\n", err)
+			return
+		}
 		fail("emit: %v", err)
 	}
 
