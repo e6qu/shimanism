@@ -125,11 +125,11 @@ type CreateSecretRequest struct {
 
 // ReplicationStatusType is a generated Smithy structure.
 type ReplicationStatusType struct {
-	KmsKeyId         *string     `json:"KmsKeyId,omitempty"`
-	LastAccessedDate *time.Time  `json:"LastAccessedDate,omitempty"`
-	Region           *string     `json:"Region,omitempty"`
-	Status           *StatusType `json:"Status,omitempty"`
-	StatusMessage    *string     `json:"StatusMessage,omitempty"`
+	KmsKeyId         *string            `json:"KmsKeyId,omitempty"`
+	LastAccessedDate *awsjson.EpochTime `json:"LastAccessedDate,omitempty"`
+	Region           *string            `json:"Region,omitempty"`
+	Status           *StatusType        `json:"Status,omitempty"`
+	StatusMessage    *string            `json:"StatusMessage,omitempty"`
 }
 
 // CreateSecretResponse is a generated Smithy structure.
@@ -200,7 +200,7 @@ type GetSecretValueRequest struct {
 // GetSecretValueResponse is a generated Smithy structure.
 type GetSecretValueResponse struct {
 	ARN           *string                 `json:"ARN,omitempty"`
-	CreatedDate   *time.Time              `json:"CreatedDate,omitempty"`
+	CreatedDate   *awsjson.EpochTime      `json:"CreatedDate,omitempty"`
 	Name          *string                 `json:"Name,omitempty"`
 	SecretBinary  []byte                  `json:"SecretBinary,omitempty"`
 	SecretString  *string                 `json:"SecretString,omitempty"`
@@ -235,9 +235,9 @@ type DeleteSecretRequest struct {
 
 // DeleteSecretResponse is a generated Smithy structure.
 type DeleteSecretResponse struct {
-	ARN          *string    `json:"ARN,omitempty"`
-	DeletionDate *time.Time `json:"DeletionDate,omitempty"`
-	Name         *string    `json:"Name,omitempty"`
+	ARN          *string            `json:"ARN,omitempty"`
+	DeletionDate *awsjson.EpochTime `json:"DeletionDate,omitempty"`
+	Name         *string            `json:"Name,omitempty"`
 }
 
 // DescribeSecretRequest is a generated Smithy structure.
@@ -261,17 +261,17 @@ type RotationRulesType struct {
 // DescribeSecretResponse is a generated Smithy structure.
 type DescribeSecretResponse struct {
 	ARN                            *string                            `json:"ARN,omitempty"`
-	CreatedDate                    *time.Time                         `json:"CreatedDate,omitempty"`
-	DeletedDate                    *time.Time                         `json:"DeletedDate,omitempty"`
+	CreatedDate                    *awsjson.EpochTime                 `json:"CreatedDate,omitempty"`
+	DeletedDate                    *awsjson.EpochTime                 `json:"DeletedDate,omitempty"`
 	Description                    *string                            `json:"Description,omitempty"`
 	ExternalSecretRotationMetadata ExternalSecretRotationMetadataType `json:"ExternalSecretRotationMetadata,omitempty"`
 	ExternalSecretRotationRoleArn  *string                            `json:"ExternalSecretRotationRoleArn,omitempty"`
 	KmsKeyId                       *string                            `json:"KmsKeyId,omitempty"`
-	LastAccessedDate               *time.Time                         `json:"LastAccessedDate,omitempty"`
-	LastChangedDate                *time.Time                         `json:"LastChangedDate,omitempty"`
-	LastRotatedDate                *time.Time                         `json:"LastRotatedDate,omitempty"`
+	LastAccessedDate               *awsjson.EpochTime                 `json:"LastAccessedDate,omitempty"`
+	LastChangedDate                *awsjson.EpochTime                 `json:"LastChangedDate,omitempty"`
+	LastRotatedDate                *awsjson.EpochTime                 `json:"LastRotatedDate,omitempty"`
 	Name                           *string                            `json:"Name,omitempty"`
-	NextRotationDate               *time.Time                         `json:"NextRotationDate,omitempty"`
+	NextRotationDate               *awsjson.EpochTime                 `json:"NextRotationDate,omitempty"`
 	OwningService                  *string                            `json:"OwningService,omitempty"`
 	PrimaryRegion                  *string                            `json:"PrimaryRegion,omitempty"`
 	ReplicationStatus              ReplicationStatusListType          `json:"ReplicationStatus,omitempty"`
@@ -302,17 +302,17 @@ type ListSecretsRequest struct {
 // SecretListEntry is a generated Smithy structure.
 type SecretListEntry struct {
 	ARN                            *string                            `json:"ARN,omitempty"`
-	CreatedDate                    *time.Time                         `json:"CreatedDate,omitempty"`
-	DeletedDate                    *time.Time                         `json:"DeletedDate,omitempty"`
+	CreatedDate                    *awsjson.EpochTime                 `json:"CreatedDate,omitempty"`
+	DeletedDate                    *awsjson.EpochTime                 `json:"DeletedDate,omitempty"`
 	Description                    *string                            `json:"Description,omitempty"`
 	ExternalSecretRotationMetadata ExternalSecretRotationMetadataType `json:"ExternalSecretRotationMetadata,omitempty"`
 	ExternalSecretRotationRoleArn  *string                            `json:"ExternalSecretRotationRoleArn,omitempty"`
 	KmsKeyId                       *string                            `json:"KmsKeyId,omitempty"`
-	LastAccessedDate               *time.Time                         `json:"LastAccessedDate,omitempty"`
-	LastChangedDate                *time.Time                         `json:"LastChangedDate,omitempty"`
-	LastRotatedDate                *time.Time                         `json:"LastRotatedDate,omitempty"`
+	LastAccessedDate               *awsjson.EpochTime                 `json:"LastAccessedDate,omitempty"`
+	LastChangedDate                *awsjson.EpochTime                 `json:"LastChangedDate,omitempty"`
+	LastRotatedDate                *awsjson.EpochTime                 `json:"LastRotatedDate,omitempty"`
 	Name                           *string                            `json:"Name,omitempty"`
-	NextRotationDate               *time.Time                         `json:"NextRotationDate,omitempty"`
+	NextRotationDate               *awsjson.EpochTime                 `json:"NextRotationDate,omitempty"`
 	OwningService                  *string                            `json:"OwningService,omitempty"`
 	PrimaryRegion                  *string                            `json:"PrimaryRegion,omitempty"`
 	RotationEnabled                *bool                              `json:"RotationEnabled,omitempty"`
@@ -344,9 +344,9 @@ type ListSecretVersionIdsRequest struct {
 
 // SecretVersionsListEntry is a generated Smithy structure.
 type SecretVersionsListEntry struct {
-	CreatedDate      *time.Time              `json:"CreatedDate,omitempty"`
+	CreatedDate      *awsjson.EpochTime      `json:"CreatedDate,omitempty"`
 	KmsKeyIds        KmsKeyIdListType        `json:"KmsKeyIds,omitempty"`
-	LastAccessedDate *time.Time              `json:"LastAccessedDate,omitempty"`
+	LastAccessedDate *awsjson.EpochTime      `json:"LastAccessedDate,omitempty"`
 	VersionId        *string                 `json:"VersionId,omitempty"`
 	VersionStages    SecretVersionStagesType `json:"VersionStages,omitempty"`
 }

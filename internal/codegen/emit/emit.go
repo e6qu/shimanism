@@ -67,6 +67,7 @@ type gen struct {
 	shapeOrder []string
 	shapeSeen  map[string]bool
 	operations []operation
+	protocol   string // cached serviceProtocol() result
 }
 
 type operation struct {
@@ -79,7 +80,18 @@ type operation struct {
 }
 
 func newGen(model *smithy.Model, opts Options) *gen {
-	return &gen{model: model, opts: opts, shapeSeen: map[string]bool{}}
+	g := &gen{model: model, opts: opts, shapeSeen: map[string]bool{}}
+	g.protocol = g.serviceProtocol()
+	return g
+}
+
+// usesEpochTimestamps reports whether the service protocol serialises
+// timestamps as float64 epoch-seconds (awsJson1_x default) instead of
+// the time.Time-RFC3339 path used by REST-XML. When true, the emitter
+// substitutes *awsjson.EpochTime for *time.Time on timestamp-typed
+// member fields.
+func (g *gen) usesEpochTimestamps() bool {
+	return g.protocol == "aws-json-1.1" || g.protocol == "aws-json-1.0" || g.protocol == "aws-query"
 }
 
 // serviceShortName returns the Smithy short name of the single service
@@ -805,6 +817,12 @@ func (g *gen) goTypeForRef(id string, required bool) (string, error) {
 		}
 		return "*bool", nil
 	case "timestamp":
+		if g.usesEpochTimestamps() {
+			if required {
+				return "awsjson.EpochTime", nil
+			}
+			return "*awsjson.EpochTime", nil
+		}
 		if required {
 			return "time.Time", nil
 		}
