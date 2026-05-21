@@ -1,6 +1,6 @@
 # shimanism — Roadmap
 
-> **Goal:** Build protocol-translation shims that let unmodified cloud SDKs / CLIs / Terraform providers run against AWS, GCP, Azure, or Kubernetes-native backends — by pointing them at a shim endpoint instead of the original service.
+> **Goal:** Protocol-translation shims that let unmodified cloud SDKs / CLIs / Terraform providers run against AWS, GCP, Azure, or Kubernetes-native backends by pointing them at a shim endpoint instead of the original service.
 
 State [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](BUGS.md) · narrative [WHAT_WE_DID.md](WHAT_WE_DID.md) · philosophy [PHILOSOPHY.md](PHILOSOPHY.md) · rules [AGENTS.md](AGENTS.md).
 
@@ -9,14 +9,14 @@ State [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md
 1. **Spec is the contract.** Each shimmed service has a canonical published spec (AWS Smithy, GCP protobuf, Azure OpenAPI/ARM). Server-side wire layer is generated from that spec; hand-written code is translation logic only.
 2. **Fidelity to the source API.** The shim speaks the cloud's API exactly. Error shapes, response headers, status codes, async semantics — all match. Where the call can't be honored against the chosen backend, return the source cloud's own error in its own vocabulary. Never fabricate success.
 3. **Real backends, not emulators.** Translated calls drive a real, comparable service: another cloud's equivalent, a Kubernetes operator, or a self-hosted system. The shim itself holds no state of record.
-4. **Conformance from day one.** Every shimmed operation is exercised in the same commit by (a) the cloud's official SDK, (b) its CLI, and (c) its Terraform provider, against every backend in scope. No "land it and add tests later."
+4. **Conformance from day one.** Every shimmed operation is exercised in the same commit by (a) the cloud's official SDK, (b) its CLI, and (c) its Terraform provider, against every backend in scope.
 5. **Intersection only.** Shim the features common to AWS / GCP / Azure / the chosen K8s peer. Out-of-intersection features fail loud with the source cloud's own error.
-6. **Kubernetes is a first-class backend.** Every service has a K8s peer on equal footing with the three clouds. When a suitable third-party OSS peer exists (MinIO for storage, Vault for secrets, NATS / CloudNativePG / Knative / etc.), use it. When none fits, the in-tree [`peers/shimakit/`](peers/shimakit/) framework provides the common-denominator primitives (versioned named bytes + metadata + soft-delete + list + multi-namespace) on top of which a concrete `shima<service>` peer (e.g. `shimasecret`, `shimastore`) is built — one Store interface, namespace-scoped so the same framework serves multiple shim services across deployments.
+6. **Kubernetes is a first-class backend.** Every service has a K8s peer on equal footing with the three clouds. Third-party OSS peers where they fit (MinIO, Vault, NATS, CloudNativePG, Knative, Envoy Gateway); otherwise the in-tree [`peers/shimakit/`](peers/shimakit/) framework with concrete peers named `shima<service>`.
 7. **No fakes, no fallbacks, no degraded modes.** If a dependency is required, it is required.
-8. **One source spec, multiple adapters.** Each service has one front-door spec per cloud-source-protocol; many backend adapters. Codegen regenerates from upstream specs; agents own translation tables.
-9. **Single-branch rule.** All in-flight work for one phase on one branch; many commits, one PR. User merges.
-10. **Continuity always.** STATUS / WHAT_WE_DID / DO_NEXT / BUGS update at every significant chunk.
-11. **One service per phase, every frontend × every backend.** Each phase ships one shimmed service end-to-end across **all three source-cloud frontends (AWS / GCP / Azure)** translating into **all four backends (AWS / GCP / Azure / K8s peer)** — the full 3 × 4 matrix. **Each frontend is tested by its own cloud's official tooling** (the AWS frontend by `aws-sdk-go-v2` + `aws` CLI + `hashicorp/aws` Terraform provider; the GCS frontend by `cloud.google.com/go/storage` + `gcloud` CLI + `hashicorp/google` provider; the Azure frontend by `azure-sdk-for-go/sdk/storage/azblob` + `az` CLI + `hashicorp/azurerm` provider) **against every backend cloud's real service.** That's 3 frontends × 3 driver types × 4 backends = **36 driver-backend combinations** per service, all green before a phase closes. No "AWS-source first, GCP-source row later." A service is not done until any cloud's tooling can drive it against any backend.
+8. **One source spec, multiple adapters.** Codegen regenerates from upstream specs; agents own translation tables.
+9. **Single-branch rule.** One branch per phase / sub-phase. Many commits, one PR. User merges.
+10. **Continuity always.** STATUS / DO_NEXT / WHAT_WE_DID / BUGS update at every significant chunk.
+11. **One service per phase, every frontend × every backend.** Each service-phase ships across **all three source-cloud frontends** translating into **all four backends** — the full 3 × 4 matrix. Each frontend is tested by its own cloud's official tooling (3 frontends × 3 driver types × 4 backends = 36 driver-backend combinations) before the phase closes.
 
 ## Locked-in decisions
 
@@ -32,158 +32,276 @@ State [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md
 | 8 | License | AGPL-3.0. |
 | 9 | Passthrough mode | Ship per service when there's a real reason (auth interception, observability injection). |
 | 10 | Agent permissions for spec updates | Human-in-loop on upstream-spec change. Agents propose; humans review translation-table delta. |
-| 11 | **Reuse-over-reinvention** | Lean on the cloud's official spec + official Go SDK whenever they fit. Each frontend's wire layer is generated from the cloud's canonical spec (AWS Smithy → custom emitter; GCP Discovery doc → `google.golang.org/api` raw types where pragmatic; Azure OpenAPI → `oapi-codegen` or equivalent). Wire types are imported from the official SDK when they round-trip cleanly server-side; emitted from the spec when SDK types fight server-side handling. Auth verification uses the cloud's official verifier (e.g. `aws-sdk-go-v2/aws/signer/v4`). The shim's job is to **be** the cloud's API surface, not to maintain a parallel one. See [AGENTS.md § Reuse over reinvention](AGENTS.md#reuse-over-reinvention). |
-| 12 | **Stateless shim** | The shim binary holds no state of record. All persistent state lives in the backend. No sidecar database, no shim-managed key/value namespace, no in-process cache that the shim treats as authoritative. Per-request scratch (computing a response by reading upstream) is fine; persisting anything across requests in the shim is not. Cross-cloud shape mappings that need a stable identifier (e.g. monotonic version index ↔ Azure GUID) are derived at request time from data the backend already keeps. A stateless shim scales horizontally, restarts without warmup, never causes split-brain. If a feature can't be implemented statelessly it's out of intersection — return the cloud's "not supported" error. See [AGENTS.md § The shim is stateless](AGENTS.md#the-shim-is-stateless). |
-| 13 | **In-tree K8s peer when OSS doesn't fit** | The K8s-peer slot for every shimmed service prefers a third-party OSS project (MinIO for storage, Vault for secrets, NATS for queues, CloudNativePG for RDBMS, Knative for functions, Envoy Gateway for API GW). When no OSS project fits cleanly, the in-tree framework at [`peers/shimakit/`](peers/shimakit/) provides the common-denominator primitives — versioned, named binary objects with structured metadata, multi-namespace addressing, soft-delete lifecycle — and concrete peers built on top of it are named `shima<service>` (e.g. `shimasecret`, `shimastore`, `shimaqueue`). One framework, many possible concrete peers; each composes the same primitives instead of re-implementing them. Released as separate Go modules so operators can pin / deploy / upgrade each independently of the shim binary. |
+| 11 | **Reuse-over-reinvention** | Lean on the cloud's official spec + official Go SDK whenever they fit. Each frontend's wire layer is generated from the cloud's canonical spec (AWS Smithy → custom emitter; GCP Discovery doc → `google.golang.org/api` raw types where pragmatic; Azure OpenAPI → `oapi-codegen` or equivalent). Auth verification uses the cloud's official verifier (e.g. `aws-sdk-go-v2/aws/signer/v4`). See [AGENTS.md § Reuse over reinvention](AGENTS.md#reuse-over-reinvention). |
+| 12 | **Stateless shim** | The shim binary holds no state of record. All persistent state lives in the backend. No sidecar database, no shim-managed key/value namespace, no in-process cache that the shim treats as authoritative. Cross-cloud mappings derive at request time from data the backend already keeps. See [AGENTS.md § The shim is stateless](AGENTS.md#the-shim-is-stateless). |
+| 13 | **In-tree K8s peer when OSS doesn't fit** | Third-party OSS first; when none fits, the in-tree [`peers/shimakit/`](peers/shimakit/) framework provides versioned named bytes + structured metadata + multi-namespace + soft-delete. Concrete peers built on top are named `shima<service>`. Each is its own Go module so operators can pin / deploy / upgrade independently. |
 
-## Phase structure
+## Service phases (1-8 — all closed)
 
-Each shimmed service is its own phase. Foundation work (codegen pipeline, conformance harness, CI matrix) is absorbed into **Phase 1** — built alongside its first real user (object storage) rather than as standalone infrastructure with no immediate consumer.
+One service per phase; full 3 × 4 matrix; SDK + CLI + Terraform per frontend.
 
-Per principle 11, every phase ships the full N × N matrix in one phase. There are no "source rows" of horizontal expansion later; horizontal expansion happens **inside** each phase.
-
-| Phase | Service | Frontends (source clouds) | Backends |
+| # | Service | Frontends | Backends in scope |
 |---|---|---|---|
-| 1 | Object storage | AWS S3, GCS, Azure Blob | AWS S3, GCS, Azure Blob, K8s peer (MinIO) |
-| 2 | Secrets | AWS Secrets Manager, GCP Secret Manager, Azure Key Vault | same four + Vault as K8s peer |
-| 3 | Queue | AWS SQS, GCP Pub/Sub (pull), Azure Service Bus queues | same three clouds + NATS JetStream as K8s peer |
-| 4 | Pub/Sub | AWS SNS, GCP Pub/Sub, Azure Service Bus topics | same three clouds + NATS core as K8s peer |
-| 5 | Managed RDBMS (control plane) | AWS RDS, Cloud SQL Admin, Azure DB Admin | same three clouds + CloudNativePG / MySQL Operator as K8s peer |
-| 6 | Managed Redis (control plane) | AWS ElastiCache, GCP Memorystore Admin, Azure Cache for Redis Admin | same three clouds + Redis Operator as K8s peer |
-| 7 | Functions | AWS Lambda, GCP Cloud Run, Azure Container Apps | same three clouds + Knative as K8s peer |
-| 8 | API Gateway | AWS API Gateway v2, GCP API Gateway, Azure API Management | same three clouds + Envoy Gateway as K8s peer |
+| 1 | Object storage | AWS S3 · GCS · Azure Blob | AWS S3 · GCS · Azure Blob · MinIO (K8s peer) |
+| 2 | Secrets | AWS Secrets Manager · GCP Secret Manager · Azure Key Vault | same three clouds + Vault |
+| 3 | Queue | AWS SQS · GCP Pub/Sub (pull) · Azure Service Bus queues | same three clouds + NATS JetStream |
+| 4 | Pub/Sub | AWS SNS · GCP Pub/Sub · Azure Service Bus topics | same three clouds + NATS core |
+| 5 | Managed RDBMS (control plane) | AWS RDS · Cloud SQL Admin · Azure DB Admin | same three clouds + CloudNativePG |
+| 6 | Managed Redis (control plane) | AWS ElastiCache · GCP Memorystore Admin · Azure Cache for Redis Admin | same three clouds + Redis Operator |
+| 7 | Functions | AWS Lambda · GCP Cloud Run · Azure Container Apps | same three clouds + Knative |
+| 8 | API Gateway | AWS API Gateway v2 · GCP API Gateway · Azure API Management | same three clouds + Envoy Gateway |
 
-Within a phase, sub-phases land as separate commits on a single branch. Codegen for each frontend's spec format (Smithy / Discovery+protobuf / OpenAPI v3) is part of the per-phase work — Phase 1 establishes the AWS Smithy pipeline; Phase 1's GCP and Azure sub-phases establish the GCP Discovery and Azure OpenAPI pipelines, which then carry forward to Phases 2-8 as reusable infrastructure.
+Each phase's per-frontend wire layer is hand-written today; spec-driven codegen for the non-Smithy formats is Phase 11 work. Per-service implementation detail lives in `services/<svc>/` (intersection contract in `INTERSECTION.md`, write-side contract in `APPLY_INTERSECTION.md`); per-phase narrative in [WHAT_WE_DID.md](WHAT_WE_DID.md); architecture in [`doc/CROSS_CLOUD_ROUTING.md`](doc/CROSS_CLOUD_ROUTING.md).
 
-## Phase 1 — Object storage
+## Cross-cutting phases
 
-Frontends: **AWS S3** (SigV4, REST-XML), **GCS** (OAuth2 bearer, JSON, resumable uploads), **Azure Blob** (SharedKey / SAS, REST + XML for some paths).
-Backends: AWS S3 · GCS · Azure Blob · K8s peer (MinIO-in-cluster).
+| # | Headline | Status |
+|---|---|---|
+| 9 | Cross-cloud `terraform import` honest end-to-end across all 8 services. `TestCrossCloudImport_Roundtrip_StorageAWStoGCS` is the exit criterion. Per-service `INTERSECTION.md` + `MIGRATION.md` audits. | Closed PR #13 + PR #16. |
+| 10 | Cross-cloud `terraform apply` honest end-to-end across all 8 services. `TestCrossCloudApply_Roundtrip_StorageAWStoGCS` is the exit criterion. Per-service `APPLY_INTERSECTION.md`. Full developer + contributing docs under `docs/`. | Closed PR #17. |
+| **11** | **Tighten the wire boundary.** Spec-driven codegen across every service + signature verification (BUG-18) at the new decode boundary. | **In-flight on `phase-11`.** |
+| 12 | **Cross-cloud migration cell expansion.** Phase 9 + 10 proved the headline on one cell (storage AWS→GCS); Phase 12 takes one honest cross-cloud cell per service end-to-end across all 8. | Planned — opens after Phase 11 closes (or in parallel; doesn't share files). |
 
-**Why first:** largest API surface; richest auth + content semantics; MinIO is a free truth oracle for the K8s peer. Phase 1 also carries the foundation work — codegen for all three spec formats (Smithy 2.0, GCP Discovery, Azure OpenAPI v3), the conformance harness, the CI matrix — so Phases 2-8 are mostly translation-table additions on top of established infrastructure.
+## Phase 11 — Tighten the wire boundary
+
+> **Goal:** Replace hand-written wire layers with spec-driven generated stubs across every service, and wire real signature verification at the new decode boundary. The two changes are coupled at the same point in the request lifecycle; doing them per-service lands them together instead of retrofitting verification into hand-written handlers we plan to replace.
+
+### Why now
+
+Phase 10 closed cross-cloud `terraform apply` on every service. What remains uneven is the **boundary**:
+
+- **Wire validation.** Only storage parses requests through generated stubs. The other 7 services hand-write the wire layer, so spec drift in any field name, length limit, or enum set is invisible until a real client sends a real request. The current Smithy emitter ignores scalar parse errors in query / header bindings and ignores XML decode errors — even storage's "spec-driven" decode is not actually enforcing the spec.
+- **Signature verification.** Every frontend accepts requests without validating SigV4 / Bearer / SharedKey. Conformance papers over this with `skip_credentials_validation`, `option.WithoutAuthentication()`, and stub `fakeAzureCred` tokens — recorded as **BUG-18 (P1)**. Any "shim is safe in front of production traffic" claim is unfounded today.
+
+### Premise corrections (from codex review of the initial plan)
+
+The first draft of this plan made several wrong-library assumptions; the corrections shape the sub-phase ordering below.
+
+- **AWS SigV4 is signer-only in `aws-sdk-go-v2/aws/signer/v4`.** Server-side verification has to reconstruct the canonical request, re-sign with the credential's secret, and constant-time compare. The canonical-request building blocks are reusable from `signer/v4`, but the verifier is ours. Body replay / `UNSIGNED-PAYLOAD` / presigned URLs / signed-header tampering / clock skew / temporary session tokens are all explicit hazards the verifier must handle.
+- **`golang.org/x/oauth2` is token-acquisition plumbing, not a JWT verifier.** Google access tokens are not project-owned JWTs verifiable with a static key. ID tokens are validated with `google.golang.org/api/idtoken`, but they're a different credential from what Google SDK / CLI / Terraform actually send for Secret Manager / Pub/Sub / Cloud SQL (those send access tokens). The honest path for GCP is to accept signed bearer tokens whose claims (`iss`, `aud`, `exp`, signature against Google's published JWKS) are real — and document that "verification" against arbitrary Google access tokens has limits without a real identity-platform integration.
+- **Azure Key Vault uses Bearer challenge auth, not SharedKey.** SharedKey is Storage; Service Bus is SAS / Entra ID. Phase 11's secrets sub-phase verifies the Bearer challenge; storage retrofit (11.11) covers SharedKey.
+- **Current Smithy emitter is REST-XML-shaped.** Extending it to AWS Secrets Manager (`awsJson1_1`), SQS (`awsJson1_0`), SNS / RDS / ElastiCache (`awsQuery`), Lambda / APIGW v2 (`restJson1`) is **new protocol serde** at the emitter level, not a routing-table addition. Each AWS sub-phase scopes a protocol extension to the Smithy emitter.
+- **`oapi-codegen` does not emit request-validation middleware by default.** The Azure pilot has to explicitly wire OpenAPI validation, Azure error-envelope mapping, the Bearer challenge response, and ARM long-running-operation behavior.
+- **AGENTS.md canonical Go SDK row is `cloud.google.com/go/*` (gRPC).** Several current GCP conformance tests use `google.golang.org/api/*` (REST). Phase 11 reconciles this per service: either widen the AGENTS row to include REST, or land gRPC support per service (heavier).
+
+### Codegen extension order
+
+1. **AWS Smithy emitter — protocol extension to `awsJson1_1` (Secrets Manager).** The emitter exists; the work is adding a second protocol path alongside REST-XML, plus enforcing request validation honestly (reject malformed JSON, missing required fields, bad enum values with the source cloud's error envelope).
+2. **OpenAPI v3 (Azure) via `oapi-codegen`** for Azure Key Vault, with explicit validation middleware + error-envelope mapping + Bearer challenge + ARM LRO handling.
+3. **GCP routing layer** — reuse `google.golang.org/api/<svc>/v1` wire types; emit only routing + dispatch. AGENTS.md SDK-row reconciliation happens here.
+4. **Smithy protocol extensions per AWS surface as we reach them** — `awsJson1_0` (SQS), `awsQuery` (SNS / RDS / ElastiCache), `restJson1` (Lambda / APIGW v2). Each is new emitter work, not addition.
+
+### Architecture decisions (locked-in during 11.1)
+
+These are the verifier-library decisions for BUG-18 and the GCP SDK-row reconciliation. They lock the per-frontend boundary so Phase 11's per-service migrations don't re-litigate the auth design.
+
+#### AWS SigV4 verifier
+
+The shim builds a server-side SigV4 verifier in `internal/sigv4verifier/` using the `aws-sdk-go-v2/aws/signer/v4` package's canonical-request building blocks (NOT its `SignHTTP` directly — that's the signer side). The verifier:
+
+1. Parses the request's `Authorization` header (or the presigned-URL query string) into algorithm + credential scope + signed-headers list + signature.
+2. Looks up the access-key-id against the shim's allowed-credentials store (in tests: a deterministic project-owned access-key + secret-key the shim trusts only when `SHIMANISM_TEST_TRUSTED_KEY` is set; in production: configured at deploy time).
+3. Recomputes the canonical request from the actual incoming request, signs with the looked-up secret-key, constant-time compares against the presented signature.
+4. Validates the signed time is within ±15 minutes of server time (AWS-standard skew window).
+5. Special cases: `x-amz-content-sha256: UNSIGNED-PAYLOAD` (body not in canonical request — accepted for streaming uploads); presigned URLs (signature in query string, different canonical construction); `X-Amz-Security-Token` (session token included in canonical request — looked up alongside the access-key).
+6. On failure: emits the source cloud's own `InvalidSignatureException` / `SignatureDoesNotMatch` / `MissingAuthenticationTokenException` envelope, not a generic 401.
+
+**What we explicitly don't do:** call AWS STS to validate temporary credentials, propagate the caller's credential to the backend (the shim uses its own backend-configured identity), or trust any header beyond what the canonical request covers.
+
+#### GCP bearer verifier
+
+The honest path is bifurcated by token type:
+
+- **ID tokens (JWT, signed by Google).** Validated via `google.golang.org/api/idtoken.Validate(ctx, token, audience)`. This handles JWKS fetch + signature verification + `iss` / `aud` / `exp` claim checks. Works for Workload Identity Federation flows and service-to-service ID-token issuance.
+- **OAuth2 access tokens (opaque).** **Cannot be verified offline.** `gcloud auth print-access-token` emits opaque tokens; verifying them honestly requires calling `https://oauth2.googleapis.com/tokeninfo?access_token=…` per request, which adds a network round-trip and a Google dependency the shim shouldn't have in its hot path. Documented gap; the test-mode signing key emits ID-token-shaped JWTs to exercise the verifier path. Real-cloud lanes (Track A) hit this for honest token validation against Google.
+
+**Conformance posture:** test-mode emits well-formed JWTs signed by the project-owned test key with `iss`, `aud`, `exp` claims; the shim validates against the test JWKS. Real-cloud lanes use real Google tokens — that path validates ID tokens via the production verifier and accepts opaque access tokens as "bearer presence + format check" (documented limitation).
+
+`golang.org/x/oauth2` is **not** the verifier — it's client-side token acquisition. It is irrelevant to Phase 11.
+
+#### Azure Bearer verifier (Key Vault, Service Bus, ARM)
+
+The Key Vault frontend already issues the WWW-Authenticate challenge on first request (no change there). The verifier:
+
+1. Extracts the Bearer JWT from the `Authorization: Bearer <token>` header.
+2. Validates the JWT signature against Microsoft's published JWKS at `https://login.microsoftonline.com/common/discovery/v2.0/keys` (cached locally; refreshed on `kid` miss).
+3. Validates `iss` matches a configured Entra tenant URI, `aud` matches the resource URI for the frontend's service (e.g. `https://vault.azure.net` for Key Vault), `exp` / `nbf` are within the allowed window.
+4. On failure: emits the Azure 401 envelope with the appropriate WWW-Authenticate hint, not a generic 401.
+
+Test-mode: project-owned signing key + well-formed JWT with the right `iss` / `aud` / `exp` claims; the shim trusts the key's `kid` only in test mode.
+
+Service Bus uses SAS / Entra ID — Phase 11 wires the Entra ID path for the Service Bus admin frontend (Phase 11.7 queue / 11.8 pubsub). SAS-only flows are out of intersection for the queue / pubsub control plane and stay on the existing Phase 4 receipt-handle code.
+
+#### Azure SharedKey verifier (Storage retrofit only)
+
+Storage retrofit (11.13). The verifier:
+
+1. Extracts the SharedKey signature from `Authorization: SharedKey <account>:<sig>` or the equivalent SAS query parameters.
+2. Reconstructs the canonical string per Azure Blob's SharedKey signing rules (verb, headers, canonical resource).
+3. Recomputes HMAC-SHA256 with the configured account key, constant-time compares.
+4. On failure: emits Azure's `AuthenticationFailed` envelope (HTTP 403 + the canonical XML body).
+
+Key Vault does **not** use SharedKey. Service Bus does not use SharedKey. SharedKey is Storage-only.
+
+#### GCP gRPC vs REST AGENTS.md reconciliation
+
+The earlier AGENTS.md row required `cloud.google.com/go/<svc>` (gRPC) as the canonical Go SDK. Actual conformance tests use `google.golang.org/api/<svc>/v1` (REST). Phase 11 takes the pragmatic path:
+
+- **For Phase 11**, REST is canonical. The shim's GCP frontends speak REST; conformance via `google.golang.org/api/<svc>/v1` is honest and full-coverage. AGENTS.md is updated to widen the SDK row: *"GCP services — REST conformance via `google.golang.org/api/<svc>/v1` is canonical for the shim today. gRPC conformance via `cloud.google.com/go/<svc>` is future expansion (out of Phase 11 scope) — adding a gRPC frontend requires a Go gRPC server + protobuf serialization + HTTP/2 multiplexing per service, none of which the shim has today."*
+- **Where a gRPC-only operation matters cross-cloud** (e.g. Pub/Sub streaming pull), the shim returns the source cloud's own `Unimplemented` envelope on the gRPC path; the REST path remains the conformance contract. Stays documented in per-service `INTERSECTION.md`.
 
 ### Sub-phases
 
 | Sub | Status | Headline |
 |---|---|---|
-| **1.1** | ✅ | Repo skeleton: Go module, Makefile, Go CI lane. |
-| **1.2** | ✅ | Spec ingestion: fetch + cache AWS Smithy JSON for S3. |
-| **1.3** | ✅ | Codegen pilot: Smithy → Go server stubs (all 107 ops; subsequently scoped down). |
-| **1.4** | ✅ | Conformance harness: SDK + CLI + Terraform drivers against the shim. |
-| **1.5.0** | ✅ | Domain refactor: `internal/storage/domain/` neutral interface; AWS S3 frontend adapter; streaming codegen. |
-| **1.5.1** | ✅ | MinIO backend (S3-compatible control case; lives at `services/storage/backends/minio/`). |
-| **1.5.2** | ✅ | AWS S3 passthrough backend. |
-| **1.6** | ✅ | GCS backend — first cross-shape translation. |
-| **1.7** | ✅ | Azure Blob backend. |
-| **1.8** | ✅ | K8s peer: runnable `cmd/shim` + `deploy/k8s/peer/` MinIO + shim manifests + Dockerfile. |
-| **1.9** | ✅ | CopyObject cross-cloud nuances (Azure fail-loud poll loop). |
-| **1.10** | ✅ | Multipart ETag parity via `domain.MultipartETag`. |
-| **1.11** | ✅ | Presigned URL conformance test. |
-| **1.12** | ✅ | BUG-1 fix: router `ForbiddenQueries` + GetObjectTagging / GetObjectAcl object probes. |
-| **1.13** | ◐ | CI conformance matrix (minio / gcs / azureblob lanes). |
-| **1.14** | ◻ | **GCS frontend.** Spec ingest (Discovery doc / protobuf) → GCS-shaped server stubs → adapter wrapping `domain.Storage` → conformance via `cloud.google.com/go/storage` SDK + `gcloud` CLI + `hashicorp/google` Terraform provider against all four backends. |
-| **1.15** | ◻ | **Azure Blob frontend.** Spec ingest (Azure OpenAPI v3) → Azure-Blob-shaped server stubs (XML for blob list, REST + JSON for control) → adapter wrapping `domain.Storage` → conformance via `azure-sdk-for-go/sdk/storage/azblob` SDK + `az` CLI + `hashicorp/azurerm` Terraform provider against all four backends. |
-| **1.16** | ◻ | Phase 1 closer: full conformance lane green for **all 3 frontends × 4 backends × 3 driver types = 36 driver-backend combinations**. Terraform `aws_s3_bucket`, `google_storage_bucket`, `azurerm_storage_container` each provision against every backend through endpoint overrides. |
+| 11.0 | ✅ | Plan baseline + codex review (this section + PR #18). |
+| 11.1 | ✅ | Architecture spike landed: per-cloud verifier libraries documented above (§ Architecture decisions); GCP SDK row reconciled in AGENTS.md to widen for REST; BUG-15 walked (drift persists with the Phase 10.3 partial fix; pinned to Track A for real-cloud comparison); BUG-8 confirmed Track-A only (no code change). |
+| 11.2 | ✅ | **Smithy emitter — `awsJson1_1` (+ `awsJson1_0`) protocol path.** Runtime helper at `internal/awsjson/`; new emitter template `template_awsjson.tmpl`; protocol detection; JSON-tagged Go structs; required-field validation at decode → `ValidationException`; `__type` + `X-Amzn-Errortype` envelope. |
+| 11.3 | ✅ | AWS Secrets Manager spec-driven (11.3a/b/c). Adapter at `internal/secrets/frontends/aws_secretsmanager/adapter.go`; 865 LOC hand-written wire deleted. |
+| 11.4 | ◐ | **Azure Key Vault oapi-codegen pilot — pilot landed; broader migration deferred to Phase 12.** `cmd/azure-codegen` is the new driver: converts Azure's Swagger 2.0 data-plane spec to OpenAPI v3 in memory via `kin-openapi/openapi2conv`, then runs `oapi-codegen` as a library to emit Go types + `std-net-http` `ServerInterface` for the secrets surface. Two upstream-tooling defects worked around inside the driver (empty-`AllOf: []` panic on enum schemas; host-template ref preservation). Pilot proof-point: `azure_keyvault`'s `SetSecret` handler decodes via the spec-driven `gen.SecretSetParameters` type. Remaining: migrate the rest of `azure_keyvault`'s handlers + the other 7 Azure frontends to the generated `ServerInterface` — pattern + manifest format established (`services/secrets/azure-codegen.json` is the template). **Deferred to Phase 12 follow-on.** |
+| 11.5 | ⏸ | **GCP routing emitter — deferred.** The hand-written GCP frontends already use `google.golang.org/api/<svc>/v1` wire types directly (Discovery-generated; same source the SDK uses). The remaining value of a generated routing-emitter layer is regex-pattern uniformity + spec-drift detection. Real but not blocking. Deferred to Phase 12 follow-on. |
+| 11.6 | ✅ | **BUG-18 signature verification — reject path enforced everywhere.** 4 verifier packages: `internal/sigv4verifier` (AWS SigV4 with manual canonical-request in `canonical.go` accepting both Go-SDK and boto3 / `aws` CLI signing shapes + presigned-URL path); `internal/gcpbearer` (GCP Bearer / HS256 JWT + `TestJWT` helper); `internal/azurebearer` (Azure Bearer / HS256 JWT + WWW-Authenticate challenge + `TestJWT` helper); `internal/azuresharedkey` (Azure Storage SharedKey / HMAC-SHA256, `EscapedPath()` to match azblob SDK). Each has a `Middleware()` variant. **24/24 service-frontends verifier-wrapped** via the harness. |
+| 11.7 | ◐ | **Queue.** **11.7a** ✅ SQS spec-driven via existing `awsJson1_0` emitter path. Adapter at `internal/queue/frontends/aws_sqs/adapter.go`; 679 LOC hand-written wire deleted. `awsjson.BackendError` gained `QueryCompatibleCode` so SQS-awsQueryCompatible legacy error codes round-trip via `x-amzn-query-error`. **11.7b** ◻ Azure Service Bus admin + GCP Pub/Sub frontend migrations — pending. |
+| 11.8 | ✅ | **Pubsub (SNS).** `awsQuery` emitter path. Adapter migrated for all 11 ops; 615 LOC of hand-written wire deleted. `MessageAttributes` (map of struct) decoded via `awsquery.FormFromContext` ↔ adapter. Closer fixes: `MarshalXML` per Smithy map shape (entry/key/value); SNS Policy / SetTopicAttributes fidelity (canonical default policy + AWS-only attribute allowlist for terraform-provider-aws's unconditional SetTopicAttributes calls). |
+| 11.9 | ✅ | **Functions (Lambda).** `restJson1` emitter. Adapter for all 14 ops; 493 LOC hand-written wire deleted. SigV4 wired. |
+| 11.10 | ✅ | **API Gateway v2.** Adapter for all 12 ops; 490 LOC hand-written wire deleted. SigV4 wired. |
+| 11.11 | ✅ | **rdbms (RDS).** Adapter migrated for all 9 ops; 436 LOC of hand-written wire deleted. Emitter fix: list element XML names now honour `@xmlName` traits (RDS DBInstanceList → `<DBInstance>`) with awsQuery-default `<member>` fallback. |
+| 11.12 | ✅ | **Cache (ElastiCache).** Adapter migrated for all 5 ops; 275 LOC of hand-written wire deleted. |
+| 11.13 | ✅ | **Storage retrofit.** SigV4 on S3, gcpbearer on GCS, azuresharedkey on Azure Blob — all 3 storage frontends signature-verifier-wrapped via the harness; bypass dropped; conformance tests sign with trusted test creds (HCL access_keys → `AKIAIOSFODNN7EXAMPLE` for AWS; `CLOUDSDK_AUTH_ACCESS_TOKEN` + `access_token` for gcloud / Terraform GCP; `NewSharedKeyCredential` with base64-encoded test key for azblob; az CLI's `--account-key` updated to match). |
+| 11.14 | ✅ | **Phase 11 closer.** All 8 AWS frontends spec-driven; `make codegen` regenerates everything (Smithy + Azure paths); 24/24 frontends verifier-wrapped; per-cloud bypass dropped from harness `init()`; every conformance test signs end-to-end across all 3 clouds; BUG-18 resolved in BUGS.md. Manual SigV4 in `canonical.go` handles both Go-SDK and boto3 signing shapes; presigned-URL verification path landed; `azuresharedkey` uses `EscapedPath()`; awsQuery map `MarshalXML` emitter; SNS attribute fidelity for terraform-provider-aws. Lint cleanup in 11.14q. |
 
-**Exit criteria.** For every (frontend, backend) pair in the 3 × 4 matrix, all three driver types are green:
+### Remaining work (honest)
 
-| Frontend | SDK | CLI | Terraform provider |
-|---|---|---|---|
-| AWS S3 | `aws-sdk-go-v2/service/s3` | `aws` | `hashicorp/aws` (`aws_s3_bucket`, `aws_s3_object`) |
-| GCS | `cloud.google.com/go/storage` | `gcloud storage` | `hashicorp/google` (`google_storage_bucket`, `google_storage_bucket_object`) |
-| Azure Blob | `azure-sdk-for-go/sdk/storage/azblob` | `az storage blob` | `hashicorp/azurerm` (`azurerm_storage_container`, `azurerm_storage_blob`) |
+Everything in the Phase 11 sub-phase table is ✅ or has a documented deferral to Phase 12. What's still ahead, organised by where it lives:
 
-Each row's drivers are configured (endpoint override / `--api-endpoint-overrides` / Terraform `endpoints { ... }`) to hit the shim. The shim is configured (`shim storage -backend=<cloud>`) to translate to each of the four backends in turn. **36 driver-backend conformance lanes total**, every one of them green, before Phase 1 closes.
+**Deferred to Phase 12 (Phase 11's explicit follow-ons):**
 
-### Architecture: cross-cloud routing
+- **Broader Azure spec-driven migration (11.4 continuation).** Pilot landed (`cmd/azure-codegen` + `services/secrets/gen/azure_keyvault.gen.go` + SetSecret decodes via `gen.SecretSetParameters`). Remaining: migrate the rest of `azure_keyvault`'s handlers to the generated `ServerInterface`; replicate the pattern for the other 7 Azure frontends (storage / queue / pubsub / rdbms / cache / functions / apigateway). Manifest format is `services/<svc>/azure-codegen.json`.
+- **GCP routing emitter + adapter migrations (11.5).** Discovery JSON → routing-only Go that reuses `google.golang.org/api/<svc>/v1` wire types. Then GCP frontend migrations for all 8 services.
+- **Production RS256 JWKS verification.** Test-mode HS256 with a static shared key is what ships today; verifier comments document the production code path (`google.golang.org/api/idtoken.Validate` for GCP, Microsoft's JWKS for Azure). Implement when a deployment target needs real-cloud auth.
 
-Routing between cloud A's frontend and cloud B's backend uses a **neutral domain interface** between the wire-protocol codec and the cloud-specific backend. See [`doc/CROSS_CLOUD_ROUTING.md`](doc/CROSS_CLOUD_ROUTING.md) for the architecture, terminology (frontend / backend / opposite-shape), the 3 × 4 matrix, the per-cloud library list (each backend imports the destination cloud's official Go SDK), and the streaming-throughout performance contract.
+**Bug-shaped follow-ons that Phase 11 walked but didn't close:**
 
-The implementation order is:
+- **BUG-15** (queue/gcp-frontend retention plan/apply asymmetry). 11.1 walked the drift; pinned to Track A for real-cloud comparison. Closes false-positive if it's a hashicorp/google bug; reopens as real fix if the shim's response is missing a field the provider needs.
+- **BUG-8** (apigateway/gcp-tf-frontend). Track A only; pre-existing.
 
-- **1.5.0** (domain refactor): introduce `internal/storage/domain/` interface; refactor `internal/storage/frontends/aws_s3/` as the wire→domain adapter; refactor `services/storage/backends/inmem/` to implement `domain.Storage` directly. Streaming-friendly: `httpPayload` blob members become `io.Reader` (in) / `io.ReadCloser` (out); object bodies never buffer.
-- **1.5.1** (MinIO): first real backend on the domain interface. S3-compatible passthrough.
-- **1.5.2** (AWS passthrough): `backends/aws/` for completeness.
-- **1.6** (GCS): first cross-cloud translation backend.
-- **1.7** (Azure Blob): same.
-- **1.8** (K8s peer): MinIO-in-cluster via operator (or equivalent).
+**Track A (real-cloud) blockers:**
 
-## Phase 2 — Secrets
+- Real-cloud signature verification for AWS / GCP / Azure (current verifiers are test-mode against trusted local credentials; production uses real IAM / Workload Identity / Entra ID).
+- gRPC server stubs for GCP services. AGENTS.md row widened to REST as canonical in 11.1; gRPC is documented "future expansion" requiring a Go gRPC server + protobuf serialisation + HTTP/2 multiplexing per service.
 
-Frontends: **AWS Secrets Manager**, **GCP Secret Manager**, **Azure Key Vault** (secrets surface only — Key Vault's certificate / key APIs are out of intersection).
-Backends: same three clouds + **Vault** as the K8s peer.
+**Continuity-tooling follow-on (not a Phase 11 deliverable but called out in DO_NEXT):**
 
-Simpler API than storage; validates the platform pattern doesn't accidentally depend on object-storage specifics. Reuses the codegen pipelines for all three spec formats and the conformance harness from Phase 1; should ship in a fraction of Phase 1's time.
+- Renovate coverage of vendored specs. Renovate tracks Go modules + GitHub Actions today; vendored specs in `services/<svc>/spec/` are manual.
 
-**Sub-phases (sketch per frontend × backend matrix):** Smithy / Discovery / OpenAPI ingest · codegen for the three frontends · per-cloud auth wiring · `GetSecretValue` × 4 backends · `PutSecretValue` · `CreateSecret` · `DeleteSecret` · `ListSecrets` · version management · K8s peer (Vault deployment manifests) · closer.
+Status legend: ✅ done · ◐ in progress (pilot landed, broader work deferred) · ◻ pending · ⏸ paused.
 
-**Exit criteria:** any of `aws secretsmanager get-secret-value` / `gcloud secrets versions access` / `az keyvault secret show` drives every backend correctly, plus the matching Terraform resource for each.
+### Design notes
 
-## Phase 3 — Queue
+- **`translate.go` stays hand-written and auth-unaware.** Generated stubs call the verifier; the verifier rejects with the source cloud's own 401/403 envelope before dispatch. Per-operation translation logic doesn't change shape.
+- **`oapi-codegen` adapter glue is not a one-liner.** Generated stubs need explicit validation middleware, Azure error-envelope mapping, Bearer challenge handler, and ARM LRO behavior. Don't underestimate.
+- **Test-mode signing keys are real keys, not bypass.** Conformance lanes generate real signed requests via a project-owned test key (deterministic IAM-like principal for AWS; well-formed JWT for Bearer paths). The shim trusts the key only when an explicit env var is set; real-cloud lanes (Track A) use real cloud identities.
+- **Negative conformance is part of the contract.** Every wire-decode boundary gets tested with malformed-input, missing-required-field, bad-enum, tampered-signature, wrong-timestamp, wrong-region cases — and the assertion is the source cloud's own error vocabulary, not a generic 500.
+- **Stateless invariant carried.** Verification consumes the request signature once at the boundary; the shim doesn't cache claims, doesn't open sessions, doesn't propagate caller credentials to the backend.
 
-Frontends: **AWS SQS**, **GCP Pub/Sub (pull mode)**, **Azure Service Bus queue**.
-Backends: same three clouds + **NATS JetStream** as the K8s peer.
+### Exit criteria
 
-Fidelity challenges: visibility timeouts, FIFO ordering, message attributes, dead-letter queues. Each frontend has its own model of in-flight vs visible vs dead-letter; the domain interface lives at the intersection.
+- All 8 services have `services/<svc>/gen/{aws,gcp,azure}/` generated stubs; no hand-written wire layer remains.
+- Every frontend's decode boundary enforces the cloud's spec field constraints (required, enum, length, pattern). Negative conformance per cloud asserts the source cloud's error envelope.
+- Every frontend rejects unsigned, wrong-key, and tampered-signature requests with the source cloud's own 401/403 envelope.
+- Every frontend accepts valid signatures from the cloud's official SDK / CLI / Terraform — verified by removing the auth-bypass knobs.
+- `make codegen` regenerates every service from vendored specs in one command.
+- BUG-18 closed in [BUGS.md](BUGS.md).
 
-**Exit criteria:** an SDK-using worker (any of the three) drains a queue identically when the backend is each of the four.
+### Open questions (resolve during 11.0–11.1)
 
-## Phase 4 — Pub/Sub
+- **GCP token verification honesty.** Google access tokens aren't simple JWTs to verify with a static key. The honest path may be: accept signed Bearer tokens whose JWKS signature + issuer + audience claims validate, and document the gap for opaque access tokens.
+- **Smithy emitter protocol architecture.** Per-protocol templates side-by-side (REST-XML, awsJson1_1, awsJson1_0, awsQuery, restJson1) vs. one parameterized template with protocol-dispatch — pick during 11.2.
+- **`oapi-codegen` request-validation choice.** `kin-openapi` is the de-facto middleware; verify it composes with `oapi-codegen`'s stdlib server stubs cleanly during 11.4.
+- **GCP gRPC vs REST.** AGENTS.md canonical SDK row says gRPC; current tests use REST. 11.1 picks a per-service path and updates AGENTS.md.
+- **Renovate coverage of vendored specs in `services/<svc>/spec/`.** Wire spec-freshness into CI as a tracked task during 11.1.
 
-Frontends: **AWS SNS** (with SQS-shaped subscriptions for delivery), **GCP Pub/Sub**, **Azure Service Bus topics**.
-Backends: same three clouds + **NATS core** as the K8s peer.
+## Phase 12 — Cross-cloud migration cell expansion + Phase 11 follow-ons
 
-Shares auth + messaging infrastructure with Phase 3.
+> **Goal:** Phase 9 + 10 proved cross-cloud migration via Terraform on one cell (storage AWS→GCS). Phase 12 takes one honest cross-cloud cell per service end-to-end across all 8, and absorbs the Phase 11 follow-ons that were deferred so the wire-boundary work stays in one continuous arc.
 
-**Exit criteria:** any of `aws sns publish` / `gcloud pubsub topics publish` / `az servicebus topic create+send` fans out to a topic with subscriptions on every backend type correctly; subscribers receive the canonical message envelope for whichever frontend they used.
+Two parallel tracks:
 
-## Phase 5 — Managed RDBMS (control plane only)
+- **Track 1 — Cross-cloud cell expansion (the original Phase 12 plan).** Each service-PR picks the cell with the smallest asymmetry surface (typically AWS → K8s peer, since the K8s peer's contract is the shim's domain-level intersection by construction), implements the missing translate-table entries, and lands `TestCrossCloudApply_Roundtrip_<svc>_<src>To<dst>` as the per-service exit criterion.
+- **Track 2 — Phase 11 follow-ons.** The wire-boundary work that landed in Phase 11 left three explicit deferrals; this is where they close.
 
-Frontends: **AWS RDS**, **Cloud SQL Admin**, **Azure DB Admin** (Postgres + MySQL engines for each).
-Backends: same three clouds + **CloudNativePG / MySQL Operator** (K8s) as the K8s peer.
+### Track 1 — Cross-cloud cells
 
-**Different shape from Phases 1-4:** no data-plane proxying. The shim translates control-plane API calls (`CreateDBInstance` / `instances.insert` / `Servers_Create`, snapshot, restore) and returns connection metadata. Clients connect directly to the real Postgres / MySQL via wire protocol.
+Cell selection per service is part of Phase 12.0 scoping; for now the candidates are:
 
-**Exit criteria:** any of `aws rds create-db-instance` / `gcloud sql instances create` / `az postgres flexible-server create` provisions a CloudNativePG cluster in K8s through the shim; the returned connection details let `psql` connect to the real PG and run queries.
+| Service | Candidate cell | Why |
+|---|---|---|
+| storage | AWS→GCS (already proves) | Phase 10.7 baseline. |
+| secrets | AWS→Vault | Vault KV is a clean superset of the AWS Secrets Manager intersection (no value-on-create asymmetry). |
+| queue | AWS→NATS JetStream | NATS receipt-handle = reply subject; no SQS attribute round-trip mismatch on a K8s peer. |
+| pubsub | AWS→NATS JetStream | Same reasoning. |
+| rdbms | AWS→cnpg | cnpg's Cluster CR doesn't have AWS RDS's parameter-group / subnet-group reconcile semantics — the asymmetry is documented; the cell is honest. |
+| cache | AWS→Redis Operator | Same shape. |
+| functions | AWS→Knative | Phase 7's invoke-connectivity test demonstrates the path; Apply-side just needs the matching drift-assert wiring. |
+| apigateway | AWS→Envoy Gateway | Phase 8's exit criterion already runs end-to-end; Apply-side adds the cross-cloud roundtrip assertion. |
 
-## Phase 6 — Managed Redis (control plane only)
+### Track 2 — Phase 11 follow-ons
 
-Frontends: **AWS ElastiCache**, **GCP Memorystore Admin**, **Azure Cache for Redis Admin**.
-Backends: same three clouds + **Redis Operator** (K8s) as the K8s peer.
+Three explicit deferrals from Phase 11; each carries forward its own design context (not redoing the spike).
 
-Same shape as Phase 5: control-plane only; data plane is wire-protocol RESP — direct client connection.
+| Sub | Headline |
+|---|---|
+| **12.A — Broader Azure spec-driven migration.** | Pilot landed in 11.4 (`cmd/azure-codegen` converts Swagger 2.0 → OpenAPI v3 via `kin-openapi/openapi2conv`, runs `oapi-codegen` as a library to emit types + `ServerInterface`; `azure_keyvault`'s `SetSecret` decodes via the spec-driven `gen.SecretSetParameters`). The remaining handlers in `azure_keyvault` plus the other 7 Azure frontends (storage / queue / pubsub / rdbms / cache / functions / apigateway) migrate using the same pattern. Manifest format is `services/<svc>/azure-codegen.json`. The two upstream-tooling workarounds (empty-`AllOf` panic; host-template ref preservation) live in `cmd/azure-codegen` and apply uniformly to all Azure specs. |
+| **12.B — GCP routing emitter + adapter migrations.** | Discovery JSON → routing-only Go that reuses `google.golang.org/api/<svc>/v1` wire types (the same Discovery-generated types the SDK uses, per AGENTS.md decision #11). Emitter ships only the dispatch layer; per-service adapter glue mirrors the AWS Smithy migrations from 11.7–11.12. 8 GCP frontends in scope. |
+| **12.C — Production RS256 JWKS for real Google + Microsoft Entra tokens.** | The 4 verifier packages currently run HS256 with a static shared key for conformance. Production paths are documented inline (`google.golang.org/api/idtoken.Validate` for GCP, Microsoft's JWKS endpoint for Azure). Wire when a deployment target requires real-cloud auth. Touches `internal/gcpbearer/` + `internal/azurebearer/`; no change to test-mode behaviour. |
 
-**Exit criteria:** any of `aws elasticache create-cache-cluster` / `gcloud redis instances create` / `az redis create` provisions a Redis Operator instance through the shim; returned endpoint accepts a `redis-cli` connection.
+### Track 3 — Phase 11 bug-shaped continuations (Track A blocked)
 
-## Phase 7 — Functions
+These walked but couldn't close in Phase 11 because real-cloud comparison is the only way forward:
 
-Frontends: **AWS Lambda** (container image deployment path), **GCP Cloud Run / Cloud Functions Gen 2**, **Azure Container Apps / Functions** (ARM, container path).
-Backends: same three clouds + **Knative** (K8s) as the K8s peer.
+- **BUG-15** (queue/gcp-frontend retention plan/apply asymmetry). 11.1 walked the drift; pinned to Track A. Closes false-positive if hashicorp/google's flatten path is the source of the diff; reopens as a real shim fix if the response is missing a field the provider needs to disable its default-substitution path.
+- **BUG-8** (apigateway/gcp-tf-frontend). Pre-existing; Track A only.
+- **Real-cloud signature verification.** AWS / GCP / Azure verifiers run against trusted local credentials today; production runs against real IAM / Workload Identity / Entra ID. Track A gating.
+- **gRPC server stubs for GCP services.** AGENTS.md row widened to REST as canonical in 11.1; gRPC is "future expansion" — needs a Go gRPC server + protobuf serialisation + HTTP/2 multiplexing per service. Out of Phase 12 scope; reopened separately when a service genuinely needs gRPC-only ops.
 
-Translation challenges: deployment metadata, event payload normalization (cross-cloud events → canonical HTTP envelope), VPC / network integration.
+### Continuity-tooling follow-on
 
-**Exit criteria:** a deployment (SAM template / `gcloud run deploy` / `az containerapp create`) deploys to Knative + every cloud backend through the shim and serves traffic; the function sees the expected event shape for whichever frontend originated the deployment.
+Not a Phase 11 deliverable but called out in DO_NEXT as the next-best maintenance pass:
 
-## Phase 8 — API Gateway
+- **Renovate coverage of vendored specs.** Renovate tracks Go modules + GitHub Actions today; vendored specs in `services/<svc>/spec/` are manual. Wire spec freshness into CI (compare vendored hash vs upstream HEAD; alert on drift). 12.0 candidate.
 
-Frontends: **AWS API Gateway HTTP API v2**, **GCP API Gateway**, **Azure API Management** (Consumption tier).
-Backends: same three clouds + **Envoy Gateway** (K8s) as the K8s peer.
+### Sub-phase structure (drafted; refined in 12.0)
 
-Declarative-replace model: `deploy(gateway_spec)` swaps the entire routing table atomically.
+| Sub | Headline |
+|---|---|
+| 12.0 | Scope baseline + per-service cross-cloud cell selection + Renovate-spec-coverage candidate. |
+| 12.1–12.8 | One PR per service, landing the chosen cross-cloud Apply cell as a roundtrip test (Track 1). |
+| 12.A | Broader Azure spec-driven migration (Track 2). |
+| 12.B | GCP routing emitter + 8 adapter migrations (Track 2). |
+| 12.C | Production RS256 JWKS (Track 2) — when a deployment target requires it. |
+| 12.9 | Closer: cross-cloud Apply matrix has one honest cell per service; per-service `MIGRATION.md` updated with the runnable recipe; spec-drift CI lane lit up. |
 
-**Exit criteria:** Terraform `aws_apigatewayv2_api` + `google_api_gateway_api` + `azurerm_api_management` each deploy routes + integrations correctly through the shim to Envoy Gateway and to every cloud backend; published URLs serve the configured routes.
+**Exit criteria:** every service has `TestCrossCloudApply_Roundtrip_<svc>_<cell>` green in CI (Track 1); 8/8 Azure frontends + 8/8 GCP frontends spec-driven (Track 2 A+B); per-service `MIGRATION.md` includes a copy-pasteable Terraform + endpoint-override walkthrough.
 
-## Open questions (decide before they block work)
+## Standing open questions (not phase-gated)
 
 - Single org-wide deployment vs per-tenant — affects auth model.
-- Where do live cloud test accounts live; who pays. (Blocks the per-cloud SDK / CLI / Terraform real-backend conformance lanes.)
+- Where do live cloud test accounts live; who pays. Blocks the real-cloud SDK / CLI / Terraform lanes (Track A).
 - Coding-agent permissions for upstream spec-version bumps: auto-PR or human-in-loop?
-- AMQP fidelity tier for Azure Service Bus (Phase 3.x + 4.x) — REST-only initially, or AMQP from the start?
-- Codegen pipelines for the non-Smithy spec formats (GCP Discovery / Azure OpenAPI v3): build in-house alongside the existing Smithy emitter, or generate via official spec → Go tooling (oapi-codegen, etc.) and adapt the output to our handler shape? Phase 1.14 / 1.15 forces the call.
+- AMQP fidelity tier for Azure Service Bus — REST-only initially, or AMQP from the start?
 
 ## Closed phases (PR index)
 
 | PR | Phase | Headline |
 |---|---|---|
-| #1 | (bootstrap) | Repo created. Branch ruleset (linear history, PR-only, no force-push, squash + rebase merge). PHILOSOPHY.md as koans + Bierce terminology. README.md with goals / non-goals / MVP service matrix. Merged 2026-05-18 at `e5cc262`. |
-| #2 | (bootstrap) | Continuity docs (PLAN, STATUS, WHAT_WE_DID, DO_NEXT, BUGS, AGENTS, CLAUDE→AGENTS symlink) + Phase-0 CI checks (branch-rebased, symlinks-resolve, continuity-docs-present) wired into the main-branch ruleset as required status checks. Merged 2026-05-18 at `4549a90`. |
+| #17 | 10 | Cross-cloud `terraform apply` through the shim across all 8 services; 8 BUGs closed; full developer + contributing docs under `docs/`; codex doc + code review applied. Merged 2026-05-21 at `ebc30f7`. |
+| #16 | 9 docs + 10.1 | Phase 9 docs roll-up + BUG-5 (stateless `Operations.Get` across 4 GCP frontends). Merged 2026-05-21 at `326f57d`. |
+| #13 | 8 + 9 chunk | Phase 8 (API Gateway end-to-end) + Phase 9 (cross-cloud `terraform import`) substantial chunk. Merged 2026-05-20 at `ad85ddf`. |
+| #12 | 7 | Functions control-plane shim — 3 frontends × 5 backends × 3 driver types. Merged 2026-05-19 at `9d02af0`. |
+| #11 | 6 | Managed Redis control-plane shim. Merged 2026-05-19 at `cca8bc0`. |
+| #10 | 5 | Managed RDBMS control-plane shim. Merged 2026-05-19 at `aeadbc8`. |
+| #9 | 4 | Pubsub service end-to-end. Merged 2026-05-19 at `6305354`. |
+| #8 | 3 | Queue service end-to-end. Merged 2026-05-19 at `07d11f5`. |
+| #7 | 2 | Secrets service end-to-end. Merged 2026-05-19 at `7df43ec`. |
+| #6 | 1 | Storage service end-to-end (full 3 × 4 matrix). Merged 2026-05-19 at `1f64d9f`. |
+| #1, #2 | bootstrap | Repo + ruleset + continuity docs + Phase-0 CI checks. Merged 2026-05-18. |

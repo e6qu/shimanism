@@ -25,7 +25,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/e6qu/shimanism/internal/gcpbearer"
 	"github.com/e6qu/shimanism/internal/harness"
 	queuedomain "github.com/e6qu/shimanism/internal/queue/domain"
 	"github.com/e6qu/shimanism/services/queue/backends/inmem"
@@ -43,8 +45,8 @@ terraform {
 
 provider "aws" {
   region                      = "us-east-1"
-  access_key                  = "test"
-  secret_key                  = "test"
+  access_key                  = "AKIAIOSFODNN7EXAMPLE"
+  secret_key                  = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
   skip_credentials_validation = true
   skip_metadata_api_check     = true
   skip_requesting_account_id  = true
@@ -150,7 +152,7 @@ terraform {
 provider "google" {
   project                = "shim-conformance"
   region                 = "us-central1"
-  access_token           = "shim-fake-token"
+  access_token           = "%s"
   pubsub_custom_endpoint = "%s/v1/"
 }
 
@@ -194,7 +196,23 @@ func TestTerraform_GCPQueue_Apply_NoDrift(t *testing.T) {
 	// the round-trip is symmetric (started in this PR; not enough on
 	// its own — the provider behavior persists). Phase 10.3 owns the
 	// honest fix. Diamond-skip with pointer until then.
-	t.Skip("BUG-15: hashicorp/google message_retention_duration plan/apply asymmetry")
+	// BUG-15 walked in Phase 11.1: with the Phase 10.3 partial fix
+	// (shim parses retention on create, stores it, emits it on read)
+	// the drift persists even with `message_retention_duration =
+	// "604800s"` declared explicitly in HCL. The plan diff is
+	// `~ message_retention_duration = "345600s" -> "604800s"`: state
+	// has "345600s" (the provider's schema default — 4 days, oddly
+	// the AWS retention default) regardless of what HCL declared or
+	// what the API returned. The shim's HTTP responses contain
+	// "604800s" (verified by the test harness logs); something in
+	// the hashicorp/google flatten / state-write path overwrites
+	// with the schema default. Pinned to Track A (real-cloud
+	// comparison) — if real GCP exhibits the same drift, this is a
+	// hashicorp/google provider bug and reclassifies false-positive;
+	// if real GCP doesn't drift, the shim is missing a response
+	// field the provider needs to disable its default-substitution
+	// path.
+	t.Skip("BUG-15: hashicorp/google message_retention_duration plan/apply asymmetry — pinned to Track A")
 
 	t.Parallel()
 	if _, err := exec.LookPath("terraform"); err != nil {
@@ -205,8 +223,14 @@ func TestTerraform_GCPQueue_Apply_NoDrift(t *testing.T) {
 	backend := inmem.New()
 	srv := harness.StartQueueServerGCP(t, backend)
 
+	jwt := gcpbearer.TestJWT(
+		[]byte("test-key-do-not-use-in-prod"),
+		"https://shim.test/",
+		"https://pubsub.googleapis.com/",
+		15*time.Minute,
+	)
 	dir := t.TempDir()
-	hcl := fmt.Sprintf(terraformApplyQueueGCPConfig, srv.URL)
+	hcl := fmt.Sprintf(terraformApplyQueueGCPConfig, jwt, srv.URL)
 	if err := os.WriteFile(filepath.Join(dir, "main.tf"), []byte(hcl), 0o644); err != nil {
 		t.Fatalf("write main.tf: %v", err)
 	}

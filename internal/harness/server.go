@@ -17,6 +17,8 @@ import (
 	awsapigwfront "github.com/e6qu/shimanism/internal/apigateway/frontends/aws_apigatewayv2"
 	azureapimfront "github.com/e6qu/shimanism/internal/apigateway/frontends/azure_apim"
 	gcpapigwfront "github.com/e6qu/shimanism/internal/apigateway/frontends/gcp_apigateway"
+	"github.com/e6qu/shimanism/internal/azurebearer"
+	"github.com/e6qu/shimanism/internal/azuresharedkey"
 	cachedomain "github.com/e6qu/shimanism/internal/cache/domain"
 	awsecfront "github.com/e6qu/shimanism/internal/cache/frontends/aws_elasticache"
 	azureredisfront "github.com/e6qu/shimanism/internal/cache/frontends/azure_redis"
@@ -25,6 +27,7 @@ import (
 	awslambdafront "github.com/e6qu/shimanism/internal/functions/frontends/aws_lambda"
 	azurecafront "github.com/e6qu/shimanism/internal/functions/frontends/azure_containerapps"
 	gcpcrfront "github.com/e6qu/shimanism/internal/functions/frontends/gcp_cloudrun"
+	"github.com/e6qu/shimanism/internal/gcpbearer"
 	pubsubdomain "github.com/e6qu/shimanism/internal/pubsub/domain"
 	awssnsfront "github.com/e6qu/shimanism/internal/pubsub/frontends/aws_sns"
 	awssqsreceivefront "github.com/e6qu/shimanism/internal/pubsub/frontends/aws_sqs_receive"
@@ -43,6 +46,7 @@ import (
 	awssmfront "github.com/e6qu/shimanism/internal/secrets/frontends/aws_secretsmanager"
 	azurekvfront "github.com/e6qu/shimanism/internal/secrets/frontends/azure_keyvault"
 	gcpsmfront "github.com/e6qu/shimanism/internal/secrets/frontends/gcp_secretmanager"
+	"github.com/e6qu/shimanism/internal/sigv4verifier"
 	"github.com/e6qu/shimanism/internal/storage/domain"
 	awsfront "github.com/e6qu/shimanism/internal/storage/frontends/aws_s3"
 	azurefront "github.com/e6qu/shimanism/internal/storage/frontends/azure_blob"
@@ -60,6 +64,24 @@ type StorageServer struct {
 	Close func()
 }
 
+// init: AWS / GCP / Azure conformance lanes have all been migrated
+// to sign with the verifier's trusted credentials (Phase 11.14a-o).
+//
+//   - AWS:   SigV4 with AKIAIOSFODNN7EXAMPLE / wJalrXUtnFEMI…
+//   - GCP:   HS256 JWTs via gcpbearer.TestJWT
+//   - Azure: HS256 JWTs via azurebearer.TestJWT (Bearer-shaped
+//     frontends), SharedKey for Azure Blob Storage
+//
+// Every lane runs with verification enforced end-to-end. No
+// per-cloud bypass is set here. The
+// SHIMANISM_TEST_UNAUTHENTICATED_{AWS,GCP,AZURE} env vars still
+// exist (each verifier middleware reads them) so a future
+// production-deployment shape that wants to disable enforcement at
+// runtime can do so, and so individual tests can `t.Setenv` a lane
+// back on temporarily during debugging. The harness leaves them
+// unset.
+func init() {}
+
 // StartStorageServer starts a shim instance with the AWS S3 frontend
 // backed by the given storage implementation. AWS-shaped clients
 // (boto3, aws CLI, hashicorp/aws Terraform provider) can drive it
@@ -72,7 +94,18 @@ func StartStorageServer(t *testing.T, backend domain.Storage) *StorageServer {
 	adapter := awsfront.New(backend)
 	router := &restxml.Router{}
 	storagegen.RegisterAmazonS3Routes(router, adapter)
-	ts := httptest.NewServer(&logRoundTrip{t: t, mux: router})
+	// Phase 11.13 retrofit: SigV4 verifier on the S3 frontend. The
+	// emitter for REST-XML uses internal/restxml.WriteError; we wrap
+	// it in a closure that matches sigv4verifier's EmitError signature.
+	verifier := sigv4verifier.New(sigv4verifier.StaticStore{
+		AccessKey: "AKIAIOSFODNN7EXAMPLE",
+		Secret:    "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+	}, sigv4verifier.Options{Service: "s3", Region: "us-east-1"})
+	emitErr := func(w http.ResponseWriter, status int, errorType, message string) {
+		restxml.WriteError(w, status, errorType, message)
+	}
+	mw := sigv4verifier.Middleware(verifier, emitErr)
+	ts := httptest.NewServer(&logRoundTrip{t: t, mux: mw(router)})
 	t.Cleanup(ts.Close)
 	return &StorageServer{URL: ts.URL, Close: ts.Close}
 }
@@ -82,10 +115,19 @@ func StartStorageServer(t *testing.T, backend domain.Storage) *StorageServer {
 // clients (cloud.google.com/go/storage, gcloud, hashicorp/google
 // Terraform provider) drive it through the same endpoint-override
 // path.
+//
+// Phase 11.13c retrofit: wraps the GCS handler with the GCP bearer
+// verifier middleware. SHIMANISM_TEST_UNAUTHENTICATED=1 (set by the
+// harness init) short-circuits verification.
 func StartStorageServerGCS(t *testing.T, backend domain.Storage) *StorageServer {
 	t.Helper()
 	srv := gcsfront.New(backend)
-	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
+	verifier := gcpbearer.New(gcpbearer.Options{
+		Audience: "https://storage.googleapis.com/",
+		TestKey:  []byte("test-key-do-not-use-in-prod"),
+	})
+	mw := gcpbearer.Middleware(verifier)
+	ts := httptest.NewServer(&logRoundTrip{t: t, mux: mw(srv)})
 	t.Cleanup(ts.Close)
 	return &StorageServer{URL: ts.URL, Close: ts.Close}
 }
@@ -95,10 +137,19 @@ func StartStorageServerGCS(t *testing.T, backend domain.Storage) *StorageServer 
 // Azure-shaped clients (azure-sdk-for-go/sdk/storage/azblob, az CLI,
 // hashicorp/azurerm Terraform provider) drive it through the
 // endpoint-override path.
+//
+// Phase 11.13d retrofit: wraps the Azure Blob handler with the
+// SharedKey verifier middleware. SHIMANISM_TEST_UNAUTHENTICATED=1
+// (set by the harness init) short-circuits verification.
 func StartStorageServerAzureBlob(t *testing.T, backend domain.Storage) *StorageServer {
 	t.Helper()
 	srv := azurefront.New(backend)
-	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
+	verifier := azuresharedkey.New(azuresharedkey.StaticStore{
+		Account: "shimstorage",
+		Key:     []byte("test-key-do-not-use-in-prod-this-is-32-bytes-of-junk"),
+	})
+	mw := azuresharedkey.Middleware(verifier)
+	ts := httptest.NewServer(&logRoundTrip{t: t, mux: mw(srv)})
 	t.Cleanup(ts.Close)
 	return &StorageServer{URL: ts.URL, Close: ts.Close}
 }
@@ -132,7 +183,12 @@ func StartSecretsServerAWS(t *testing.T, backend secretsdomain.Secrets) *Secrets
 func StartSecretsServerGCP(t *testing.T, backend secretsdomain.Secrets) *SecretsServer {
 	t.Helper()
 	srv := gcpsmfront.New(backend)
-	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
+	verifier := gcpbearer.New(gcpbearer.Options{
+		Audience: "https://secretmanager.googleapis.com/",
+		TestKey:  []byte("test-key-do-not-use-in-prod"),
+	})
+	mw := gcpbearer.Middleware(verifier)
+	ts := httptest.NewServer(&logRoundTrip{t: t, mux: mw(srv)})
 	t.Cleanup(ts.Close)
 	return &SecretsServer{URL: ts.URL, Close: ts.Close}
 }
@@ -150,7 +206,12 @@ func StartSecretsServerGCP(t *testing.T, backend secretsdomain.Secrets) *Secrets
 func StartSecretsServerAzure(t *testing.T, backend secretsdomain.Secrets) *SecretsServer {
 	t.Helper()
 	srv := azurekvfront.New(backend)
-	ts := httptest.NewTLSServer(&logRoundTrip{t: t, mux: srv})
+	verifier := azurebearer.New(azurebearer.Options{
+		Audience: "https://vault.azure.net",
+		TestKey:  []byte("test-key-do-not-use-in-prod"),
+	})
+	mw := azurebearer.Middleware(verifier, azurebearer.WithChallenge("https://vault.azure.net"))
+	ts := httptest.NewTLSServer(&logRoundTrip{t: t, mux: mw(srv)})
 	t.Cleanup(ts.Close)
 	return &SecretsServer{URL: ts.URL, Close: ts.Close}
 }
@@ -176,7 +237,12 @@ func StartQueueServerAWS(t *testing.T, backend queuedomain.Queues) *QueueServer 
 func StartQueueServerGCP(t *testing.T, backend queuedomain.Queues) *QueueServer {
 	t.Helper()
 	srv := gcpsubfront.New(backend)
-	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
+	verifier := gcpbearer.New(gcpbearer.Options{
+		Audience: "https://pubsub.googleapis.com/",
+		TestKey:  []byte("test-key-do-not-use-in-prod"),
+	})
+	mw := gcpbearer.Middleware(verifier)
+	ts := httptest.NewServer(&logRoundTrip{t: t, mux: mw(srv)})
 	t.Cleanup(ts.Close)
 	return &QueueServer{URL: ts.URL, Close: ts.Close}
 }
@@ -189,7 +255,12 @@ func StartQueueServerGCP(t *testing.T, backend queuedomain.Queues) *QueueServer 
 func StartQueueServerAzure(t *testing.T, backend queuedomain.Queues) *QueueServer {
 	t.Helper()
 	srv := azuresbfront.New(backend)
-	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
+	verifier := azurebearer.New(azurebearer.Options{
+		Audience: "https://servicebus.azure.net",
+		TestKey:  []byte("test-key-do-not-use-in-prod"),
+	})
+	mw := azurebearer.Middleware(verifier)
+	ts := httptest.NewServer(&logRoundTrip{t: t, mux: mw(srv)})
 	t.Cleanup(ts.Close)
 	return &QueueServer{URL: ts.URL, Close: ts.Close}
 }
@@ -231,7 +302,9 @@ func StartPubsubServerAWS(t *testing.T, backend pubsubdomain.Pubsub) *PubsubServ
 func StartPubsubServerGCP(t *testing.T, backend pubsubdomain.Pubsub) *PubsubServer {
 	t.Helper()
 	srv := gcppubsubpsfront.New(backend)
-	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
+	verifier := gcpbearer.New(gcpbearer.Options{Audience: "https://pubsub.googleapis.com/", TestKey: []byte("test-key-do-not-use-in-prod")})
+	mw := gcpbearer.Middleware(verifier)
+	ts := httptest.NewServer(&logRoundTrip{t: t, mux: mw(srv)})
 	t.Cleanup(ts.Close)
 	return &PubsubServer{URL: ts.URL, Close: ts.Close}
 }
@@ -242,7 +315,9 @@ func StartPubsubServerGCP(t *testing.T, backend pubsubdomain.Pubsub) *PubsubServ
 func StartPubsubServerAzure(t *testing.T, backend pubsubdomain.Pubsub) *PubsubServer {
 	t.Helper()
 	srv := azuresbtopicsfront.New(backend)
-	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
+	verifier := azurebearer.New(azurebearer.Options{Audience: "https://servicebus.azure.net", TestKey: []byte("test-key-do-not-use-in-prod")})
+	mw := azurebearer.Middleware(verifier)
+	ts := httptest.NewServer(&logRoundTrip{t: t, mux: mw(srv)})
 	t.Cleanup(ts.Close)
 	return &PubsubServer{URL: ts.URL, Close: ts.Close}
 }
@@ -268,7 +343,9 @@ func StartRDBMSServerAWS(t *testing.T, backend rdbmsdomain.RDBMS) *RDBMSServer {
 func StartRDBMSServerGCP(t *testing.T, backend rdbmsdomain.RDBMS) *RDBMSServer {
 	t.Helper()
 	srv := gcpcloudsqlfront.New(backend)
-	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
+	verifier := gcpbearer.New(gcpbearer.Options{Audience: "https://sqladmin.googleapis.com/", TestKey: []byte("test-key-do-not-use-in-prod")})
+	mw := gcpbearer.Middleware(verifier)
+	ts := httptest.NewServer(&logRoundTrip{t: t, mux: mw(srv)})
 	t.Cleanup(ts.Close)
 	return &RDBMSServer{URL: ts.URL, Close: ts.Close}
 }
@@ -280,7 +357,9 @@ func StartRDBMSServerGCP(t *testing.T, backend rdbmsdomain.RDBMS) *RDBMSServer {
 func StartRDBMSServerAzure(t *testing.T, backend rdbmsdomain.RDBMS) *RDBMSServer {
 	t.Helper()
 	srv := azuredbadminfront.New(backend)
-	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
+	verifier := azurebearer.New(azurebearer.Options{Audience: "https://management.azure.com/", TestKey: []byte("test-key-do-not-use-in-prod")})
+	mw := azurebearer.Middleware(verifier)
+	ts := httptest.NewServer(&logRoundTrip{t: t, mux: mw(srv)})
 	t.Cleanup(ts.Close)
 	return &RDBMSServer{URL: ts.URL, Close: ts.Close}
 }
@@ -307,7 +386,9 @@ func StartCacheServerAWS(t *testing.T, backend cachedomain.Cache) *CacheServer {
 func StartCacheServerGCP(t *testing.T, backend cachedomain.Cache) *CacheServer {
 	t.Helper()
 	srv := gcpmsfront.New(backend)
-	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
+	verifier := gcpbearer.New(gcpbearer.Options{Audience: "https://redis.googleapis.com/", TestKey: []byte("test-key-do-not-use-in-prod")})
+	mw := gcpbearer.Middleware(verifier)
+	ts := httptest.NewServer(&logRoundTrip{t: t, mux: mw(srv)})
 	t.Cleanup(ts.Close)
 	return &CacheServer{URL: ts.URL, Close: ts.Close}
 }
@@ -317,7 +398,9 @@ func StartCacheServerGCP(t *testing.T, backend cachedomain.Cache) *CacheServer {
 func StartCacheServerAzure(t *testing.T, backend cachedomain.Cache) *CacheServer {
 	t.Helper()
 	srv := azureredisfront.New(backend)
-	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
+	verifier := azurebearer.New(azurebearer.Options{Audience: "https://management.azure.com/", TestKey: []byte("test-key-do-not-use-in-prod")})
+	mw := azurebearer.Middleware(verifier)
+	ts := httptest.NewServer(&logRoundTrip{t: t, mux: mw(srv)})
 	t.Cleanup(ts.Close)
 	return &CacheServer{URL: ts.URL, Close: ts.Close}
 }
@@ -344,7 +427,9 @@ func StartFunctionsServerAWS(t *testing.T, backend functionsdomain.Functions) *F
 func StartFunctionsServerGCP(t *testing.T, backend functionsdomain.Functions) *FunctionsServer {
 	t.Helper()
 	srv := gcpcrfront.New(backend)
-	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
+	verifier := gcpbearer.New(gcpbearer.Options{Audience: "https://run.googleapis.com/", TestKey: []byte("test-key-do-not-use-in-prod")})
+	mw := gcpbearer.Middleware(verifier)
+	ts := httptest.NewServer(&logRoundTrip{t: t, mux: mw(srv)})
 	t.Cleanup(ts.Close)
 	return &FunctionsServer{URL: ts.URL, Close: ts.Close}
 }
@@ -354,7 +439,9 @@ func StartFunctionsServerGCP(t *testing.T, backend functionsdomain.Functions) *F
 func StartFunctionsServerAzure(t *testing.T, backend functionsdomain.Functions) *FunctionsServer {
 	t.Helper()
 	srv := azurecafront.New(backend)
-	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
+	verifier := azurebearer.New(azurebearer.Options{Audience: "https://management.azure.com/", TestKey: []byte("test-key-do-not-use-in-prod")})
+	mw := azurebearer.Middleware(verifier)
+	ts := httptest.NewServer(&logRoundTrip{t: t, mux: mw(srv)})
 	t.Cleanup(ts.Close)
 	return &FunctionsServer{URL: ts.URL, Close: ts.Close}
 }
@@ -383,7 +470,9 @@ func StartAPIGatewayServerAWS(t *testing.T, backend apigatewaydomain.APIGateway)
 func StartAPIGatewayServerGCP(t *testing.T, backend apigatewaydomain.APIGateway) *APIGatewayServer {
 	t.Helper()
 	srv := gcpapigwfront.New(backend)
-	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
+	verifier := gcpbearer.New(gcpbearer.Options{Audience: "https://apigateway.googleapis.com/", TestKey: []byte("test-key-do-not-use-in-prod")})
+	mw := gcpbearer.Middleware(verifier)
+	ts := httptest.NewServer(&logRoundTrip{t: t, mux: mw(srv)})
 	t.Cleanup(ts.Close)
 	return &APIGatewayServer{URL: ts.URL, Close: ts.Close}
 }
@@ -395,7 +484,9 @@ func StartAPIGatewayServerGCP(t *testing.T, backend apigatewaydomain.APIGateway)
 func StartAPIGatewayServerAzure(t *testing.T, backend apigatewaydomain.APIGateway) *APIGatewayServer {
 	t.Helper()
 	srv := azureapimfront.New(backend)
-	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
+	verifier := azurebearer.New(azurebearer.Options{Audience: "https://management.azure.com/", TestKey: []byte("test-key-do-not-use-in-prod")})
+	mw := azurebearer.Middleware(verifier)
+	ts := httptest.NewServer(&logRoundTrip{t: t, mux: mw(srv)})
 	t.Cleanup(ts.Close)
 	return &APIGatewayServer{URL: ts.URL, Close: ts.Close}
 }

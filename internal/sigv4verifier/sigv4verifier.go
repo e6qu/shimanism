@@ -1,0 +1,313 @@
+// Package sigv4verifier implements the server-side SigV4 verifier
+// shimanism needs to reject unsigned / tampered-signature requests
+// with the source cloud's own 401/403 envelope.
+//
+// SigV4 is implemented from scratch in canonical.go rather than
+// re-using aws-sdk-go-v2's signer: the SDK's Signer.SignHTTP
+// auto-includes Content-Length in SignedHeaders when ContentLength
+// > 0; boto3 (the `aws` CLI) does not. Re-signing with the SDK to
+// verify diverges from CLI signatures. The verifier follows the
+// spec literally — using only the SignedHeaders list the original
+// client declared — so it accepts every honest signer uniformly.
+// Header-signed and presigned-URL (X-Amz-Algorithm query param)
+// paths are both supported.
+//
+// What this package does NOT do today:
+//
+//   - Temporary-credential (X-Amz-Security-Token) lookup against a
+//     real STS-issued session-token store. The test-mode store
+//     trusts any session token; production deployments wire their
+//     own.
+//   - Streaming-body integrity (UNSIGNED-PAYLOAD is accepted and the
+//     body is not re-hashed). Phase 11 conformance assumes signed
+//     payloads or explicit UNSIGNED-PAYLOAD; chunked SigV4-STREAMING
+//     is a follow-on.
+//
+// Use:
+//
+//	v := sigv4verifier.New(creds, sigv4verifier.Options{
+//	    Service:      "secretsmanager",
+//	    Region:       "us-east-1",
+//	    MaxClockSkew: 15 * time.Minute,
+//	})
+//	if err := v.Verify(r); err != nil {
+//	    // err is a *sigv4verifier.Error — write its HTTPStatus +
+//	    // ErrorCode + Message in the source cloud's envelope.
+//	}
+package sigv4verifier
+
+import (
+	"bytes"
+	"context"
+	"crypto/subtle"
+	"fmt"
+	"io"
+	"net/http"
+	"os"
+	"strings"
+	"time"
+)
+
+// CredentialStore looks up the AWS access-key-id's secret + optional
+// session token. Returns ok=false for unknown access keys (the
+// verifier responds with InvalidAccessKeyId / SignatureDoesNotMatch).
+//
+// In tests the store carries a single deterministic test credential
+// the shim trusts iff SHIMANISM_TEST_TRUSTED_KEY=1 is set in the
+// environment at startup. In production, wire this against the
+// deployment's identity-management surface.
+type CredentialStore interface {
+	Lookup(ctx context.Context, accessKeyID string) (secret string, sessionToken string, ok bool)
+}
+
+// Options configures the verifier. Service + Region come from the
+// frontend's identity in the AWS SDK's service catalogue — e.g.
+// Service="secretsmanager", Region="us-east-1" — and must match the
+// values the SDK client signed with.
+type Options struct {
+	Service      string
+	Region       string
+	MaxClockSkew time.Duration
+}
+
+// Verifier verifies incoming AWS-shaped requests against the
+// configured credential store.
+type Verifier struct {
+	store CredentialStore
+	opts  Options
+}
+
+// New constructs a verifier with sensible defaults.
+func New(store CredentialStore, opts Options) *Verifier {
+	if opts.MaxClockSkew == 0 {
+		opts.MaxClockSkew = 15 * time.Minute
+	}
+	return &Verifier{store: store, opts: opts}
+}
+
+// Error is the structured failure type. HTTP handlers map it onto
+// the source cloud's error envelope.
+type Error struct {
+	HTTPStatus int
+	Code       string // AWS-canonical short error name.
+	Message    string
+}
+
+func (e *Error) Error() string { return e.Code + ": " + e.Message }
+
+// Verify checks the request's Authorization header and, if signed
+// with a trusted credential, returns nil. Returns a *sigv4verifier.Error
+// for any failure. On success the request body is buffered + restored
+// for downstream handlers (we have to read it to compute the payload
+// hash; we can't tell the SDK side "don't re-read").
+//
+// The verifier does NOT modify the request other than to restore the
+// (already-buffered) body — the Authorization header / X-Amz-Date /
+// X-Amz-Security-Token stay intact for downstream observation.
+//
+// Presigned URLs (X-Amz-Algorithm query param present) take the
+// presigned-URL verification path: the signature is in the query
+// string, the payload hash is UNSIGNED-PAYLOAD, and the canonical
+// query string excludes X-Amz-Signature from itself.
+func (v *Verifier) Verify(r *http.Request) error {
+	if r.URL.Query().Get("X-Amz-Algorithm") != "" {
+		return v.verifyPresigned(r)
+	}
+	authHdr := r.Header.Get("Authorization")
+	if authHdr == "" {
+		return &Error{
+			HTTPStatus: http.StatusForbidden,
+			Code:       "MissingAuthenticationToken",
+			Message:    "Request is missing Authentication Token",
+		}
+	}
+	scheme, parsed, err := parseAuthHeader(authHdr)
+	if err != nil {
+		return &Error{
+			HTTPStatus: http.StatusForbidden,
+			Code:       "InvalidSignatureException",
+			Message:    err.Error(),
+		}
+	}
+	if scheme != "AWS4-HMAC-SHA256" {
+		return &Error{
+			HTTPStatus: http.StatusForbidden,
+			Code:       "InvalidSignatureException",
+			Message:    "unsupported signing scheme: " + scheme,
+		}
+	}
+
+	signedTime, err := parseAmzDate(r.Header.Get("X-Amz-Date"))
+	if err != nil {
+		return &Error{
+			HTTPStatus: http.StatusForbidden,
+			Code:       "InvalidSignatureException",
+			Message:    "X-Amz-Date header: " + err.Error(),
+		}
+	}
+	if skew := time.Since(signedTime); skew > v.opts.MaxClockSkew || -skew > v.opts.MaxClockSkew {
+		return &Error{
+			HTTPStatus: http.StatusForbidden,
+			Code:       "RequestTimeTooSkewed",
+			Message:    "Signed time is outside ±" + v.opts.MaxClockSkew.String() + " of server time",
+		}
+	}
+
+	// Credential scope: <accessKey>/<yyyymmdd>/<region>/<service>/aws4_request.
+	credParts := strings.Split(parsed.Credential, "/")
+	if len(credParts) != 5 || credParts[4] != "aws4_request" {
+		return &Error{
+			HTTPStatus: http.StatusForbidden,
+			Code:       "InvalidSignatureException",
+			Message:    "malformed Credential scope: " + parsed.Credential,
+		}
+	}
+	accessKey, region, service := credParts[0], credParts[2], credParts[3]
+	if region != v.opts.Region || service != v.opts.Service {
+		return &Error{
+			HTTPStatus: http.StatusForbidden,
+			Code:       "SignatureDoesNotMatch",
+			Message: fmt.Sprintf("credential scope does not match this frontend; got %s/%s, want %s/%s",
+				region, service, v.opts.Region, v.opts.Service),
+		}
+	}
+
+	secret, sessionToken, ok := v.store.Lookup(r.Context(), accessKey)
+	if !ok {
+		return &Error{
+			HTTPStatus: http.StatusForbidden,
+			Code:       "InvalidAccessKeyId",
+			Message:    "access key id is not recognised",
+		}
+	}
+
+	// Buffer the body once; restore it for downstream handlers.
+	body, err := readAndRestoreBody(r)
+	if err != nil {
+		return &Error{
+			HTTPStatus: http.StatusBadRequest,
+			Code:       "InvalidRequest",
+			Message:    "could not read request body: " + err.Error(),
+		}
+	}
+	payloadHash := r.Header.Get("X-Amz-Content-Sha256")
+	if payloadHash == "" {
+		payloadHash = sha256Hex(body)
+	}
+
+	// Compute the canonical request manually using ONLY the original
+	// signer's SignedHeaders list. We can't reuse aws-sdk-go-v2's
+	// SignHTTP because its signer auto-includes Content-Length in
+	// the SignedHeaders list when ContentLength > 0 — boto3 (the
+	// `aws` CLI) doesn't, so the SDK-signer's canonical request
+	// diverges from the CLI's. canonical.go re-implements the SigV4
+	// algorithm so the signed-headers list is whatever the original
+	// client declared.
+	signedTimeFull := signedTime.UTC().Format("20060102T150405Z")
+	signedTimeYYYYMMDD := signedTime.UTC().Format("20060102")
+	expected := computeSigV4Signature(r, body, parsed.SignedHeaders, payloadHash,
+		accessKey, secret, sessionToken, service, region, signedTimeYYYYMMDD, signedTimeFull)
+
+	if subtle.ConstantTimeCompare([]byte(parsed.Signature), []byte(expected)) != 1 {
+		if os.Getenv("SHIMANISM_SIGV4_DEBUG") == "1" {
+			fmt.Fprintf(os.Stderr, "[sigv4verifier] mismatch:\n  presented: %s\n  expected:  %s\n  payloadHash: %s\n  signedTime: %s\n  service/region: %s/%s\n  SignedHeaders: %s\n  canonical request:\n%s\n",
+				parsed.Signature, expected, payloadHash, signedTimeFull, service, region, parsed.SignedHeaders,
+				buildCanonicalRequest(r, body, parsed.SignedHeaders, payloadHash))
+		}
+		return &Error{
+			HTTPStatus: http.StatusForbidden,
+			Code:       "SignatureDoesNotMatch",
+			Message:    "request signature is not valid for the credential and request",
+		}
+	}
+	return nil
+}
+
+// verifyPresigned handles requests whose SigV4 signature is carried
+// in query parameters (X-Amz-Algorithm, X-Amz-Credential, X-Amz-Date,
+// X-Amz-Expires, X-Amz-SignedHeaders, X-Amz-Signature). The canonical
+// request excludes X-Amz-Signature from the canonical query string;
+// the payload hash defaults to UNSIGNED-PAYLOAD.
+func (v *Verifier) verifyPresigned(r *http.Request) error {
+	q := r.URL.Query()
+	if alg := q.Get("X-Amz-Algorithm"); alg != "AWS4-HMAC-SHA256" {
+		return &Error{HTTPStatus: http.StatusForbidden, Code: "InvalidSignatureException",
+			Message: "unsupported presigned signing algorithm: " + alg}
+	}
+	credential := q.Get("X-Amz-Credential")
+	signedHeaders := q.Get("X-Amz-SignedHeaders")
+	signature := q.Get("X-Amz-Signature")
+	dateStr := q.Get("X-Amz-Date")
+	if credential == "" || signedHeaders == "" || signature == "" || dateStr == "" {
+		return &Error{HTTPStatus: http.StatusForbidden, Code: "InvalidSignatureException",
+			Message: "presigned URL missing required SigV4 query parameters"}
+	}
+	signedTime, err := parseAmzDate(dateStr)
+	if err != nil {
+		return &Error{HTTPStatus: http.StatusForbidden, Code: "InvalidSignatureException",
+			Message: "X-Amz-Date: " + err.Error()}
+	}
+	if skew := time.Since(signedTime); skew > v.opts.MaxClockSkew || -skew > v.opts.MaxClockSkew {
+		return &Error{HTTPStatus: http.StatusForbidden, Code: "RequestTimeTooSkewed",
+			Message: "Signed time is outside ±" + v.opts.MaxClockSkew.String() + " of server time"}
+	}
+	credParts := strings.Split(credential, "/")
+	if len(credParts) != 5 || credParts[4] != "aws4_request" {
+		return &Error{HTTPStatus: http.StatusForbidden, Code: "InvalidSignatureException",
+			Message: "malformed Credential scope: " + credential}
+	}
+	accessKey, region, service := credParts[0], credParts[2], credParts[3]
+	if region != v.opts.Region || service != v.opts.Service {
+		return &Error{HTTPStatus: http.StatusForbidden, Code: "SignatureDoesNotMatch",
+			Message: fmt.Sprintf("credential scope does not match this frontend; got %s/%s, want %s/%s",
+				region, service, v.opts.Region, v.opts.Service)}
+	}
+	secret, _, ok := v.store.Lookup(r.Context(), accessKey)
+	if !ok {
+		return &Error{HTTPStatus: http.StatusForbidden, Code: "InvalidAccessKeyId",
+			Message: "access key id is not recognised"}
+	}
+	// Presigned URLs use UNSIGNED-PAYLOAD by default. Drain body to
+	// keep the downstream handler happy with the buffered copy.
+	if _, err := readAndRestoreBody(r); err != nil {
+		return &Error{HTTPStatus: http.StatusBadRequest, Code: "InvalidRequest",
+			Message: "could not read request body: " + err.Error()}
+	}
+	payloadHash := "UNSIGNED-PAYLOAD"
+	signedTimeFull := signedTime.UTC().Format("20060102T150405Z")
+	signedTimeYYYYMMDD := signedTime.UTC().Format("20060102")
+	expected := computePresignedSigV4Signature(r, signedHeaders, payloadHash,
+		secret, service, region, signedTimeYYYYMMDD, signedTimeFull)
+	if subtle.ConstantTimeCompare([]byte(signature), []byte(expected)) != 1 {
+		if os.Getenv("SHIMANISM_SIGV4_DEBUG") == "1" {
+			fmt.Fprintf(os.Stderr, "[sigv4verifier presigned] mismatch:\n  presented: %s\n  expected:  %s\n", signature, expected)
+		}
+		return &Error{HTTPStatus: http.StatusForbidden, Code: "SignatureDoesNotMatch",
+			Message: "request signature is not valid for the credential and request"}
+	}
+	return nil
+}
+
+// readAndRestoreBody reads the request body once and replaces it on
+// the request with a non-closed io.ReadCloser holding the same bytes.
+// Returns the buffered bytes so the verifier can compute the payload
+// hash.
+func readAndRestoreBody(r *http.Request) ([]byte, error) {
+	if r.Body == nil || r.Body == http.NoBody {
+		return []byte{}, nil
+	}
+	b, err := io.ReadAll(r.Body)
+	if err != nil {
+		return nil, err
+	}
+	_ = r.Body.Close()
+	r.Body = io.NopCloser(bytes.NewReader(b))
+	if r.GetBody == nil {
+		clone := make([]byte, len(b))
+		copy(clone, b)
+		r.GetBody = func() (io.ReadCloser, error) {
+			return io.NopCloser(bytes.NewReader(clone)), nil
+		}
+	}
+	return b, nil
+}

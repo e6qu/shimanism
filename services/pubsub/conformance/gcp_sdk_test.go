@@ -7,19 +7,28 @@ import (
 	"context"
 	"encoding/base64"
 	"testing"
+	"time"
 
+	"golang.org/x/oauth2"
 	"google.golang.org/api/option"
 	pubsubraw "google.golang.org/api/pubsub/v1"
 
+	"github.com/e6qu/shimanism/internal/gcpbearer"
 	"github.com/e6qu/shimanism/internal/harness"
 	"github.com/e6qu/shimanism/services/pubsub/backends/inmem"
 )
 
 func TestGCPSDK_PubsubFanout(t *testing.T) {
 	srv := harness.StartPubsubServerGCP(t, inmem.New())
+	jwt := gcpbearer.TestJWT(
+		[]byte("test-key-do-not-use-in-prod"),
+		"https://shim.test/",
+		"https://pubsub.googleapis.com/",
+		15*time.Minute,
+	)
 	svc, err := pubsubraw.NewService(context.Background(),
 		option.WithEndpoint(srv.URL),
-		option.WithoutAuthentication(),
+		option.WithTokenSource(oauth2.StaticTokenSource(&oauth2.Token{AccessToken: jwt})),
 	)
 	if err != nil {
 		t.Fatalf("new pubsub service: %v", err)

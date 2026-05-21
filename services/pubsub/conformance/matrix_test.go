@@ -22,14 +22,19 @@ import (
 	"io"
 	"net/http"
 	"testing"
+	"time"
 
 	awsapi "github.com/aws/aws-sdk-go-v2/aws"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
+	awscredentials "github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/sns"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
+	"golang.org/x/oauth2"
 	"google.golang.org/api/option"
 	pubsubraw "google.golang.org/api/pubsub/v1"
 
+	"github.com/e6qu/shimanism/internal/azurebearer"
+	"github.com/e6qu/shimanism/internal/gcpbearer"
 	"github.com/e6qu/shimanism/internal/harness"
 	"github.com/e6qu/shimanism/services/pubsub/conformance"
 )
@@ -42,7 +47,12 @@ func TestPubsubMatrix_AWSFrontend(t *testing.T) {
 			srv := harness.StartPubsubServerAWS(t, be)
 			cfg, err := awsconfig.LoadDefaultConfig(ctx,
 				awsconfig.WithRegion("us-east-1"),
-				awsconfig.WithCredentialsProvider(awsapi.AnonymousCredentials{}),
+				awsconfig.WithCredentialsProvider(awscredentials.StaticCredentialsProvider{
+					Value: awsapi.Credentials{
+						AccessKeyID:     "AKIAIOSFODNN7EXAMPLE",
+						SecretAccessKey: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+					},
+				}),
 			)
 			if err != nil {
 				t.Fatalf("aws config: %v", err)
@@ -117,9 +127,15 @@ func TestPubsubMatrix_GCPFrontend(t *testing.T) {
 		t.Run(f.Name, func(t *testing.T) {
 			be := f.Fn(t)
 			srv := harness.StartPubsubServerGCP(t, be)
+			jwt := gcpbearer.TestJWT(
+				[]byte("test-key-do-not-use-in-prod"),
+				"https://shim.test/",
+				"https://pubsub.googleapis.com/",
+				15*time.Minute,
+			)
 			svc, err := pubsubraw.NewService(ctx,
 				option.WithEndpoint(srv.URL),
-				option.WithoutAuthentication(),
+				option.WithTokenSource(oauth2.StaticTokenSource(&oauth2.Token{AccessToken: jwt})),
 			)
 			if err != nil {
 				t.Fatalf("new pubsub service: %v", err)
@@ -183,12 +199,19 @@ func TestPubsubMatrix_AzureFrontend(t *testing.T) {
 			srv := harness.StartPubsubServerAzure(t, be)
 			topic := fmt.Sprintf("matrix-azure-%s", f.Name)
 			subs := []string{topic + "-a", topic + "-b"}
+			jwt := azurebearer.TestJWT(
+				[]byte("test-key-do-not-use-in-prod"),
+				"https://shim.test/",
+				"https://servicebus.azure.net",
+				15*time.Minute,
+			)
 
 			req := func(method, path string, body []byte, expect ...int) (*http.Response, error) {
 				r, err := http.NewRequest(method, srv.URL+path, bytes.NewReader(body))
 				if err != nil {
 					return nil, err
 				}
+				r.Header.Set("Authorization", "Bearer "+jwt)
 				resp, err := http.DefaultClient.Do(r)
 				if err != nil {
 					return nil, err

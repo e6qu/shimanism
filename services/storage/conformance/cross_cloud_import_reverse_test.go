@@ -21,6 +21,7 @@ import (
 
 	awsapi "github.com/aws/aws-sdk-go-v2/aws"
 	awscfg "github.com/aws/aws-sdk-go-v2/config"
+	awscredentials "github.com/aws/aws-sdk-go-v2/credentials"
 	awss3 "github.com/aws/aws-sdk-go-v2/service/s3"
 
 	"github.com/e6qu/shimanism/internal/restxml"
@@ -82,7 +83,12 @@ func TestCrossCloudImport_Roundtrip_StorageGCStoAWS(t *testing.T) {
 	// Layer 3: AWS backend pointing at the mock.
 	awsConfig, err := awscfg.LoadDefaultConfig(ctx,
 		awscfg.WithRegion("us-east-1"),
-		awscfg.WithCredentialsProvider(awsapi.AnonymousCredentials{}),
+		awscfg.WithCredentialsProvider(awscredentials.StaticCredentialsProvider{
+			Value: awsapi.Credentials{
+				AccessKeyID:     "AKIAIOSFODNN7EXAMPLE",
+				SecretAccessKey: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+			},
+		}),
 	)
 	if err != nil {
 		t.Fatalf("aws config: %v", err)

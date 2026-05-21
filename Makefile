@@ -70,14 +70,45 @@ fetch-specs:
 # AWS / GCP / Azure / Kubernetes peer for this service. See
 # services/storage/OPERATIONS.md for the rationale.
 codegen:
-	@SOURCE_COMMIT=$$(grep -oE '`[0-9a-f]{40}`' services/storage/spec/SOURCES.md | head -1 | tr -d '`'); \
-	OPS=$$(jq -r '.operations | join(",")' services/storage/codegen.json); \
-	go run ./cmd/codegen \
-		-spec=services/storage/spec/aws-s3.smithy.json \
-		-out=services/storage/gen/aws_s3.gen.go \
-		-pkg=gen \
-		-ops="$$OPS" \
-		-commit="$$SOURCE_COMMIT"
+	@for manifest in $$(find services -maxdepth 2 -name codegen.json | sort); do \
+		svc_dir=$$(dirname $$manifest); \
+		spec=$$(jq -r '.spec' $$manifest); \
+		pkg=$$(jq -r '.package' $$manifest); \
+		out=$$(jq -r '.out' $$manifest); \
+		ops=$$(jq -r '.operations | join(",")' $$manifest); \
+		if [ ! -f $$spec ]; then \
+			echo "codegen: skipping $$manifest (spec $$spec not vendored yet)"; \
+			continue; \
+		fi; \
+		commit=$$(grep -oE '`[0-9a-f]{40}`' $$svc_dir/spec/SOURCES.md 2>/dev/null | head -1 | tr -d '`'); \
+		if [ -z "$$commit" ]; then commit=0000000000000000000000000000000000000000; fi; \
+		echo "codegen: $$manifest -> $$out"; \
+		go run ./cmd/codegen \
+			-spec=$$spec \
+			-out=$$out \
+			-pkg=$$pkg \
+			-ops="$$ops" \
+			-commit="$$commit" || exit $$?; \
+	done
+	@for manifest in $$(find services -maxdepth 2 -name azure-codegen.json | sort); do \
+		svc_dir=$$(dirname $$manifest); \
+		spec=$$(jq -r '.spec' $$manifest); \
+		pkg=$$(jq -r '.package' $$manifest); \
+		out=$$(jq -r '.out' $$manifest); \
+		if [ ! -f $$spec ]; then \
+			echo "azure-codegen: skipping $$manifest (spec $$spec not vendored yet)"; \
+			continue; \
+		fi; \
+		spec_base=$$(basename $$spec); \
+		commit=$$(grep -F "$$spec_base" $$svc_dir/spec/SOURCES.md 2>/dev/null | grep -oE '`[0-9a-f]{40}`' | head -1 | tr -d '`'); \
+		if [ -z "$$commit" ]; then commit=0000000000000000000000000000000000000000; fi; \
+		echo "azure-codegen: $$manifest -> $$out"; \
+		go run ./cmd/azure-codegen \
+			-spec=$$spec \
+			-out=$$out \
+			-pkg=$$pkg \
+			-commit="$$commit" || exit $$?; \
+	done
 
 # Verify every linked Go dependency carries a license on the allowlist in
 # doc/COMPATIBLE_LICENSES.md. Uses Google's go-licenses tool. Installed on

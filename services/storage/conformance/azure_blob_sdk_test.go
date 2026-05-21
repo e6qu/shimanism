@@ -8,6 +8,7 @@ package conformance_test
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"io"
 	"strings"
 	"testing"
@@ -21,7 +22,13 @@ import (
 	"github.com/e6qu/shimanism/services/storage/backends/inmem"
 )
 
-const shimAccount = "shimaccount"
+const shimAccount = "shimstorage"
+
+// sharedKeyTestKey is the SharedKey verifier's trusted raw-bytes
+// key (kept in sync with internal/harness/server.go). The azblob
+// SDK takes a base64-encoded variant; the verifier HMACs with the
+// raw bytes after base64-decode.
+var sharedKeyTestKey = []byte("test-key-do-not-use-in-prod-this-is-32-bytes-of-junk")
 
 func newAzureBlobClient(t *testing.T, endpoint string) *azblob.Client {
 	t.Helper()
@@ -29,7 +36,12 @@ func newAzureBlobClient(t *testing.T, endpoint string) *azblob.Client {
 	// constructs URLs as `<shimURL>/<account>/<container>/...` — the
 	// shim's frontend strips the account segment and routes the rest.
 	full := strings.TrimRight(endpoint, "/") + "/" + shimAccount + "/"
-	c, err := azblob.NewClientWithNoCredential(full, nil)
+	encoded := base64.StdEncoding.EncodeToString(sharedKeyTestKey)
+	cred, err := azblob.NewSharedKeyCredential(shimAccount, encoded)
+	if err != nil {
+		t.Fatalf("new SharedKey credential: %v", err)
+	}
+	c, err := azblob.NewClientWithSharedKeyCredential(full, cred, nil)
 	if err != nil {
 		t.Fatalf("new Azure Blob client: %v", err)
 	}

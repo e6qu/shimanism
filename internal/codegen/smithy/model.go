@@ -177,6 +177,30 @@ func (s *Shape) HTTPErrorCode() int {
 func (s *Shape) XMLName() string  { return extractStringTrait(s.Traits, "smithy.api#xmlName") }
 func (m *Member) XMLName() string { return extractStringTrait(m.Traits, "smithy.api#xmlName") }
 
+// JSONName returns the smithy.api#jsonName trait value, or "". Used by
+// the awsJson1_x and restJson1 protocols to override the default Go
+// field-name-derived JSON key.
+func (m *Member) JSONName() string { return extractStringTrait(m.Traits, "smithy.api#jsonName") }
+
+// SDKID returns the aws.api#service.sdkId trait value, or "". For
+// service shapes only. AWS SDKs use this as the human-readable service
+// name (e.g. "Secrets Manager", "S3", "API Gateway") — handy for
+// generating Go-idiomatic identifiers from a lowercase wire service
+// name.
+func (s *Shape) SDKID() string {
+	raw := s.TraitJSON("aws.api#service")
+	if raw == nil {
+		return ""
+	}
+	var t struct {
+		SDKID string `json:"sdkId"`
+	}
+	if err := json.Unmarshal(raw, &t); err != nil {
+		return ""
+	}
+	return t.SDKID
+}
+
 // TimestampFormat returns the smithy.api#timestampFormat trait, or "".
 // Valid values per Smithy: "date-time", "http-date", "epoch-seconds".
 func (s *Shape) TimestampFormat() string {

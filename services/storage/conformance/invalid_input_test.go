@@ -100,7 +100,11 @@ func awsTestConfig(endpoint string) aws.Config {
 	return aws.Config{
 		Region: "us-east-1",
 		Credentials: aws.CredentialsProviderFunc(func(_ context.Context) (aws.Credentials, error) {
-			return aws.Credentials{AccessKeyID: "test", SecretAccessKey: "test"}, nil
+			// Verifier's trusted test credentials.
+			return aws.Credentials{
+				AccessKeyID:     "AKIAIOSFODNN7EXAMPLE",
+				SecretAccessKey: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+			}, nil
 		}),
 		BaseEndpoint: aws.String(endpoint),
 	}

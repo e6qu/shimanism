@@ -9,19 +9,33 @@ import (
 	"context"
 	"encoding/base64"
 	"testing"
+	"time"
 
+	"golang.org/x/oauth2"
 	"google.golang.org/api/option"
 	smraw "google.golang.org/api/secretmanager/v1"
 
+	"github.com/e6qu/shimanism/internal/gcpbearer"
 	"github.com/e6qu/shimanism/internal/harness"
 	"github.com/e6qu/shimanism/services/secrets/backends/inmem"
 )
 
 func newGCPSecretManagerService(t *testing.T, endpoint string) *smraw.Service {
 	t.Helper()
+	// Sign a JWT with the gcpbearer verifier's trusted test key for
+	// the secretmanager audience. The bearer middleware accepts it
+	// and lets the request through. With the bypass dropped, this
+	// is what real conformance looks like.
+	jwt := gcpbearer.TestJWT(
+		[]byte("test-key-do-not-use-in-prod"),
+		"https://shim.test/",
+		"https://secretmanager.googleapis.com/",
+		15*time.Minute,
+	)
+	tokenSource := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: jwt})
 	svc, err := smraw.NewService(context.Background(),
 		option.WithEndpoint(endpoint),
-		option.WithoutAuthentication(),
+		option.WithTokenSource(tokenSource),
 	)
 	if err != nil {
 		t.Fatalf("new GCP Secret Manager service: %v", err)

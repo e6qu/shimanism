@@ -12,6 +12,7 @@ import (
 
 	awsapi "github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/rds"
 
 	"github.com/e6qu/shimanism/internal/harness"
@@ -23,7 +24,12 @@ func TestAWSSDK_RDBMSLifecycle(t *testing.T) {
 	ctx := context.Background()
 	cfg, err := config.LoadDefaultConfig(ctx,
 		config.WithRegion("us-east-1"),
-		config.WithCredentialsProvider(awsapi.AnonymousCredentials{}),
+		config.WithCredentialsProvider(credentials.StaticCredentialsProvider{
+			Value: awsapi.Credentials{
+				AccessKeyID:     "AKIAIOSFODNN7EXAMPLE",
+				SecretAccessKey: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+			},
+		}),
 	)
 	if err != nil {
 		t.Fatalf("load config: %v", err)

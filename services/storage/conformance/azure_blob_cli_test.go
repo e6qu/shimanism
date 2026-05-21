@@ -7,6 +7,7 @@ package conformance_test
 
 import (
 	"bytes"
+	"encoding/base64"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -17,12 +18,12 @@ import (
 	"github.com/e6qu/shimanism/services/storage/backends/inmem"
 )
 
-// az's well-known Azurite-style credentials. The shim accepts any
-// SharedKey signature; these values give az's signer something to
-// work with so it doesn't refuse to construct a request.
-const (
-	azAccountName = "devstoreaccount1"
-	azAccountKey  = "Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw=="
+// SharedKey credentials the azuresharedkey verifier accepts.
+// Account name and raw key live in internal/harness/server.go's
+// StartStorageServerAzureBlob; az takes a base64-encoded key.
+var (
+	azAccountName = "shimstorage"
+	azAccountKey  = base64.StdEncoding.EncodeToString([]byte("test-key-do-not-use-in-prod-this-is-32-bytes-of-junk"))
 )
 
 func requireAZ(t *testing.T) string {

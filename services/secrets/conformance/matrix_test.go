@@ -21,14 +21,17 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/azsecrets"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
+	"golang.org/x/oauth2"
 	"google.golang.org/api/option"
 	smraw "google.golang.org/api/secretmanager/v1"
 
+	"github.com/e6qu/shimanism/internal/gcpbearer"
 	"github.com/e6qu/shimanism/internal/harness"
 	"github.com/e6qu/shimanism/services/secrets/conformance"
 )
@@ -90,9 +93,15 @@ func TestSecretsMatrix_GCPFrontend(t *testing.T) {
 		t.Run(bf.Name, func(t *testing.T) {
 			backend := bf.Fn(t)
 			srv := harness.StartSecretsServerGCP(t, backend)
+			jwt := gcpbearer.TestJWT(
+				[]byte("test-key-do-not-use-in-prod"),
+				"https://shim.test/",
+				"https://secretmanager.googleapis.com/",
+				15*time.Minute,
+			)
 			svc, err := smraw.NewService(context.Background(),
 				option.WithEndpoint(srv.URL),
-				option.WithoutAuthentication(),
+				option.WithTokenSource(oauth2.StaticTokenSource(&oauth2.Token{AccessToken: jwt})),
 			)
 			if err != nil {
 				t.Fatalf("new GCP service: %v", err)
@@ -137,7 +146,7 @@ func TestSecretsMatrix_AzureFrontend(t *testing.T) {
 					TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec
 				},
 			}
-			cli, err := azsecrets.NewClient(srv.URL, fakeTokenCredential{}, &azsecrets.ClientOptions{
+			cli, err := azsecrets.NewClient(srv.URL, newKeyVaultCred(), &azsecrets.ClientOptions{
 				DisableChallengeResourceVerification: true,
 				ClientOptions: azcore.ClientOptions{
 					Transport: httpClient,

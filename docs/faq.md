@@ -67,7 +67,7 @@ Yes — that's a direct consequence of statelessness. Any replica answers any re
 - **Doesn't handle DNS / custom domains / certs.** Those are platform-level concerns separate from the wire-protocol shim.
 - **Doesn't snapshot / replicate databases.** For RDBMS / cache migration, you need a separate snapshot or replication step. The shim provisions the destination instance + returns the connection metadata; data movement is the user's responsibility.
 
-Per [PHASE_10_PLAN.md](../PHASE_10_PLAN.md): shimanism is a *cross-cloud IaC + control-plane migration tool*, not a full migration tool.
+shimanism is a *cross-cloud IaC + control-plane migration tool*, not a full migration tool.
 
 ## Does shimanism need cloud credentials?
 

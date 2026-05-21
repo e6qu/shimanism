@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/e6qu/shimanism/internal/secrets/domain"
+	gen "github.com/e6qu/shimanism/services/secrets/gen"
 )
 
 // Server is an Azure-Key-Vault-shaped HTTP frontend.
@@ -117,17 +118,6 @@ func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		"no Key Vault secrets route matches "+method+" "+path)
 }
 
-// ----------------------------------------------------------------------
-// Wire types — JSON shapes the SDK puts on / reads from the wire.
-// ----------------------------------------------------------------------
-
-type setSecretRequest struct {
-	Value            string            `json:"value"`
-	Tags             map[string]string `json:"tags,omitempty"`
-	ContentType      string            `json:"contentType,omitempty"`
-	SecretAttributes *secretAttributes `json:"attributes,omitempty"`
-}
-
 type secretAttributes struct {
 	Enabled       *bool  `json:"enabled,omitempty"`
 	Created       int64  `json:"created,omitempty"` // unix seconds
@@ -155,12 +145,12 @@ type listSecretsResponse struct {
 	NextLink string       `json:"nextLink,omitempty"`
 }
 
-// ----------------------------------------------------------------------
-// Handlers
-// ----------------------------------------------------------------------
-
 func (srv *Server) setSecret(w http.ResponseWriter, r *http.Request, name string) {
-	var body setSecretRequest
+	// gen.SecretSetParameters is generated from the upstream Azure
+	// Key Vault spec; using it here keeps the SDK-wire decode honest
+	// (sibling handlers still use the local secretAttributes /
+	// secretBundle shapes — incremental migration).
+	var body gen.SecretSetParameters
 	if !decodeJSON(w, r, &body) {
 		return
 	}
@@ -168,7 +158,10 @@ func (srv *Server) setSecret(w http.ResponseWriter, r *http.Request, name string
 	// version to an existing one. Domain CreateSecret returns
 	// SecretAlreadyExists; in that case fall through to
 	// PutSecretValue.
-	tags := body.Tags
+	var tags map[string]string
+	if body.Tags != nil {
+		tags = *body.Tags
+	}
 	description := ""
 	if v, ok := tags["shim-description"]; ok {
 		description = v
@@ -299,10 +292,6 @@ func (srv *Server) listSecretVersions(w http.ResponseWriter, r *http.Request, na
 	}
 	writeJSON(w, http.StatusOK, out)
 }
-
-// ----------------------------------------------------------------------
-// Helpers
-// ----------------------------------------------------------------------
 
 func writeSecretBundle(w http.ResponseWriter, status int, name string, value []byte, version uint64, created time.Time, tags map[string]string, description string, r *http.Request) {
 	val := string(value)

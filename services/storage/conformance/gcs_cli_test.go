@@ -12,7 +12,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/e6qu/shimanism/internal/gcpbearer"
 	"github.com/e6qu/shimanism/internal/harness"
 	"github.com/e6qu/shimanism/services/storage/backends/inmem"
 )
@@ -26,19 +28,25 @@ func requireGcloud(t *testing.T) string {
 	return bin
 }
 
-// runGcloud executes gcloud against the shim. The env explicitly
-// disables credentials so the CLI does not try to acquire an OAuth2
-// token from the metadata server / well-known credential paths;
-// the shim accepts unsigned requests.
+// runGcloud executes gcloud against the shim. CLOUDSDK_AUTH_ACCESS_TOKEN
+// carries the JWT the gcpbearer verifier accepts (signed for the
+// storage audience), so the bearer middleware lets requests through
+// end-to-end. With BUG-18 closure, the shim requires real auth.
 func runGcloud(t *testing.T, srvURL, bin string, args ...string) ([]byte, []byte, error) {
 	t.Helper()
 	full := strings.TrimRight(srvURL, "/") + "/"
+	jwt := gcpbearer.TestJWT(
+		[]byte("test-key-do-not-use-in-prod"),
+		"https://shim.test/",
+		"https://storage.googleapis.com/",
+		15*time.Minute,
+	)
 	cmd := exec.Command(bin, append([]string{
 		"--quiet",
 	}, args...)...)
 	cmd.Env = append(os.Environ(),
 		"CLOUDSDK_API_ENDPOINT_OVERRIDES_STORAGE="+full,
-		"CLOUDSDK_AUTH_DISABLE_CREDENTIALS=true",
+		"CLOUDSDK_AUTH_ACCESS_TOKEN="+jwt,
 		"CLOUDSDK_CORE_DISABLE_PROMPTS=1",
 		"CLOUDSDK_CORE_PROJECT=shim-conformance",
 	)

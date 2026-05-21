@@ -143,7 +143,7 @@ shimanism is the **control + wire-protocol** layer. It doesn't move data for you
 - **Reroute one service at a time for new state only.** The shim points at the destination; old data on the source stays where it is. Acceptable for stateless services (queues, pub/sub) and stateless-ish ones (functions). For storage with existing data, you need a separate data-migration step.
 - **Pre-populate the destination, then cutover.** Run a migration tool (cloud-native ones like AWS DataSync to GCP STS, or rclone, or `gsutil`+`aws s3 sync`) to copy historical data. Then flip the shim's backend pointer to the destination. shimanism stays out of the data-copy step.
 
-Per the codex review in [PHASE_10_PLAN.md](../PHASE_10_PLAN.md): **shimanism is a cross-cloud IaC + control-plane migration tool, not a full migration tool.** Data movement, secret value/version history transfer, DB snapshots/replication, cache warmup, queued-message drain, pubsub backlog/subscription replication, function artifact transfer, custom domain + cert provisioning, IAM rebinding, DNS swap, validation, rollback, and cleanup — those are user responsibilities (or other tools' jobs).
+**shimanism is a cross-cloud IaC + control-plane migration tool, not a full migration tool.** Data movement, secret value/version history transfer, DB snapshots/replication, cache warmup, queued-message drain, pubsub backlog/subscription replication, function artifact transfer, custom domain + cert provisioning, IAM rebinding, DNS swap, validation, rollback, and cleanup — those are user responsibilities (or other tools' jobs).
 
 ## Rollback
 
@@ -184,4 +184,4 @@ See [docs/comparison.md](comparison.md) for the longer-form comparison.
 - [docs/comparison.md](comparison.md) — how shimanism differs from related projects.
 - [docs/services.md](services.md) — per-service detail.
 - [doc/CROSS_CLOUD_ROUTING.md](../doc/CROSS_CLOUD_ROUTING.md) — wire-level walkthrough.
-- [PHASE_10_PLAN.md](../PHASE_10_PLAN.md) — the "control-plane migration tool, not full migration tool" framing.
+- [PLAN.md](../PLAN.md) — roadmap and current-phase plan.

@@ -29,8 +29,8 @@ func runAWS(t *testing.T, endpoint, bin string, args ...string) ([]byte, []byte,
 	t.Helper()
 	cmd := exec.Command(bin, append([]string{"--endpoint-url=" + endpoint, "--no-cli-pager"}, args...)...)
 	cmd.Env = append(os.Environ(),
-		"AWS_ACCESS_KEY_ID=test",
-		"AWS_SECRET_ACCESS_KEY=test",
+		"AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE",
+		"AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
 		"AWS_DEFAULT_REGION=us-east-1",
 	)
 	var stdout, stderr bytes.Buffer

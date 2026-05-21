@@ -22,11 +22,14 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/apimanagement/armapimanagement/v3"
 	awsapi "github.com/aws/aws-sdk-go-v2/aws"
 	awscfg "github.com/aws/aws-sdk-go-v2/config"
+	awscredentials "github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/apigatewayv2"
 	apigwtypes "github.com/aws/aws-sdk-go-v2/service/apigatewayv2/types"
+	"golang.org/x/oauth2"
 	apigwapi "google.golang.org/api/apigateway/v1"
 	"google.golang.org/api/option"
 
+	"github.com/e6qu/shimanism/internal/gcpbearer"
 	"github.com/e6qu/shimanism/internal/harness"
 	"github.com/e6qu/shimanism/services/apigateway/conformance"
 )
@@ -40,7 +43,12 @@ func TestAPIGatewayMatrix_AWSFrontend(t *testing.T) {
 			ctx := context.Background()
 			cfg, err := awscfg.LoadDefaultConfig(ctx,
 				awscfg.WithRegion("us-east-1"),
-				awscfg.WithCredentialsProvider(awsapi.AnonymousCredentials{}),
+				awscfg.WithCredentialsProvider(awscredentials.StaticCredentialsProvider{
+					Value: awsapi.Credentials{
+						AccessKeyID:     "AKIAIOSFODNN7EXAMPLE",
+						SecretAccessKey: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+					},
+				}),
 			)
 			if err != nil {
 				t.Fatalf("load aws config: %v", err)
@@ -72,9 +80,15 @@ func TestAPIGatewayMatrix_GCPFrontend(t *testing.T) {
 			backend := bf.Fn(t)
 			srv := harness.StartAPIGatewayServerGCP(t, backend)
 			ctx := context.Background()
+			jwt := gcpbearer.TestJWT(
+				[]byte("test-key-do-not-use-in-prod"),
+				"https://shim.test/",
+				"https://apigateway.googleapis.com/",
+				15*time.Minute,
+			)
 			svc, err := apigwapi.NewService(ctx,
 				option.WithEndpoint(strings.TrimSuffix(srv.URL, "/")),
-				option.WithoutAuthentication(),
+				option.WithTokenSource(oauth2.StaticTokenSource(&oauth2.Token{AccessToken: jwt})),
 			)
 			if err != nil {
 				t.Fatalf("NewService: %v", err)

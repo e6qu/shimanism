@@ -16,10 +16,13 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 
+	"golang.org/x/oauth2"
 	"google.golang.org/api/option"
 	sqladmin "google.golang.org/api/sqladmin/v1"
 
+	"github.com/e6qu/shimanism/internal/gcpbearer"
 	"github.com/e6qu/shimanism/internal/harness"
 	"github.com/e6qu/shimanism/services/rdbms/backends/inmem"
 )
@@ -27,9 +30,15 @@ import (
 func TestGCPSDK_RDBMS_OperationsPolling(t *testing.T) {
 	srv := harness.StartRDBMSServerGCP(t, inmem.New())
 	ctx := context.Background()
+	jwt := gcpbearer.TestJWT(
+		[]byte("test-key-do-not-use-in-prod"),
+		"https://shim.test/",
+		"https://sqladmin.googleapis.com/",
+		15*time.Minute,
+	)
 	svc, err := sqladmin.NewService(ctx,
 		option.WithEndpoint(strings.TrimSuffix(srv.URL, "/")+"/"),
-		option.WithoutAuthentication(),
+		option.WithTokenSource(oauth2.StaticTokenSource(&oauth2.Token{AccessToken: jwt})),
 	)
 	if err != nil {
 		t.Fatalf("NewService: %v", err)

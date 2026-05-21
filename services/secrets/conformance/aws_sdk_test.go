@@ -30,8 +30,16 @@ func newAWSSecretsManagerClient(t *testing.T, endpoint string) *secretsmanager.C
 	t.Helper()
 	cfg, err := config.LoadDefaultConfig(context.Background(),
 		config.WithRegion("us-east-1"),
+		// Use the verifier's trusted test credentials so SDK requests
+		// sign with a key the shim's SigV4 middleware accepts. With
+		// SHIMANISM_TEST_UNAUTHENTICATED=1 (harness init) the verifier
+		// short-circuits and these creds are irrelevant; without it
+		// the verifier checks the signature.
 		config.WithCredentialsProvider(credentials.StaticCredentialsProvider{
-			Value: aws.Credentials{AccessKeyID: "test", SecretAccessKey: "test"},
+			Value: aws.Credentials{
+				AccessKeyID:     "AKIAIOSFODNN7EXAMPLE",
+				SecretAccessKey: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+			},
 		}),
 	)
 	if err != nil {
