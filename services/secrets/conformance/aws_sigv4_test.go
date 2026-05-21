@@ -48,7 +48,7 @@ const (
 // include Accept-Encoding in the SignedHeaders, expanding the
 // canonical request and producing a spurious mismatch.
 func TestAWSSigV4_AcceptsSignedRequestViaSDK(t *testing.T) {
-	t.Setenv("SHIMANISM_TEST_UNAUTHENTICATED", "")
+	t.Setenv("SHIMANISM_TEST_UNAUTHENTICATED_AWS", "")
 	srv := startSignedSecretsServer(t)
 
 	cfg, err := awsconfig.LoadDefaultConfig(context.Background(),
@@ -80,7 +80,7 @@ func TestAWSSigV4_AcceptsSignedRequestViaSDK(t *testing.T) {
 }
 
 func TestAWSSigV4_RejectsUnsignedRequest(t *testing.T) {
-	t.Setenv("SHIMANISM_TEST_UNAUTHENTICATED", "")
+	t.Setenv("SHIMANISM_TEST_UNAUTHENTICATED_AWS", "")
 	srv := startSignedSecretsServer(t)
 
 	req, _ := http.NewRequest(http.MethodPost, srv.URL+"/", strings.NewReader(`{"SecretId":"any"}`))
@@ -98,7 +98,7 @@ func TestAWSSigV4_RejectsUnsignedRequest(t *testing.T) {
 }
 
 func TestAWSSigV4_RejectsWrongKey(t *testing.T) {
-	t.Setenv("SHIMANISM_TEST_UNAUTHENTICATED", "")
+	t.Setenv("SHIMANISM_TEST_UNAUTHENTICATED_AWS", "")
 	srv := startSignedSecretsServer(t)
 
 	req := buildDescribeSecretReq(t, srv.URL, "any-secret",
@@ -115,7 +115,7 @@ func TestAWSSigV4_RejectsWrongKey(t *testing.T) {
 }
 
 func TestAWSSigV4_RejectsTamperedSignature(t *testing.T) {
-	t.Setenv("SHIMANISM_TEST_UNAUTHENTICATED", "")
+	t.Setenv("SHIMANISM_TEST_UNAUTHENTICATED_AWS", "")
 	srv := startSignedSecretsServer(t)
 
 	req := buildDescribeSecretReq(t, srv.URL, "any-secret",

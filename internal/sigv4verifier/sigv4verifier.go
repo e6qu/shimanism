@@ -44,11 +44,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 	"time"
-
-	"github.com/aws/aws-sdk-go-v2/aws"
-	v4 "github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 )
 
 // CredentialStore looks up the AWS access-key-id's secret + optional
@@ -190,44 +188,25 @@ func (v *Verifier) Verify(r *http.Request) error {
 		payloadHash = sha256Hex(body)
 	}
 
-	// Build a fresh request that mirrors the incoming one minus the
-	// Authorization (and X-Amz-Date which the signer will set itself).
-	// The signer rewrites the Authorization header on the cloned
-	// request; we then compare.
-	//
-	// Critical: restrict the clone's headers to ONLY those the original
-	// signer declared in the SignedHeaders list. Go's
-	// http.Transport auto-adds headers like `Accept-Encoding: gzip`
-	// AFTER the request was signed by the client. If those headers
-	// leak into the verifier's re-sign, the SDK signer expands the
-	// SignedHeaders list and the canonical request diverges from
-	// what the client signed, producing a spurious mismatch.
-	clone := r.Clone(r.Context())
-	clone.Header = filterToSignedHeaders(r.Header, parsed.SignedHeaders)
-	clone.Body = io.NopCloser(bytes.NewReader(body))
+	// Compute the canonical request manually using ONLY the original
+	// signer's SignedHeaders list. We can't reuse aws-sdk-go-v2's
+	// SignHTTP because its signer auto-includes Content-Length in
+	// the SignedHeaders list when ContentLength > 0 — boto3 (the
+	// `aws` CLI) doesn't, so the SDK-signer's canonical request
+	// diverges from the CLI's. canonical.go re-implements the SigV4
+	// algorithm so the signed-headers list is whatever the original
+	// client declared.
+	signedTimeFull := signedTime.UTC().Format("20060102T150405Z")
+	signedTimeYYYYMMDD := signedTime.UTC().Format("20060102")
+	expected := computeSigV4Signature(r, body, parsed.SignedHeaders, payloadHash,
+		accessKey, secret, sessionToken, service, region, signedTimeYYYYMMDD, signedTimeFull)
 
-	creds := aws.Credentials{
-		AccessKeyID:     accessKey,
-		SecretAccessKey: secret,
-		SessionToken:    sessionToken,
-	}
-	signer := v4.NewSigner()
-	if err := signer.SignHTTP(r.Context(), creds, clone, payloadHash, service, region, signedTime); err != nil {
-		return &Error{
-			HTTPStatus: http.StatusForbidden,
-			Code:       "SignatureDoesNotMatch",
-			Message:    "could not re-sign for verification: " + err.Error(),
-		}
-	}
-	expected, _, err := parseAuthHeaderShort(clone.Header.Get("Authorization"))
-	if err != nil {
-		return &Error{
-			HTTPStatus: http.StatusForbidden,
-			Code:       "SignatureDoesNotMatch",
-			Message:    "could not re-parse verified signature",
-		}
-	}
 	if subtle.ConstantTimeCompare([]byte(parsed.Signature), []byte(expected)) != 1 {
+		if os.Getenv("SHIMANISM_SIGV4_DEBUG") == "1" {
+			fmt.Fprintf(os.Stderr, "[sigv4verifier] mismatch:\n  presented: %s\n  expected:  %s\n  payloadHash: %s\n  signedTime: %s\n  service/region: %s/%s\n  SignedHeaders: %s\n  canonical request:\n%s\n",
+				parsed.Signature, expected, payloadHash, signedTimeFull, service, region, parsed.SignedHeaders,
+				buildCanonicalRequest(r, body, parsed.SignedHeaders, payloadHash))
+		}
 		return &Error{
 			HTTPStatus: http.StatusForbidden,
 			Code:       "SignatureDoesNotMatch",
