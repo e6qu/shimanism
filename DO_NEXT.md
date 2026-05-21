@@ -6,53 +6,44 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 
 ## Where we are
 
-- **Last merged:** PR #13 (Phase 8 + Phase 9 substantial chunk) at `ad85ddf` on `origin/main`, 2026-05-20.
-- **Active branch:** `phase-9-closer`. Docs roll-up only — the merged PHASE_9_PLAN narrative said "six" because the closer commit was pushed after the squash-merge fired. All 8 cross-cloud cells (incl. secrets + pubsub) actually shipped in PR #13.
-- **Phase 8** complete (16/16 sub-phases). Exit criterion `TestRouteServes_Envoy` green in `conformance-envoy` CI lane.
-- **Phase 9** advanced significantly on the same PR:
-  - `PHASE_9_PLAN.md` drafted + codex-reviewed + revised to encode the "no fakes" + "useful for migration" instructions.
-  - **9.1** `shimctl env` CLI + `internal/clientconfig/overrides.yaml` registry of (cloud × service) endpoint-override knobs.
-  - **9.2-A** per-service `INTERSECTION.md` audits — every wire op classified real-work / feature-unset / out-of-intersection.
-  - **9.2-B** per-service `MIGRATION.md` walkthroughs — runnable migration recipes per (source cloud × target cloud × K8s peer).
-  - **9.5** `terraform_import_test.go` for all 8 services — every import driver passes through the shim.
-  - **Six real fidelity fixes** surfaced by the import tests (XML double-nesting, missing Policy JSON, missing tag-list handlers, missing selection-expression defaults, missing Lambda subresources, missing RDS ARN). No fakes survived.
-  - **9.13** cross-cloud exit criterion: `TestCrossCloudImport_Roundtrip_StorageAWStoGCS` proves the headline promise — AWS-shape TF imports a bucket that lives in mock-GCS through the shim, with no fidelity diffs.
-- **Remaining Phase 9 work** (next PR after merge): mock cloud servers as standalone binaries (9.3), `cmd/shim mock` subcommand (9.11), per-frontend full-matrix import driver (9.7), CI lane `conformance-import-matrix` (9.12), Phase 9-A real-cloud lanes behind Track A.
+- **Last merged:** PR #16 (Phase 9 docs roll-up + Phase 10 plan + Phase 10.1 BUG-5 fix) at `326f57d` on `origin/main`, 2026-05-21.
+- **Active branch:** `phase-10`. Single PR for the whole Phase 10 effort (cross-cloud `terraform apply` through the shim). Granular commits as sub-phases land.
+- **Phase 8** closed in PR #13 (co-merged with the Phase 9 chunk). API Gateway end-to-end, exit criterion `TestRouteServes_Envoy` green.
+- **Phase 9** closed across PR #13 + PR #16. All 8 services through cross-cloud `terraform import`; `TestCrossCloudImport_Roundtrip_StorageAWStoGCS` proves the headline. Per-service `INTERSECTION.md` + `MIGRATION.md` audits in tree.
+- **Phase 10.1** already landed in PR #16: BUG-5 closed. All four GCP-shape frontends (rdbms Cloud SQL Admin / cache Memorystore / functions Cloud Run / apigateway API Gateway) implement `Operations.Get` statelessly. Apply against GCP frontends no longer hangs on async ops.
 
-## Phase 8 sub-task table
+## Phase 10 sub-task table
+
+Plan in [`PHASE_10_PLAN.md`](PHASE_10_PLAN.md). One PR for the whole phase; granular commits per sub-phase.
 
 | Sub | Status | Headline |
 |---|---|---|
-| **8.0** | ✅ | Scope + design baseline. `services/apigateway/OPERATIONS.md` captures the 5-op intersection. Declarative-replace via `DeployGateway`. Route shape: method + path + backend URL only — per-route auth/throttling/transforms deferred. |
-| **8.1** | ✅ | Vendor AWS API Gateway v2 Smithy. GCP via `google.golang.org/api/apigateway/v1`; Azure via `armapimanagement`. |
-| **8.2** | ✅ | Domain interface `internal/apigateway/domain/`. |
-| **8.3** | ✅ | inmem + AWS API Gateway v2 frontend (restJson1) + SDK conformance. |
-| **8.4** | ✅ | **Envoy Gateway backend** (K8s peer) via dynamic client + unstructured `Gateway` / `HTTPRoute` CRs. |
-| **8.5** | ✅ | AWS API Gateway v2 passthrough. |
-| **8.6** | ✅ | GCP API Gateway backend. |
-| **8.7** | ✅ | Azure API Management backend. (DeleteGateway returns InvalidArgument until Track A; armapimanagement/v3 delete signature requires version-specific etag handling — see BUGS.md.) |
-| **8.8** | ✅ | GCP API Gateway frontend. |
-| **8.9** | ✅ | Azure API Management REST frontend. |
-| **8.10** | ✅ | Matrix conformance — 3 frontends × 5 backends, SDK driver. |
-| **8.11** | ✅ | CLI conformance: aws apigatewayv2 + gcloud api-gateway; az smoke (per-resource override gap tracked in BUGS.md). |
-| **8.12** | ✅ | Terraform conformance: hashicorp/aws apigatewayv2 init+apply+destroy; hashicorp/google plan; azurerm smoke. |
-| **8.13** | ✅ | `cmd/shim apigateway` subcommand. Default `:9700`. |
-| **8.14** | ✅ | CI lane `conformance-envoy`: kind + Envoy Gateway v1.2.4. |
-| **8.15** | ✅ | **HTTP-route exit criterion test** `TestRouteServes_Envoy` — register Gateway+Route via AWS frontend → echo upstream behind Envoy → port-forward + HTTP GET succeeds. |
-| **8.16** | ◐ | Phase 8 closer — push, CI green, PR merged. |
+| **10.0** | ✅ | Scope baseline. `PHASE_10_PLAN.md` written and codex-reviewed (5 critiques applied). |
+| **10.0-A** | ◐ | **Per-service `APPLY_INTERSECTION.md`** — the contract that matrix tests assert against. Before any test code. One file per service (8 total). |
+| **10.1** | ✅ | BUG-5 family closed (PR #16). GCP `Operations.Get` on all four GCP-shape frontends. |
+| **10.2** | ◻ | Create-then-Read drift audit per service. Build `terraform apply` test scaffolding. |
+| **10.2-B** | ◻ | **Cross-frontend read** after cross-cloud write. Catches self-consistent wrongness. |
+| **10.2-C** | ◻ | **Invalid-input fidelity** — known-bad inputs assert the shim returns the source cloud's *real* error envelope. |
+| **10.3** | ◻ | Update intersection audit per service. In-place vs replace; honest "operation not supported in update" envelopes. |
+| **10.4** | ◻ | Soft-delete intersection across secrets + storage (queue dropped per codex review). Opt-in only. |
+| **10.5** | ◻ | Per-service `apply_test.go` covering Create → Read-check → Update → Read-check → Destroy, asserting against 10.0-A's contract. |
+| **10.6** | ◻ | Cross-cloud Apply matrix tests, contract-scoped. |
+| **10.7** | ◻ | Exit criterion: `TestCrossCloudApply_Roundtrip` per service. |
+| **10.8** | ◻ | Phase 10 closer — push, CI green, PR merged. |
 
 Status legend: ✅ done · ◐ in progress · ◻ pending · ⏸ paused.
 
-## Phase 8 design notes
+## Phase 10 design notes
 
-- **Declarative-replace.** `DeployGateway(spec)` atomically swaps the full routing table. Partial route mutations on a live gateway are out of intersection (cross-cloud semantics differ too much).
-- **Route shape is minimal.** Method + path + backend URL only. Per-route auth, throttling, transforms, custom domain mapping all deferred — the exit criterion is "routes dispatch HTTP to backends correctly."
-- **HTTP data plane.** Same as Phase 7 — the shim provisions the gateway and returns its URL; clients HTTP-request the URL; the gateway dispatches.
+- **Contract-first matrix.** Sub-phase 10.0-A is the gate per codex review #5. Each `services/<svc>/APPLY_INTERSECTION.md` enumerates which Create / Update / Delete ops the shim claims honest cross-cloud semantics for, with per-cell translation specified. Matrix tests assert *against this contract*. This prevents the matrix-explosion failure mode where the provider tries every attribute and the shim has to either fake or 500.
+- **Necessary-but-not-sufficient drift audit.** Single-frontend Create-then-Read passes when Create translates wrong *and* Read translates wrong in the same direction. 10.2-B drives Create through frontend A and Read through frontend B (same service, same backend) to catch this. 10.2-C drives known-bad inputs to assert error-envelope fidelity.
+- **Soft-delete is opt-in only.** No default-30-day fabrication. Where the destination backend lacks a first-class soft-delete primitive, the shim returns the source cloud's `OperationNotSupported` envelope on a retention-windowed destroy. Queue dropped from soft-delete scope (no peer concept across AWS / GCP / Azure / NATS).
+- **Stateless invariant carried.** 10.1's `Operations.Get` implementation encodes `(opType, target)` into the operation Name so polling re-reads the underlying resource at request time. Same posture extends through Phase 10: no shim-owned mapping table for IaC state.
 
 ## Invariants snapshot
 
 - Never auto-merge; user merges every PR.
-- **One PR at a time.**
+- **One PR at a time.** Phase 10 = one PR; all sub-phases on `phase-10`.
 - File BUGs in [BUGS.md](BUGS.md) *before* fixing.
 - Update STATUS / WHAT_WE_DID / DO_NEXT at every significant chunk.
 - Fidelity to the source cloud's API.
@@ -63,17 +54,18 @@ Status legend: ✅ done · ◐ in progress · ◻ pending · ⏸ paused.
 
 ## Resumable tracks
 
-- **Track A — Cloud test accounts.**
+- **Track A — Cloud test accounts.** Real-cloud lanes for Phase 10-A (Apply against real AWS / GCP / Azure accounts).
 - **Track B — Coding-agent automation.**
-- **BUG-2 (queue / SetQueueAttributes).** Ripples through Phases 4–7 TF cells.
-- **BUG-5 (rdbms / GCP Operations polling endpoint).** Blocks Phases 5–7 GCP CLI + TF cells.
+- **BUG-2 (queue / SetQueueAttributes).** Ripples through Phases 4–7 TF cells; Phase 10.3 (Update intersection audit) is the natural place to wire it.
+- **BUG-12 (queue domain tag storage).** `TagQueue` / `UntagQueue` write paths unbacked. Phase 10.3 candidate.
+- **BUG-13 (Lambda memory_size / role / publish soft plan diffs).** Phase 10.2 drift audit will surface and close.
 
 ## Session-resume checklist
 
 1. `git fetch origin && git checkout main && git pull` — sync.
-2. `gh pr list --state open`.
-3. `git checkout <pr-branch>`.
+2. `gh pr list --state open` — verify the Phase 10 PR is the only one open.
+3. `git checkout phase-10`.
 4. Read STATUS snapshot + this file's "Where we are".
 5. Read STATUS invariants + AGENTS.md.
 6. Skim BUGS open.
-7. Pick the next ◻ sub-task.
+7. Pick the next ◻ sub-task from the Phase 10 table.

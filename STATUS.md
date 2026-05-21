@@ -8,9 +8,10 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 
 | | |
 |---|---|
-| Active branch | `phase-9-closer` — Phase 9 docs roll-up (the merged PHASE_9_PLAN narrative still said "six" because the closer commit hadn't pushed before the merge fired). |
-| Phase 8 closed | PR #13 merged `ad85ddf` 2026-05-20. Phase 8 (API Gateway) + Phase 9 substantial chunk landed together. **All 8 services through cross-cloud import** (storage / secrets / queue / pubsub / apigateway / cache / functions / rdbms). 6 real fidelity bugs fixed inline. |
-| In-flight | **Phase 9 closer (docs only).** Just the STATUS / DO_NEXT / PHASE_9_PLAN narrative corrections so the in-tree story matches what was merged. |
+| Active branch | `phase-10` — Phase 10 (cross-cloud `terraform apply` through the shim). |
+| In-flight | **Phase 10.** Apply-side proof: Create → Read → Update → Destroy through the shim with no drift. Sub-phase 10.0-A (per-service `APPLY_INTERSECTION.md` contract) is the first gate; matrix tests assert against the contract, not whatever the provider tries. |
+| Phase 9 closed | PR #13 + PR #16 merged at `ad85ddf` then `326f57d`, 2026-05-20 / 2026-05-21. **All 8 services through cross-cloud terraform import** (storage / secrets / queue / pubsub / apigateway / cache / functions / rdbms); `TestCrossCloudImport_Roundtrip_StorageAWStoGCS` proves the headline. 6 real fidelity bugs fixed inline. PR #16 closed BUG-5 (Phase 10.1 gate: GCP `Operations.Get` across rdbms / cache / functions / apigateway) and adopted `PHASE_10_PLAN.md`. |
+| Phase 8 closed | Co-merged in PR #13 with the Phase 9 chunk. API Gateway service end-to-end; AWS APIGW v2 / GCP API Gateway / Azure APIM frontends × inmem / Envoy Gateway K8s peer / 3 clouds × SDK + CLI + Terraform. Declarative-replace via `DeployGateway`; route shape minimal (method + path + backend URL). `TestRouteServes_Envoy` exit criterion. |
 | Phase 7 closed | PR #12 merged `9d02af0` 2026-05-19. Three functions frontends × five backends × three driver types; 16 required CI checks (added `conformance-knative` lane). Knative Serving as K8s peer via dynamic client + kourier-internal port-forward for HTTP-invoke exit criterion. Container-image deploys only; events + auth-on-invoke deferred. |
 | Phase 6 closed | PR #11 merged `cca8bc0` 2026-05-19. Three cache frontends × five backends × three driver types; 15 required CI checks (added `conformance-redisop` lane). Redis Operator as K8s peer via dynamic client; PING exit criterion validated end-to-end. |
 | Phase 4 closed | PR #9 merged `6305354` 2026-05-19. Three pubsub frontends × five backends × three driver types; same 13 required CI checks. NATS JetStream throughout as K8s peer; AWS dual-protocol surface (SNS publish + slim SQS-receive); 4-part Azure receipt encoding; AMQP / ARM-only cells ◇-skipped. `aws_sns_topic_subscription` cell carried as ripple of BUG-2. |
@@ -19,12 +20,12 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 | Phase 1 closed | PR #6 merged `1f64d9f` 2026-05-19. Three storage frontends × five storage backends × three driver types matrix; 11 required CI checks. |
 | CI baseline | 16 required checks from Phase 7. Phase 8 will add a `conformance-envoy` lane (kind + Envoy Gateway). Real-cloud lanes wait on Track A. |
 | Scope rule (2026-05-18) | **Each phase ships the full N × N matrix.** Previous PLAN.md had Phases 9 and 10 as "GCP source row" and "Azure source row" of horizontal expansion across all 8 services; user reversed this. Each service phase now includes all 3 frontends + all 4 backends + SDK / CLI / Terraform for each, before moving to the next service. Phases 9 and 10 deleted; their work is absorbed into Phases 1-8. |
-| Last merged | PR #13 — Phase 8 + Phase 9 substantial chunk (`ad85ddf`, 2026-05-20). |
+| Last merged | PR #16 — Phase 9 docs roll-up + Phase 10 plan + Phase 10.1 BUG-5 fix (`326f57d`, 2026-05-21). Closed BUG-5 (stateless `Operations.Get` across 4 GCP frontends); adopted `PHASE_10_PLAN.md`. |
 | Standing merge auth | **None.** User merges every PR. |
 | CI | Five required checks: `branch rebased on origin/main`, `tracked symlinks resolve`, `continuity docs present`, `go vet + test + build`, `dependency licenses AGPL-compatible`. |
 | Renovate | Config committed (48h minimum release age, weekly batches, pinned GitHub Actions SHAs); **user must install the Renovate GitHub App** at https://github.com/apps/renovate. |
 | Dep policy | [`doc/DEPENDENCY_POLICY.md`](doc/DEPENDENCY_POLICY.md): min release age 48h, prefer pure-Go over cgo, pnpm + no lifecycle scripts when JS lands. |
-| Bugs | 13 filed · 6 fixed · 7 open. Phase 9 fixed BUG-9/10/11; filed BUG-12 (queue domain tag storage) + BUG-13 (Lambda memory_size/role/publish soft plan diffs). |
+| Bugs | 13 filed · 7 fixed · 6 open. Phase 10.1 closed BUG-5 (GCP `Operations.Get`); Phase 9 had fixed BUG-9/10/11 + filed BUG-12 + BUG-13. |
 | Live infra | None. |
 
 ## Invariants (carry across compactions / fresh sessions)
@@ -54,25 +55,26 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 - Monorepo: `services/<service>/`, shared `internal/codegen/`, `internal/harness/`.
 - Test rings: per-PR recorded interactions, nightly live cloud, pre-release vendor integration suites.
 
-## Current phase — Phase 8: API Gateway
+## Current phase — Phase 10: cross-cloud `terraform apply` through the shim
 
-Phase 8 ships the API Gateway service end-to-end. AWS API Gateway HTTP API v2 / GCP API Gateway / Azure API Management frontends, each translatable to inmem / Envoy Gateway (K8s peer) / the three clouds. 5-op intersection — Create/Delete/Describe/List/Deploy Gateway.
+Phase 10 extends Phase 9's read-side proof (`terraform import` honest end-to-end) to the **write side**: `terraform apply` against the shim provisions, updates, and destroys resources on the destination backend, with the source-cloud provider unaware of the translation. Apply is the everyday Terraform workflow — proving it honest makes shimanism a **cross-cloud IaC control-plane migration tool** (not yet a full migration tool; data movement, IAM rebinding, DNS swap, etc. are follow-on phases).
 
-Sub-phase table is in [DO_NEXT.md](DO_NEXT.md). Scope baseline at [`services/apigateway/OPERATIONS.md`](services/apigateway/OPERATIONS.md).
+Sub-phase table is in [DO_NEXT.md](DO_NEXT.md). Full plan, including codex review responses, at [`PHASE_10_PLAN.md`](PHASE_10_PLAN.md).
 
-### Phase 8 standing notes
-- **Declarative-replace.** `DeployGateway(spec)` atomically swaps the entire routing table. Partial route mutations on a live gateway are out of intersection (cross-cloud semantics diverge).
-- **Route shape minimal.** Method + path + backend URL only. Per-route auth, throttling, transforms, CORS, custom domains all deferred — the exit criterion is "routes dispatch HTTP to backends correctly."
-- **HTTP data plane.** Same posture as Phases 5-7. Shim provisions; HTTP traffic goes directly to the gateway URL; shim plays no role on the request path.
-- **Exit criterion: gateway routes HTTP to a backend.** Sub-phase 8.15 owns the test: deploy a gateway with one route pointing at a `pong`-echo backend; HTTP-invoke the gateway's URL through that path; assert `pong`.
+### Phase 10 standing notes
+- **Contract-first matrix.** Sub-phase 10.0-A writes a per-service `APPLY_INTERSECTION.md` enumerating exactly which Create / Update / Delete ops the shim claims honest semantics for, with per-cell translation specified. Matrix tests assert against this contract, not "whatever the provider tries." This is the gate that prevents the matrix-explosion failure mode codex flagged.
+- **BUG-5 closed in 10.1.** GCP `Operations.Get` is implemented across rdbms / cache / functions / apigateway. Apply against GCP-shape frontends no longer hangs on async ops.
+- **Create-then-Read is necessary but not sufficient.** Single-frontend create-then-read won't catch self-consistent wrongness, invalid-input fidelity gaps, or cross-frontend semantic divergence. Phase 10 adds 10.2-B (cross-frontend read after cross-cloud write) and 10.2-C (invalid-input fidelity) to cover those classes.
+- **Soft-delete is opt-in only.** No "default-30" cross-cloud fabrication. Where the destination doesn't expose a first-class soft-delete primitive, the shim returns the source cloud's `OperationNotSupported` envelope on retention-windowed destroy — not a silent hard-delete.
+- **Exit criterion: `TestCrossCloudApply_Roundtrip` per service.** Symmetric to Phase 9.13's import roundtrip. Apply A-shape HCL through shim with backend=B; no drift; update in place; no drift; destroy.
 
 ## Recently closed phases (last 5)
 
 | PR | Phase | Headline |
 |---|---|---|
+| #16 | 9 closer + 10 plan + 10.1 | Phase 9 docs roll-up (narrative correctly says "all 8 services"); `PHASE_10_PLAN.md` adopted (codex-reviewed); BUG-5 closed via stateless `Operations.Get` across 4 GCP-shape frontends (rdbms / cache / functions / apigateway). Merged 2026-05-21 at `326f57d`. |
+| #13 | 8 + 9 chunk | API Gateway service end-to-end + Phase 9 substantial chunk (all 8 services through cross-cloud terraform import; `shimctl env` + endpoint-override registry; per-service `INTERSECTION.md` + `MIGRATION.md` audits; 6 real fidelity bugs fixed inline; `TestCrossCloudImport_Roundtrip_StorageAWStoGCS` exit criterion). Merged 2026-05-20 at `ad85ddf`. |
 | #12 | 7 | Functions service end-to-end (control-plane only). 3 frontends × 5 backends (inmem, Knative Serving as K8s peer via dynamic-client + Service CRs, AWS Lambda, GCP Cloud Run, Azure Container Apps) × 3 driver types. Container-image only; HTTP-invoke exit criterion validated through kind + Knative + kourier-internal port-forward. Merged 2026-05-19 at `9d02af0`. |
 | #11 | 6 | Cache service end-to-end (control-plane only). 3 frontends × 5 backends (inmem, Redis Operator as K8s peer via dynamic-client, AWS ElastiCache, GCP Memorystore, Azure Cache for Redis) × 3 driver types. Same control-plane shape as Phase 5; RESP PING exit criterion validated through kind + Redis Operator. Merged 2026-05-19 at `cca8bc0`. |
 | #10 | 5 | RDBMS service end-to-end (control-plane only). 3 frontends × 5 backends (inmem, CloudNativePG as K8s peer via dynamic-client + unstructured Cluster CRs, AWS RDS, GCP Cloud SQL Admin, Azure flexible-servers) × 3 driver types. Explicit async Status enum; psql connectivity exit criterion validated through kind + cnpg + real PG. Merged 2026-05-19 at `aeadbc8`. |
 | #9 | 4 | Pubsub service end-to-end. 3 frontends × 5 backends (inmem, NATS JetStream as K8s peer with InterestPolicy retention + per-sub consumers, AWS SNS+SQS-receive, GCP Pub/Sub fanout, Azure Service Bus topics REST) × 3 driver types. Topic ≠ Subscription split as load-bearing change. Merged 2026-05-19 at `6305354`. |
-| #8 | 3 | Queue service end-to-end. 3 frontends × 5 backends (inmem, NATS JetStream as K8s peer, AWS SQS, GCP Pub/Sub pull, Azure Service Bus queue) × 3 driver types. Stateless receipt-handle round-trip; new `conformance-nats` CI lane. Merged 2026-05-19 at `07d11f5`. |
-| #7 | 2 | Secrets service end-to-end. 3 frontends × 5 backends (inmem, Vault as K8s peer via shimakit, AWS Secrets Manager, GCP Secret Manager, Azure Key Vault) × 3 driver types. shimakit framework + shima\<service\> naming. Stateless invariant established. Merged 2026-05-19 at `7df43ec`. |

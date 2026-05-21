@@ -4,6 +4,59 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 
 > Reverse chronological. One section per phase. The *why*, the surprises, the root causes — not per-PR detail. For commit-level history, `git log`. For per-bug detail, [BUGS.md](BUGS.md).
 
+## Phase 10.1 — close BUG-5 (stateless GCP `Operations.Get`)
+
+Carried since Phase 5. Codex's Phase 10 review flagged it as the hard gate for Phase 10 — `terraform apply` against GCP-shape frontends hangs without long-running-operation polling, so it has to land *before* any Apply cell runs. PR #16 closed it across all four GCP-shape frontends in one sweep: rdbms (Cloud SQL Admin) `/v1/projects/{p}/operations/{op}`, cache (Memorystore) and apigateway (API Gateway) `/v1/projects/{p}/locations/{l}/operations/{op}`, functions (Cloud Run) `/v2/projects/{p}/locations/{l}/operations/{op}`.
+
+### Stateless polling via Name-encoded target
+
+The Operation `Name` encodes `(opType, target)`. A polling client GETs the operation; the shim parses the name, looks up the underlying resource, and maps its current `domain.Status` to RUNNING / DONE. For delete ops, `NoSuchResource` signals DONE. **No shim-side operation table** — every poll re-derives status from the backend's actual state. Same posture as every other persistent state in the shim.
+
+`Operations.List` returns empty: there's no honest way to enumerate past operations without state, and SDK polling paths only call `Get`. Documented as intentional, not a gap.
+
+### Why a single sweep across four frontends
+
+The four GCP frontends had ~identical polling-endpoint shapes (path templates differ in whether they include `locations/{l}`; status mapping is the same domain `Status` enum). Doing them all in one commit (rather than per-service) means there's no "we'll get to the rest later" debt — the bug is closed as a class, not as one of four instances.
+
+## Phase 9 — cross-cloud `terraform import` (in-flight on `phase-9-import` then closed via `phase-9-closer`)
+
+Phase 9 was the read-side proof. The thesis: if the shim is honest, then `terraform import` against an A-shaped HCL pointing at a backend cloud B should round-trip — `terraform plan` after import sees no drift, because the shim translates the B-side state back into the A-side shape with full fidelity.
+
+### `shimctl env` and the endpoint-override registry
+
+Migration users don't write endpoint-override boilerplate by hand. Sub-phase 9.1 added `shimctl env`, which prints the env-var / SDK / CLI / Terraform overrides needed to route a given (cloud, service) pair through the shim. The registry lives at `internal/clientconfig/overrides.yaml` and enumerates the per-cloud override knobs the official tooling actually exposes. This is what makes the migration story runnable from a README.
+
+### The per-service `INTERSECTION.md` audits (9.2-A)
+
+Every wire-level operation each frontend serves got classified into one of three categories: (1) real work — must dispatch to a real backend call; (2) feature genuinely unset — returns the cloud's real "unset" envelope (e.g. `NOT_FOUND` for an absent sub-resource); (3) out of intersection — returns the cloud's real "not supported" envelope. A fourth implicit category — "returns something plausible without doing real work" — is by definition a fake and got filed as a bug or removed.
+
+This audit surfaced **three real fidelity gaps that had been hiding under matrix-test passes**: GCP API Gateway frontend missing the `Apis` + `ApiConfigs` endpoint families entirely (BUG-9), Azure APIM frontend missing the `Operations` subresource (BUG-10), and AWS APIGW v2 frontend's 404 envelope missing the `__type` field (BUG-11). All three got fixed in Phase 9.
+
+### Per-service `MIGRATION.md` walkthroughs (9.2-B)
+
+For each service, a runnable migration recipe per (source cloud × target cloud × K8s peer) — actual `aws s3` / `gcloud storage` / `az storage` / Terraform invocations against the shim, with the `shimctl env` overrides applied. This is what closes the philosophical loop: the intersection is real because the recipes work end-to-end against real backends.
+
+### `TestCrossCloudImport_Roundtrip` exit criterion (9.5 + 9.13)
+
+`terraform_import_test.go` exists for every service; the per-frontend tests pass through the shim against a mock-cloud backend. The headline exit criterion `TestCrossCloudImport_Roundtrip_StorageAWStoGCS` is the symmetric proof: AWS-shape Terraform imports a bucket that *lives in mock-GCS* through the shim, with zero fidelity diffs. Same pattern instantiates for every (source A, backend B) cell.
+
+### Six real fidelity fixes surfaced by the import tests
+
+Phase 9.5 wasn't just test-writing — every service's import driver found something:
+
+- **XML double-nesting** in restxml responses (AWS frontend marshalling).
+- **Missing Policy JSON** sub-resource (would have failed `terraform plan` after import on policy attributes).
+- **Missing tag-list handlers** (category-2 honest-empty responses for List*Tags ops the providers always call).
+- **Missing selection-expression defaults** (apigateway).
+- **Missing Lambda subresources** (functions).
+- **Missing RDS ARN** in describe responses (rdbms).
+
+Each got filed as a bug and fixed inline. **No fakes survived.** This is what "intersection-only scope" looks like in practice — the import path doesn't pass until every Read the provider issues has an honest answer.
+
+### The docs roll-up (PR #16 closer)
+
+PR #13 squash-merged with all 8 services' cross-cloud import tests on tree, but the closer commit that updated `PHASE_9_PLAN.md` + `STATUS.md` from "six services" to "all 8 services" was still in flight on the branch and didn't make the squash. PR #16 fixed the doc narrative drift in the same PR as Phase 10.1's BUG-5 fix and the Phase 10 plan adoption. Lesson: docs-roll-up commits at the end of a multi-chunk PR are race-prone with the merge fire; for Phase 10, the doc updates happen *with* each granular commit, not as a single tail.
+
 ## Phase 8 — API Gateway (in-flight on `phase-8-apigateway`)
 
 Control-plane shim for HTTP API gateways. Same shape as Phases 5–7 — provision + return URL, clients HTTP-request the URL — with one new wrinkle: the gateway has to translate a *set of routes* to a backend-native primitive that varies wildly across clouds. Declarative-replace via `DeployGateway(routes)` is what makes the cross-cloud semantics tractable.
