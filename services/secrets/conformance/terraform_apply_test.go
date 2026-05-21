@@ -64,7 +64,7 @@ provider "aws" {
 
 resource "aws_secretsmanager_secret" "applied" {
   name                    = "shim-applied-secret"
-  description             = "phase 10.2 apply drift audit"
+  description             = "%s"
   recovery_window_in_days = 0
 }
 `
@@ -80,10 +80,14 @@ func TestTerraform_AWSSecrets_Apply_NoDrift(t *testing.T) {
 	srv := harness.StartSecretsServerAWS(t, backend)
 
 	dir := t.TempDir()
-	hcl := fmt.Sprintf(terraformApplySecretsConfig, srv.URL)
-	if err := os.WriteFile(filepath.Join(dir, "main.tf"), []byte(hcl), 0o644); err != nil {
-		t.Fatalf("write main.tf: %v", err)
+	writeHCL := func(description string) {
+		t.Helper()
+		hcl := fmt.Sprintf(terraformApplySecretsConfig, srv.URL, description)
+		if err := os.WriteFile(filepath.Join(dir, "main.tf"), []byte(hcl), 0o644); err != nil {
+			t.Fatalf("write main.tf: %v", err)
+		}
 	}
+	writeHCL("phase 10.2 apply drift audit")
 
 	runTf := func(args ...string) ([]byte, []byte, error) {
 		cmd := exec.Command(tf, args...)
@@ -112,8 +116,9 @@ func TestTerraform_AWSSecrets_Apply_NoDrift(t *testing.T) {
 	}
 
 	mustRun("init", "-no-color")
-	mustRun("apply", "-no-color", "-auto-approve")
 
+	// Phase 10.2: Create-then-Read no drift.
+	mustRun("apply", "-no-color", "-auto-approve")
 	stdout, stderr, err := runTf("plan", "-no-color", "-detailed-exitcode")
 	switch {
 	case err == nil:
@@ -125,16 +130,26 @@ func TestTerraform_AWSSecrets_Apply_NoDrift(t *testing.T) {
 			stdout, stderr, err)
 	}
 
+	// Phase 10.5 (Create→Read→Update→Read→Destroy lifecycle) for
+	// secrets is gated by BUG-17: UpdateSecret is marked ✅ in
+	// services/secrets/INTERSECTION.md but isn't in domain.Secrets,
+	// and both AWS + GCP frontends return UnknownOperationException.
+	// The 10.3 (Update intersection audit) pass closes this; until
+	// then the description-update step that belongs here is
+	// commented out as a future delta. The 10.2 create-then-read
+	// audit above is the load-bearing assertion.
+	_ = writeHCL // keep the helper for the 10.5 follow-up — see BUG-17.
+
 	mustRun("destroy", "-no-color", "-auto-approve")
 
 	// Sanity check the backend is empty.
-	got, err := backend.ListSecrets(context.Background(), secretsdomain.ListSecretsOptions{})
+	list, err := backend.ListSecrets(context.Background(), secretsdomain.ListSecretsOptions{})
 	if err != nil {
 		t.Fatalf("backend.ListSecrets after destroy: %v", err)
 	}
-	if len(got.Secrets) != 0 {
-		names := make([]string, 0, len(got.Secrets))
-		for _, s := range got.Secrets {
+	if len(list.Secrets) != 0 {
+		names := make([]string, 0, len(list.Secrets))
+		for _, s := range list.Secrets {
 			names = append(names, s.Name)
 		}
 		t.Errorf("backend still has secrets after destroy: %v", names)

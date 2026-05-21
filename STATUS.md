@@ -25,7 +25,7 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 | CI | Five required checks: `branch rebased on origin/main`, `tracked symlinks resolve`, `continuity docs present`, `go vet + test + build`, `dependency licenses AGPL-compatible`. |
 | Renovate | Config committed (48h minimum release age, weekly batches, pinned GitHub Actions SHAs); **user must install the Renovate GitHub App** at https://github.com/apps/renovate. |
 | Dep policy | [`doc/DEPENDENCY_POLICY.md`](doc/DEPENDENCY_POLICY.md): min release age 48h, prefer pure-Go over cgo, pnpm + no lifecycle scripts when JS lands. |
-| Bugs | 16 filed · 7 fixed · 8 open · 1 false positive. Phase 10.2 drift audit filed BUG-14 (reclassified as Terraform-provider quirk), BUG-15 (GCP queue retention plan/apply asymmetry), and BUG-16 (rdbms GCP frontend serves `/v1/` paths; hashicorp/google targets `/sql/v1beta4/`). |
+| Bugs | 17 filed · 7 fixed · 9 open · 1 false positive. Phase 10.2 drift audit filed BUG-14 (reclassified false positive), BUG-15 (GCP queue retention plan/apply asymmetry), BUG-16 (rdbms GCP v1 vs v1beta4 path mismatch). Phase 10.5 lifecycle scaffolding surfaced BUG-17 (secrets `UpdateSecret` in INTERSECTION.md but not in `domain.Secrets`). |
 | Live infra | None. |
 
 ## Invariants (carry across compactions / fresh sessions)
