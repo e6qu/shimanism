@@ -15,6 +15,7 @@ import (
 	"github.com/e6qu/shimanism/internal/awsjson"
 	"github.com/e6qu/shimanism/internal/functions/domain"
 	"github.com/e6qu/shimanism/internal/restxml"
+	"github.com/e6qu/shimanism/internal/sigv4verifier"
 	gen "github.com/e6qu/shimanism/services/functions/gen"
 )
 
@@ -25,10 +26,18 @@ type Adapter struct {
 
 // New returns the http.Handler dispatching through the generated
 // restJson1 router into the adapter bound to the given backend.
+// SigV4 verification is wired in; SHIMANISM_TEST_UNAUTHENTICATED=1
+// short-circuits during the conformance-lane rewrite (set by the
+// harness's init()).
 func New(s domain.Functions) http.Handler {
 	router := &restxml.Router{}
 	gen.RegisterLambdaRoutes(router, &Adapter{s: s})
-	return router
+	verifier := sigv4verifier.New(sigv4verifier.StaticStore{
+		AccessKey: "AKIAIOSFODNN7EXAMPLE",
+		Secret:    "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+	}, sigv4verifier.Options{Service: "lambda", Region: "us-east-1"})
+	mw := sigv4verifier.Middleware(verifier, awsjson.WriteError)
+	return mw(router)
 }
 
 func strPtr(s string) *string { return &s }
