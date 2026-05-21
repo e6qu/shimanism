@@ -1,6 +1,6 @@
 # The migration story
 
-shimanism's primary purpose: **gradual, service-by-service cloud migration**. Move one piece at a time, verify, repeat. No big-bang rewrite, no SDK swap, no Terraform-provider port.
+shimanism's primary purpose: **reroute cloud services, one at a time**. Move one piece, verify, repeat. No big-bang rewrite, no SDK swap, no Terraform-provider port.
 
 This document walks through what that looks like in practice.
 
@@ -140,7 +140,7 @@ If your application uses an out-of-intersection feature (e.g. S3 Object Lambda, 
 
 shimanism is the **control + wire-protocol** layer. It doesn't move data for you. Two patterns:
 
-- **Cutover service-by-service for new state only.** The shim points at the destination; old data on the source stays where it is. Acceptable for stateless services (queues, pub/sub) and stateless-ish ones (functions). For storage with existing data, you need a separate data-migration step.
+- **Reroute one service at a time for new state only.** The shim points at the destination; old data on the source stays where it is. Acceptable for stateless services (queues, pub/sub) and stateless-ish ones (functions). For storage with existing data, you need a separate data-migration step.
 - **Pre-populate the destination, then cutover.** Run a migration tool (cloud-native ones like AWS DataSync to GCP STS, or rclone, or `gsutil`+`aws s3 sync`) to copy historical data. Then flip the shim's backend pointer to the destination. shimanism stays out of the data-copy step.
 
 Per the codex review in [PHASE_10_PLAN.md](../PHASE_10_PLAN.md): **shimanism is a cross-cloud IaC + control-plane migration tool, not a full migration tool.** Data movement, secret value/version history transfer, DB snapshots/replication, cache warmup, queued-message drain, pubsub backlog/subscription replication, function artifact transfer, custom domain + cert provisioning, IAM rebinding, DNS swap, validation, rollback, and cleanup — those are user responsibilities (or other tools' jobs).
@@ -165,7 +165,7 @@ This is the actual value-prop: **the migration is reversible at the URL level**,
 
 ## When shimanism is a good fit
 
-- You're moving from one cloud to another, gradually.
+- You're moving from one cloud to another, rerouting one service at a time.
 - You want to stay on your existing SDK / CLI / IaC tooling.
 - You can tolerate the intersection-only constraint (you'll find out at adoption time which features don't translate).
 - You want reversibility at the URL level, not the code level.

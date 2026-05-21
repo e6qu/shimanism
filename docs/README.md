@@ -6,7 +6,7 @@ The repository [README.md](../README.md) is intentionally light — what the pro
 
 - **[Getting Started](getting-started.md)** — install the shim, point an SDK at it, watch a real AWS-shape CLI command land on a non-AWS backend. Five-minute walkthrough.
 - **[Architecture](architecture.md)** — what a shim is, how the front / domain / back layers compose, why the shim is stateless, and how cross-cloud translation works without emulation.
-- **[Migration story](migration.md)** — the gradual, service-by-service cloud migration shimanism is built for. End-to-end walkthrough.
+- **[Migration story](migration.md)** — rerouting cloud services one at a time, end-to-end walkthrough.
 - **[Comparison with other projects](comparison.md)** — LocalStack, MinIO, Crossplane, Dapr, gocloud.dev, Pulumi/Terraform, OpenStack/Ceph S3 compat — where shimanism fits relative to each.
 - **[Service catalog](services.md)** — each shimmed service: its per-cloud frontends, its backends, and pointers to the per-service `OPERATIONS.md` + `INTERSECTION.md` + `APPLY_INTERSECTION.md`. Detailed per-service docs live under [`docs/services/`](services/).
 - **[Cross-cloud routing](../doc/CROSS_CLOUD_ROUTING.md)** — the wire-level walkthrough of how user A's AWS Terraform points at the shim and the bytes land on cloud B.

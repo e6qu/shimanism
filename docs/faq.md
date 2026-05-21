@@ -29,7 +29,7 @@ You can. shimanism is for the case where:
 
 - Porting is expensive (lots of call sites, multiple teams, multi-year codebase).
 - Cutover risk is high (you can't take the application down).
-- You want gradual, reversible migration (service-by-service, not big-bang).
+- You want reversible migration that reroutes services one at a time, not big-bang.
 - You want to keep using the existing tooling (CLI scripts, Terraform modules, CI/CD).
 
 If your application is small and you have time, port it — that's the lower-overhead long-term answer. shimanism is the *on-ramp* for the cases where porting isn't on the table.
@@ -102,6 +102,6 @@ GitHub issues at the project's repo. Before filing, please check [BUGS.md](../BU
 - [README.md](../README.md) — project overview.
 - [docs/architecture.md](architecture.md) — the layered model.
 - [docs/comparison.md](comparison.md) — how shimanism differs from related projects.
-- [docs/migration.md](migration.md) — the gradual migration story.
+- [docs/migration.md](migration.md) — the per-service rerouting story.
 - [docs/services.md](services.md) — per-service detail.
 - [PHILOSOPHY.md](../PHILOSOPHY.md) — the *why*.

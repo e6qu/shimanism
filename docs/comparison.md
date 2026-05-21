@@ -28,7 +28,7 @@ shimanism is the bottom-left: your application keeps using its source cloud's ex
 
 **Use LocalStack when** you want to run AWS-shape code locally without an AWS account and you don't care if the data is real.
 
-**Use shimanism when** you want the AWS-shape API to land on something other than AWS in *production* — another cloud, a Kubernetes operator, or a self-hosted backend — gradually, service-by-service.
+**Use shimanism when** you want the AWS-shape API to land on something other than AWS in *production* — another cloud, a Kubernetes operator, or a self-hosted backend — rerouting cloud services one at a time.
 
 ### MinIO / Cloudflare R2 / Backblaze B2 / Wasabi
 
@@ -129,7 +129,7 @@ S3-compatible APIs on top of OpenStack Swift or Ceph storage. Single-cloud-API, 
 ## When shimanism is the right tool
 
 - You have existing code (in any language) against an AWS / GCP / Azure SDK, and you want to move *some* of it to a different cloud without a rewrite.
-- You want gradual, service-by-service migration with a stable on-ramp.
+- You want to reroute cloud services one at a time on a stable on-ramp.
 - You want to keep your Terraform modules, CLI scripts, and CI/CD pipelines unchanged while the underlying cloud shifts.
 - You need honest cross-cloud behavior — explicit failures where features don't translate, never silent degradation or fake success.
 

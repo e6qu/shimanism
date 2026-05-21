@@ -1,6 +1,6 @@
 # Architecture
 
-shimanism's primary purpose is **gradual, service-by-service cloud migration** (see [docs/migration.md](migration.md) for the end-to-end story). The architecture below is what makes that possible: a wire-protocol translation layer that lets your existing AWS / GCP / Azure code talk to a different cloud without rewriting anything.
+shimanism's primary purpose: **reroute cloud services, one at a time** (see [docs/migration.md](migration.md) for the end-to-end story). The architecture below is what makes that possible: a wire-protocol translation layer that lets your existing AWS / GCP / Azure code talk to a different cloud without rewriting anything.
 
 shimanism is three layers:
 

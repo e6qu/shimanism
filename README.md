@@ -1,10 +1,10 @@
 # shimanism
 
-**Migrate from one cloud to another, one service at a time — without rewriting your code.**
+**Reroute cloud services, one at a time.**
 
 shimanism is a translation proxy that speaks the cloud's own published API on the front and forwards each call to a real, comparable service somewhere else — another cloud, a Kubernetes operator, or a self-hosted server.
 
-The point is **gradual, service-by-service migration**: keep your existing AWS code talking to "AWS"; transparently redirect, say, storage to GCS while everything else still uses real AWS; verify it works; move the next service; repeat. The shim is a stable on-ramp between clouds — no big-bang rewrite, no SDK swap, no Terraform-provider port.
+Keep your existing AWS code talking to "AWS"; transparently reroute, say, storage to GCS while everything else still uses real AWS; verify it works; reroute the next service; repeat. The shim is a stable on-ramp between clouds — no big-bang rewrite, no SDK swap, no Terraform-provider port.
 
 Your code keeps using `boto3`, `aws s3`, `gcloud storage`, `hashicorp/aws`, the Azure SDK, or whatever else. You change one thing: the endpoint URL. The bytes land wherever the shim is pointed.
 
@@ -119,7 +119,7 @@ The closest comparison points and how shimanism differs from each:
 | **[Pulumi](https://www.pulumi.com/)** / **[Terraform](https://www.terraform.io/)** / **AWS CDK** | Infrastructure-as-code with multi-cloud provider plugins. | IaC tools, not data-plane proxies. They provision resources; they don't proxy runtime API calls. shimanism works *with* them — your Terraform plan still uses `hashicorp/aws`, but the bytes land on GCS through the shim. |
 | **OpenStack Swift S3 middleware**, **Ceph RGW** | S3-compatible APIs on top of OpenStack / Ceph storage. | Single-cloud-API, single-backend compat shims. shimanism is many-frontend × many-backend, with the per-service intersection contracts enforced. |
 
-The mental model: shimanism is to **gradual cloud migration** what cross-compilation is to portable binaries. The application doesn't know the target changed; the platform layer below it absorbed the difference, honestly.
+The mental model: shimanism is to **rerouting cloud services one at a time** what cross-compilation is to portable binaries. The application doesn't know the target changed; the platform layer below it absorbed the difference, honestly.
 
 For deeper reading: [PHILOSOPHY.md](PHILOSOPHY.md) on the "intersection-only, never lie" stance; [docs/architecture.md](docs/architecture.md) on the frontend/domain/backend layering; [doc/CROSS_CLOUD_ROUTING.md](doc/CROSS_CLOUD_ROUTING.md) on the migration story end-to-end.
 
