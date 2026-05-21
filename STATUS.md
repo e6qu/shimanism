@@ -25,7 +25,7 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 | CI | Five required checks: `branch rebased on origin/main`, `tracked symlinks resolve`, `continuity docs present`, `go vet + test + build`, `dependency licenses AGPL-compatible`. |
 | Renovate | Config committed (48h minimum release age, weekly batches, pinned GitHub Actions SHAs); **user must install the Renovate GitHub App** at https://github.com/apps/renovate. |
 | Dep policy | [`doc/DEPENDENCY_POLICY.md`](doc/DEPENDENCY_POLICY.md): min release age 48h, prefer pure-Go over cgo, pnpm + no lifecycle scripts when JS lands. |
-| Bugs | 19 filed · 11 fixed · 7 open · 1 false positive. Phase 10 to-date: filed BUG-14 (false positive), BUG-15, BUG-16, BUG-17; closed BUG-2, BUG-13, BUG-16, BUG-17 in 10.3. Codex docs review (post-Phase-10 closer) surfaced BUG-18 (no signature validation across frontends; docs/faq.md overclaimed) and BUG-19 (stale BUG-2 skip in queue Phase-3 TF test + APPLY_INTERSECTION refs not reconciled after BUG-2's actual close). |
+| Bugs | 19 filed · 12 fixed · 6 open · 1 false positive. Phase 10 to-date: filed BUG-14 (false positive), BUG-15, BUG-16, BUG-17; closed BUG-2, BUG-13, BUG-16, BUG-17 in 10.3. Post-codex-review pass: filed BUG-18 (P1: no signature validation across frontends — gates untrusted-traffic exposure) + BUG-19; closed BUG-3 + BUG-4 (the in-tree fixes were already there; entries were stale) + BUG-19 (removed the stale skip; Phase-3 TF cell now exercises closed-BUG-2 path). Remaining open: BUG-6, BUG-7, BUG-8, BUG-12, BUG-15, BUG-18. |
 | Live infra | None. |
 
 ## Invariants (carry across compactions / fresh sessions)
