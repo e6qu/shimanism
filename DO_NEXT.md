@@ -19,14 +19,14 @@ Plan in [`PHASE_10_PLAN.md`](PHASE_10_PLAN.md). One PR for the whole phase; gran
 | Sub | Status | Headline |
 |---|---|---|
 | **10.0** | ✅ | Scope baseline. `PHASE_10_PLAN.md` written and codex-reviewed (5 critiques applied). |
-| **10.0-A** | ◐ | **Per-service `APPLY_INTERSECTION.md`** — the contract that matrix tests assert against. Before any test code. One file per service (8 total). |
+| **10.0-A** | ✅ | Per-service `APPLY_INTERSECTION.md` — 8 files, one per service. |
 | **10.1** | ✅ | BUG-5 family closed (PR #16). GCP `Operations.Get` on all four GCP-shape frontends. |
-| **10.2** | ◻ | Create-then-Read drift audit per service. Build `terraform apply` test scaffolding. |
-| **10.2-B** | ◻ | **Cross-frontend read** after cross-cloud write. Catches self-consistent wrongness. |
-| **10.2-C** | ◻ | **Invalid-input fidelity** — known-bad inputs assert the shim returns the source cloud's *real* error envelope. |
-| **10.3** | ◻ | Update intersection audit per service. In-place vs replace; honest "operation not supported in update" envelopes. |
+| **10.2** | ✅ | Create-then-Read drift audit per service. Apply test scaffolding in tree for all 8 services. Active drift assertions: storage / secrets / apigateway / **queue (AWS, after BUG-2 closed)**. Documented skips with BUG pointers: pubsub, rdbms, cache, functions, queue GCP. |
+| **10.2-B** | ◻ | Cross-frontend read after cross-cloud write. Catches self-consistent wrongness. |
+| **10.2-C** | ◻ | Invalid-input fidelity — known-bad inputs assert the shim returns the source cloud's *real* error envelope. |
+| **10.3** | ◐ | Update intersection audit per service. Two BUGs closed so far: BUG-17 (secrets `UpdateSecret` + per-backend + frontend dispatch) and BUG-2 (AWS SQS `SetQueueAttributes` + per-backend + read-side attribute surface + awsQueryCompatible legacy error codes). Remaining open: BUG-12 (queue tag storage), BUG-13 (Lambda role/publish/memory), BUG-15 (queue retention plan/apply asymmetry — partial fix landed), BUG-16 (rdbms GCP v1 vs v1beta4 path mismatch), BUG-6 (Azure APIM v3 delete), BUG-7/8 (Azure CLI + GCP TF apigateway). |
 | **10.4** | ◻ | Soft-delete intersection across secrets + storage (queue dropped per codex review). Opt-in only. |
-| **10.5** | ◻ | Per-service `apply_test.go` covering Create → Read-check → Update → Read-check → Destroy, asserting against 10.0-A's contract. |
+| **10.5** | ◐ | Per-service `apply_test.go` covering full lifecycle. Secrets test now drives Create → Read → Update (description) → Read → Destroy after BUG-17 closed. Queue test now drives Create → Read → Destroy (and apply-Update via SetQueueAttributes is implicitly exercised by provider reconcile). Remaining services gated on their own BUG closures (the 10.3 list). |
 | **10.6** | ◻ | Cross-cloud Apply matrix tests, contract-scoped. |
 | **10.7** | ◻ | Exit criterion: `TestCrossCloudApply_Roundtrip` per service. |
 | **10.8** | ◻ | Phase 10 closer — push, CI green, PR merged. |
@@ -56,9 +56,11 @@ Status legend: ✅ done · ◐ in progress · ◻ pending · ⏸ paused.
 
 - **Track A — Cloud test accounts.** Real-cloud lanes for Phase 10-A (Apply against real AWS / GCP / Azure accounts).
 - **Track B — Coding-agent automation.**
-- **BUG-2 (queue / SetQueueAttributes).** Ripples through Phases 4–7 TF cells; Phase 10.3 (Update intersection audit) is the natural place to wire it.
-- **BUG-12 (queue domain tag storage).** `TagQueue` / `UntagQueue` write paths unbacked. Phase 10.3 candidate.
-- **BUG-13 (Lambda memory_size / role / publish soft plan diffs).** Phase 10.2 drift audit will surface and close.
+- **BUG-12 (queue domain tag storage).** `TagQueue` / `UntagQueue` write paths unbacked; same fan-out shape as BUG-2 (domain method + 5 backends + AWS frontend dispatch). Natural next-chunk in 10.3.
+- **BUG-13 (functions Lambda role/publish/memory).** memory_size partly fixed in Phase 9.5 (default emit); role + publish need domain extension. Apply tests for AWS Lambda are still skipped on this gap.
+- **BUG-15 (queue retention plan/apply asymmetry).** Partial fix in 10.3 (GCP queue frontend parses + emits retention); hashicorp/google plan/apply pipeline still keeps "345600s" in state regardless. Deeper investigation needed.
+- **BUG-16 (rdbms GCP v1 vs v1beta4 path mismatch).** Wiring v1beta4 routes unblocks `google_sql_database_instance` Apply.
+- **BUG-6 (apigateway Azure v3 delete signature).** Azure-backed apigateway destroy still skips.
 
 ## Session-resume checklist
 
