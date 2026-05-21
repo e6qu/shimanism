@@ -156,6 +156,15 @@ func (srv *Server) createQueue(w http.ResponseWriter, r *http.Request) {
 		mapDomainError(w, err)
 		return
 	}
+	if len(in.Tags) > 0 {
+		// AWS SQS CreateQueue accepts Tags in the same call. The
+		// domain split CreateQueue + TagQueue, so this is a one-step
+		// follow-on tag write.
+		if err := srv.s.TagQueue(r.Context(), in.QueueName, in.Tags); err != nil {
+			mapDomainError(w, err)
+			return
+		}
+	}
 	writeJSON(w, http.StatusOK, &createQueueResponse{QueueUrl: fakeQueueURL(in.QueueName)})
 }
 
@@ -327,14 +336,9 @@ func (srv *Server) changeMessageVisibility(w http.ResponseWriter, r *http.Reques
 	writeJSON(w, http.StatusOK, map[string]string{})
 }
 
-// listQueueTags returns the (currently always empty) tag set for a
-// queue. The domain.Queues interface has no tag concept yet — tag
-// storage as a real read/write domain op is tracked in BUGS.md.
-// Until then, this is a category-2 "feature unset" response: the
-// queue genuinely has no tags configured, and the shim returns the
-// honest empty-set envelope. Without this handler, the
-// hashicorp/aws aws_sqs_queue importer crashes on
-// ListQueueTags → UnknownOperationException.
+// listQueueTags returns the queue's tag set. BUG-12 closed: tag
+// storage is now a domain primitive backed across all five queue
+// backends.
 func (srv *Server) listQueueTags(w http.ResponseWriter, r *http.Request) {
 	var in struct {
 		QueueUrl string `json:"QueueUrl"`
@@ -342,11 +346,45 @@ func (srv *Server) listQueueTags(w http.ResponseWriter, r *http.Request) {
 	if !decode(w, r, &in) {
 		return
 	}
-	if _, err := srv.s.HeadQueue(r.Context(), normaliseQueueURL(in.QueueUrl)); err != nil {
+	tags, err := srv.s.ListQueueTags(r.Context(), normaliseQueueURL(in.QueueUrl))
+	if err != nil {
 		mapDomainError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]map[string]string{"Tags": {}})
+	if tags == nil {
+		tags = map[string]string{}
+	}
+	writeJSON(w, http.StatusOK, map[string]map[string]string{"Tags": tags})
+}
+
+func (srv *Server) tagQueue(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		QueueUrl string            `json:"QueueUrl"`
+		Tags     map[string]string `json:"Tags"`
+	}
+	if !decode(w, r, &in) {
+		return
+	}
+	if err := srv.s.TagQueue(r.Context(), normaliseQueueURL(in.QueueUrl), in.Tags); err != nil {
+		mapDomainError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, struct{}{})
+}
+
+func (srv *Server) untagQueue(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		QueueUrl string   `json:"QueueUrl"`
+		TagKeys  []string `json:"TagKeys"`
+	}
+	if !decode(w, r, &in) {
+		return
+	}
+	if err := srv.s.UntagQueue(r.Context(), normaliseQueueURL(in.QueueUrl), in.TagKeys); err != nil {
+		mapDomainError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, struct{}{})
 }
 
 // ----------------------------------------------------------------------

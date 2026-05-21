@@ -58,6 +58,11 @@ resource "aws_sqs_queue" "applied" {
   name                       = "shim-applied-queue"
   visibility_timeout_seconds = 30
   message_retention_seconds  = 345600
+
+  tags = {
+    Phase = "10"
+    Env   = "test"
+  }
 }
 `
 

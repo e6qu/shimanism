@@ -258,6 +258,41 @@ func (b *Backend) SetQueueAttributes(ctx context.Context, name string, attrs dom
 	return translateErr(err, name)
 }
 
+// Azure Service Bus queues don't expose per-queue tags via the
+// admin SDK (the closest analog is resource-group-level tags on the
+// `Microsoft.ServiceBus/namespaces/queues` ARM resource, which sits
+// at a different scope). Honest cross-cloud answer: return the
+// canonical empty set on List and reject Tag/Untag with
+// InvalidArgument. Migration users targeting this backend who set
+// tags via Terraform will see the rejection at the call site, not
+// silent data-loss.
+func (b *Backend) ListQueueTags(ctx context.Context, name string) (map[string]string, error) {
+	if _, err := b.adminClient.GetQueue(ctx, name, nil); err != nil {
+		return nil, translateErr(err, name)
+	}
+	return map[string]string{}, nil
+}
+
+func (b *Backend) TagQueue(ctx context.Context, name string, tags map[string]string) error {
+	if len(tags) == 0 {
+		return nil
+	}
+	if _, err := b.adminClient.GetQueue(ctx, name, nil); err != nil {
+		return translateErr(err, name)
+	}
+	return domain.InvalidArgument("Azure Service Bus queue-level tags aren't exposed via the admin SDK; tag the parent namespace at the ARM scope instead")
+}
+
+func (b *Backend) UntagQueue(ctx context.Context, name string, keys []string) error {
+	if len(keys) == 0 {
+		return nil
+	}
+	if _, err := b.adminClient.GetQueue(ctx, name, nil); err != nil {
+		return translateErr(err, name)
+	}
+	return domain.InvalidArgument("Azure Service Bus queue-level tags aren't exposed via the admin SDK; tag the parent namespace at the ARM scope instead")
+}
+
 func (b *Backend) HeadQueue(ctx context.Context, name string) (domain.Queue, error) {
 	props, err := b.adminClient.GetQueue(ctx, name, nil)
 	if err != nil {

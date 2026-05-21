@@ -129,6 +129,71 @@ func (b *Backend) SetQueueAttributes(ctx context.Context, name string, attrs dom
 	return translateErr(err, name)
 }
 
+// Tags map to GCP subscription labels. GCP label keys + values are
+// constrained (lowercase, dashes, underscores, ≤63 chars) — invalid
+// tags surface as GCP's native InvalidArgument from the patch RPC,
+// which translateErr surfaces honestly. No silent normalisation.
+func (b *Backend) ListQueueTags(ctx context.Context, name string) (map[string]string, error) {
+	sub, err := b.svc.Projects.Subscriptions.Get(b.subscriptionName(name)).Context(ctx).Do()
+	if err != nil {
+		return nil, translateErr(err, name)
+	}
+	if sub.Labels == nil {
+		return map[string]string{}, nil
+	}
+	out := make(map[string]string, len(sub.Labels))
+	for k, v := range sub.Labels {
+		out[k] = v
+	}
+	return out, nil
+}
+
+func (b *Backend) TagQueue(ctx context.Context, name string, tags map[string]string) error {
+	if len(tags) == 0 {
+		return nil
+	}
+	cur, err := b.svc.Projects.Subscriptions.Get(b.subscriptionName(name)).Context(ctx).Do()
+	if err != nil {
+		return translateErr(err, name)
+	}
+	labels := map[string]string{}
+	for k, v := range cur.Labels {
+		labels[k] = v
+	}
+	for k, v := range tags {
+		labels[k] = v
+	}
+	req := &pubsubraw.UpdateSubscriptionRequest{
+		Subscription: &pubsubraw.Subscription{Labels: labels},
+		UpdateMask:   "labels",
+	}
+	_, err = b.svc.Projects.Subscriptions.Patch(b.subscriptionName(name), req).Context(ctx).Do()
+	return translateErr(err, name)
+}
+
+func (b *Backend) UntagQueue(ctx context.Context, name string, keys []string) error {
+	if len(keys) == 0 {
+		return nil
+	}
+	cur, err := b.svc.Projects.Subscriptions.Get(b.subscriptionName(name)).Context(ctx).Do()
+	if err != nil {
+		return translateErr(err, name)
+	}
+	labels := map[string]string{}
+	for k, v := range cur.Labels {
+		labels[k] = v
+	}
+	for _, k := range keys {
+		delete(labels, k)
+	}
+	req := &pubsubraw.UpdateSubscriptionRequest{
+		Subscription: &pubsubraw.Subscription{Labels: labels},
+		UpdateMask:   "labels",
+	}
+	_, err = b.svc.Projects.Subscriptions.Patch(b.subscriptionName(name), req).Context(ctx).Do()
+	return translateErr(err, name)
+}
+
 func (b *Backend) DeleteQueue(ctx context.Context, name string) error {
 	_, err := b.svc.Projects.Subscriptions.Delete(b.subscriptionName(name)).Context(ctx).Do()
 	if err != nil {

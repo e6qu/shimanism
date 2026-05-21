@@ -146,6 +146,20 @@ type Queues interface {
 	// the queue doesn't exist.
 	SetQueueAttributes(ctx context.Context, name string, attrs QueueAttributes) error
 
+	// ListQueueTags returns the queue's tag set. Returns an empty
+	// map (not nil) for a queue with no tags configured.
+	ListQueueTags(ctx context.Context, name string) (map[string]string, error)
+
+	// TagQueue merges the supplied tags onto the queue (additive;
+	// existing tags not in the map are preserved). AWS-shape
+	// semantics. Returns NoSuchQueue if the queue doesn't exist.
+	TagQueue(ctx context.Context, name string, tags map[string]string) error
+
+	// UntagQueue removes the named tags from the queue. Keys that
+	// aren't currently present are a silent no-op (matches AWS).
+	// Returns NoSuchQueue if the queue doesn't exist.
+	UntagQueue(ctx context.Context, name string, keys []string) error
+
 	// ListQueues lists queues, optionally filtered by name prefix.
 	ListQueues(ctx context.Context, opt ListQueuesOptions) (ListQueuesResult, error)
 

@@ -79,6 +79,10 @@ func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		srv.changeMessageVisibility(w, r)
 	case "ListQueueTags":
 		srv.listQueueTags(w, r)
+	case "TagQueue":
+		srv.tagQueue(w, r)
+	case "UntagQueue":
+		srv.untagQueue(w, r)
 	default:
 		writeError(w, http.StatusBadRequest, "UnknownOperationException",
 			"operation "+op+" is not supported by this shim")
