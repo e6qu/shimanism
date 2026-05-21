@@ -27,6 +27,7 @@ var (
 	reApi        = regexp.MustCompile(`^/v1/projects/([^/]+)/locations/global/apis/([^/:]+)$`)
 	reApiConfigs = regexp.MustCompile(`^/v1/projects/([^/]+)/locations/global/apis/([^/:]+)/configs/?$`)
 	reApiConfig  = regexp.MustCompile(`^/v1/projects/([^/]+)/locations/global/apis/([^/:]+)/configs/([^/:]+)$`)
+	reOperation  = regexp.MustCompile(`^/v1/projects/([^/]+)/locations/([^/]+)/operations/([^/]+)$`)
 )
 
 type gatewayResource struct {
@@ -145,6 +146,10 @@ func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	if m := reOperation.FindStringSubmatch(path); m != nil && method == http.MethodGet {
+		srv.getOperation(w, r, m[3])
+		return
+	}
 	writeError(w, http.StatusNotFound, "NOT_FOUND", "no route matches "+method+" "+path)
 }
 
@@ -155,7 +160,8 @@ func (srv *Server) createGateway(w http.ResponseWriter, r *http.Request) {
 		mapDomainError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, &operation{Name: fmt.Sprintf("operations/op-%d", time.Now().UnixNano())})
+	opName := encodeOperationName("create", name)
+	writeJSON(w, http.StatusOK, &operation{Name: opName})
 }
 
 func (srv *Server) getGateway(w http.ResponseWriter, r *http.Request, name string) {
@@ -172,7 +178,8 @@ func (srv *Server) deleteGateway(w http.ResponseWriter, r *http.Request, name st
 		mapDomainError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, &operation{Name: fmt.Sprintf("operations/op-%d", time.Now().UnixNano())})
+	opName := encodeOperationName("delete", name)
+	writeJSON(w, http.StatusOK, &operation{Name: opName})
 }
 
 func (srv *Server) listGateways(w http.ResponseWriter, r *http.Request, project, location string) {
@@ -250,7 +257,8 @@ func (srv *Server) createApi(w http.ResponseWriter, r *http.Request) {
 		mapDomainError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, &operation{Name: fmt.Sprintf("operations/op-%d", time.Now().UnixNano())})
+	opName := encodeOperationName("create", name)
+	writeJSON(w, http.StatusOK, &operation{Name: opName})
 }
 
 func (srv *Server) getApi(w http.ResponseWriter, r *http.Request, name string) {
@@ -274,7 +282,8 @@ func (srv *Server) deleteApi(w http.ResponseWriter, r *http.Request, name string
 		mapDomainError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, &operation{Name: fmt.Sprintf("operations/op-%d", time.Now().UnixNano())})
+	opName := encodeOperationName("delete", name)
+	writeJSON(w, http.StatusOK, &operation{Name: opName})
 }
 
 func (srv *Server) listApis(w http.ResponseWriter, r *http.Request) {
@@ -321,7 +330,8 @@ func (srv *Server) createApiConfig(w http.ResponseWriter, r *http.Request, apiNa
 		mapDomainError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, &operation{Name: fmt.Sprintf("operations/op-%d", time.Now().UnixNano())})
+	opName := encodeOperationName("update", apiName)
+	writeJSON(w, http.StatusOK, &operation{Name: opName})
 }
 
 func (srv *Server) getApiConfig(w http.ResponseWriter, r *http.Request, apiName, cfgID string) {
@@ -349,7 +359,8 @@ func (srv *Server) deleteApiConfig(w http.ResponseWriter, r *http.Request, apiNa
 		mapDomainError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, &operation{Name: fmt.Sprintf("operations/op-%d", time.Now().UnixNano())})
+	opName := encodeOperationName("update", apiName)
+	writeJSON(w, http.StatusOK, &operation{Name: opName})
 }
 
 func (srv *Server) listApiConfigs(w http.ResponseWriter, r *http.Request, apiName string) {
@@ -442,4 +453,48 @@ func writeJSON(w http.ResponseWriter, status int, body interface{}) {
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(body)
+}
+
+// encodeOperationName / decodeOperationName / getOperation —
+// stateless Operations.get (Phase 10.1 / BUG-5 closure). The
+// Operation Name encodes (opType, gateway) so a polling client
+// resolves current status by reading the underlying gateway.
+
+func encodeOperationName(opType, target string) string {
+	return "operations/op-" + strings.ToLower(opType) + "-" + target
+}
+
+func decodeOperationName(name string) (opType, target string, ok bool) {
+	rest, found := strings.CutPrefix(name, "op-")
+	if !found {
+		return "", "", false
+	}
+	for _, t := range []string{"create", "delete", "update"} {
+		if suf, ok := strings.CutPrefix(rest, t+"-"); ok {
+			return t, suf, true
+		}
+	}
+	return "", "", false
+}
+
+func (srv *Server) getOperation(w http.ResponseWriter, r *http.Request, name string) {
+	opType, target, ok := decodeOperationName(name)
+	if !ok {
+		writeError(w, http.StatusNotFound, "NOT_FOUND",
+			"operation "+name+" not found")
+		return
+	}
+	g, err := srv.s.DescribeGateway(r.Context(), target)
+	op := &operation{Name: "operations/" + name}
+	if err != nil {
+		if opType == "delete" {
+			op.Done = true
+			writeJSON(w, http.StatusOK, op)
+			return
+		}
+		mapDomainError(w, err)
+		return
+	}
+	op.Done = g.Status == domain.StatusAvailable
+	writeJSON(w, http.StatusOK, op)
 }

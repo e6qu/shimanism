@@ -24,8 +24,9 @@ type Server struct {
 func New(s domain.Functions) *Server { return &Server{s: s} }
 
 var (
-	reServices = regexp.MustCompile(`^/v2/projects/([^/]+)/locations/([^/]+)/services/?$`)
-	reService  = regexp.MustCompile(`^/v2/projects/([^/]+)/locations/([^/]+)/services/([^/]+)$`)
+	reServices  = regexp.MustCompile(`^/v2/projects/([^/]+)/locations/([^/]+)/services/?$`)
+	reService   = regexp.MustCompile(`^/v2/projects/([^/]+)/locations/([^/]+)/services/([^/]+)$`)
+	reOperation = regexp.MustCompile(`^/v2/projects/([^/]+)/locations/([^/]+)/operations/([^/]+)$`)
 )
 
 func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -53,6 +54,10 @@ func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			srv.createService(w, r)
 			return
 		}
+	}
+	if m := reOperation.FindStringSubmatch(path); m != nil && method == http.MethodGet {
+		srv.getOperation(w, r, m[3])
+		return
 	}
 	writeError(w, http.StatusNotFound, "NOT_FOUND",
 		"no Cloud Run route matches "+method+" "+path)
@@ -87,7 +92,7 @@ func (srv *Server) createService(w http.ResponseWriter, r *http.Request) {
 		mapDomainError(w, err)
 		return
 	}
-	writeOperation(w, name)
+	writeOperation(w, "create", name)
 }
 
 func (srv *Server) getService(w http.ResponseWriter, r *http.Request, name string) {
@@ -119,7 +124,7 @@ func (srv *Server) deleteService(w http.ResponseWriter, r *http.Request, name st
 		mapDomainError(w, err)
 		return
 	}
-	writeOperation(w, name)
+	writeOperation(w, "delete", name)
 }
 
 func (srv *Server) patchService(w http.ResponseWriter, r *http.Request, name string) {
@@ -142,7 +147,7 @@ func (srv *Server) patchService(w http.ResponseWriter, r *http.Request, name str
 		mapDomainError(w, err)
 		return
 	}
-	writeOperation(w, name)
+	writeOperation(w, "update", name)
 }
 
 // ----------------------------------------------------------------------
@@ -223,12 +228,54 @@ func functionToGCP(fn domain.Function, project, location string) *runapi.GoogleC
 	return out
 }
 
-func writeOperation(w http.ResponseWriter, target string) {
+// writeOperation returns the LongRunning Operation envelope. The
+// Operation Name encodes (opType, target) so Operations.Get can
+// resolve current state by reading the target — stateless (Phase
+// 10.1 / BUG-5 closure).
+func writeOperation(w http.ResponseWriter, opType, target string) {
 	writeJSON(w, http.StatusOK, &runapi.GoogleLongrunningOperation{
-		Name: fmt.Sprintf("operations/op-%d", time.Now().UnixNano()),
+		Name: encodeOperationName(opType, target),
 		Done: false,
 	})
-	_ = target
+}
+
+func encodeOperationName(opType, target string) string {
+	return "operations/op-" + strings.ToLower(opType) + "-" + target
+}
+
+func decodeOperationName(name string) (opType, target string, ok bool) {
+	rest, found := strings.CutPrefix(name, "op-")
+	if !found {
+		return "", "", false
+	}
+	for _, t := range []string{"create", "delete", "update"} {
+		if suf, ok := strings.CutPrefix(rest, t+"-"); ok {
+			return t, suf, true
+		}
+	}
+	return "", "", false
+}
+
+func (srv *Server) getOperation(w http.ResponseWriter, r *http.Request, name string) {
+	opType, target, ok := decodeOperationName(name)
+	if !ok {
+		writeError(w, http.StatusNotFound, "NOT_FOUND",
+			"operation "+name+" not found")
+		return
+	}
+	fn, err := srv.s.DescribeFunction(r.Context(), target)
+	op := &runapi.GoogleLongrunningOperation{Name: "operations/" + name}
+	if err != nil {
+		if opType == "delete" {
+			op.Done = true
+			writeJSON(w, http.StatusOK, op)
+			return
+		}
+		mapDomainError(w, err)
+		return
+	}
+	op.Done = fn.Status == domain.StatusAvailable
+	writeJSON(w, http.StatusOK, op)
 }
 
 func decodeJSON(w http.ResponseWriter, r *http.Request, target interface{}) bool {

@@ -5,7 +5,6 @@ package gcp_memorystore
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"regexp"
@@ -27,6 +26,7 @@ var (
 	reInstances        = regexp.MustCompile(`^/v1/projects/([^/]+)/locations/([^/]+)/instances/?$`)
 	reInstance         = regexp.MustCompile(`^/v1/projects/([^/]+)/locations/([^/]+)/instances/([^/:]+)$`)
 	reInstanceFailover = regexp.MustCompile(`^/v1/projects/([^/]+)/locations/([^/]+)/instances/([^/:]+):failover$`)
+	reOperation        = regexp.MustCompile(`^/v1/projects/([^/]+)/locations/([^/]+)/operations/([^/]+)$`)
 )
 
 func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -60,6 +60,10 @@ func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			srv.createInstance(w, r)
 			return
 		}
+	}
+	if m := reOperation.FindStringSubmatch(path); m != nil && method == http.MethodGet {
+		srv.getOperation(w, r, m[3])
+		return
 	}
 	writeError(w, http.StatusNotFound, "NOT_FOUND",
 		"no Memorystore route matches "+method+" "+path)
@@ -182,13 +186,60 @@ func instanceToGCP(in domain.Instance) *redisapi.Instance {
 	return out
 }
 
+// writeOperation returns the canonical Operation envelope. The
+// Operation Name encodes (opType, target) so Operations.Get can
+// resolve the current state by reading the target — stateless, no
+// shim-side operation table (Phase 10.1 / BUG-5 closure).
 func writeOperation(w http.ResponseWriter, target, opType string) {
 	writeJSON(w, http.StatusOK, &redisapi.Operation{
-		Name: fmt.Sprintf("operation-%d", time.Now().UnixNano()),
+		Name: encodeOperationName(opType, target),
 		Done: false,
 	})
-	_ = target
-	_ = opType
+}
+
+func encodeOperationName(opType, target string) string {
+	return "operation-" + strings.ToLower(opType) + "-" + target
+}
+
+func decodeOperationName(name string) (opType, target string, ok bool) {
+	rest, found := strings.CutPrefix(name, "operation-")
+	if !found {
+		return "", "", false
+	}
+	for _, t := range []string{"create", "delete", "update", "failover"} {
+		if suf, ok := strings.CutPrefix(rest, t+"-"); ok {
+			return t, suf, true
+		}
+	}
+	return "", "", false
+}
+
+func (srv *Server) getOperation(w http.ResponseWriter, r *http.Request, name string) {
+	opType, target, ok := decodeOperationName(name)
+	if !ok {
+		writeError(w, http.StatusNotFound, "NOT_FOUND",
+			"operation "+name+" not found (shim only resolves operations it issued)")
+		return
+	}
+	inst, err := srv.s.DescribeInstance(r.Context(), target)
+	op := &redisapi.Operation{Name: name}
+	if err != nil {
+		// Delete success signals via NoSuchInstance.
+		if opType == "delete" {
+			op.Done = true
+			writeJSON(w, http.StatusOK, op)
+			return
+		}
+		mapDomainError(w, err)
+		return
+	}
+	switch inst.Status {
+	case domain.StatusAvailable:
+		op.Done = true
+	default:
+		op.Done = false
+	}
+	writeJSON(w, http.StatusOK, op)
 }
 
 func decodeJSON(w http.ResponseWriter, r *http.Request, target interface{}) bool {
