@@ -148,11 +148,9 @@ func (b *Backend) CreateFunction(ctx context.Context, name string, opt domain.Cr
 	// Run analog (Cloud Run uses service accounts via the function's
 	// own configuration; revisions are atomic with no separate
 	// "publish" concept). Per the no-fakes / no-silent-fallback rule,
-	// non-empty values must surface the source-cloud's "not
-	// supported" envelope rather than being quietly discarded.
-	// Migration users hitting this need to either bind identity at
-	// the destination cloud (a follow-on phase per PHASE_10_PLAN.md)
-	// or omit Role/Publish from cross-cloud HCL.
+	// non-empty values surface the source cloud's "not supported"
+	// envelope rather than being quietly discarded. Cross-cloud
+	// identity rebinding is the user's responsibility.
 	if opt.Role != "" {
 		return domain.Function{}, domain.InvalidArgument("Role is AWS Lambda-specific; cross-cloud identity rebinding is out of scope for this shim. Use the destination cloud's service-account binding directly.")
 	}
