@@ -1,14 +1,9 @@
 // Package azure_keyvault is the Azure Key Vault secrets-surface
-// REST/JSON frontend for shimanism's secrets service. It speaks
-// the HTTP+JSON wire protocol that
-// `azure-sdk-for-go/sdk/security/keyvault/azsecrets` and
-// `az keyvault secret` drive, and translates each request into a
-// call on the neutral `domain.Secrets` interface.
-//
-// Per AGENTS.md's reuse-over-reinvention rule, the wire shapes
-// match the shapes the Azure SDK's `azsecrets/internal/generated`
-// package uses to decode. We define them inline here to keep the
-// frontend self-contained.
+// REST/JSON frontend. Wire shapes + routing come from the
+// spec-driven generated stubs in services/secrets/gen
+// (cmd/azure-codegen); the adapter on Server implements
+// gen.ServerInterface and translates each operation into a call
+// on the neutral domain.Secrets interface.
 package azure_keyvault
 
 import (
@@ -19,8 +14,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"path"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -29,99 +22,65 @@ import (
 	gen "github.com/e6qu/shimanism/services/secrets/gen"
 )
 
-// Server is an Azure-Key-Vault-shaped HTTP frontend.
+// Server is an Azure-Key-Vault-shaped HTTP frontend. It implements
+// gen.ServerInterface; ServeHTTP routes through the gen-generated
+// http.Handler with a small pre-dispatch normalisation pass for the
+// SDK's empty-version-trailing-slash idiom.
 type Server struct {
-	s domain.Secrets
+	s   domain.Secrets
+	mux http.Handler
 }
 
 // New returns a frontend bound to the given backend.
-func New(s domain.Secrets) *Server { return &Server{s: s} }
+func New(s domain.Secrets) *Server {
+	srv := &Server{s: s}
+	srv.mux = gen.HandlerWithOptions(srv, gen.StdHTTPServerOptions{})
+	return srv
+}
 
-// Route patterns. Azure Key Vault uses `/secrets/...` paths.
-var (
-	// /secrets/{name}/versions
-	reSecretVersions = regexp.MustCompile(`^/secrets/([^/]+)/versions$`)
-	// /secrets/{name}/{version}
-	reSecretVersion = regexp.MustCompile(`^/secrets/([^/]+)/([^/]+)$`)
-	// /secrets/{name}
-	reSecret = regexp.MustCompile(`^/secrets/([^/]+)$`)
-	// /deletedsecrets/{name}
-	reDeletedSecret = regexp.MustCompile(`^/deletedsecrets/([^/]+)$`)
-	// /secrets
-	reSecrets = regexp.MustCompile(`^/secrets/?$`)
-)
-
+// ServeHTTP dispatches through the generated routing. Two SDK
+// idioms aren't expressed in the upstream OpenAPI spec and so don't
+// have a generated route:
+//
+//   - `GET /secrets/{name}/` (trailing slash, empty version) means
+//     "latest version" — the SDK uses it whenever GetSecret is
+//     called without an explicit version. The spec only has the
+//     two-segment `/secrets/{secret-name}/{secret-version}` route,
+//     so we dispatch this case directly to GetSecret with an empty
+//     version (which the handler resolves to version 0).
+//   - `GET /secrets/{name}` (no trailing slash) — same intent, same
+//     handling.
 func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	// Azure Key Vault uses a challenge-response auth flow: the client
-	// sends a probe request without credentials, the server replies
-	// 401 with a WWW-Authenticate header pointing at an OAuth2 token
-	// endpoint, then the client re-sends with `Authorization: Bearer
-	// <token>`. The shim doesn't validate the token at this phase,
-	// but it must still issue the 401 challenge so SDK clients
-	// include the body on the second attempt (otherwise the SDK
-	// short-circuits on the empty-body 200).
-	if r.Header.Get("Authorization") == "" {
-		w.Header().Set("WWW-Authenticate", `Bearer authorization="https://login.microsoftonline.com/shim", resource="https://vault.azure.net"`)
-		w.WriteHeader(http.StatusUnauthorized)
+	if r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/secrets/") {
+		rest := strings.TrimPrefix(r.URL.Path, "/secrets/")
+		rest = strings.TrimSuffix(rest, "/")
+		if rest != "" && !strings.Contains(rest, "/") {
+			srv.GetSecret(w, r, rest, "", gen.GetSecretParams{})
+			return
+		}
+	}
+	if p := r.URL.Path; len(p) > 1 && strings.HasSuffix(p, "/") {
+		r2 := r.Clone(r.Context())
+		r2.URL.Path = strings.TrimRight(p, "/")
+		srv.mux.ServeHTTP(w, r2)
 		return
 	}
+	srv.mux.ServeHTTP(w, r)
+}
 
-	path := r.URL.Path
-	// Azure SDK sometimes appends a trailing slash when the version
-	// segment is empty (e.g. /secrets/<name>/). Normalise so route
-	// patterns match either shape.
-	if len(path) > 1 && strings.HasSuffix(path, "/") {
-		path = strings.TrimRight(path, "/")
-	}
-	method := r.Method
-
-	if m := reSecretVersions.FindStringSubmatch(path); m != nil {
-		if method == http.MethodGet {
-			srv.listSecretVersions(w, r, m[1])
-			return
-		}
-	}
-	if m := reSecretVersion.FindStringSubmatch(path); m != nil {
-		if method == http.MethodGet {
-			srv.getSecretVersion(w, r, m[1], m[2])
-			return
-		}
-	}
-	if m := reSecret.FindStringSubmatch(path); m != nil {
-		switch method {
-		case http.MethodPut:
-			srv.setSecret(w, r, m[1])
-		case http.MethodGet:
-			srv.getSecret(w, r, m[1])
-		case http.MethodDelete:
-			srv.deleteSecret(w, r, m[1])
-		default:
-			writeError(w, http.StatusMethodNotAllowed, "MethodNotAllowed",
-				method+" not allowed on secret")
-		}
-		return
-	}
-	if m := reDeletedSecret.FindStringSubmatch(path); m != nil {
-		if method == http.MethodDelete {
-			// Purge the soft-deleted secret.
-			srv.purgeSecret(w, r, m[1])
-			return
-		}
-	}
-	if reSecrets.MatchString(path) {
-		if method == http.MethodGet {
-			srv.listSecrets(w, r)
-			return
-		}
-	}
-	writeError(w, http.StatusNotFound, "SecretNotFound",
-		"no Key Vault secrets route matches "+method+" "+path)
+// notImplemented writes the Azure-shaped "operation not supported"
+// error envelope for spec-defined operations the cross-cloud
+// intersection doesn't carry (Backup / Restore / RecoverDeleted /
+// UpdateSecret / per-deleted-secret reads). Honest 501.
+func notImplemented(w http.ResponseWriter, op string) {
+	writeError(w, http.StatusNotImplemented, "Forbidden",
+		op+" is not in the cross-cloud secrets intersection")
 }
 
 // Wire types come from services/secrets/gen/azure_keyvault.gen.go
 // (cmd/azure-codegen). Hand-rolled shapes were retired in 12.A.1.
 
-func (srv *Server) setSecret(w http.ResponseWriter, r *http.Request, name string) {
+func (srv *Server) SetSecret(w http.ResponseWriter, r *http.Request, name string, _ gen.SetSecretParams) {
 	var body gen.SecretSetParameters
 	if !decodeJSON(w, r, &body) {
 		return
@@ -162,25 +121,20 @@ func (srv *Server) setSecret(w http.ResponseWriter, r *http.Request, name string
 	writeSecretBundle(w, http.StatusOK, name, val, createRes.Version, time.Now().UTC(), tags, description, r)
 }
 
-func (srv *Server) getSecret(w http.ResponseWriter, r *http.Request, name string) {
-	val, err := srv.s.GetSecretValue(r.Context(), name, 0)
-	if err != nil {
-		mapDomainError(w, err)
-		return
-	}
-	s, herr := srv.s.HeadSecret(r.Context(), name)
-	if herr != nil {
-		mapDomainError(w, herr)
-		return
-	}
-	writeSecretBundle(w, http.StatusOK, name, val.Value, val.Version, val.CreatedAt, s.Tags, s.Description, r)
-}
-
-func (srv *Server) getSecretVersion(w http.ResponseWriter, r *http.Request, name, version string) {
-	v, err := versionFromGUID(version)
-	if err != nil {
-		writeError(w, http.StatusBadRequest, "BadParameter", err.Error())
-		return
+// GetSecret handles both `GET /secrets/{name}` (latest version, the
+// trailing-slash normaliser rewrites `/secrets/{name}/` to this) and
+// `GET /secrets/{name}/{version}`. The Azure spec models them as two
+// operations; the std-net-http router emits an empty `secretVersion`
+// for the no-version variant, which we resolve to version 0 (latest).
+func (srv *Server) GetSecret(w http.ResponseWriter, r *http.Request, name, version string, _ gen.GetSecretParams) {
+	var v uint64
+	if version != "" {
+		parsed, err := versionFromGUID(version)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "BadParameter", err.Error())
+			return
+		}
+		v = parsed
 	}
 	val, gerr := srv.s.GetSecretValue(r.Context(), name, v)
 	if gerr != nil {
@@ -195,7 +149,7 @@ func (srv *Server) getSecretVersion(w http.ResponseWriter, r *http.Request, name
 	writeSecretBundle(w, http.StatusOK, name, val.Value, val.Version, val.CreatedAt, s.Tags, s.Description, r)
 }
 
-func (srv *Server) deleteSecret(w http.ResponseWriter, r *http.Request, name string) {
+func (srv *Server) DeleteSecret(w http.ResponseWriter, r *http.Request, name string, _ gen.DeleteSecretParams) {
 	// Azure soft-deletes by default; force-purge happens through
 	// /deletedsecrets/{name}. Domain: force=false.
 	if err := srv.s.DeleteSecret(r.Context(), name, false); err != nil {
@@ -218,7 +172,7 @@ func (srv *Server) deleteSecret(w http.ResponseWriter, r *http.Request, name str
 	writeJSON(w, http.StatusOK, resp)
 }
 
-func (srv *Server) purgeSecret(w http.ResponseWriter, r *http.Request, name string) {
+func (srv *Server) PurgeDeletedSecret(w http.ResponseWriter, r *http.Request, name string, _ gen.PurgeDeletedSecretParams) {
 	if err := srv.s.DeleteSecret(r.Context(), name, true); err != nil {
 		mapDomainError(w, err)
 		return
@@ -226,7 +180,7 @@ func (srv *Server) purgeSecret(w http.ResponseWriter, r *http.Request, name stri
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (srv *Server) listSecrets(w http.ResponseWriter, r *http.Request) {
+func (srv *Server) GetSecrets(w http.ResponseWriter, r *http.Request, _ gen.GetSecretsParams) {
 	res, err := srv.s.ListSecrets(r.Context(), domain.ListSecretsOptions{})
 	if err != nil {
 		mapDomainError(w, err)
@@ -245,7 +199,7 @@ func (srv *Server) listSecrets(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, gen.SecretListResult{Value: &items})
 }
 
-func (srv *Server) listSecretVersions(w http.ResponseWriter, r *http.Request, name string) {
+func (srv *Server) GetSecretVersions(w http.ResponseWriter, r *http.Request, name string, _ gen.GetSecretVersionsParams) {
 	versions, err := srv.s.ListVersions(r.Context(), name)
 	if err != nil {
 		mapDomainError(w, err)
@@ -272,6 +226,35 @@ func (srv *Server) listSecretVersions(w http.ResponseWriter, r *http.Request, na
 		})
 	}
 	writeJSON(w, http.StatusOK, gen.SecretListResult{Value: &items})
+}
+
+// Spec operations outside the cross-cloud secrets intersection.
+// Real Azure Key Vault would honour them; the shim's neutral
+// domain doesn't carry the concepts (per-deleted-secret reads,
+// per-version attribute updates, raw backup/restore blobs).
+
+func (srv *Server) BackupSecret(w http.ResponseWriter, _ *http.Request, _ string, _ gen.BackupSecretParams) {
+	notImplemented(w, "BackupSecret")
+}
+
+func (srv *Server) RestoreSecret(w http.ResponseWriter, _ *http.Request, _ gen.RestoreSecretParams) {
+	notImplemented(w, "RestoreSecret")
+}
+
+func (srv *Server) UpdateSecret(w http.ResponseWriter, _ *http.Request, _, _ string, _ gen.UpdateSecretParams) {
+	notImplemented(w, "UpdateSecret")
+}
+
+func (srv *Server) GetDeletedSecret(w http.ResponseWriter, _ *http.Request, _ string, _ gen.GetDeletedSecretParams) {
+	notImplemented(w, "GetDeletedSecret")
+}
+
+func (srv *Server) GetDeletedSecrets(w http.ResponseWriter, _ *http.Request, _ gen.GetDeletedSecretsParams) {
+	notImplemented(w, "GetDeletedSecrets")
+}
+
+func (srv *Server) RecoverDeletedSecret(w http.ResponseWriter, _ *http.Request, _ string, _ gen.RecoverDeletedSecretParams) {
+	notImplemented(w, "RecoverDeletedSecret")
 }
 
 func writeSecretBundle(w http.ResponseWriter, status int, name string, value []byte, version uint64, created time.Time, tags map[string]string, description string, r *http.Request) {
@@ -393,8 +376,5 @@ func writeJSON(w http.ResponseWriter, status int, body interface{}) {
 	_ = json.NewEncoder(w).Encode(body)
 }
 
-// keep these imports referenced even when an emitted code path
-// doesn't exercise them.
 var _ = strconv.Itoa
 var _ = rand.Reader
-var _ = path.Base
