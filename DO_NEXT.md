@@ -13,16 +13,16 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 
 ## Next concrete actions (in priority order)
 
-PR #18 has shipped substantial Phase 11 progress. The remaining work doesn't fit one session; pick from these in priority order.
+PR #18 has shipped major Phase 11 progress (sub-phases 11.0–11.3 + 11.6a-d + 11.7a + 11.9 + 11.10 + 11.13a/b). Pick from these in priority order:
 
-1. **Lambda adapter migration (11.9b).** Gen file in tree (`services/functions/gen/aws_lambda.gen.go`, 14 ops). Write `internal/functions/frontends/aws_lambda/adapter.go` implementing `gen.LambdaBackend`; delete `server.go` + `errors.go`. Same shape as `internal/secrets/frontends/aws_secretsmanager/adapter.go`. ~30-60 min.
-2. **APIGW v2 adapter migration (11.10b).** Same shape; gen file in tree.
-3. **Per-frontend SigV4 wiring (11.6b).** Verifier package exists. Each AWS adapter calls `verifier.Verify(r)` early; conformance tests use the deterministic test signing key. Start with secrets (already migrated, smallest surface).
-4. **`awsQuery` emitter extension.** Form-encoded request body + XML response + XML error envelope. Heaviest remaining emitter work; unblocks SNS, RDS, ElastiCache (11.8 / 11.11 / 11.12).
-5. **GCP routing emitter (11.5).** Discovery JSON → routing-only Go (wire types via `google.golang.org/api/<svc>/v1`). Start with Secret Manager.
-6. **Azure `oapi-codegen` pilot (11.4).** Net/http stubs + `kin-openapi` validation + Bearer challenge + ARM LRO. Key Vault first.
-7. **Storage retrofit (11.13).** Wire SigV4 + SharedKey + bearer verifiers onto existing `services/storage/gen/` stubs.
-8. **Conformance lane cleanup + closer (11.14).** Drop auth-bypass knobs; BUG-18 closed.
+1. **`awsQuery` emitter extension.** Highest leverage — unblocks SNS / RDS / ElastiCache (3 services). Form-encoded request body parser + XML response encoder + XML error envelope. Largest remaining emitter chunk; ~60-120 min focused work.
+2. **SNS / RDS / ElastiCache adapter migrations.** Depend on (1). Pattern is identical to 11.3c / 11.7a / 11.9b / 11.10b once the emitter is in place.
+3. **GCP routing emitter (11.5).** Discovery JSON → routing-only Go (wire types via `google.golang.org/api/<svc>/v1`). Start with Secret Manager; then GCP frontend migrations for all 8 services. ~60-90 min for the emitter, ~30 min per service after.
+4. **Azure `oapi-codegen` pilot (11.4).** Net/http stubs + `kin-openapi` validation + Bearer challenge + ARM LRO. Key Vault first; then Azure frontend migrations for all 8 services.
+5. **Azure Bearer + SharedKey verifier packages.** Same shape as `internal/gcpbearer` (already built). Wire into Azure-shaped frontends. SharedKey for Blob (Storage retrofit).
+6. **GCS + Azure Blob storage retrofit (11.13b/c).** Wrap the existing GCS + Azure Blob handlers with the bearer / SharedKey verifiers (analogous to the S3 SigV4 wrap in 11.13a).
+7. **Conformance lane rewrite.** Drop `SHIMANISM_TEST_UNAUTHENTICATED=1` from `internal/harness/server.go init()`; convert each conformance test's AWS-SDK client to sign with the test access-key + secret instead of `AnonymousCredentials{}`.
+8. **Closer (11.14).** BUG-18 closed in BUGS.md; all 8 services spec-driven + verified.
 
 ## Invariants snapshot
 

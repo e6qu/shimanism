@@ -172,16 +172,17 @@ The earlier AGENTS.md row required `cloud.google.com/go/<svc>` (gRPC) as the can
 
 ### Remaining work (honest)
 
-After 11.0–11.3c + 11.6a + 11.7a + 11.9/10a + the Lambda/APIGW manifest extensions, the substantial chunks still ahead:
+After all the substantial chunks landed on PR #18 (see sub-phase table above), what's still ahead:
 
-- **`awsQuery` emitter extension** — unblocks SNS, RDS, ElastiCache. Form-encoded request bodies + XML responses + XML error envelope; the most complex of the four AWS protocols (Smithy structures serialise as flat `name=value&list.1=...&map.1.key=...` pairs).
-- **Lambda + APIGW v2 adapter migrations** — generated stubs are in tree; pattern is identical to 11.3c / 11.7a (~480 LOC adapter per service mapping each generated `<Op>Backend` interface).
-- **Per-frontend SigV4 wiring** — verifier package exists; each AWS-shaped adapter needs to call `Verify(r)` before dispatch and drop the corresponding conformance auth-bypass knobs.
-- **GCP routing emitter** — emit dispatch tables from Discovery JSON; reuse `google.golang.org/api/<svc>/v1` wire types. Then per-service adapter migrations.
-- **Azure `oapi-codegen` integration** — generated `net/http` stubs + `kin-openapi` validation middleware + Bearer challenge handling + ARM LRO. Then per-service adapter migrations.
-- **GCP ID-token + Azure Bearer verifiers** — analogous packages to `internal/sigv4verifier`.
-- **Storage retrofit** — apply SigV4/SharedKey/bearer to existing `services/storage/gen/` REST-XML stubs.
-- **Conformance lane cleanup** — drop `skip_credentials_validation` / `WithoutAuthentication` / `fakeAzureCred` everywhere.
+- **`awsQuery` emitter extension** — unblocks SNS / RDS / ElastiCache. Form-encoded request bodies + XML responses + XML error envelope; the most complex of the four AWS protocols (Smithy structures serialise as flat `name=value&list.1=...&map.1.key=...` pairs).
+- **Pubsub / rdbms / cache AWS adapter migrations** — depend on the `awsQuery` emitter. Same shape as 11.3c / 11.7a / 11.9b / 11.10b once the emitter is in place.
+- **GCP routing emitter** — emit dispatch tables from Discovery JSON; reuse `google.golang.org/api/<svc>/v1` wire types. Then GCP frontend migrations for all 8 services.
+- **Azure `oapi-codegen` integration** — generated `net/http` stubs + `kin-openapi` validation middleware + Bearer challenge handling + ARM LRO. Then Azure frontend migrations for all 8 services.
+- **Azure Bearer verifier package** — shape analogous to `internal/gcpbearer` but with Microsoft Entra defaults. Wire into Azure-shaped frontends (Key Vault, Service Bus, ARM).
+- **Azure SharedKey verifier package** — needed for Blob (Storage retrofit). HMAC-SHA256 over canonical-string.
+- **GCS + Azure Blob adapter wiring** — wrap the existing storage frontend handlers with the bearer / SharedKey verifiers analogous to the S3 SigV4 wrap in 11.13a.
+- **Conformance lane rewrite** — drop `SHIMANISM_TEST_UNAUTHENTICATED=1` from the harness; convert per-test clients to use the trusted test signing keys; drop `skip_credentials_validation` / `WithoutAuthentication` / `fakeAzureCred` knobs.
+- **Phase 11 closer** — all 8 services spec-driven across all 3 frontends; all verifiers wired; conformance signs end-to-end; BUG-18 closed.
 
 Status legend: ✅ done · ◐ in progress · ◻ pending · ⏸ paused.
 
