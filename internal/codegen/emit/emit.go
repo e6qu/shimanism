@@ -82,10 +82,11 @@ func newGen(model *smithy.Model, opts Options) *gen {
 	return &gen{model: model, opts: opts, shapeSeen: map[string]bool{}}
 }
 
-// serviceShortName returns the short name of the single service shape
-// in the model. Spec-conformant Smithy models for an AWS service
-// declare exactly one service. Returns "Service" as a generic fallback
-// for unusual spec layouts.
+// serviceShortName returns the Smithy short name of the single service
+// shape in the model — the same string AWS SDK clients send in the
+// `X-Amz-Target` left-hand side for awsJson1_x protocols (e.g.
+// "secretsmanager"). Spec-conformant AWS Smithy models declare exactly
+// one service. Returns "Service" as a generic fallback.
 func (g *gen) serviceShortName() string {
 	for id, sh := range g.model.Shapes {
 		if sh.Type == "service" {
@@ -93,6 +94,49 @@ func (g *gen) serviceShortName() string {
 		}
 	}
 	return "Service"
+}
+
+// serviceGoName returns the Go-idiomatic identifier for the service —
+// used to name `Register<Service>Routes`, the combined backend
+// interface, and other generated symbols. Falls back to the Smithy
+// short name when the spec lacks an sdkId.
+func (g *gen) serviceGoName() string {
+	for _, sh := range g.model.Shapes {
+		if sh.Type != "service" {
+			continue
+		}
+		if sdkID := sh.SDKID(); sdkID != "" {
+			return strings.ReplaceAll(sdkID, " ", "")
+		}
+	}
+	return g.serviceShortName()
+}
+
+// serviceProtocol returns the wire-protocol identifier for the
+// service: one of "rest-xml" (default, S3), "aws-json-1.1" (Secrets
+// Manager, DynamoDB), "aws-json-1.0" (SQS), "aws-query" (SNS / RDS /
+// ElastiCache), "rest-json" (Lambda / APIGW v2). The emitter switches
+// templates on this; backends speak the same domain-level interface
+// either way.
+func (g *gen) serviceProtocol() string {
+	for _, sh := range g.model.Shapes {
+		if sh.Type != "service" {
+			continue
+		}
+		switch {
+		case sh.HasTrait("aws.protocols#awsJson1_1"):
+			return "aws-json-1.1"
+		case sh.HasTrait("aws.protocols#awsJson1_0"):
+			return "aws-json-1.0"
+		case sh.HasTrait("aws.protocols#awsQuery"):
+			return "aws-query"
+		case sh.HasTrait("aws.protocols#restJson1"):
+			return "rest-json"
+		case sh.HasTrait("aws.protocols#restXml"):
+			return "rest-xml"
+		}
+	}
+	return "rest-xml"
 }
 
 func (g *gen) collectOperation(opName string) error {
@@ -197,9 +241,17 @@ type fileData struct {
 	Maps    []mapView
 	Ops     []opView
 	Errors  []errorView
-	// Service is the Smithy service short name, used to name the
-	// generated RegisterRoutes helper (e.g. RegisterAmazonS3).
+	// Service is the Smithy service short name — what AWS SDK clients
+	// send in the `X-Amz-Target` left-hand side for awsJson1_x (e.g.
+	// "secretsmanager"). Wire-level identity.
 	Service string
+	// ServiceGoName is the Go-idiomatic identifier derived from the
+	// spec's `aws.api#service.sdkId` (e.g. "SecretsManager"). Used in
+	// generated symbol names like Register<ServiceGoName>Routes.
+	ServiceGoName string
+	// Protocol is the service-level wire protocol — "rest-xml",
+	// "aws-json-1.1", etc. Selects the rendering template.
+	Protocol string
 }
 
 type enumView struct {
@@ -233,9 +285,13 @@ type fieldView struct {
 	//   "payload"        carries the whole request/response body
 	//   "prefix-headers" map of headers sharing a prefix
 	//   "attribute"      XML attribute on the parent element
-	Binding  string
-	BindKey  string
-	XMLTag   string
+	Binding string
+	BindKey string
+	XMLTag  string
+	// JSONTag is the `json:"..."` struct tag used by the awsJson1_x
+	// (and restJson1) protocol templates. Defaults to the member's
+	// short name; overridden by the @jsonName trait if declared.
+	JSONTag  string
 	TSFormat string
 	Required bool
 }
@@ -308,10 +364,12 @@ type errorView struct {
 
 func (g *gen) render() ([]byte, error) {
 	data := fileData{
-		Pkg:     g.opts.PackageName,
-		Source:  g.opts.SourceFile,
-		Commit:  g.opts.SourceCommit,
-		Service: g.serviceShortName(),
+		Pkg:           g.opts.PackageName,
+		Source:        g.opts.SourceFile,
+		Commit:        g.opts.SourceCommit,
+		Service:       g.serviceShortName(),
+		ServiceGoName: g.serviceGoName(),
+		Protocol:      g.serviceProtocol(),
 	}
 
 	for _, id := range g.shapeOrder {
@@ -357,7 +415,11 @@ func (g *gen) render() ([]byte, error) {
 		data.Ops = append(data.Ops, ov)
 	}
 
-	tmpl, err := template.New("file").Funcs(funcs).Parse(fileTemplate)
+	src, err := pickTemplate(data.Protocol)
+	if err != nil {
+		return nil, err
+	}
+	tmpl, err := template.New("file").Funcs(funcs).Parse(src)
 	if err != nil {
 		return nil, err
 	}
@@ -366,6 +428,24 @@ func (g *gen) render() ([]byte, error) {
 		return nil, err
 	}
 	return buf.Bytes(), nil
+}
+
+// pickTemplate selects the rendering template for a given service
+// protocol. Each AWS wire protocol has its own template because the
+// dispatch shape (path/method routing vs. X-Amz-Target dispatch),
+// body encoding (XML vs. JSON), and error envelope all differ enough
+// that one parameterised template would be denser than two readable
+// ones.
+func pickTemplate(protocol string) (string, error) {
+	switch protocol {
+	case "rest-xml", "":
+		return fileTemplate, nil
+	case "aws-json-1.1", "aws-json-1.0":
+		return awsJSONTemplate, nil
+	default:
+		return "", fmt.Errorf("codegen: unsupported wire protocol %q "+
+			"(supported: rest-xml, aws-json-1.0, aws-json-1.1)", protocol)
+	}
 }
 
 func (g *gen) enumView(id string, sh *smithy.Shape) enumView {
@@ -456,6 +536,14 @@ func (g *gen) fieldView(name string, m smithy.Member) (fieldView, error) {
 		Required: m.Required(),
 		TSFormat: m.TimestampFormat(),
 	}
+	// JSON tag for awsJson1_x / restJson1 protocols. Defaults to the
+	// member's wire name (matches AWS SDKs' PascalCase convention for
+	// awsJson services); @jsonName trait wins when declared.
+	jsonName := m.JSONName()
+	if jsonName == "" {
+		jsonName = name
+	}
+	fv.JSONTag = jsonName + ",omitempty"
 	required := m.Required()
 	// The AWS REST-XML protocol defaults timestampFormat by binding
 	// location: "http-date" for header bindings, "date-time" for body
@@ -606,12 +694,16 @@ func (g *gen) opView(op operation) (opView, error) {
 		}
 		v.Errors = append(v.Errors, errorRef{GoName: smithy.ShortName(eid), HTTPError: esh.HTTPErrorCode()})
 	}
+	// Default HTTPStatus to 200; the REST-XML path overrides per
+	// operation's smithy.api#http trait. awsJson1_x doesn't carry an
+	// HTTP trait (POST / for everything; status is always 200 on
+	// success) so the default sticks.
+	v.HTTPStatus = 200
 	if h := op.Shape.HTTPTrait(); h != nil {
 		v.Method = h.Method
 		v.URIPath = h.URI // includes any ?query suffix from the spec
-		v.HTTPStatus = h.Code
-		if v.HTTPStatus == 0 {
-			v.HTTPStatus = 200
+		if h.Code != 0 {
+			v.HTTPStatus = h.Code
 		}
 	}
 	v.ForbiddenQueries = forbiddenQueriesFor(v.GoName)

@@ -13,19 +13,16 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 
 ## Next concrete action
 
-**11.2** — Smithy emitter `awsJson1_1` protocol path.
+**11.3** — Migrate AWS Secrets Manager frontend to the generated stubs.
 
-The current Smithy emitter (`internal/codegen/`) is REST-XML-shaped: handlers import `restxml`, route from `smithy.api#http` operation traits, encode XML responses. AWS Secrets Manager uses `awsJson1_1`: HTTP `POST /` for every operation with `X-Amz-Target: SecretsManager.<Op>` for dispatch + JSON request/response bodies + JSON error envelopes (`{"__type": "...", "message": "..."}`).
+The 11.2 emitter path produces gofmt-clean Go for AWS Secrets Manager with handlers + routing + types. 11.3 wires the generated stubs into the frontend:
 
-Concrete deliverables:
+- `make codegen` regenerates `services/secrets/gen/aws_secretsmanager.gen.go` (the Makefile target needs to fan out across `services/*/codegen.json` manifests, not just storage — fold that generalization in).
+- Replace the hand-written wire layer at `internal/secrets/frontends/aws_secretsmanager/` with a thin adapter that satisfies the generated `SecretsManagerBackend` interface and dispatches to the existing domain.
+- The `translate.go` files stay; the wire-decode boundary moves into generated code.
+- AWS SDK / CLI / Terraform conformance tests in `services/secrets/conformance/` should pass unchanged — the wire-protocol contract didn't change, only its implementation.
 
-- New emitter path in `internal/codegen/emit/` that emits `awsJson1_1` handlers alongside the existing REST-XML path. Pick a per-protocol template or a parameterized one; the trade-off is duplication vs. branching complexity.
-- Routing on `X-Amz-Target` instead of HTTP method/path.
-- JSON request decode with Smithy field-level validation honored at the decode boundary (required, enum, pattern, length / range constraints from the spec → source-cloud error envelope, not generic 500).
-- JSON error envelope emit: `{"__type": "...", "message": "..."}` with the `X-Amzn-Errortype` header.
-- Negative-conformance test suite in `internal/codegen/emit/` (or a new package) covering malformed JSON, missing required fields, bad enum, bad timestamp, bad number, wrong `X-Amz-Target` → assert source-cloud error envelope.
-
-Output: `make codegen` regenerates AWS Secrets Manager (or a small pilot operation set) to confirm the path works before 11.3 migrates the service.
+Output: the hand-written `aws_secretsmanager` wire layer is deleted; the secrets service serves AWS via spec-driven generated stubs end-to-end.
 
 ## Invariants snapshot
 

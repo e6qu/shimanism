@@ -8,8 +8,8 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 
 | | |
 |---|---|
-| Active branch | `phase-11` (PR #18 draft). 11.0 + 11.1 landed; next is 11.2 (Smithy awsJson1_1 emitter). |
-| In-flight | **Phase 11 — Tighten the wire boundary.** Spec-driven codegen across every service + signature verification (BUG-18) at the new decode boundary. 11.1 architecture spike locked in: AWS SigV4 verifier built on `signer/v4` canonical-request blocks; GCP bifurcated (ID tokens via `idtoken.Validate`; opaque access tokens documented gap); Azure Bearer via Microsoft JWKS validation; SharedKey for Storage only; AGENTS.md GCP SDK row widened to REST as canonical (gRPC future expansion). Full sub-task table in [PLAN.md § Phase 11](PLAN.md#phase-11--tighten-the-wire-boundary). |
+| Active branch | `phase-11` (PR #18 draft). 11.0 + 11.1 + 11.2 landed; next is 11.3 (AWS Secrets Manager service migration). |
+| In-flight | **Phase 11 — Tighten the wire boundary.** Spec-driven codegen across every service + signature verification (BUG-18) at the new decode boundary. 11.2 closed: `internal/awsjson/` runtime helper + emitter template + protocol detection. The emitter now picks `template.tmpl` (REST-XML) or `template_awsjson.tmpl` (`awsJson1_1` / `awsJson1_0`) based on the service shape's protocol trait. Generated Go is gofmt-clean and parseable; verified via `internal/codegen/awsjson_test.go`. Full sub-task table in [PLAN.md § Phase 11](PLAN.md#phase-11--tighten-the-wire-boundary). |
 | Phase 12 (planned) | **Cross-cloud migration cell expansion.** Phase 9 + 10 proved the headline on storage AWS→GCS; Phase 12 takes one honest cross-cloud cell per service end-to-end across all 8. Doesn't depend on Phase 11. See [PLAN.md § Phase 12](PLAN.md#phase-12--cross-cloud-migration-cell-expansion). |
 | Last merged | PR #17 — Phase 10 + codex doc review (8/8 services apply-active, 8 BUGs closed). `ebc30f7`, 2026-05-21. |
 | Phases 1-10 | All closed. PR index in [PLAN.md § Closed phases](PLAN.md#closed-phases-pr-index). |
