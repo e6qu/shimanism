@@ -10,7 +10,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/e6qu/shimanism/internal/gcpbearer"
 	"github.com/e6qu/shimanism/internal/harness"
 	"github.com/e6qu/shimanism/services/secrets/backends/inmem"
 )
@@ -28,7 +30,7 @@ terraform {
 provider "google" {
   project                       = "shim-conformance"
   region                        = "us-central1"
-  access_token                  = "shim-fake-token"
+  access_token                  = "%s"
   secret_manager_custom_endpoint = "%s/v1/"
 }
 
@@ -50,8 +52,14 @@ func TestTerraform_GCPSecrets_ResourceLifecycle(t *testing.T) {
 	bin := requireTerraform(t)
 	srv := harness.StartSecretsServerGCP(t, inmem.New())
 
+	jwt := gcpbearer.TestJWT(
+		[]byte("test-key-do-not-use-in-prod"),
+		"https://shim.test/",
+		"https://secretmanager.googleapis.com/",
+		15*time.Minute,
+	)
 	dir := t.TempDir()
-	hcl := fmt.Sprintf(terraformGCPSecretsConfig, srv.URL)
+	hcl := fmt.Sprintf(terraformGCPSecretsConfig, jwt, srv.URL)
 	if err := os.WriteFile(filepath.Join(dir, "main.tf"), []byte(hcl), 0o644); err != nil {
 		t.Fatalf("write main.tf: %v", err)
 	}

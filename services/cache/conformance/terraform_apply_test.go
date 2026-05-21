@@ -30,6 +30,7 @@ import (
 	"time"
 
 	"github.com/e6qu/shimanism/internal/cache/domain"
+	"github.com/e6qu/shimanism/internal/gcpbearer"
 	"github.com/e6qu/shimanism/internal/harness"
 	"github.com/e6qu/shimanism/services/cache/backends/inmem"
 )
@@ -51,7 +52,7 @@ terraform {
 provider "google" {
   project              = "shim-conformance"
   region               = "us-central1"
-  access_token         = "shim-fake-token"
+  access_token         = "%s"
   redis_custom_endpoint = "%s/v1/"
 }
 
@@ -74,8 +75,14 @@ func TestTerraform_GCPCache_Apply_NoDrift(t *testing.T) {
 	backend := inmem.New()
 	srv := harness.StartCacheServerGCP(t, backend)
 
+	jwt := gcpbearer.TestJWT(
+		[]byte("test-key-do-not-use-in-prod"),
+		"https://shim.test/",
+		"https://redis.googleapis.com/",
+		15*time.Minute,
+	)
 	dir := t.TempDir()
-	hcl := fmt.Sprintf(terraformApplyCacheGCPConfig, srv.URL)
+	hcl := fmt.Sprintf(terraformApplyCacheGCPConfig, jwt, srv.URL)
 	if err := os.WriteFile(filepath.Join(dir, "main.tf"), []byte(hcl), 0o644); err != nil {
 		t.Fatalf("write main.tf: %v", err)
 	}

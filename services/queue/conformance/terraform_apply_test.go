@@ -25,7 +25,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/e6qu/shimanism/internal/gcpbearer"
 	"github.com/e6qu/shimanism/internal/harness"
 	queuedomain "github.com/e6qu/shimanism/internal/queue/domain"
 	"github.com/e6qu/shimanism/services/queue/backends/inmem"
@@ -43,8 +45,8 @@ terraform {
 
 provider "aws" {
   region                      = "us-east-1"
-  access_key                  = "test"
-  secret_key                  = "test"
+  access_key                  = "AKIAIOSFODNN7EXAMPLE"
+  secret_key                  = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
   skip_credentials_validation = true
   skip_metadata_api_check     = true
   skip_requesting_account_id  = true
@@ -150,7 +152,7 @@ terraform {
 provider "google" {
   project                = "shim-conformance"
   region                 = "us-central1"
-  access_token           = "shim-fake-token"
+  access_token           = "%s"
   pubsub_custom_endpoint = "%s/v1/"
 }
 
@@ -221,8 +223,14 @@ func TestTerraform_GCPQueue_Apply_NoDrift(t *testing.T) {
 	backend := inmem.New()
 	srv := harness.StartQueueServerGCP(t, backend)
 
+	jwt := gcpbearer.TestJWT(
+		[]byte("test-key-do-not-use-in-prod"),
+		"https://shim.test/",
+		"https://pubsub.googleapis.com/",
+		15*time.Minute,
+	)
 	dir := t.TempDir()
-	hcl := fmt.Sprintf(terraformApplyQueueGCPConfig, srv.URL)
+	hcl := fmt.Sprintf(terraformApplyQueueGCPConfig, jwt, srv.URL)
 	if err := os.WriteFile(filepath.Join(dir, "main.tf"), []byte(hcl), 0o644); err != nil {
 		t.Fatalf("write main.tf: %v", err)
 	}

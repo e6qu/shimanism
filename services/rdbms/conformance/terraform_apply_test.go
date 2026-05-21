@@ -27,7 +27,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/e6qu/shimanism/internal/gcpbearer"
 	"github.com/e6qu/shimanism/internal/harness"
 	rdbmsdomain "github.com/e6qu/shimanism/internal/rdbms/domain"
 	"github.com/e6qu/shimanism/services/rdbms/backends/inmem"
@@ -46,7 +48,7 @@ terraform {
 provider "google" {
   project                  = "shim-conformance"
   region                   = "us-central1"
-  access_token             = "shim-fake-token"
+  access_token             = "%s"
   sql_custom_endpoint      = "%s/"
 }
 
@@ -76,8 +78,14 @@ func TestTerraform_GCPRDBMS_Apply_NoDrift(t *testing.T) {
 	backend := inmem.New()
 	srv := harness.StartRDBMSServerGCP(t, backend)
 
+	jwt := gcpbearer.TestJWT(
+		[]byte("test-key-do-not-use-in-prod"),
+		"https://shim.test/",
+		"https://sqladmin.googleapis.com/",
+		15*time.Minute,
+	)
 	dir := t.TempDir()
-	hcl := fmt.Sprintf(terraformApplyRDBMSGCPConfig, srv.URL)
+	hcl := fmt.Sprintf(terraformApplyRDBMSGCPConfig, jwt, srv.URL)
 	if err := os.WriteFile(filepath.Join(dir, "main.tf"), []byte(hcl), 0o644); err != nil {
 		t.Fatalf("write main.tf: %v", err)
 	}
