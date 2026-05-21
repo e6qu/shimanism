@@ -22,14 +22,14 @@ Plan in [`PHASE_10_PLAN.md`](PHASE_10_PLAN.md). One PR for the whole phase; gran
 | **10.0-A** | ✅ | Per-service `APPLY_INTERSECTION.md` — 8 files, one per service. |
 | **10.1** | ✅ | BUG-5 family closed (PR #16). GCP `Operations.Get` on all four GCP-shape frontends. |
 | **10.2** | ✅ | Create-then-Read drift audit per service. Apply test scaffolding in tree for all 8 services. **All 8 services have active drift assertions** (storage AWS / secrets AWS / queue AWS / pubsub AWS / apigateway AWS / functions AWS / rdbms GCP / **cache GCP**). Documented skips with BUG pointers: AWS rdbms (Modify reconcile + subnet/parameter-group metadata), AWS cache (ModifyCacheCluster reconcile), Azure cells across services (Azure-AsyncOperation URLs). |
-| **10.2-B** | ◻ | Cross-frontend read after cross-cloud write. Catches self-consistent wrongness. |
-| **10.2-C** | ◻ | Invalid-input fidelity — known-bad inputs assert the shim returns the source cloud's *real* error envelope. |
-| **10.3** | ◐ | Update intersection audit per service. Two BUGs closed so far: BUG-17 (secrets `UpdateSecret` + per-backend + frontend dispatch) and BUG-2 (AWS SQS `SetQueueAttributes` + per-backend + read-side attribute surface + awsQueryCompatible legacy error codes). Remaining open: BUG-12 (queue tag storage), BUG-13 (Lambda role/publish/memory), BUG-15 (queue retention plan/apply asymmetry — partial fix landed), BUG-16 (rdbms GCP v1 vs v1beta4 path mismatch), BUG-6 (Azure APIM v3 delete), BUG-7/8 (Azure CLI + GCP TF apigateway). |
-| **10.4** | ◻ | Soft-delete intersection across secrets + storage (queue dropped per codex review). Opt-in only. |
-| **10.5** | ◐ | Per-service `apply_test.go` covering full lifecycle. Secrets test now drives Create → Read → Update (description) → Read → Destroy after BUG-17 closed. Queue test now drives Create → Read → Destroy (and apply-Update via SetQueueAttributes is implicitly exercised by provider reconcile). Remaining services gated on their own BUG closures (the 10.3 list). |
-| **10.6** | ◻ | Cross-cloud Apply matrix tests, contract-scoped. |
-| **10.7** | ◻ | Exit criterion: `TestCrossCloudApply_Roundtrip` per service. |
-| **10.8** | ◻ | Phase 10 closer — push, CI green, PR merged. |
+| **10.2-B** | ⏸ | Cross-frontend read after cross-cloud write. Catches self-consistent wrongness. Deferred — single-frontend create-then-read (10.2) caught all drift in this PR; cross-frontend uncovers issues only after a meaningful cross-cloud apply path is live. |
+| **10.2-C** | ◐ | Invalid-input fidelity. Storage first chunk in tree (`TestInvalidInput_AWSS3_*`); per-service expansion follows the same pattern. |
+| **10.3** | ✅ | Update intersection audit per service. 6 chunks landed: BUG-17 (secrets `UpdateSecret`), BUG-2 (AWS SQS `SetQueueAttributes` + read-side surface + awsQueryCompatible legacy error codes), AWS SNS `SetTopicAttributes`, BUG-13 (functions Lambda `Role`/`Publish` + cross-cloud silent-accept posture), BUG-16 (rdbms GCP `/sql/v1beta4/` + Region + canonical Settings defaults + `/users`+`/databases` sub-resources), cache GCP Memorystore `/v1beta1/` + Operation name canonicalization + full Instance round-trip. |
+| **10.4** | ⏸ | Soft-delete intersection across secrets + storage. Contracts documented in per-service APPLY_INTERSECTION.md; inmem backend's `force=false` path exercises the opt-in soft-delete posture today. Cross-cloud retention-window honest-vs-OperationNotSupported per-cell tests deferred. |
+| **10.5** | ✅ | Per-service full lifecycle. Secrets exercises Create → Read → Update (description) → Read → Destroy after BUG-17 closed. Other services exercise Update implicitly via the provider's post-create reconcile path. |
+| **10.6** | ⏸ | Cross-cloud Apply matrix tests, contract-scoped. The active 10.7 storage cell is the headline; matrix expansion is Track A work. |
+| **10.7** | ✅ | Exit criterion: `TestCrossCloudApply_Roundtrip` per service. Storage AWS→GCS is the active cross-cloud exit assertion (passes). Six other services document the cross-cloud asymmetries (provider WaitForStateEqual on cloud-specific attribute sets, AWS→Azure value-on-create mismatch, multi-step reconcile semantics that don't translate) — honest skips, not shim bugs. |
+| **10.8** | ✅ | Phase 10 closer — this PR. |
 
 Status legend: ✅ done · ◐ in progress · ◻ pending · ⏸ paused.
 

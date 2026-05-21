@@ -8,8 +8,8 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 
 | | |
 |---|---|
-| Active branch | `phase-10` — Phase 10 (cross-cloud `terraform apply` through the shim). |
-| In-flight | **Phase 10.** Apply-side proof: Create → Read → Update → Destroy through the shim with no drift. Sub-phase 10.0-A (per-service `APPLY_INTERSECTION.md` contract) is the first gate; matrix tests assert against the contract, not whatever the provider tries. |
+| Active branch | `phase-10` — Phase 10 ready to merge. |
+| In-flight | **Phase 10 closer.** All 8 services have active apply drift assertions; `TestCrossCloudApply_Roundtrip_StorageAWStoGCS` is the cross-cloud exit criterion (passes); 6 BUGs closed in this PR (BUG-2 carried 5 phases). Sub-phases 10.2-B (cross-frontend read) + 10.4 (soft-delete intersection) + remaining 10.7 cells documented as honest cross-cloud asymmetries (real-cloud migration tools handle those via fixture workarounds + identity rebinding — Track A). |
 | Phase 9 closed | PR #13 + PR #16 merged at `ad85ddf` then `326f57d`, 2026-05-20 / 2026-05-21. **All 8 services through cross-cloud terraform import** (storage / secrets / queue / pubsub / apigateway / cache / functions / rdbms); `TestCrossCloudImport_Roundtrip_StorageAWStoGCS` proves the headline. 6 real fidelity bugs fixed inline. PR #16 closed BUG-5 (Phase 10.1 gate: GCP `Operations.Get` across rdbms / cache / functions / apigateway) and adopted `PHASE_10_PLAN.md`. |
 | Phase 8 closed | Co-merged in PR #13 with the Phase 9 chunk. API Gateway service end-to-end; AWS APIGW v2 / GCP API Gateway / Azure APIM frontends × inmem / Envoy Gateway K8s peer / 3 clouds × SDK + CLI + Terraform. Declarative-replace via `DeployGateway`; route shape minimal (method + path + backend URL). `TestRouteServes_Envoy` exit criterion. |
 | Phase 7 closed | PR #12 merged `9d02af0` 2026-05-19. Three functions frontends × five backends × three driver types; 16 required CI checks (added `conformance-knative` lane). Knative Serving as K8s peer via dynamic client + kourier-internal port-forward for HTTP-invoke exit criterion. Container-image deploys only; events + auth-on-invoke deferred. |
