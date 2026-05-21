@@ -39,11 +39,6 @@ func (s signedTokenCredential) GetToken(_ context.Context, _ policy.TokenRequest
 	return azcore.AccessToken{Token: jwt, ExpiresOn: time.Now().Add(15 * time.Minute)}, nil
 }
 
-// fakeTokenCredential remains aliased for the matrix tests that
-// share this file's package scope (unchanged today). It now signs a
-// real JWT for the Key Vault audience.
-type fakeTokenCredential = signedTokenCredential
-
 func newKeyVaultCred() azcore.TokenCredential {
 	return signedTokenCredential{audience: "https://vault.azure.net"}
 }

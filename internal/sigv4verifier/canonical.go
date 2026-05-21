@@ -4,7 +4,6 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
-	"io"
 	"net/http"
 	"net/url"
 	"sort"
@@ -236,14 +235,3 @@ func hmacSHA256(key, data []byte) []byte {
 	return h.Sum(nil)
 }
 
-// drainAndCloseBody reads the entire body and resets it on the request
-// so the verifier's downstream handler still sees the body. Used by
-// callers that need raw body bytes for the payload-hash computation.
-func drainAndCloseBody(r *http.Request) ([]byte, error) {
-	if r.Body == nil {
-		return nil, nil
-	}
-	b, err := io.ReadAll(r.Body)
-	_ = r.Body.Close()
-	return b, err
-}

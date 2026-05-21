@@ -4,7 +4,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"net/http"
 	"strings"
 	"time"
 )
@@ -25,7 +24,7 @@ type parsedAuth struct {
 func parseAuthHeader(h string) (scheme string, parsed parsedAuth, err error) {
 	parts := strings.SplitN(h, " ", 2)
 	if len(parts) != 2 {
-		return "", parsedAuth{}, fmt.Errorf("Authorization header missing scheme/body separator")
+		return "", parsedAuth{}, fmt.Errorf("authorization header missing scheme/body separator")
 	}
 	scheme = parts[0]
 	for _, kv := range strings.Split(parts[1], ",") {
@@ -45,19 +44,9 @@ func parseAuthHeader(h string) (scheme string, parsed parsedAuth, err error) {
 		}
 	}
 	if parsed.Credential == "" || parsed.SignedHeaders == "" || parsed.Signature == "" {
-		return "", parsedAuth{}, fmt.Errorf("Authorization header missing Credential / SignedHeaders / Signature")
+		return "", parsedAuth{}, fmt.Errorf("authorization header missing Credential / SignedHeaders / Signature")
 	}
 	return scheme, parsed, nil
-}
-
-// parseAuthHeaderShort extracts the Signature field only — used to
-// pull the re-signed signature out of the SDK's signer output.
-func parseAuthHeaderShort(h string) (signature string, signedHeaders string, err error) {
-	_, p, err := parseAuthHeader(h)
-	if err != nil {
-		return "", "", err
-	}
-	return p.Signature, p.SignedHeaders, nil
 }
 
 // parseAmzDate parses the X-Amz-Date header. AWS SDKs format it as
@@ -79,24 +68,3 @@ func sha256Hex(body []byte) string {
 	return hex.EncodeToString(h[:])
 }
 
-// filterToSignedHeaders returns a copy of `h` containing only the
-// headers named in `signedHeaders` (a `;`-separated lowercase list
-// from the original Authorization header's `SignedHeaders=...`
-// field). The signer needs this exact set on its clone so the
-// canonical-request it builds matches what the client built; any
-// extra headers (Accept-Encoding added by Go's net/http transport,
-// Authorization/X-Amz-Date that the signer itself owns) get
-// dropped.
-func filterToSignedHeaders(h http.Header, signedHeaders string) http.Header {
-	keep := map[string]bool{}
-	for _, name := range strings.Split(signedHeaders, ";") {
-		keep[strings.ToLower(strings.TrimSpace(name))] = true
-	}
-	out := http.Header{}
-	for k, v := range h {
-		if keep[strings.ToLower(k)] {
-			out[k] = v
-		}
-	}
-	return out
-}

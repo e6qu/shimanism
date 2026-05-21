@@ -122,13 +122,6 @@ func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // Wire types — JSON shapes the SDK puts on / reads from the wire.
 // ----------------------------------------------------------------------
 
-type setSecretRequest struct {
-	Value            string            `json:"value"`
-	Tags             map[string]string `json:"tags,omitempty"`
-	ContentType      string            `json:"contentType,omitempty"`
-	SecretAttributes *secretAttributes `json:"attributes,omitempty"`
-}
-
 type secretAttributes struct {
 	Enabled       *bool  `json:"enabled,omitempty"`
 	Created       int64  `json:"created,omitempty"` // unix seconds

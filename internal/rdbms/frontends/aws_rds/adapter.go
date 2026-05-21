@@ -33,8 +33,7 @@ func New(s domain.RDBMS) http.Handler {
 	return sigv4verifier.Middleware(verifier, awsquery.EmitVerifierError)(router)
 }
 
-func strPtr(s string) *string { return &s }
-func i32Ptr(v int32) *int32   { return &v }
+func i32Ptr(v int32) *int32 { return &v }
 func strDeref(p *string) string {
 	if p == nil {
 		return ""
