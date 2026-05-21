@@ -166,6 +166,29 @@ func (b *Backend) DeleteQueue(ctx context.Context, name string) error {
 	return nil
 }
 
+func (b *Backend) SetQueueAttributes(ctx context.Context, name string, attrs domain.QueueAttributes) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	st, ok := b.queues[name]
+	if !ok {
+		return domain.NoSuchQueue(name)
+	}
+	// AWS SetQueueAttributes merges — zero values mean "leave as-is".
+	if attrs.VisibilityTimeoutSeconds > 0 {
+		st.attributes.VisibilityTimeoutSeconds = attrs.VisibilityTimeoutSeconds
+	}
+	if attrs.MessageRetentionSeconds > 0 {
+		st.attributes.MessageRetentionSeconds = attrs.MessageRetentionSeconds
+	}
+	if attrs.MaxMessageSizeBytes > 0 {
+		st.attributes.MaxMessageSizeBytes = attrs.MaxMessageSizeBytes
+	}
+	if attrs.DelaySeconds > 0 {
+		st.attributes.DelaySeconds = attrs.DelaySeconds
+	}
+	return nil
+}
+
 func (b *Backend) HeadQueue(ctx context.Context, name string) (domain.Queue, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()

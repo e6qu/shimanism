@@ -104,6 +104,34 @@ func (b *Backend) DeleteQueue(ctx context.Context, name string) error {
 	return translateErr(err, name)
 }
 
+func (b *Backend) SetQueueAttributes(ctx context.Context, name string, attrs domain.QueueAttributes) error {
+	url, err := b.queueURL(ctx, name)
+	if err != nil {
+		return err
+	}
+	a := map[string]string{}
+	if attrs.VisibilityTimeoutSeconds > 0 {
+		a["VisibilityTimeout"] = strconv.Itoa(attrs.VisibilityTimeoutSeconds)
+	}
+	if attrs.MessageRetentionSeconds > 0 {
+		a["MessageRetentionPeriod"] = strconv.Itoa(attrs.MessageRetentionSeconds)
+	}
+	if attrs.MaxMessageSizeBytes > 0 {
+		a["MaximumMessageSize"] = strconv.Itoa(attrs.MaxMessageSizeBytes)
+	}
+	if attrs.DelaySeconds > 0 {
+		a["DelaySeconds"] = strconv.Itoa(attrs.DelaySeconds)
+	}
+	if len(a) == 0 {
+		return nil
+	}
+	_, err = b.c.SetQueueAttributes(ctx, &sqs.SetQueueAttributesInput{
+		QueueUrl:   awsapi.String(url),
+		Attributes: a,
+	})
+	return translateErr(err, name)
+}
+
 func (b *Backend) HeadQueue(ctx context.Context, name string) (domain.Queue, error) {
 	url, err := b.queueURL(ctx, name)
 	if err != nil {

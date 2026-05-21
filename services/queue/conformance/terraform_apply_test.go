@@ -31,12 +31,105 @@ import (
 	"github.com/e6qu/shimanism/services/queue/backends/inmem"
 )
 
+const terraformApplyQueueAWSConfig = `
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+  }
+}
+
+provider "aws" {
+  region                      = "us-east-1"
+  access_key                  = "test"
+  secret_key                  = "test"
+  skip_credentials_validation = true
+  skip_metadata_api_check     = true
+  skip_requesting_account_id  = true
+
+  endpoints {
+    sqs = "%s"
+  }
+}
+
+resource "aws_sqs_queue" "applied" {
+  name                       = "shim-applied-queue"
+  visibility_timeout_seconds = 30
+  message_retention_seconds  = 345600
+}
+`
+
 func TestTerraform_AWSQueue_Apply_NoDrift(t *testing.T) {
-	// BUG-2: aws_sqs_queue reconciles via SetQueueAttributes after
-	// CreateQueue; the domain doesn't carry that op so apply fails.
-	// Apply-side cell is diamond-skipped until BUG-2 closes (10.3
-	// candidate). Documented in services/queue/APPLY_INTERSECTION.md.
-	t.Skip("BUG-2: aws_sqs_queue reconciles via SetQueueAttributes (not yet in domain)")
+	t.Parallel()
+	if _, err := exec.LookPath("terraform"); err != nil {
+		t.Skipf("terraform not installed: %v", err)
+	}
+	tf, _ := exec.LookPath("terraform")
+
+	backend := inmem.New()
+	srv := harness.StartQueueServerAWS(t, backend)
+
+	dir := t.TempDir()
+	hcl := fmt.Sprintf(terraformApplyQueueAWSConfig, srv.URL)
+	if err := os.WriteFile(filepath.Join(dir, "main.tf"), []byte(hcl), 0o644); err != nil {
+		t.Fatalf("write main.tf: %v", err)
+	}
+
+	runTf := func(args ...string) ([]byte, []byte, error) {
+		cmd := exec.Command(tf, args...)
+		cmd.Dir = dir
+		cmd.Env = append(os.Environ(),
+			"TF_IN_AUTOMATION=1",
+			"TF_INPUT=0",
+			"CHECKPOINT_DISABLE=1",
+			"TF_PLUGIN_CACHE_DIR="+terraformQueuePluginCacheDir(),
+		)
+		var stdout, stderr bytes.Buffer
+		cmd.Stdout = &stdout
+		cmd.Stderr = &stderr
+		err := cmd.Run()
+		return stdout.Bytes(), stderr.Bytes(), err
+	}
+
+	mustRun := func(args ...string) []byte {
+		t.Helper()
+		stdout, stderr, err := runTf(args...)
+		if err != nil {
+			t.Fatalf("terraform %s\nstdout: %s\nstderr: %s\nerr: %v",
+				strings.Join(args, " "), stdout, stderr, err)
+		}
+		return stdout
+	}
+
+	mustRun("init", "-no-color")
+	mustRun("apply", "-no-color", "-auto-approve")
+
+	stdout, stderr, err := runTf("plan", "-no-color", "-detailed-exitcode")
+	switch {
+	case err == nil:
+	case isExitCodeQueueApply(err, 2):
+		t.Errorf("terraform plan after apply reports pending changes (10.2 fidelity gap)\nstdout:\n%s\nstderr:\n%s",
+			stdout, stderr)
+	default:
+		t.Fatalf("terraform plan:\nstdout: %s\nstderr: %s\nerr: %v",
+			stdout, stderr, err)
+	}
+
+	mustRun("destroy", "-no-color", "-auto-approve")
+
+	got, err := backend.ListQueues(context.Background(), queuedomain.ListQueuesOptions{})
+	if err != nil {
+		t.Fatalf("backend.ListQueues after destroy: %v", err)
+	}
+	if len(got.Queues) != 0 {
+		names := make([]string, 0, len(got.Queues))
+		for _, q := range got.Queues {
+			names = append(names, q.Name)
+		}
+		t.Errorf("backend still has queues after destroy: %v", names)
+	}
 }
 
 const terraformApplyQueueGCPConfig = `

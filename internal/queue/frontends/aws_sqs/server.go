@@ -67,6 +67,8 @@ func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		srv.getQueueUrl(w, r)
 	case "GetQueueAttributes":
 		srv.getQueueAttributes(w, r)
+	case "SetQueueAttributes":
+		srv.setQueueAttributes(w, r)
 	case "SendMessage":
 		srv.sendMessage(w, r)
 	case "ReceiveMessage":

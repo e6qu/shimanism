@@ -136,6 +136,41 @@ func (b *Backend) DeleteQueue(ctx context.Context, name string) error {
 	return nil
 }
 
+func (b *Backend) SetQueueAttributes(ctx context.Context, name string, attrs domain.QueueAttributes) error {
+	ctx, cancel := withDeadline(ctx)
+	defer cancel()
+	stream := streamName(name)
+	// Read current stream config so we can patch only changed fields
+	// (matching AWS-shape merge semantics).
+	info, err := b.js.StreamInfo(stream, natsapi.Context(ctx))
+	if err != nil {
+		return translateErr(err, name)
+	}
+	cfg := info.Config
+	if attrs.MessageRetentionSeconds > 0 {
+		cfg.MaxAge = time.Duration(attrs.MessageRetentionSeconds) * time.Second
+	}
+	if attrs.MaxMessageSizeBytes > 0 {
+		cfg.MaxMsgSize = int32(attrs.MaxMessageSizeBytes)
+	}
+	if _, err := b.js.UpdateStream(&cfg, natsapi.Context(ctx)); err != nil {
+		return translateErr(err, name)
+	}
+	// VisibilityTimeout maps to the durable consumer's AckWait.
+	if attrs.VisibilityTimeoutSeconds > 0 {
+		cinfo, err := b.js.ConsumerInfo(stream, consumerName, natsapi.Context(ctx))
+		if err != nil {
+			return translateErr(err, name)
+		}
+		ccfg := cinfo.Config
+		ccfg.AckWait = time.Duration(attrs.VisibilityTimeoutSeconds) * time.Second
+		if _, err := b.js.UpdateConsumer(stream, &ccfg, natsapi.Context(ctx)); err != nil {
+			return translateErr(err, name)
+		}
+	}
+	return nil
+}
+
 func (b *Backend) HeadQueue(ctx context.Context, name string) (domain.Queue, error) {
 	ctx, cancel := withDeadline(ctx)
 	defer cancel()

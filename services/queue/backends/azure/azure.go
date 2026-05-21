@@ -233,6 +233,31 @@ func (b *Backend) DeleteQueue(ctx context.Context, name string) error {
 	return translateErr(err, name)
 }
 
+func (b *Backend) SetQueueAttributes(ctx context.Context, name string, attrs domain.QueueAttributes) error {
+	// Azure UpdateQueue replaces the full set of properties — we read
+	// the current state, patch the fields the caller set, and write
+	// back. Zero-valued inputs leave the existing value unchanged
+	// (AWS-shape merge semantics).
+	cur, err := b.adminClient.GetQueue(ctx, name, nil)
+	if err != nil {
+		return translateErr(err, name)
+	}
+	props := cur.QueueProperties
+	if attrs.VisibilityTimeoutSeconds > 0 {
+		ld := iso8601(attrs.VisibilityTimeoutSeconds)
+		props.LockDuration = &ld
+	}
+	if attrs.MessageRetentionSeconds > 0 {
+		ttl := iso8601(attrs.MessageRetentionSeconds)
+		props.DefaultMessageTimeToLive = &ttl
+	}
+	// MaxMessageSize is not directly settable on Azure Service Bus
+	// (MaxSizeInMegabytes is the queue's storage cap, not per-message
+	// size — those are AWS-specific). Ignored on this backend.
+	_, err = b.adminClient.UpdateQueue(ctx, name, props, nil)
+	return translateErr(err, name)
+}
+
 func (b *Backend) HeadQueue(ctx context.Context, name string) (domain.Queue, error) {
 	props, err := b.adminClient.GetQueue(ctx, name, nil)
 	if err != nil {

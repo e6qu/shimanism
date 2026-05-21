@@ -137,6 +137,15 @@ type Queues interface {
 	// doesn't exist.
 	HeadQueue(ctx context.Context, name string) (Queue, error)
 
+	// SetQueueAttributes patches the queue's attributes. Used by the
+	// AWS SQS provider's post-create reconciliation path
+	// (CreateQueue → SetQueueAttributes). Zero-valued fields in the
+	// supplied Attributes block leave the corresponding backend
+	// attribute unchanged (consistent with the AWS API's
+	// merge-rather-than-replace semantics). Returns NoSuchQueue if
+	// the queue doesn't exist.
+	SetQueueAttributes(ctx context.Context, name string, attrs QueueAttributes) error
+
 	// ListQueues lists queues, optionally filtered by name prefix.
 	ListQueues(ctx context.Context, opt ListQueuesOptions) (ListQueuesResult, error)
 

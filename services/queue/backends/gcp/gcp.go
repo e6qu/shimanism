@@ -9,6 +9,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -93,6 +94,39 @@ func (b *Backend) CreateQueue(ctx context.Context, name string, opt domain.Creat
 		return domain.Queue{}, translateErr(err, name)
 	}
 	return domain.Queue{Name: name, Attributes: opt.Attributes}, nil
+}
+
+func (b *Backend) SetQueueAttributes(ctx context.Context, name string, attrs domain.QueueAttributes) error {
+	// GCP Pub/Sub subscriptions support an in-place patch of
+	// ackDeadlineSeconds (visibility timeout analog) via
+	// subscriptions.patch with an updateMask. messageRetentionSeconds
+	// maps to subscription messageRetentionDuration. Other AWS-shape
+	// attributes (DelaySeconds, MaxMessageSize) don't have GCP analogs;
+	// the shim ignores them on this backend (the AWS frontend's set-
+	// attributes path returns them unchanged from the existing state).
+	if attrs.VisibilityTimeoutSeconds <= 0 && attrs.MessageRetentionSeconds <= 0 {
+		return nil
+	}
+	sub := &pubsubraw.Subscription{}
+	var mask []string
+	if attrs.VisibilityTimeoutSeconds > 0 {
+		ack := attrs.VisibilityTimeoutSeconds
+		if ack > 600 {
+			ack = 600
+		}
+		sub.AckDeadlineSeconds = int64(ack)
+		mask = append(mask, "ackDeadlineSeconds")
+	}
+	if attrs.MessageRetentionSeconds > 0 {
+		sub.MessageRetentionDuration = strconv.Itoa(attrs.MessageRetentionSeconds) + "s"
+		mask = append(mask, "messageRetentionDuration")
+	}
+	req := &pubsubraw.UpdateSubscriptionRequest{
+		Subscription: sub,
+		UpdateMask:   strings.Join(mask, ","),
+	}
+	_, err := b.svc.Projects.Subscriptions.Patch(b.subscriptionName(name), req).Context(ctx).Do()
+	return translateErr(err, name)
 }
 
 func (b *Backend) DeleteQueue(ctx context.Context, name string) error {
