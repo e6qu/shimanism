@@ -2,14 +2,14 @@
 //
 // Drives the write path:
 //
-//   1. terraform apply against the shim → drives CreateSecret +
-//      PutSecretValue.
-//   2. terraform plan -detailed-exitcode → drives the Read path
-//      against the just-created state. Exit code 0 means no
-//      pending changes; exit code 2 means the Create-then-Read
-//      cycle produced a state the provider wants to modify, which
-//      is a fidelity gap.
-//   3. terraform destroy → cleans up via DeleteSecret.
+//  1. terraform apply against the shim → drives CreateSecret +
+//     PutSecretValue.
+//  2. terraform plan -detailed-exitcode → drives the Read path
+//     against the just-created state. Exit code 0 means no
+//     pending changes; exit code 2 means the Create-then-Read
+//     cycle produced a state the provider wants to modify, which
+//     is a fidelity gap.
+//  3. terraform destroy → cleans up via DeleteSecret.
 //
 // Contract: services/secrets/APPLY_INTERSECTION.md. The HCL only
 // drives in-contract attributes (name + description). Tags are

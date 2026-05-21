@@ -136,12 +136,17 @@ jobs:
       # If this trips on slow CI, the right answer is to make a
       # specific test faster — not to raise the cap.
       - name: go test
-        # 2m: the TF tests run real `terraform init` for hashicorp/aws
+        # 5m: the TF tests run real `terraform init` for hashicorp/aws
         # and hashicorp/google which each download ~50 MiB of provider
-        # binary. With the plugin cache shared inside one go-test run
-        # the total stays under 2m; without it (cold CI runner) it
-        # creeps up to ~75s.
-        run: go test -timeout 2m ./...
+        # binary, and Phase 10's apply tests add full
+        # init → apply → plan → destroy cycles on top of the Phase 9
+        # imports. Cold CI runners take ~75s for imports alone, and an
+        # apply cycle is another ~20-75s each. Phase 10.2 active cells
+        # are storage + secrets + apigateway. The other services'
+        # apply tests skip immediately. 5m is the cap to keep this
+        # honest; if a specific cell trips that, make the test faster
+        # (or split a sub-phase out) rather than raising the cap.
+        run: go test -timeout 5m ./...
       - name: go build
         run: go build ./...
 

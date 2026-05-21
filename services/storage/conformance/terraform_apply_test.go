@@ -2,13 +2,13 @@
 //
 // Drives the write path the Phase 9 import test didn't:
 //
-//   1. terraform apply against the shim → drives CreateBucket.
-//   2. terraform plan -refresh-only -detailed-exitcode → drives the
-//      Read path against the just-created state. Exit code 0 means
-//      no drift; exit code 2 surfaces a Create-then-Read drift bug
-//      that must be filed against APPLY_INTERSECTION.md's in-contract
-//      attributes.
-//   3. terraform destroy → cleans up via DeleteBucket.
+//  1. terraform apply against the shim → drives CreateBucket.
+//  2. terraform plan -refresh-only -detailed-exitcode → drives the
+//     Read path against the just-created state. Exit code 0 means
+//     no drift; exit code 2 surfaces a Create-then-Read drift bug
+//     that must be filed against APPLY_INTERSECTION.md's in-contract
+//     attributes.
+//  3. terraform destroy → cleans up via DeleteBucket.
 //
 // Contract: services/storage/APPLY_INTERSECTION.md. The HCL only
 // drives in-contract attributes (name + region for buckets; key +
@@ -29,8 +29,8 @@ import (
 	"strings"
 	"testing"
 
-	storagedomain "github.com/e6qu/shimanism/internal/storage/domain"
 	"github.com/e6qu/shimanism/internal/harness"
+	storagedomain "github.com/e6qu/shimanism/internal/storage/domain"
 	"github.com/e6qu/shimanism/services/storage/backends/inmem"
 )
 
