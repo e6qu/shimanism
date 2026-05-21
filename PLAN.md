@@ -173,17 +173,43 @@ Declarative-replace model: `deploy(gateway_spec)` swaps the entire routing table
 
 **Exit criteria:** Terraform `aws_apigatewayv2_api` + `google_api_gateway_api` + `azurerm_api_management` each deploy routes + integrations correctly through the shim to Envoy Gateway and to every cloud backend; published URLs serve the configured routes.
 
+## Phase 11 — Tighten the wire boundary
+
+Cross-cutting phase opened after Phase 10 closed. Replaces hand-written wire layers with spec-driven generated stubs across every service, and wires real signature verification at the new decode boundary. The two changes are coupled at the same point in the request lifecycle; doing them per-service lands together instead of retrofitting verification into hand-written handlers we already plan to replace.
+
+Detail: [PHASE_11_PLAN.md](PHASE_11_PLAN.md).
+
+| Sub | Headline |
+|---|---|
+| 11.0 | Scope baseline + codex review. |
+| 11.1 | BUG-15 walk + BUG-8 Track-A pin. |
+| 11.2 | OpenAPI v3 emitter foundation (`oapi-codegen` adapter pilot on Azure Key Vault). |
+| 11.3 | Secrets: first service end-to-end spec-driven across all three clouds. |
+| 11.4 | BUG-18 signature verification at the secrets decode boundary. |
+| 11.5–11.10 | Roll forward: queue → pubsub → rdbms → cache → functions → apigateway. |
+| 11.11 | Storage retrofit (apply signature verification to existing Smithy stubs). |
+| 11.12 | Closer — `make codegen` regenerates everything; BUG-18 closed; auth-bypass flag deleted across conformance lanes. |
+
+**Exit criteria.** All 8 services have spec-driven `services/<svc>/gen/{aws,gcp,azure}/`; every frontend rejects unsigned requests with the source cloud's own 401/403; `make codegen` regenerates every service in one command; no `skip_credentials_validation` / `WithoutAuthentication` / `fakeAzureCred` stubs remain.
+
 ## Open questions (decide before they block work)
 
 - Single org-wide deployment vs per-tenant — affects auth model.
 - Where do live cloud test accounts live; who pays. (Blocks the per-cloud SDK / CLI / Terraform real-backend conformance lanes.)
 - Coding-agent permissions for upstream spec-version bumps: auto-PR or human-in-loop?
 - AMQP fidelity tier for Azure Service Bus (Phase 3.x + 4.x) — REST-only initially, or AMQP from the start?
-- Codegen pipelines for the non-Smithy spec formats (GCP Discovery / Azure OpenAPI v3): build in-house alongside the existing Smithy emitter, or generate via official spec → Go tooling (oapi-codegen, etc.) and adapt the output to our handler shape? Phase 1.14 / 1.15 forces the call.
+- `oapi-codegen` adapter glue vs. custom OpenAPI emitter — Phase 11.2 forces the call.
+- Renovate coverage of vendored specs in `services/<svc>/spec/` — tracked as Phase 11.0 follow-up.
 
 ## Closed phases (PR index)
 
 | PR | Phase | Headline |
 |---|---|---|
+| #17 | 10 | Cross-cloud `terraform apply` through the shim across all 8 services; 8 BUGs closed; full developer + contributing docs under `docs/`; codex doc + code review pass applied. Merged 2026-05-21 at `ebc30f7`. |
+| #16 | 9 docs + 10.1 | Phase 9 docs roll-up + Phase 10 plan + Phase 10.1 BUG-5 fix (stateless `Operations.Get` across 4 GCP frontends). Merged 2026-05-21 at `326f57d`. |
+| #13 | 8 + 9 chunk | Phase 8 (API Gateway end-to-end) + Phase 9 (cross-cloud `terraform import`) substantial chunk. Merged 2026-05-20 at `ad85ddf`. |
+| #12 | 7 | Functions control-plane shim — 3 frontends × 5 backends × 3 driver types. Merged 2026-05-19 at `9d02af0`. |
+| #11 | 6 | Managed Redis control-plane shim — 3 frontends × 5 backends × 3 driver types. Merged 2026-05-19 at `cca8bc0`. |
+| #10 | 5 | Managed RDBMS control-plane shim — 3 frontends × 5 backends × 3 driver types. Merged 2026-05-19 at `aeadbc8`. |
 | #1 | (bootstrap) | Repo created. Branch ruleset (linear history, PR-only, no force-push, squash + rebase merge). PHILOSOPHY.md as koans + Bierce terminology. README.md with goals / non-goals / MVP service matrix. Merged 2026-05-18 at `e5cc262`. |
 | #2 | (bootstrap) | Continuity docs (PLAN, STATUS, WHAT_WE_DID, DO_NEXT, BUGS, AGENTS, CLAUDE→AGENTS symlink) + Phase-0 CI checks (branch-rebased, symlinks-resolve, continuity-docs-present) wired into the main-branch ruleset as required status checks. Merged 2026-05-18 at `4549a90`. |

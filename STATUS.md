@@ -8,8 +8,9 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 
 | | |
 |---|---|
-| Active branch | `phase-10` — Phase 10 ready to merge. |
-| In-flight | **Phase 10 closer.** All 8 services have active apply drift assertions; `TestCrossCloudApply_Roundtrip_StorageAWStoGCS` is the cross-cloud exit criterion (passes); 6 BUGs closed in this PR (BUG-2 carried 5 phases). Sub-phases 10.2-B (cross-frontend read) + 10.4 (soft-delete intersection) + remaining 10.7 cells documented as honest cross-cloud asymmetries (real-cloud migration tools handle those via fixture workarounds + identity rebinding — Track A). |
+| Active branch | `phase-11` — Phase 11 plan landing; code work not yet started. |
+| In-flight | **Phase 11 — Tighten the wire boundary.** Cross-cutting phase opened after Phase 10 closed. Replaces hand-written wire layers with spec-driven generated stubs across every service, and wires real signature verification (BUG-18) at the new decode boundary. Coupled per service so each service migration lands codegen + signature verification together. Codegen extension order locked-in: OpenAPI v3 (Azure) first via `oapi-codegen`, then AWS Smithy emitter extension, then GCP Discovery/protobuf routing-only emitter. Plan detail: [`PHASE_11_PLAN.md`](PHASE_11_PLAN.md). |
+| Phase 10 closed | PR #17 merged at `ebc30f7`, 2026-05-21. **Cross-cloud `terraform apply` through the shim** across all 8 services; active drift assertions per service; `TestCrossCloudApply_Roundtrip_StorageAWStoGCS` exit criterion green. 8 BUGs closed in the PR (BUG-2 carried 5 phases, plus BUG-3 / BUG-4 / BUG-6 / BUG-7 / BUG-12 / BUG-13 / BUG-16 / BUG-17 / BUG-19); full developer + contributing docs landed under `docs/`; codex doc + code review applied. |
 | Phase 9 closed | PR #13 + PR #16 merged at `ad85ddf` then `326f57d`, 2026-05-20 / 2026-05-21. **All 8 services through cross-cloud terraform import** (storage / secrets / queue / pubsub / apigateway / cache / functions / rdbms); `TestCrossCloudImport_Roundtrip_StorageAWStoGCS` proves the headline. 6 real fidelity bugs fixed inline. PR #16 closed BUG-5 (Phase 10.1 gate: GCP `Operations.Get` across rdbms / cache / functions / apigateway) and adopted `PHASE_10_PLAN.md`. |
 | Phase 8 closed | Co-merged in PR #13 with the Phase 9 chunk. API Gateway service end-to-end; AWS APIGW v2 / GCP API Gateway / Azure APIM frontends × inmem / Envoy Gateway K8s peer / 3 clouds × SDK + CLI + Terraform. Declarative-replace via `DeployGateway`; route shape minimal (method + path + backend URL). `TestRouteServes_Envoy` exit criterion. |
 | Phase 7 closed | PR #12 merged `9d02af0` 2026-05-19. Three functions frontends × five backends × three driver types; 16 required CI checks (added `conformance-knative` lane). Knative Serving as K8s peer via dynamic client + kourier-internal port-forward for HTTP-invoke exit criterion. Container-image deploys only; events + auth-on-invoke deferred. |
@@ -20,7 +21,7 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 | Phase 1 closed | PR #6 merged `1f64d9f` 2026-05-19. Three storage frontends × five storage backends × three driver types matrix; 11 required CI checks. |
 | CI baseline | 16 required checks from Phase 7. Phase 8 will add a `conformance-envoy` lane (kind + Envoy Gateway). Real-cloud lanes wait on Track A. |
 | Scope rule (2026-05-18) | **Each phase ships the full N × N matrix.** Previous PLAN.md had Phases 9 and 10 as "GCP source row" and "Azure source row" of horizontal expansion across all 8 services; user reversed this. Each service phase now includes all 3 frontends + all 4 backends + SDK / CLI / Terraform for each, before moving to the next service. Phases 9 and 10 deleted; their work is absorbed into Phases 1-8. |
-| Last merged | PR #16 — Phase 9 docs roll-up + Phase 10 plan + Phase 10.1 BUG-5 fix (`326f57d`, 2026-05-21). Closed BUG-5 (stateless `Operations.Get` across 4 GCP frontends); adopted `PHASE_10_PLAN.md`. |
+| Last merged | PR #17 — Phase 10 + codex doc review pass — 8/8 services apply-active, 8 BUGs closed (`ebc30f7`, 2026-05-21). |
 | Standing merge auth | **None.** User merges every PR. |
 | CI | Five required checks: `branch rebased on origin/main`, `tracked symlinks resolve`, `continuity docs present`, `go vet + test + build`, `dependency licenses AGPL-compatible`. |
 | Renovate | Config committed (48h minimum release age, weekly batches, pinned GitHub Actions SHAs); **user must install the Renovate GitHub App** at https://github.com/apps/renovate. |
@@ -55,23 +56,24 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 - Monorepo: `services/<service>/`, shared `internal/codegen/`, `internal/harness/`.
 - Test rings: per-PR recorded interactions, nightly live cloud, pre-release vendor integration suites.
 
-## Current phase — Phase 10: cross-cloud `terraform apply` through the shim
+## Current phase — Phase 11: tighten the wire boundary
 
-Phase 10 extends Phase 9's read-side proof (`terraform import` honest end-to-end) to the **write side**: `terraform apply` against the shim provisions, updates, and destroys resources on the destination backend, with the source-cloud provider unaware of the translation. Apply is the everyday Terraform workflow — proving it honest makes shimanism a **cross-cloud IaC control-plane migration tool** (not yet a full migration tool; data movement, IAM rebinding, DNS swap, etc. are follow-on phases).
+Phase 11 replaces hand-written wire layers with spec-driven generated stubs across every service, and wires real signature verification at the new decode boundary. The two changes are coupled — codegen establishes a uniform decode boundary; signature verification belongs there — and are landed per-service to avoid retrofitting verification glue into hand-written handlers we plan to replace.
 
-Sub-phase table is in [DO_NEXT.md](DO_NEXT.md). Full plan, including codex review responses, at [`PHASE_10_PLAN.md`](PHASE_10_PLAN.md).
+Sub-phase table is in [DO_NEXT.md](DO_NEXT.md). Full plan at [`PHASE_11_PLAN.md`](PHASE_11_PLAN.md).
 
-### Phase 10 standing notes
-- **Contract-first matrix.** Sub-phase 10.0-A writes a per-service `APPLY_INTERSECTION.md` enumerating exactly which Create / Update / Delete ops the shim claims honest semantics for, with per-cell translation specified. Matrix tests assert against this contract, not "whatever the provider tries." This is the gate that prevents the matrix-explosion failure mode codex flagged.
-- **BUG-5 closed in 10.1.** GCP `Operations.Get` is implemented across rdbms / cache / functions / apigateway. Apply against GCP-shape frontends no longer hangs on async ops.
-- **Create-then-Read is necessary but not sufficient.** Single-frontend create-then-read won't catch self-consistent wrongness, invalid-input fidelity gaps, or cross-frontend semantic divergence. Phase 10 adds 10.2-B (cross-frontend read after cross-cloud write) and 10.2-C (invalid-input fidelity) to cover those classes.
-- **Soft-delete is opt-in only.** No "default-30" cross-cloud fabrication. Where the destination doesn't expose a first-class soft-delete primitive, the shim returns the source cloud's `OperationNotSupported` envelope on retention-windowed destroy — not a silent hard-delete.
-- **Exit criterion: `TestCrossCloudApply_Roundtrip` per service.** Symmetric to Phase 9.13's import roundtrip. Apply A-shape HCL through shim with backend=B; no drift; update in place; no drift; destroy.
+### Phase 11 standing notes
+- **Codegen extension order is locked-in.** OpenAPI v3 (Azure) first via `oapi-codegen` (most mature off-the-shelf generator); AWS Smithy emitter extension next (existing custom emitter at `internal/codegen/`); GCP Discovery / protobuf last (routing-only — reuses `google.golang.org/api/<svc>/v1` wire types).
+- **Adapter glue before custom OpenAPI emitter.** Phase 11.2 pilots an adapter glue layer between `oapi-codegen`'s emitted server interfaces and the shim's `(http.ResponseWriter, *http.Request)` handler shape. Switch to a custom OpenAPI emitter only if the adapter grows past ~3 LOC per operation.
+- **Signature verification at the boundary, not in `translate.go`.** SigV4 / OAuth2 / SharedKey verification runs against the request before the generated stub dispatches; `translate.go` stays auth-unaware. Generated stubs call the verifier; the verifier rejects with the source cloud's own 401/403 envelope.
+- **Conformance lanes drop auth bypass.** Today's `skip_credentials_validation` / `WithoutAuthentication` / `fakeAzureCred` knobs come out as each service is migrated. A deterministic project-owned test signing key (trusted only in test mode) replaces them.
+- **Exit criterion: spec-driven decode + signed-conformance per frontend, all 8 services.** No hand-written wire layers; `make codegen` regenerates everything; BUG-18 closed.
 
 ## Recently closed phases (last 5)
 
 | PR | Phase | Headline |
 |---|---|---|
+| #17 | 10 | Cross-cloud `terraform apply` through the shim across all 8 services; per-service `APPLY_INTERSECTION.md`; active drift assertions per service; `TestCrossCloudApply_Roundtrip_StorageAWStoGCS` exit criterion; 8 BUGs closed; full developer + contributing docs under `docs/`; codex doc + code review pass applied. Merged 2026-05-21 at `ebc30f7`. |
 | #16 | 9 closer + 10 plan + 10.1 | Phase 9 docs roll-up (narrative correctly says "all 8 services"); `PHASE_10_PLAN.md` adopted (codex-reviewed); BUG-5 closed via stateless `Operations.Get` across 4 GCP-shape frontends (rdbms / cache / functions / apigateway). Merged 2026-05-21 at `326f57d`. |
 | #13 | 8 + 9 chunk | API Gateway service end-to-end + Phase 9 substantial chunk (all 8 services through cross-cloud terraform import; `shimctl env` + endpoint-override registry; per-service `INTERSECTION.md` + `MIGRATION.md` audits; 6 real fidelity bugs fixed inline; `TestCrossCloudImport_Roundtrip_StorageAWStoGCS` exit criterion). Merged 2026-05-20 at `ad85ddf`. |
 | #12 | 7 | Functions service end-to-end (control-plane only). 3 frontends × 5 backends (inmem, Knative Serving as K8s peer via dynamic-client + Service CRs, AWS Lambda, GCP Cloud Run, Azure Container Apps) × 3 driver types. Container-image only; HTTP-invoke exit criterion validated through kind + Knative + kourier-internal port-forward. Merged 2026-05-19 at `9d02af0`. |

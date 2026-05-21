@@ -6,44 +6,45 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 
 ## Where we are
 
-- **Last merged:** PR #16 (Phase 9 docs roll-up + Phase 10 plan + Phase 10.1 BUG-5 fix) at `326f57d` on `origin/main`, 2026-05-21.
-- **Active branch:** `phase-10`. Single PR for the whole Phase 10 effort (cross-cloud `terraform apply` through the shim). Granular commits as sub-phases land.
-- **Phase 8** closed in PR #13 (co-merged with the Phase 9 chunk). API Gateway end-to-end, exit criterion `TestRouteServes_Envoy` green.
-- **Phase 9** closed across PR #13 + PR #16. All 8 services through cross-cloud `terraform import`; `TestCrossCloudImport_Roundtrip_StorageAWStoGCS` proves the headline. Per-service `INTERSECTION.md` + `MIGRATION.md` audits in tree.
-- **Phase 10.1** already landed in PR #16: BUG-5 closed. All four GCP-shape frontends (rdbms Cloud SQL Admin / cache Memorystore / functions Cloud Run / apigateway API Gateway) implement `Operations.Get` statelessly. Apply against GCP frontends no longer hangs on async ops.
+- **Last merged:** PR #17 (Phase 10 + codex doc review pass — 8/8 services apply-active, 8 BUGs closed) at `ebc30f7` on `origin/main`, 2026-05-21.
+- **Active branch:** `phase-11`. Single PR for the whole Phase 11 effort (spec-driven codegen across every service + signature verification at the new decode boundary). Granular commits as sub-phases land.
+- **Phase 10** closed in PR #17. Cross-cloud `terraform apply` honest end-to-end across all 8 services; `TestCrossCloudApply_Roundtrip_StorageAWStoGCS` is the exit criterion (passes). 8 BUGs closed in the PR.
+- **Phase 11 plan** drafted at [`PHASE_11_PLAN.md`](PHASE_11_PLAN.md). Codex review pending before code lands. Codegen extension order locked-in: OpenAPI v3 (Azure) first via `oapi-codegen`, then AWS Smithy emitter extension, then GCP Discovery / protobuf routing-only.
 
-## Phase 10 sub-task table
+## Phase 11 sub-task table
 
-Plan in [`PHASE_10_PLAN.md`](PHASE_10_PLAN.md). One PR for the whole phase; granular commits per sub-phase.
+Plan in [`PHASE_11_PLAN.md`](PHASE_11_PLAN.md). One PR for the whole phase; granular commits per sub-phase.
 
 | Sub | Status | Headline |
 |---|---|---|
-| **10.0** | ✅ | Scope baseline. `PHASE_10_PLAN.md` written and codex-reviewed (5 critiques applied). |
-| **10.0-A** | ✅ | Per-service `APPLY_INTERSECTION.md` — 8 files, one per service. |
-| **10.1** | ✅ | BUG-5 family closed (PR #16). GCP `Operations.Get` on all four GCP-shape frontends. |
-| **10.2** | ✅ | Create-then-Read drift audit per service. Apply test scaffolding in tree for all 8 services. **All 8 services have active drift assertions** (storage AWS / secrets AWS / queue AWS / pubsub AWS / apigateway AWS / functions AWS / rdbms GCP / **cache GCP**). Documented skips with BUG pointers: AWS rdbms (Modify reconcile + subnet/parameter-group metadata), AWS cache (ModifyCacheCluster reconcile), Azure cells across services (Azure-AsyncOperation URLs). |
-| **10.2-B** | ⏸ | Cross-frontend read after cross-cloud write. Catches self-consistent wrongness. Deferred — single-frontend create-then-read (10.2) caught all drift in this PR; cross-frontend uncovers issues only after a meaningful cross-cloud apply path is live. |
-| **10.2-C** | ◐ | Invalid-input fidelity. Storage first chunk in tree (`TestInvalidInput_AWSS3_*`); per-service expansion follows the same pattern. |
-| **10.3** | ✅ | Update intersection audit per service. 6 chunks landed: BUG-17 (secrets `UpdateSecret`), BUG-2 (AWS SQS `SetQueueAttributes` + read-side surface + awsQueryCompatible legacy error codes), AWS SNS `SetTopicAttributes`, BUG-13 (functions Lambda `Role`/`Publish` + cross-cloud silent-accept posture), BUG-16 (rdbms GCP `/sql/v1beta4/` + Region + canonical Settings defaults + `/users`+`/databases` sub-resources), cache GCP Memorystore `/v1beta1/` + Operation name canonicalization + full Instance round-trip. |
-| **10.4** | ⏸ | Soft-delete intersection across secrets + storage. Contracts documented in per-service APPLY_INTERSECTION.md; inmem backend's `force=false` path exercises the opt-in soft-delete posture today. Cross-cloud retention-window honest-vs-OperationNotSupported per-cell tests deferred. |
-| **10.5** | ✅ | Per-service full lifecycle. Secrets exercises Create → Read → Update (description) → Read → Destroy after BUG-17 closed. Other services exercise Update implicitly via the provider's post-create reconcile path. |
-| **10.6** | ⏸ | Cross-cloud Apply matrix tests, contract-scoped. The active 10.7 storage cell is the headline; matrix expansion is Track A work. |
-| **10.7** | ✅ | Exit criterion: `TestCrossCloudApply_Roundtrip` per service. Storage AWS→GCS is the active cross-cloud exit assertion (passes). Six other services document the cross-cloud asymmetries (provider WaitForStateEqual on cloud-specific attribute sets, AWS→Azure value-on-create mismatch, multi-step reconcile semantics that don't translate) — honest skips, not shim bugs. |
-| **10.8** | ✅ | Phase 10 closer — this PR. |
+| **11.0** | ◐ | Scope baseline. `PHASE_11_PLAN.md` drafted; submit to codex review before code lands. |
+| **11.1** | ◻ | BUG-15 walk (GCP Pub/Sub provider-default audit across `message_retention_duration` / `expiration_policy` / `retain_acked_messages` / `enable_message_ordering`) + BUG-8 Track-A pin (no code change). |
+| **11.2** | ◻ | OpenAPI v3 emitter foundation. `oapi-codegen` adapter pilot on Azure Key Vault secrets surface → `services/secrets/gen/azure/`. |
+| **11.3** | ◻ | **Secrets: first service end-to-end spec-driven.** AWS Secrets Manager via extended Smithy emitter; Azure Key Vault via 11.2 OpenAPI pipeline; GCP Secret Manager via reused `google.golang.org/api/secretmanager/v1` + emitted routing layer. Hand-written wire deleted. Conformance unchanged. |
+| **11.4** | ◻ | **BUG-18 signature verification at the secrets decode boundary.** SigV4 (AWS), OAuth2 JWT (GCP), SharedKey + Bearer (Azure). Conformance lanes drop the auth-bypass knobs; deterministic test signing key. |
+| **11.5** | ◻ | Roll forward to queue. SQS Smithy `awsJson1_0`, Azure Service Bus admin OpenAPI, GCP Pub/Sub Discovery. Signature verification per frontend. |
+| **11.6** | ◻ | Roll forward to pubsub. AWS awsQuery XML (Smithy 2.0 protocol — verify support before scoping), GCP Pub/Sub Discovery, Azure Service Bus topics OpenAPI. |
+| **11.7** | ◻ | Roll forward to rdbms. AWS awsQuery XML (RDS), GCP Cloud SQL Admin Discovery, Azure ARM OpenAPI. |
+| **11.8** | ◻ | Roll forward to cache. AWS awsQuery XML (ElastiCache), GCP Memorystore REST, Azure ARM OpenAPI. |
+| **11.9** | ◻ | Roll forward to functions. AWS restJson1 (Lambda), GCP Cloud Run Discovery, Azure Container Apps ARM OpenAPI. |
+| **11.10** | ◻ | Roll forward to apigateway. AWS restJson1 (APIGW v2), GCP API Gateway Discovery, Azure APIM ARM OpenAPI. |
+| **11.11** | ◻ | Storage retrofit. Apply signature verification to existing `services/storage/gen/` Smithy stubs. Drop the corresponding auth-bypass knobs from storage conformance lanes. |
+| **11.12** | ◻ | Phase 11 closer. All 8 services spec-driven; `make codegen` regenerates everything; BUG-18 closed; auth-bypass flag deleted across conformance. |
 
 Status legend: ✅ done · ◐ in progress · ◻ pending · ⏸ paused.
 
-## Phase 10 design notes
+## Phase 11 design notes
 
-- **Contract-first matrix.** Sub-phase 10.0-A is the gate per codex review #5. Each `services/<svc>/APPLY_INTERSECTION.md` enumerates which Create / Update / Delete ops the shim claims honest cross-cloud semantics for, with per-cell translation specified. Matrix tests assert *against this contract*. This prevents the matrix-explosion failure mode where the provider tries every attribute and the shim has to either fake or 500.
-- **Necessary-but-not-sufficient drift audit.** Single-frontend Create-then-Read passes when Create translates wrong *and* Read translates wrong in the same direction. 10.2-B drives Create through frontend A and Read through frontend B (same service, same backend) to catch this. 10.2-C drives known-bad inputs to assert error-envelope fidelity.
-- **Soft-delete is opt-in only.** No default-30-day fabrication. Where the destination backend lacks a first-class soft-delete primitive, the shim returns the source cloud's `OperationNotSupported` envelope on a retention-windowed destroy. Queue dropped from soft-delete scope (no peer concept across AWS / GCP / Azure / NATS).
-- **Stateless invariant carried.** 10.1's `Operations.Get` implementation encodes `(opType, target)` into the operation Name so polling re-reads the underlying resource at request time. Same posture extends through Phase 10: no shim-owned mapping table for IaC state.
+- **Codegen + verification coupled per service.** Each service migration lands the generated stubs *and* the signature verifier wired at the new decode boundary together. Avoids retrofitting verification glue into hand-written handlers we're replacing.
+- **Adapter glue first; custom emitter only on demand.** Phase 11.2 builds an adapter that maps `oapi-codegen`'s emitted server interface to the shim's `(http.ResponseWriter, *http.Request)` shape. If the adapter grows past ~3 LOC per operation, switch to a custom OpenAPI emitter in `internal/codegen/`.
+- **`translate.go` stays hand-written and auth-unaware.** Generated stubs call the verifier; the verifier rejects with the source cloud's own 401/403 envelope before dispatch. Per-operation translation logic doesn't change shape.
+- **Deterministic project-owned test signing key.** Conformance lanes generate real signed requests via a test key the shim trusts only when an explicit env var is set. Real-cloud lanes (Track A) use real signatures.
+- **Stateless invariant carried.** Verification consumes the request signature once at the boundary; the shim doesn't cache claims, doesn't open sessions, doesn't propagate caller credentials to the backend.
 
 ## Invariants snapshot
 
 - Never auto-merge; user merges every PR.
-- **One PR at a time.** Phase 10 = one PR; all sub-phases on `phase-10`.
+- **One PR at a time.** Phase 11 = one PR; all sub-phases on `phase-11`.
 - File BUGs in [BUGS.md](BUGS.md) *before* fixing.
 - Update STATUS / WHAT_WE_DID / DO_NEXT at every significant chunk.
 - Fidelity to the source cloud's API.
@@ -54,20 +55,20 @@ Status legend: ✅ done · ◐ in progress · ◻ pending · ⏸ paused.
 
 ## Resumable tracks
 
-- **Track A — Cloud test accounts.** Real-cloud lanes for Phase 10-A (Apply against real AWS / GCP / Azure accounts).
+- **Track A — Cloud test accounts.** Real-cloud lanes for Apply against real AWS / GCP / Azure accounts; also the home for real-signed signature-verification conformance. Blocks BUG-8 closure.
 - **Track B — Coding-agent automation.**
-- **BUG-12 (queue domain tag storage).** `TagQueue` / `UntagQueue` write paths unbacked; same fan-out shape as BUG-2 (domain method + 5 backends + AWS frontend dispatch). Natural next-chunk in 10.3.
-- **BUG-13 (functions Lambda role/publish/memory).** memory_size partly fixed in Phase 9.5 (default emit); role + publish need domain extension. Apply tests for AWS Lambda are still skipped on this gap.
-- **BUG-15 (queue retention plan/apply asymmetry).** Partial fix in 10.3 (GCP queue frontend parses + emits retention); hashicorp/google plan/apply pipeline still keeps "345600s" in state regardless. Deeper investigation needed.
-- **BUG-16 (rdbms GCP v1 vs v1beta4 path mismatch).** Wiring v1beta4 routes unblocks `google_sql_database_instance` Apply.
-- **BUG-6 (apigateway Azure v3 delete signature).** Azure-backed apigateway destroy still skips.
+- **BUG-8 (apigateway/gcp-tf-frontend).** `hashicorp/google` API Gateway endpoint-override + OAuth signing — Track A only.
+- **BUG-15 (queue retention plan/apply asymmetry).** Partial fix landed in Phase 10.3. Phase 11.1 walks the provider behavior and either closes or reclassifies.
+- **BUG-18 (signature verification across frontends).** Phase 11.4 lands it on the secrets service first; subsequent service migrations carry it forward. Phase 11.11 retrofits storage.
+- **Renovate coverage of vendored specs.** Renovate today tracks Go modules + GitHub Actions; vendored specs in `services/<svc>/spec/` are manual. Tracked task for Phase 11.0 — wire spec freshness into CI (compare vendored hash vs. upstream HEAD; alert on drift).
 
 ## Session-resume checklist
 
 1. `git fetch origin && git checkout main && git pull` — sync.
-2. `gh pr list --state open` — verify the Phase 10 PR is the only one open.
-3. `git checkout phase-10`.
+2. `gh pr list --state open` — verify the Phase 11 PR is the only one open (once code lands).
+3. `git checkout phase-11`.
 4. Read STATUS snapshot + this file's "Where we are".
 5. Read STATUS invariants + AGENTS.md.
-6. Skim BUGS open.
-7. Pick the next ◻ sub-task from the Phase 10 table.
+6. Skim BUGS open (3 entries: BUG-8, BUG-15, BUG-18).
+7. Read [`PHASE_11_PLAN.md`](PHASE_11_PLAN.md) for the codegen extension order and sub-phase rationale.
+8. Pick the next ◻ sub-task from the Phase 11 table.
