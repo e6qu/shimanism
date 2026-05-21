@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/e6qu/shimanism/internal/secrets/domain"
+	gen "github.com/e6qu/shimanism/services/secrets/gen"
 )
 
 // Server is an Azure-Key-Vault-shaped HTTP frontend.
@@ -160,7 +161,17 @@ type listSecretsResponse struct {
 // ----------------------------------------------------------------------
 
 func (srv *Server) setSecret(w http.ResponseWriter, r *http.Request, name string) {
-	var body setSecretRequest
+	// Phase 11.4 pilot: decode SetSecret bodies via the spec-driven
+	// generated type instead of the hand-written setSecretRequest.
+	// The generated `gen.SecretSetParameters` is emitted by
+	// `cmd/azure-codegen` from the upstream Azure Key Vault Swagger
+	// 2.0 spec (converted to OpenAPI v3 via kin-openapi). This is the
+	// proof-point that the v2-spec → v3 → oapi-codegen pipeline
+	// produces wire-compatible types for an Azure data-plane API;
+	// the remaining handlers stay on the hand-written wire types
+	// pending the next sub-phase. See `services/secrets/spec/` +
+	// `cmd/azure-codegen/main.go`.
+	var body gen.SecretSetParameters
 	if !decodeJSON(w, r, &body) {
 		return
 	}
@@ -168,7 +179,10 @@ func (srv *Server) setSecret(w http.ResponseWriter, r *http.Request, name string
 	// version to an existing one. Domain CreateSecret returns
 	// SecretAlreadyExists; in that case fall through to
 	// PutSecretValue.
-	tags := body.Tags
+	var tags map[string]string
+	if body.Tags != nil {
+		tags = *body.Tags
+	}
 	description := ""
 	if v, ok := tags["shim-description"]; ok {
 		description = v
