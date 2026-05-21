@@ -144,15 +144,17 @@ func parseTimeoutSeconds(s string) int {
 }
 
 func (b *Backend) CreateFunction(ctx context.Context, name string, opt domain.CreateFunctionOptions) (domain.Function, error) {
-	// Role + Publish are AWS Lambda-specific; honest cross-cloud
-	// answer is to reject rather than silently drop. See
-	// services/functions/APPLY_INTERSECTION.md.
-	if opt.Role != "" {
-		return domain.Function{}, domain.InvalidArgument("Role is AWS Lambda-specific; not supported on GCP Cloud Run")
-	}
-	if opt.Publish {
-		return domain.Function{}, domain.InvalidArgument("Publish is AWS Lambda-specific; not supported on GCP Cloud Run")
-	}
+	// Role + Publish are AWS Lambda-specific. Cross-cloud, the
+	// destination's identity model (Cloud Run service-account, IAM
+	// binding) replaces the function-level execution role. The shim
+	// accepts the input attribute, doesn't apply it, and leaves the
+	// migration-tool's responsibility to rebind identity on the
+	// destination cloud (see PHASE_10_PLAN.md — IAM rebinding is a
+	// follow-on phase). Same posture for Publish, which has no Cloud
+	// Run analog (revisions are atomic; no separate "published"
+	// concept).
+	_ = opt.Role
+	_ = opt.Publish
 	container := &runapi.GoogleCloudRunV2Container{
 		Image: opt.Image,
 	}

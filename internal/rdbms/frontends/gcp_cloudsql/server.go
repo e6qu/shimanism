@@ -32,15 +32,27 @@ type Server struct {
 
 func New(s domain.RDBMS) *Server { return &Server{s: s} }
 
+// Cloud SQL Admin URL families:
+//
+//	/v1/projects/{p}/... — google.golang.org/api/sqladmin/v1
+//	  (the Go SDK + gcloud's default endpoint)
+//	/sql/v1beta4/projects/{p}/... — hashicorp/google provider
+//	  (the `google_sql_database_instance` resource targets this)
+//
+// Both shapes route to the same handler. Phase 10.3 close of BUG-16.
+const sqlPathPrefix = `^/(?:v1|sql/v1beta4)`
+
 var (
-	reInstances       = regexp.MustCompile(`^/v1/projects/([^/]+)/instances/?$`)
-	reInstance        = regexp.MustCompile(`^/v1/projects/([^/]+)/instances/([^/]+)$`)
-	reInstanceRestart = regexp.MustCompile(`^/v1/projects/([^/]+)/instances/([^/]+)/restart$`)
-	reInstanceRestore = regexp.MustCompile(`^/v1/projects/([^/]+)/instances/([^/]+)/restoreBackup$`)
-	reBackupRuns      = regexp.MustCompile(`^/v1/projects/([^/]+)/instances/([^/]+)/backupRuns/?$`)
-	reBackupRun       = regexp.MustCompile(`^/v1/projects/([^/]+)/instances/([^/]+)/backupRuns/([^/]+)$`)
-	reOperation       = regexp.MustCompile(`^/v1/projects/([^/]+)/operations/([^/]+)$`)
-	reOperations      = regexp.MustCompile(`^/v1/projects/([^/]+)/operations/?$`)
+	reInstances       = regexp.MustCompile(sqlPathPrefix + `/projects/([^/]+)/instances/?$`)
+	reInstance        = regexp.MustCompile(sqlPathPrefix + `/projects/([^/]+)/instances/([^/]+)$`)
+	reInstanceRestart = regexp.MustCompile(sqlPathPrefix + `/projects/([^/]+)/instances/([^/]+)/restart$`)
+	reInstanceRestore = regexp.MustCompile(sqlPathPrefix + `/projects/([^/]+)/instances/([^/]+)/restoreBackup$`)
+	reBackupRuns      = regexp.MustCompile(sqlPathPrefix + `/projects/([^/]+)/instances/([^/]+)/backupRuns/?$`)
+	reBackupRun       = regexp.MustCompile(sqlPathPrefix + `/projects/([^/]+)/instances/([^/]+)/backupRuns/([^/]+)$`)
+	reInstanceUsers   = regexp.MustCompile(sqlPathPrefix + `/projects/([^/]+)/instances/([^/]+)/users/?$`)
+	reInstanceDBs     = regexp.MustCompile(sqlPathPrefix + `/projects/([^/]+)/instances/([^/]+)/databases/?$`)
+	reOperation       = regexp.MustCompile(sqlPathPrefix + `/projects/([^/]+)/operations/([^/]+)$`)
+	reOperations      = regexp.MustCompile(sqlPathPrefix + `/projects/([^/]+)/operations/?$`)
 )
 
 func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -75,6 +87,27 @@ func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		default:
 			writeError(w, http.StatusMethodNotAllowed, "FAILED_PRECONDITION", method+" not allowed on backup runs")
 		}
+		return
+	}
+	if m := reInstanceUsers.FindStringSubmatch(path); m != nil && method == http.MethodGet {
+		// hashicorp/google's google_sql_database_instance reads the
+		// users list during plan refresh. The cross-cloud intersection
+		// doesn't expose Cloud SQL Users (per-engine auth is
+		// engine-specific and not part of the rdbms domain). Return
+		// the canonical "no users" envelope — real GCP returns the
+		// same shape for an instance with only the master user, which
+		// the provider's schema treats as out-of-state. Category 2
+		// (feature unset).
+		srv.listInstanceUsers(w, r, m[2])
+		return
+	}
+	if m := reInstanceDBs.FindStringSubmatch(path); m != nil && method == http.MethodGet {
+		// Same category as Users: provider refresh reads the
+		// databases list; cross-cloud intersection only models the
+		// instance-level "initial database" (Connection.DatabaseName).
+		// Return a single-item list with the initial database so the
+		// provider's state-walking doesn't propose a recreate.
+		srv.listInstanceDatabases(w, r, m[2])
 		return
 	}
 	if m := reInstance.FindStringSubmatch(path); m != nil {
@@ -128,6 +161,7 @@ func (srv *Server) createInstance(w http.ResponseWriter, r *http.Request) {
 		EngineVersion:  body.DatabaseVersion,
 		MasterUsername: "shimadmin",
 		MasterPassword: body.RootPassword,
+		Region:         body.Region,
 	}
 	if body.Settings != nil {
 		opt.AllocatedStorageGB = int(body.Settings.DataDiskSizeGb)
@@ -236,6 +270,42 @@ func (srv *Server) deleteBackupRun(w http.ResponseWriter, r *http.Request, insta
 	writeOperation(w, instance, "DELETE_BACKUP")
 }
 
+// listInstanceUsers returns the canonical "no users" envelope. Real
+// Cloud SQL exposes per-engine user accounts which the cross-cloud
+// rdbms intersection doesn't model (Postgres / MySQL / SQL Server
+// differ enough that the shim only models the instance-level master
+// credential). Provider-refresh reads of this list see an empty
+// response and treat that as the resource state of record. Phase
+// 10.3 close of BUG-16.
+func (srv *Server) listInstanceUsers(w http.ResponseWriter, r *http.Request, instance string) {
+	if _, err := srv.s.DescribeInstance(r.Context(), instance); err != nil {
+		mapDomainError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, &sqladmin.UsersListResponse{})
+}
+
+// listInstanceDatabases surfaces the single "initial" database from
+// the Connection metadata. Cross-cloud intersection only models one
+// database per instance at create time (Connection.DatabaseName).
+// Provider reads this list to detect drift on the instance's
+// database set.
+func (srv *Server) listInstanceDatabases(w http.ResponseWriter, r *http.Request, instance string) {
+	inst, err := srv.s.DescribeInstance(r.Context(), instance)
+	if err != nil {
+		mapDomainError(w, err)
+		return
+	}
+	out := &sqladmin.DatabasesListResponse{}
+	if inst.Connection.DatabaseName != "" {
+		out.Items = append(out.Items, &sqladmin.Database{
+			Name:     inst.Connection.DatabaseName,
+			Instance: instance,
+		})
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
 func (srv *Server) listBackupRuns(w http.ResponseWriter, r *http.Request, instance string) {
 	res, err := srv.s.ListSnapshots(r.Context(), domain.ListSnapshotsOptions{Instance: instance})
 	if err != nil {
@@ -302,10 +372,26 @@ func instanceToGCP(in domain.Instance) *sqladmin.DatabaseInstance {
 	out := &sqladmin.DatabaseInstance{
 		Name:            in.Name,
 		DatabaseVersion: in.EngineVersion,
+		Region:          in.Region,
 		State:           gcpStatusFromDomain(in.Status),
+		// InstanceType is GCP-specific and provider-required; real
+		// GCP defaults to CLOUD_SQL_INSTANCE for first-class instances.
+		InstanceType: "CLOUD_SQL_INSTANCE",
 		Settings: &sqladmin.Settings{
 			Tier:           in.InstanceClass,
 			DataDiskSizeGb: int64(in.AllocatedStorageGB),
+			// The remainder are Cloud SQL's canonical defaults for an
+			// instance that didn't customize them. Real GCP returns
+			// these on Read; hashicorp/google's schema expects them
+			// in state. Honest defaults — they accurately describe
+			// the instance's "default settings" posture, not fakes.
+			DataDiskType:         "PD_SSD",
+			ActivationPolicy:     "ALWAYS",
+			AvailabilityType:     "ZONAL",
+			StorageAutoResize:    boolPtr(true),
+			PricingPlan:          "PER_USE",
+			ReplicationType:      "SYNCHRONOUS",
+			ConnectorEnforcement: "NOT_REQUIRED",
 		},
 	}
 	if !in.CreatedAt.IsZero() {
@@ -318,6 +404,8 @@ func instanceToGCP(in domain.Instance) *sqladmin.DatabaseInstance {
 	}
 	return out
 }
+
+func boolPtr(b bool) *bool { return &b }
 
 func snapshotToGCP(s domain.Snapshot) *sqladmin.BackupRun {
 	out := &sqladmin.BackupRun{

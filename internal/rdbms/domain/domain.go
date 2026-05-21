@@ -105,8 +105,14 @@ type Instance struct {
 	Status             Status
 	AllocatedStorageGB int
 	InstanceClass      string
-	Connection         Connection
-	CreatedAt          time.Time
+	// Region is the per-cloud region/location identifier (AWS
+	// availability-zone-scoped region like "us-east-1", GCP region
+	// like "us-central1", Azure region like "eastus"). Set on
+	// Create; round-trips through Read. Different clouds use
+	// different naming conventions; the shim doesn't translate.
+	Region     string
+	Connection Connection
+	CreatedAt  time.Time
 }
 
 // Connection is what clients need to open a direct DB connection
@@ -145,6 +151,7 @@ type CreateInstanceOptions struct {
 	// Backends translate; cnpg ignores (sizing is per-pod resource
 	// requests, not a tier name).
 	InstanceClass string
+	Region        string
 }
 
 // CreateInstanceResult is the CreateInstance response.

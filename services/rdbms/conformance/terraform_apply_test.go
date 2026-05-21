@@ -67,11 +67,6 @@ func TestTerraform_AWSRDBMS_Apply_NoDrift(t *testing.T) {
 }
 
 func TestTerraform_GCPRDBMS_Apply_NoDrift(t *testing.T) {
-	// BUG-16: shim's GCP rdbms frontend serves /v1/projects/{p}/... (matches
-	// google.golang.org/api/sqladmin/v1); hashicorp/google google_sql_database_instance
-	// targets /sql/v1beta4/projects/{p}/.... 404 until v1beta4 routes are wired.
-	t.Skip("BUG-16: hashicorp/google google_sql_database_instance targets /sql/v1beta4/ paths; shim serves /v1/ paths")
-
 	t.Parallel()
 	if _, err := exec.LookPath("terraform"); err != nil {
 		t.Skipf("terraform not installed: %v", err)
