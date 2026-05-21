@@ -39,6 +39,8 @@ import (
 	awsrdsfront "github.com/e6qu/shimanism/internal/rdbms/frontends/aws_rds"
 	azuredbadminfront "github.com/e6qu/shimanism/internal/rdbms/frontends/azure_dbadmin"
 	gcpcloudsqlfront "github.com/e6qu/shimanism/internal/rdbms/frontends/gcp_cloudsql"
+	"github.com/e6qu/shimanism/internal/azuresharedkey"
+	"github.com/e6qu/shimanism/internal/gcpbearer"
 	"github.com/e6qu/shimanism/internal/restxml"
 	secretsdomain "github.com/e6qu/shimanism/internal/secrets/domain"
 	"github.com/e6qu/shimanism/internal/sigv4verifier"
@@ -107,10 +109,19 @@ func StartStorageServer(t *testing.T, backend domain.Storage) *StorageServer {
 // clients (cloud.google.com/go/storage, gcloud, hashicorp/google
 // Terraform provider) drive it through the same endpoint-override
 // path.
+//
+// Phase 11.13c retrofit: wraps the GCS handler with the GCP bearer
+// verifier middleware. SHIMANISM_TEST_UNAUTHENTICATED=1 (set by the
+// harness init) short-circuits verification.
 func StartStorageServerGCS(t *testing.T, backend domain.Storage) *StorageServer {
 	t.Helper()
 	srv := gcsfront.New(backend)
-	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
+	verifier := gcpbearer.New(gcpbearer.Options{
+		Audience: "https://storage.googleapis.com/",
+		TestKey:  []byte("test-key-do-not-use-in-prod"),
+	})
+	mw := gcpbearer.Middleware(verifier)
+	ts := httptest.NewServer(&logRoundTrip{t: t, mux: mw(srv)})
 	t.Cleanup(ts.Close)
 	return &StorageServer{URL: ts.URL, Close: ts.Close}
 }
@@ -120,10 +131,19 @@ func StartStorageServerGCS(t *testing.T, backend domain.Storage) *StorageServer 
 // Azure-shaped clients (azure-sdk-for-go/sdk/storage/azblob, az CLI,
 // hashicorp/azurerm Terraform provider) drive it through the
 // endpoint-override path.
+//
+// Phase 11.13d retrofit: wraps the Azure Blob handler with the
+// SharedKey verifier middleware. SHIMANISM_TEST_UNAUTHENTICATED=1
+// (set by the harness init) short-circuits verification.
 func StartStorageServerAzureBlob(t *testing.T, backend domain.Storage) *StorageServer {
 	t.Helper()
 	srv := azurefront.New(backend)
-	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
+	verifier := azuresharedkey.New(azuresharedkey.StaticStore{
+		Account: "shimstorage",
+		Key:     []byte("test-key-do-not-use-in-prod-this-is-32-bytes-of-junk"),
+	})
+	mw := azuresharedkey.Middleware(verifier)
+	ts := httptest.NewServer(&logRoundTrip{t: t, mux: mw(srv)})
 	t.Cleanup(ts.Close)
 	return &StorageServer{URL: ts.URL, Close: ts.Close}
 }
