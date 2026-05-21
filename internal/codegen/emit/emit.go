@@ -87,11 +87,12 @@ func newGen(model *smithy.Model, opts Options) *gen {
 
 // usesEpochTimestamps reports whether the service protocol serialises
 // timestamps as float64 epoch-seconds (awsJson1_x default) instead of
-// the time.Time-RFC3339 path used by REST-XML. When true, the emitter
-// substitutes *awsjson.EpochTime for *time.Time on timestamp-typed
-// member fields.
+// the time.Time-RFC3339 path used by REST-XML / awsQuery. When true,
+// the emitter substitutes *awsjson.EpochTime for *time.Time on
+// timestamp-typed member fields. awsQuery uses RFC3339 in XML output
+// — Go's default time.Time encoding works there, so it's excluded.
 func (g *gen) usesEpochTimestamps() bool {
-	return g.protocol == "aws-json-1.1" || g.protocol == "aws-json-1.0" || g.protocol == "aws-query"
+	return g.protocol == "aws-json-1.1" || g.protocol == "aws-json-1.0"
 }
 
 // serviceShortName returns the Smithy short name of the single service
@@ -456,9 +457,11 @@ func pickTemplate(protocol string) (string, error) {
 		return awsJSONTemplate, nil
 	case "rest-json":
 		return restJSONTemplate, nil
+	case "aws-query":
+		return awsQueryTemplate, nil
 	default:
 		return "", fmt.Errorf("codegen: unsupported wire protocol %q "+
-			"(supported: rest-xml, aws-json-1.0, aws-json-1.1, rest-json)", protocol)
+			"(supported: rest-xml, aws-json-1.0, aws-json-1.1, rest-json, aws-query)", protocol)
 	}
 }
 

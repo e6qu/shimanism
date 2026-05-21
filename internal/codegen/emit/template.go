@@ -29,3 +29,13 @@ var awsJSONTemplate string
 //
 //go:embed template_restjson.tmpl
 var restJSONTemplate string
+
+// awsQueryTemplate holds the text/template source for the awsQuery
+// wire protocol (SNS, RDS, ElastiCache). The protocol is single-
+// endpoint POST `/` dispatched by the `Action` form parameter, with
+// form-encoded requests and XML responses wrapped in
+// `<OpResponse><OpResult>...</OpResult><ResponseMetadata>...
+// </ResponseMetadata></OpResponse>`.
+//
+//go:embed template_awsquery.tmpl
+var awsQueryTemplate string
