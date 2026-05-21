@@ -7,14 +7,22 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 ## Where we are
 
 - **Last merged:** PR #17 at `ebc30f7` on `origin/main`, 2026-05-21. Phase 10 closed — cross-cloud `terraform apply` honest end-to-end across all 8 services; 8 BUGs closed.
-- **Active branch:** `phase-11`. Single PR for the whole phase (spec-driven codegen across every service + signature verification at the new decode boundary). Plan landed; code work pending codex review of [PLAN.md § Phase 11](PLAN.md#phase-11--tighten-the-wire-boundary).
-- **Phase 11 sub-task table:** lives in [PLAN.md § Phase 11 sub-phases](PLAN.md#sub-phases). Do not duplicate it here — update it in PLAN.md as sub-tasks land.
+- **Active branch:** `phase-11`. PR #18 (draft) holds the Phase 11 plan baseline. Codex review folded back; Phase 12 added for cross-cloud cell expansion.
+- **Phase 11 sub-task table:** lives in [PLAN.md § Phase 11](PLAN.md#phase-11--tighten-the-wire-boundary). Do not duplicate it here — update it in PLAN.md as sub-tasks land.
+- **Phase 12 sub-task table:** lives in [PLAN.md § Phase 12](PLAN.md#phase-12--cross-cloud-migration-cell-expansion). Doesn't depend on Phase 11.
 
 ## Next concrete action
 
-**11.0** — Submit the Phase 11 section of PLAN.md to codex review (non-interactive); fold findings back into PLAN.md before any code lands.
+**11.1** — Architecture spike. Lock in per-cloud verifier libraries before any code:
 
-After that lands, **11.1** opens: BUG-15 GCP Pub/Sub provider-default audit + BUG-8 Track-A pin.
+- AWS: design the SigV4 verifier (uses `signer/v4` canonical-request building blocks; constant-time compare; explicit handling for `UNSIGNED-PAYLOAD`, presigned URLs, body replay, clock skew, session tokens).
+- GCP: identify what credentials Google SDK / CLI / Terraform actually emit per shimmed service and pick the honest verification path (JWKS-validated Bearer for ID tokens; document the gap for opaque access tokens).
+- Azure: Bearer challenge issuance + JWT signature validation for Key Vault; SharedKey for Storage (Phase 11.13 retrofit).
+- GCP gRPC vs REST AGENTS.md reconciliation: pick a per-service path.
+
+Output: a short doc that locks the verifier choices; folded into PLAN.md, no separate file.
+
+BUG-15 walk + BUG-8 Track-A pin folded into 11.1 as the non-blocking warmup.
 
 ## Invariants snapshot
 

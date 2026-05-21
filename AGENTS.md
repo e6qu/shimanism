@@ -139,7 +139,12 @@ Re-emit server-side types only when SDK types fight server-side handling — for
 
 The codegen pipeline owns the diff between spec and emitted code. The translation table (in `translate.go`) is the only file an agent should write by hand.
 
-**Auth verification.** Use the cloud's official signer/verifier libraries — never roll a SigV4 / OAuth2 / SharedKey implementation. AWS = `aws-sdk-go-v2/aws/signer/v4`. GCP = `golang.org/x/oauth2`. Azure = the signer in `azure-sdk-for-go/sdk/azcore/auth` and the SharedKey verifier exposed by the storage SDK.
+**Auth verification.** No public Go library *verifies* cloud auth as a turnkey API — every official SDK is the *client* side. Reuse the building blocks each cloud publishes; never roll the crypto. The verifier itself is ours.
+
+- **AWS SigV4.** Use the canonical-request building blocks in `aws-sdk-go-v2/aws/signer/v4` (the same package's signer) to reconstruct the canonical string, re-sign with the credential's secret, and constant-time compare against the request's `Authorization` header. Body replay / `UNSIGNED-PAYLOAD` / presigned URLs / signed-header tampering / clock skew / temporary session tokens (`X-Amz-Security-Token`) all need explicit handling.
+- **GCP Bearer.** ID tokens (Workload Identity, signed JWTs against Google's JWKS) verify via `google.golang.org/api/idtoken` or `cloud.google.com/go/auth/credentials/idtoken`. Opaque OAuth2 access tokens are not project-owned JWTs the shim can verify with a static key — document the gap honestly where it applies. `golang.org/x/oauth2` is token-acquisition plumbing; it is *not* a server-side verifier.
+- **Azure Bearer (Key Vault, Service Bus, ARM).** Issue the WWW-Authenticate challenge on first request, then validate the Microsoft Entra-issued JWT signature against Microsoft's JWKS plus `iss` / `aud` / `exp` / `nbf` claims. The signer in `azure-sdk-for-go/sdk/azcore/auth` is client-side acquisition; verification logic is ours.
+- **Azure SharedKey (Storage only).** Storage SDK exposes a SharedKey credential for signing; the verifier reconstructs the canonical string and constant-time compares. Key Vault does **not** use SharedKey; Service Bus uses SAS / Entra ID.
 
 **Validation.** The cloud's spec carries field-level constraints (string lengths, enum sets, pattern regexes). Honor them at the wire-decode boundary so an invalid request fails with the **source cloud's own error vocabulary**, not a generic 500. When the spec generator emits validation (it does for Smithy and OpenAPI), wire it in.
 

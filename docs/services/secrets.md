@@ -8,7 +8,7 @@ Secret management — create / read / put-new-value / delete a named secret acro
 |---|---|---|
 | AWS Secrets Manager | awsJson1_1 (X-Amz-Target dispatch) | `CreateSecret`, `GetSecretValue`, `PutSecretValue`, `DescribeSecret`, `ListSecrets`, `UpdateSecret`, `TagResource`, `UntagResource`, `GetResourcePolicy` (canonical "no policy"). |
 | GCP Secret Manager | gRPC + REST | Reuses `cloud.google.com/go/secretmanager/apiv1` types. |
-| Azure Key Vault | REST + SharedKey or AAD | TLS-required for the SDK. Description encoded as a reserved `shim-description` tag. |
+| Azure Key Vault | REST + Bearer (AAD / Microsoft Entra challenge) | TLS-required for the SDK; the frontend issues the WWW-Authenticate challenge on first request. Key Vault does not use SharedKey (that's Azure Storage). Description encoded as a reserved `shim-description` tag. |
 
 ## Backends
 
