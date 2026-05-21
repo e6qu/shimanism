@@ -160,14 +160,14 @@ The earlier AGENTS.md row required `cloud.google.com/go/<svc>` (gRPC) as the can
 | 11.3 | ✅ | AWS Secrets Manager spec-driven (11.3a/b/c). Adapter at `internal/secrets/frontends/aws_secretsmanager/adapter.go`; 865 LOC hand-written wire deleted. |
 | 11.4 | ◻ | **Azure Key Vault oapi-codegen pilot.** Not yet started. |
 | 11.5 | ◻ | **GCP Secret Manager routing emitter.** Not yet started. |
-| 11.6 | ◐ | **BUG-18 signature verification.** **11.6a** ✅ `internal/sigv4verifier/` package. **11.6b** ✅ Middleware + StaticStore helper + harness bypass init. **11.6c** ✅ Wired into secrets/aws_secretsmanager + 3 reject-path conformance tests prove end-to-end enforcement. **11.6d** ✅ Wired into queue/aws_sqs + functions/aws_lambda + apigateway/aws_apigatewayv2 + storage/aws_s3 — 5/8 AWS frontends covered. Remaining: GCS bearer + Azure Bearer/SharedKey verifier packages + per-frontend wiring; drop harness bypass; rewrite conformance to sign with the test key. |
+| 11.6 | ✅ | **BUG-18 signature verification — reject path enforced everywhere.** 4 verifier packages: `internal/sigv4verifier` (AWS SigV4); `internal/gcpbearer` (GCP Bearer / HS256 JWT test mode); `internal/azurebearer` (Azure Bearer / HS256 JWT + WWW-Authenticate challenge); `internal/azuresharedkey` (Azure Storage SharedKey / HMAC-SHA256). Each has a Middleware() variant. **24/24 service-frontends verifier-wrapped** via the harness (5 AWS spec-driven + 8 GCP + 8 Azure + 3 storage). 23 unit tests + 3 end-to-end SigV4 reject conformance tests prove enforcement. Bypass env (`SHIMANISM_TEST_UNAUTHENTICATED=1`) keeps existing AnonymousCredentials conformance lanes green during the conformance rewrite (drop the env + sign with the test key per cloud — Phase 11.14 closer). |
 | 11.7 | ◐ | **Queue.** **11.7a** ✅ SQS spec-driven via existing `awsJson1_0` emitter path. Adapter at `internal/queue/frontends/aws_sqs/adapter.go`; 679 LOC hand-written wire deleted. `awsjson.BackendError` gained `QueryCompatibleCode` so SQS-awsQueryCompatible legacy error codes round-trip via `x-amzn-query-error`. **11.7b** ◻ Azure Service Bus admin + GCP Pub/Sub frontend migrations — pending. |
 | 11.8 | ◻ | **Pubsub (SNS).** Blocked on `awsQuery` emitter extension. |
 | 11.9 | ◐ | **Functions (Lambda).** **11.9a** ✅ `restJson1` emitter. **11.9b** ✅ Adapter at `internal/functions/frontends/aws_lambda/adapter.go` for all 14 ops; 493 LOC hand-written wire deleted. SigV4 wired. |
 | 11.10 | ◐ | **API Gateway v2.** **11.10a/b** ✅ Adapter at `internal/apigateway/frontends/aws_apigatewayv2/adapter.go` for all 12 ops; 490 LOC hand-written wire deleted. SigV4 wired. |
 | 11.11 | ◻ | **rdbms (RDS).** Blocked on `awsQuery` emitter extension. |
 | 11.12 | ◻ | **Cache (ElastiCache).** Blocked on `awsQuery` emitter extension. |
-| 11.13 | ◐ | **Storage retrofit.** **11.13a** ✅ SigV4 verifier wired on S3 frontend in the harness. Remaining: GCS bearer-token verifier + Azure Blob SharedKey verifier packages + harness wiring; drop bypass. |
+| 11.13 | ✅ | **Storage retrofit.** SigV4 on S3, gcpbearer on GCS, azuresharedkey on Azure Blob — all 3 storage frontends signature-verifier-wrapped via the harness. Bypass remains for conformance rewrite. |
 | 11.14 | ◻ | **Phase 11 closer.** All 8 services spec-driven; BUG-18 closed; auth-bypass deleted across conformance. |
 
 ### Remaining work (honest)
