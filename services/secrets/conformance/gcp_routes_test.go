@@ -13,6 +13,14 @@ import (
 	gcpgen "github.com/e6qu/shimanism/services/secrets/gen/gcp"
 )
 
+func TestGCPRoutes_Secrets_BasePathSane(t *testing.T) {
+	// Secret Manager's Discovery doc has empty basePath — paths
+	// are version-prefixed in URIPattern itself (`v1/{+name}`).
+	if gcpgen.BasePath != "" {
+		t.Errorf("BasePath = %q; want empty (Secret Manager declares no basePath)", gcpgen.BasePath)
+	}
+}
+
 func TestGCPRoutes_InventoryWellFormed(t *testing.T) {
 	if len(gcpgen.Routes) == 0 {
 		t.Fatal("gen.gcp.Routes is empty; cmd/gcp-codegen emitted nothing")

@@ -10,6 +10,17 @@ import (
 	gcpgen "github.com/e6qu/shimanism/services/storage/gen/gcp"
 )
 
+func TestGCPRoutes_Storage_BasePathSane(t *testing.T) {
+	bp := gcpgen.BasePath
+	// Storage's Discovery doc declares basePath="/storage/v1/".
+	// The emitter trims the trailing slash. Any other value
+	// indicates an emitter regression or a spec change we
+	// haven't accounted for.
+	if bp != "/storage/v1" {
+		t.Errorf("BasePath = %q; want %q (Discovery doc declares /storage/v1/)", bp, "/storage/v1")
+	}
+}
+
 func TestGCPRoutes_Storage_InventoryWellFormed(t *testing.T) {
 	if len(gcpgen.Routes) == 0 {
 		t.Fatal("gen.gcp.Routes is empty; cmd/gcp-codegen emitted nothing")

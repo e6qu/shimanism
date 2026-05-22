@@ -10,6 +10,12 @@ import (
 	gcpgen "github.com/e6qu/shimanism/services/queue/gen/gcp"
 )
 
+func TestGCPRoutes_Queue_BasePathSane(t *testing.T) {
+	if gcpgen.BasePath != "" {
+		t.Errorf("BasePath = %q; want empty", gcpgen.BasePath)
+	}
+}
+
 func TestGCPRoutes_Queue_InventoryWellFormed(t *testing.T) {
 	if len(gcpgen.Routes) == 0 {
 		t.Fatal("gen.gcp.Routes is empty; cmd/gcp-codegen emitted nothing")
