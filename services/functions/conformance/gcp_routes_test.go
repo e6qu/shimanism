@@ -130,4 +130,3 @@ func expandRouteTemplateFunctions(t string) string {
 	}
 	return string(out)
 }
-

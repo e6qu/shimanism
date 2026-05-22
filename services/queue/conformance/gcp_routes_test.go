@@ -143,4 +143,3 @@ func expandRouteTemplateQueue(t string) string {
 	}
 	return string(out)
 }
-

@@ -133,4 +133,3 @@ func expandRouteTemplateApigateway(t string) string {
 	}
 	return string(out)
 }
-

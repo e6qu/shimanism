@@ -136,4 +136,3 @@ func expandRouteTemplateRdbms(t string) string {
 	}
 	return string(out)
 }
-

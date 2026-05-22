@@ -132,4 +132,3 @@ func expandRouteTemplateCache(t string) string {
 	}
 	return string(out)
 }
-

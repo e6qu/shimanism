@@ -142,4 +142,3 @@ func expandRouteTemplatePubsub(t string) string {
 	}
 	return string(out)
 }
-

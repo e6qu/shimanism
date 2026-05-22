@@ -153,4 +153,3 @@ func expandRouteTemplateSecrets(t string) string {
 	}
 	return string(out)
 }
-
