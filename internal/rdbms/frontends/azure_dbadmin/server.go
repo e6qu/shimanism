@@ -1,177 +1,84 @@
-// Package azure_dbadmin is the Azure DB Admin REST frontend for
-// shimanism's rdbms service (Postgres only, matching the cnpg
-// backend choice).
+// Package azure_dbadmin is the Azure DB Admin (PostgreSQL Flexible
+// Server) ARM frontend. Wire types + routing come from the
+// spec-driven generated stubs in services/rdbms/gen/azure
+// (cmd/azure-codegen). The adapter on Server implements
+// gen.ServerInterface; gen.HandlerWithOptions dispatches each
+// request.
 //
-// ARM URL shape:
+// ARM URL shape (path-routed by the gen mux):
 //
-//	/subscriptions/{sub}/resourceGroups/{rg}/providers/Microsoft.DBforPostgreSQL/flexibleServers/{name}
-//
-// The shim ignores subscription / resource-group scoping at this
-// phase — the backend handles the actual ARM addressing — and treats
-// {name} as the domain instance name.
+//	/subscriptions/{subscriptionId}
+//	  /resourceGroups/{resourceGroupName}
+//	    /providers/Microsoft.DBforPostgreSQL
+//	      /flexibleServers/{serverName}
 //
 // Mutating ops in real ARM return 202 + an `Azure-AsyncOperation`
-// header pointing at a polling URL. The shim's frontend returns
-// 200 with the current instance JSON; Azure SDK pollers eventually
-// fall through to a `Get` call which the shim handles honestly.
-// This trades wire-shape fidelity for stateless simplicity; SDK
-// conformance is deferred for the Azure cell.
+// header pointing at a polling URL. The shim's frontend returns the
+// current instance JSON; Azure SDK pollers eventually fall through
+// to a `Get` call which the shim handles honestly. Trade wire-shape
+// fidelity for stateless simplicity; SDK conformance for the Azure
+// cell is deferred.
 package azure_dbadmin
 
 import (
 	"encoding/json"
-	"fmt"
-	"io"
 	"net/http"
-	"regexp"
-	"strings"
-	"time"
 
 	"github.com/e6qu/shimanism/internal/rdbms/domain"
+	gen "github.com/e6qu/shimanism/services/rdbms/gen/azure"
 )
 
+// Server is the Azure-PostgreSQL-FlexibleServer-shaped HTTP frontend.
 type Server struct {
-	s domain.RDBMS
+	s   domain.RDBMS
+	mux http.Handler
 }
 
-func New(s domain.RDBMS) *Server { return &Server{s: s} }
+// New returns a frontend bound to the given backend.
+func New(s domain.RDBMS) *Server {
+	srv := &Server{s: s}
+	srv.mux = gen.HandlerWithOptions(srv, gen.StdHTTPServerOptions{})
+	return srv
+}
 
-var (
-	reServer = regexp.MustCompile(
-		`^/subscriptions/[^/]+/resourceGroups/[^/]+/providers/Microsoft\.DBforPostgreSQL/flexibleServers/([^/]+)/?$`)
-	reServerList = regexp.MustCompile(
-		`^/subscriptions/[^/]+/resourceGroups/[^/]+/providers/Microsoft\.DBforPostgreSQL/flexibleServers/?$`)
-	reServerRestart = regexp.MustCompile(
-		`^/subscriptions/[^/]+/resourceGroups/[^/]+/providers/Microsoft\.DBforPostgreSQL/flexibleServers/([^/]+)/restart/?$`)
-	reBackup = regexp.MustCompile(
-		`^/subscriptions/[^/]+/resourceGroups/[^/]+/providers/Microsoft\.DBforPostgreSQL/flexibleServers/([^/]+)/backups/([^/]+)/?$`)
-	reBackupList = regexp.MustCompile(
-		`^/subscriptions/[^/]+/resourceGroups/[^/]+/providers/Microsoft\.DBforPostgreSQL/flexibleServers/([^/]+)/backups/?$`)
-)
-
+// ServeHTTP delegates to the generated routing layer.
 func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	path := r.URL.Path
-	method := r.Method
-
-	if m := reServerRestart.FindStringSubmatch(path); m != nil && method == http.MethodPost {
-		srv.restart(w, r, m[1])
-		return
-	}
-	if m := reBackup.FindStringSubmatch(path); m != nil {
-		switch method {
-		case http.MethodPut:
-			srv.createBackup(w, r, m[1], m[2])
-		case http.MethodGet:
-			srv.getBackup(w, r, m[1], m[2])
-		case http.MethodDelete:
-			srv.deleteBackup(w, r, m[1], m[2])
-		default:
-			writeError(w, http.StatusMethodNotAllowed, "MethodNotAllowed", method+" not allowed on backup")
-		}
-		return
-	}
-	if m := reBackupList.FindStringSubmatch(path); m != nil && method == http.MethodGet {
-		srv.listBackups(w, r, m[1])
-		return
-	}
-	if m := reServer.FindStringSubmatch(path); m != nil {
-		switch method {
-		case http.MethodPut:
-			srv.createServer(w, r, m[1])
-		case http.MethodGet:
-			srv.getServer(w, r, m[1])
-		case http.MethodDelete:
-			srv.deleteServer(w, r, m[1])
-		case http.MethodPatch:
-			srv.patchServer(w, r, m[1])
-		default:
-			writeError(w, http.StatusMethodNotAllowed, "MethodNotAllowed", method+" not allowed on server")
-		}
-		return
-	}
-	if reServerList.MatchString(path) && method == http.MethodGet {
-		srv.listServers(w, r)
-		return
-	}
-
-	writeError(w, http.StatusNotFound, "ResourceNotFound",
-		"no Azure DBforPostgreSQL route matches "+method+" "+path)
+	srv.mux.ServeHTTP(w, r)
 }
 
-// ----------------------------------------------------------------------
-// Wire shapes (subset of the Microsoft.DBforPostgreSQL/flexibleServers schema)
-// ----------------------------------------------------------------------
-
-type serverBody struct {
-	Location   string            `json:"location,omitempty"`
-	SKU        *skuBody          `json:"sku,omitempty"`
-	Properties *serverProperties `json:"properties,omitempty"`
+// notImplemented writes the ARM "operation not supported" envelope
+// for spec ops outside the cross-cloud rdbms intersection.
+func notImplemented(w http.ResponseWriter, op string) {
+	writeError(w, http.StatusNotImplemented, "OperationNotSupported",
+		op+" is not in the cross-cloud rdbms intersection")
 }
 
-type skuBody struct {
-	Name string `json:"name,omitempty"`
-	Tier string `json:"tier,omitempty"`
-}
+// =====================================================================
+// In-intersection handlers — server CRUD
+// =====================================================================
 
-type serverProperties struct {
-	AdministratorLogin         string       `json:"administratorLogin,omitempty"`
-	AdministratorLoginPassword string       `json:"administratorLoginPassword,omitempty"`
-	Version                    string       `json:"version,omitempty"`
-	State                      string       `json:"state,omitempty"`
-	FullyQualifiedDomainName   string       `json:"fullyQualifiedDomainName,omitempty"`
-	Storage                    *storageBody `json:"storage,omitempty"`
-}
-
-type storageBody struct {
-	StorageSizeGB int32 `json:"storageSizeGB,omitempty"`
-}
-
-type serverResource struct {
-	ID         string            `json:"id"`
-	Name       string            `json:"name"`
-	Type       string            `json:"type"`
-	Location   string            `json:"location"`
-	SKU        *skuBody          `json:"sku,omitempty"`
-	Properties *serverProperties `json:"properties"`
-}
-
-type listResponse struct {
-	Value []*serverResource `json:"value"`
-}
-
-type backupResource struct {
-	ID         string            `json:"id"`
-	Name       string            `json:"name"`
-	Type       string            `json:"type"`
-	Properties map[string]string `json:"properties,omitempty"`
-}
-
-type backupList struct {
-	Value []*backupResource `json:"value"`
-}
-
-// ----------------------------------------------------------------------
-// Server handlers
-// ----------------------------------------------------------------------
-
-func (srv *Server) createServer(w http.ResponseWriter, r *http.Request, name string) {
-	var body serverBody
+func (srv *Server) ServersCreateOrUpdate(w http.ResponseWriter, r *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, name string, _ gen.ServersCreateOrUpdateParams) {
+	var body gen.Server
 	if !decodeJSON(w, r, &body) {
 		return
 	}
-	opt := domain.CreateInstanceOptions{
-		Engine: domain.EnginePostgres,
-	}
+	opt := domain.CreateInstanceOptions{Engine: domain.EnginePostgres}
 	if body.Properties != nil {
-		opt.EngineVersion = body.Properties.Version
-		opt.MasterUsername = body.Properties.AdministratorLogin
-		opt.MasterPassword = body.Properties.AdministratorLoginPassword
-		if body.Properties.Storage != nil {
-			opt.AllocatedStorageGB = int(body.Properties.Storage.StorageSizeGB)
+		if body.Properties.Version != nil {
+			opt.EngineVersion = string(*body.Properties.Version)
+		}
+		if body.Properties.AdministratorLogin != nil {
+			opt.MasterUsername = *body.Properties.AdministratorLogin
+		}
+		if body.Properties.AdministratorLoginPassword != nil {
+			opt.MasterPassword = *body.Properties.AdministratorLoginPassword
+		}
+		if body.Properties.Storage != nil && body.Properties.Storage.StorageSizeGB != nil {
+			opt.AllocatedStorageGB = int(*body.Properties.Storage.StorageSizeGB)
 		}
 	}
-	if body.SKU != nil {
-		opt.InstanceClass = body.SKU.Name
+	if body.Sku != nil {
+		opt.InstanceClass = body.Sku.Name
 	}
 	if _, err := srv.s.CreateInstance(r.Context(), name, opt); err != nil {
 		mapDomainError(w, err)
@@ -181,7 +88,7 @@ func (srv *Server) createServer(w http.ResponseWriter, r *http.Request, name str
 	writeJSON(w, http.StatusCreated, instanceToARM(inst))
 }
 
-func (srv *Server) getServer(w http.ResponseWriter, r *http.Request, name string) {
+func (srv *Server) ServersGet(w http.ResponseWriter, r *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, name string, _ gen.ServersGetParams) {
 	inst, err := srv.s.DescribeInstance(r.Context(), name)
 	if err != nil {
 		mapDomainError(w, err)
@@ -190,7 +97,7 @@ func (srv *Server) getServer(w http.ResponseWriter, r *http.Request, name string
 	writeJSON(w, http.StatusOK, instanceToARM(inst))
 }
 
-func (srv *Server) deleteServer(w http.ResponseWriter, r *http.Request, name string) {
+func (srv *Server) ServersDelete(w http.ResponseWriter, r *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, name string, _ gen.ServersDeleteParams) {
 	if err := srv.s.DeleteInstance(r.Context(), name); err != nil {
 		mapDomainError(w, err)
 		return
@@ -198,22 +105,22 @@ func (srv *Server) deleteServer(w http.ResponseWriter, r *http.Request, name str
 	w.WriteHeader(http.StatusAccepted)
 }
 
-func (srv *Server) patchServer(w http.ResponseWriter, r *http.Request, name string) {
-	var body serverBody
+func (srv *Server) ServersUpdate(w http.ResponseWriter, r *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, name string, _ gen.ServersUpdateParams) {
+	var body gen.ServerForPatch
 	if !decodeJSON(w, r, &body) {
 		return
 	}
 	opt := domain.ModifyInstanceOptions{}
 	if body.Properties != nil {
-		if body.Properties.AdministratorLoginPassword != "" {
-			opt.MasterPassword = body.Properties.AdministratorLoginPassword
+		if body.Properties.AdministratorLoginPassword != nil && *body.Properties.AdministratorLoginPassword != "" {
+			opt.MasterPassword = *body.Properties.AdministratorLoginPassword
 		}
-		if body.Properties.Storage != nil {
-			opt.AllocatedStorageGB = int(body.Properties.Storage.StorageSizeGB)
+		if body.Properties.Storage != nil && body.Properties.Storage.StorageSizeGB != nil {
+			opt.AllocatedStorageGB = int(*body.Properties.Storage.StorageSizeGB)
 		}
 	}
-	if body.SKU != nil {
-		opt.InstanceClass = body.SKU.Name
+	if body.Sku != nil && body.Sku.Name != nil {
+		opt.InstanceClass = *body.Sku.Name
 	}
 	if err := srv.s.ModifyInstance(r.Context(), name, opt); err != nil {
 		mapDomainError(w, err)
@@ -223,7 +130,20 @@ func (srv *Server) patchServer(w http.ResponseWriter, r *http.Request, name stri
 	writeJSON(w, http.StatusOK, instanceToARM(inst))
 }
 
-func (srv *Server) restart(w http.ResponseWriter, r *http.Request, name string) {
+func (srv *Server) ServersListByResourceGroup(w http.ResponseWriter, r *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ gen.ServersListByResourceGroupParams) {
+	res, err := srv.s.ListInstances(r.Context(), domain.ListInstancesOptions{})
+	if err != nil {
+		mapDomainError(w, err)
+		return
+	}
+	values := make([]gen.Server, 0, len(res.Instances))
+	for _, i := range res.Instances {
+		values = append(values, *instanceToARM(i))
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"value": values})
+}
+
+func (srv *Server) ServersRestart(w http.ResponseWriter, r *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, name string, _ gen.ServersRestartParams) {
 	if err := srv.s.RebootInstance(r.Context(), name); err != nil {
 		mapDomainError(w, err)
 		return
@@ -231,95 +151,335 @@ func (srv *Server) restart(w http.ResponseWriter, r *http.Request, name string) 
 	w.WriteHeader(http.StatusAccepted)
 }
 
-func (srv *Server) listServers(w http.ResponseWriter, r *http.Request) {
-	res, err := srv.s.ListInstances(r.Context(), domain.ListInstancesOptions{})
-	if err != nil {
+// =====================================================================
+// In-intersection handlers — backups
+// =====================================================================
+
+func (srv *Server) BackupsAutomaticAndOnDemandCreate(w http.ResponseWriter, r *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, instance string, backupName string, _ gen.BackupsAutomaticAndOnDemandCreateParams) {
+	if _, err := srv.s.CreateSnapshot(r.Context(), instance, backupName); err != nil {
 		mapDomainError(w, err)
 		return
 	}
-	out := listResponse{}
-	for _, i := range res.Instances {
-		out.Value = append(out.Value, instanceToARM(i))
-	}
-	writeJSON(w, http.StatusOK, &out)
-}
-
-// ----------------------------------------------------------------------
-// Backup handlers
-// ----------------------------------------------------------------------
-
-func (srv *Server) createBackup(w http.ResponseWriter, r *http.Request, instance, id string) {
-	if _, err := srv.s.CreateSnapshot(r.Context(), instance, id); err != nil {
-		mapDomainError(w, err)
-		return
-	}
-	writeJSON(w, http.StatusAccepted, &backupResource{
-		Name: id,
-		Type: "Microsoft.DBforPostgreSQL/flexibleServers/backups",
+	writeJSON(w, http.StatusAccepted, map[string]any{
+		"name": backupName,
+		"type": "Microsoft.DBforPostgreSQL/flexibleServers/backups",
 	})
 }
 
-func (srv *Server) getBackup(w http.ResponseWriter, r *http.Request, instance, id string) {
-	snap, err := srv.s.DescribeSnapshot(r.Context(), id)
+func (srv *Server) BackupsAutomaticAndOnDemandGet(w http.ResponseWriter, r *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, backupName string, _ gen.BackupsAutomaticAndOnDemandGetParams) {
+	snap, err := srv.s.DescribeSnapshot(r.Context(), backupName)
 	if err != nil {
 		mapDomainError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, &backupResource{
-		Name: snap.ID,
-		Type: "Microsoft.DBforPostgreSQL/flexibleServers/backups",
-		Properties: map[string]string{
+	writeJSON(w, http.StatusOK, map[string]any{
+		"name": snap.ID,
+		"type": "Microsoft.DBforPostgreSQL/flexibleServers/backups",
+		"properties": map[string]any{
 			"status": statusToARM(snap.Status),
 		},
 	})
 }
 
-func (srv *Server) deleteBackup(w http.ResponseWriter, r *http.Request, instance, id string) {
-	if err := srv.s.DeleteSnapshot(r.Context(), id); err != nil {
+func (srv *Server) BackupsAutomaticAndOnDemandDelete(w http.ResponseWriter, r *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, backupName string, _ gen.BackupsAutomaticAndOnDemandDeleteParams) {
+	if err := srv.s.DeleteSnapshot(r.Context(), backupName); err != nil {
 		mapDomainError(w, err)
 		return
 	}
 	w.WriteHeader(http.StatusAccepted)
 }
 
-func (srv *Server) listBackups(w http.ResponseWriter, r *http.Request, instance string) {
+func (srv *Server) BackupsAutomaticAndOnDemandListByServer(w http.ResponseWriter, r *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, instance string, _ gen.BackupsAutomaticAndOnDemandListByServerParams) {
 	res, err := srv.s.ListSnapshots(r.Context(), domain.ListSnapshotsOptions{Instance: instance})
 	if err != nil {
 		mapDomainError(w, err)
 		return
 	}
-	out := backupList{}
+	values := make([]map[string]any, 0, len(res.Snapshots))
 	for _, s := range res.Snapshots {
-		out.Value = append(out.Value, &backupResource{
-			Name: s.ID,
-			Type: "Microsoft.DBforPostgreSQL/flexibleServers/backups",
-			Properties: map[string]string{
+		values = append(values, map[string]any{
+			"name": s.ID,
+			"type": "Microsoft.DBforPostgreSQL/flexibleServers/backups",
+			"properties": map[string]any{
 				"status": statusToARM(s.Status),
 			},
 		})
 	}
-	writeJSON(w, http.StatusOK, &out)
+	writeJSON(w, http.StatusOK, map[string]any{"value": values})
 }
 
-// ----------------------------------------------------------------------
-// Helpers
-// ----------------------------------------------------------------------
+// =====================================================================
+// Out-of-intersection stubs — honest 501s for the remaining 56 spec ops
+// =====================================================================
 
-func instanceToARM(in domain.Instance) *serverResource {
-	res := &serverResource{
-		Name:     in.Name,
-		Type:     "Microsoft.DBforPostgreSQL/flexibleServers",
-		Location: "eastus",
-		SKU:      &skuBody{Name: in.InstanceClass},
-		Properties: &serverProperties{
-			Version: in.EngineVersion,
-			State:   statusToARM(in.Status),
-			Storage: &storageBody{StorageSizeGB: int32(in.AllocatedStorageGB)},
+func (srv *Server) PrivateDnsZoneSuffixGet(w http.ResponseWriter, r *http.Request, _ gen.PrivateDnsZoneSuffixGetParams) {
+	notImplemented(w, "PrivateDnsZoneSuffixGet")
+}
+
+func (srv *Server) OperationsList(w http.ResponseWriter, r *http.Request, _ gen.OperationsListParams) {
+	notImplemented(w, "OperationsList")
+}
+
+func (srv *Server) NameAvailabilityCheckGlobally(w http.ResponseWriter, r *http.Request, _ gen.SubscriptionIdParameter, _ gen.NameAvailabilityCheckGloballyParams) {
+	notImplemented(w, "NameAvailabilityCheckGlobally")
+}
+
+func (srv *Server) ServersListBySubscription(w http.ResponseWriter, r *http.Request, _ gen.SubscriptionIdParameter, _ gen.ServersListBySubscriptionParams) {
+	notImplemented(w, "ServersListBySubscription")
+}
+
+func (srv *Server) CapabilitiesByLocationList(w http.ResponseWriter, r *http.Request, _ gen.SubscriptionIdParameter, _ string, _ gen.CapabilitiesByLocationListParams) {
+	notImplemented(w, "CapabilitiesByLocationList")
+}
+
+func (srv *Server) NameAvailabilityCheckWithLocation(w http.ResponseWriter, r *http.Request, _ gen.SubscriptionIdParameter, _ string, _ gen.NameAvailabilityCheckWithLocationParams) {
+	notImplemented(w, "NameAvailabilityCheckWithLocation")
+}
+
+func (srv *Server) VirtualNetworkSubnetUsageList(w http.ResponseWriter, r *http.Request, _ gen.SubscriptionIdParameter, _ string, _ gen.VirtualNetworkSubnetUsageListParams) {
+	notImplemented(w, "VirtualNetworkSubnetUsageList")
+}
+
+func (srv *Server) QuotaUsagesList(w http.ResponseWriter, r *http.Request, _ gen.SubscriptionIdParameter, _ string, _ gen.QuotaUsagesListParams) {
+	notImplemented(w, "QuotaUsagesList")
+}
+
+func (srv *Server) AdministratorsMicrosoftEntraListByServer(w http.ResponseWriter, r *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ gen.AdministratorsMicrosoftEntraListByServerParams) {
+	notImplemented(w, "AdministratorsMicrosoftEntraListByServer")
+}
+
+func (srv *Server) AdministratorsMicrosoftEntraDelete(w http.ResponseWriter, r *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ string, _ gen.AdministratorsMicrosoftEntraDeleteParams) {
+	notImplemented(w, "AdministratorsMicrosoftEntraDelete")
+}
+
+func (srv *Server) AdministratorsMicrosoftEntraGet(w http.ResponseWriter, r *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ string, _ gen.AdministratorsMicrosoftEntraGetParams) {
+	notImplemented(w, "AdministratorsMicrosoftEntraGet")
+}
+
+func (srv *Server) AdministratorsMicrosoftEntraCreateOrUpdate(w http.ResponseWriter, r *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ string, _ gen.AdministratorsMicrosoftEntraCreateOrUpdateParams) {
+	notImplemented(w, "AdministratorsMicrosoftEntraCreateOrUpdate")
+}
+
+func (srv *Server) AdvancedThreatProtectionSettingsListByServer(w http.ResponseWriter, r *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ gen.AdvancedThreatProtectionSettingsListByServerParams) {
+	notImplemented(w, "AdvancedThreatProtectionSettingsListByServer")
+}
+
+func (srv *Server) AdvancedThreatProtectionSettingsGet(w http.ResponseWriter, r *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ gen.AdvancedThreatProtectionSettingsGetParamsThreatProtectionName, _ gen.AdvancedThreatProtectionSettingsGetParams) {
+	notImplemented(w, "AdvancedThreatProtectionSettingsGet")
+}
+
+func (srv *Server) ServerThreatProtectionSettingsCreateOrUpdate(w http.ResponseWriter, r *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ gen.ServerThreatProtectionSettingsCreateOrUpdateParamsThreatProtectionName, _ gen.ServerThreatProtectionSettingsCreateOrUpdateParams) {
+	notImplemented(w, "ServerThreatProtectionSettingsCreateOrUpdate")
+}
+
+func (srv *Server) CapabilitiesByServerList(w http.ResponseWriter, r *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ gen.CapabilitiesByServerListParams) {
+	notImplemented(w, "CapabilitiesByServerList")
+}
+
+func (srv *Server) MigrationsCheckNameAvailability(w http.ResponseWriter, r *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ gen.MigrationsCheckNameAvailabilityParams) {
+	notImplemented(w, "MigrationsCheckNameAvailability")
+}
+
+func (srv *Server) ConfigurationsListByServer(w http.ResponseWriter, r *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ gen.ConfigurationsListByServerParams) {
+	notImplemented(w, "ConfigurationsListByServer")
+}
+
+func (srv *Server) ConfigurationsGet(w http.ResponseWriter, r *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ string, _ gen.ConfigurationsGetParams) {
+	notImplemented(w, "ConfigurationsGet")
+}
+
+func (srv *Server) ConfigurationsUpdate(w http.ResponseWriter, r *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ string, _ gen.ConfigurationsUpdateParams) {
+	notImplemented(w, "ConfigurationsUpdate")
+}
+
+func (srv *Server) ConfigurationsPut(w http.ResponseWriter, r *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ string, _ gen.ConfigurationsPutParams) {
+	notImplemented(w, "ConfigurationsPut")
+}
+
+func (srv *Server) DatabasesListByServer(w http.ResponseWriter, r *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ gen.DatabasesListByServerParams) {
+	notImplemented(w, "DatabasesListByServer")
+}
+
+func (srv *Server) DatabasesDelete(w http.ResponseWriter, r *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ string, _ gen.DatabasesDeleteParams) {
+	notImplemented(w, "DatabasesDelete")
+}
+
+func (srv *Server) DatabasesGet(w http.ResponseWriter, r *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ string, _ gen.DatabasesGetParams) {
+	notImplemented(w, "DatabasesGet")
+}
+
+func (srv *Server) DatabasesCreate(w http.ResponseWriter, r *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ string, _ gen.DatabasesCreateParams) {
+	notImplemented(w, "DatabasesCreate")
+}
+
+func (srv *Server) FirewallRulesListByServer(w http.ResponseWriter, r *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ gen.FirewallRulesListByServerParams) {
+	notImplemented(w, "FirewallRulesListByServer")
+}
+
+func (srv *Server) FirewallRulesDelete(w http.ResponseWriter, r *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ string, _ gen.FirewallRulesDeleteParams) {
+	notImplemented(w, "FirewallRulesDelete")
+}
+
+func (srv *Server) FirewallRulesGet(w http.ResponseWriter, r *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ string, _ gen.FirewallRulesGetParams) {
+	notImplemented(w, "FirewallRulesGet")
+}
+
+func (srv *Server) FirewallRulesCreateOrUpdate(w http.ResponseWriter, r *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ string, _ gen.FirewallRulesCreateOrUpdateParams) {
+	notImplemented(w, "FirewallRulesCreateOrUpdate")
+}
+
+func (srv *Server) CapturedLogsListByServer(w http.ResponseWriter, r *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ gen.CapturedLogsListByServerParams) {
+	notImplemented(w, "CapturedLogsListByServer")
+}
+
+func (srv *Server) BackupsLongTermRetentionListByServer(w http.ResponseWriter, r *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ gen.BackupsLongTermRetentionListByServerParams) {
+	notImplemented(w, "BackupsLongTermRetentionListByServer")
+}
+
+func (srv *Server) BackupsLongTermRetentionGet(w http.ResponseWriter, r *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ string, _ gen.BackupsLongTermRetentionGetParams) {
+	notImplemented(w, "BackupsLongTermRetentionGet")
+}
+
+func (srv *Server) BackupsLongTermRetentionCheckPrerequisites(w http.ResponseWriter, r *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ gen.BackupsLongTermRetentionCheckPrerequisitesParams) {
+	notImplemented(w, "BackupsLongTermRetentionCheckPrerequisites")
+}
+
+func (srv *Server) MigrationsListByTargetServer(w http.ResponseWriter, r *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ gen.MigrationsListByTargetServerParams) {
+	notImplemented(w, "MigrationsListByTargetServer")
+}
+
+func (srv *Server) MigrationsCancel(w http.ResponseWriter, r *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ string, _ gen.MigrationsCancelParams) {
+	notImplemented(w, "MigrationsCancel")
+}
+
+func (srv *Server) MigrationsGet(w http.ResponseWriter, r *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ string, _ gen.MigrationsGetParams) {
+	notImplemented(w, "MigrationsGet")
+}
+
+func (srv *Server) MigrationsUpdate(w http.ResponseWriter, r *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ string, _ gen.MigrationsUpdateParams) {
+	notImplemented(w, "MigrationsUpdate")
+}
+
+func (srv *Server) MigrationsCreate(w http.ResponseWriter, r *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ string, _ gen.MigrationsCreateParams) {
+	notImplemented(w, "MigrationsCreate")
+}
+
+func (srv *Server) PrivateEndpointConnectionsListByServer(w http.ResponseWriter, r *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ gen.PrivateEndpointConnectionsListByServerParams) {
+	notImplemented(w, "PrivateEndpointConnectionsListByServer")
+}
+
+func (srv *Server) PrivateEndpointConnectionsDelete(w http.ResponseWriter, r *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ gen.PrivateEndpointConnectionName, _ gen.PrivateEndpointConnectionsDeleteParams) {
+	notImplemented(w, "PrivateEndpointConnectionsDelete")
+}
+
+func (srv *Server) PrivateEndpointConnectionsGet(w http.ResponseWriter, r *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ gen.PrivateEndpointConnectionName, _ gen.PrivateEndpointConnectionsGetParams) {
+	notImplemented(w, "PrivateEndpointConnectionsGet")
+}
+
+func (srv *Server) PrivateEndpointConnectionsUpdate(w http.ResponseWriter, r *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ gen.PrivateEndpointConnectionName, _ gen.PrivateEndpointConnectionsUpdateParams) {
+	notImplemented(w, "PrivateEndpointConnectionsUpdate")
+}
+
+func (srv *Server) PrivateLinkResourcesListByServer(w http.ResponseWriter, r *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ gen.PrivateLinkResourcesListByServerParams) {
+	notImplemented(w, "PrivateLinkResourcesListByServer")
+}
+
+func (srv *Server) PrivateLinkResourcesGet(w http.ResponseWriter, r *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ string, _ gen.PrivateLinkResourcesGetParams) {
+	notImplemented(w, "PrivateLinkResourcesGet")
+}
+
+func (srv *Server) ReplicasListByServer(w http.ResponseWriter, r *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ gen.ReplicasListByServerParams) {
+	notImplemented(w, "ReplicasListByServer")
+}
+
+func (srv *Server) ServersStart(w http.ResponseWriter, r *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ gen.ServersStartParams) {
+	notImplemented(w, "ServersStart")
+}
+
+func (srv *Server) BackupsLongTermRetentionStart(w http.ResponseWriter, r *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ gen.BackupsLongTermRetentionStartParams) {
+	notImplemented(w, "BackupsLongTermRetentionStart")
+}
+
+func (srv *Server) ServersStop(w http.ResponseWriter, r *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ gen.ServersStopParams) {
+	notImplemented(w, "ServersStop")
+}
+
+func (srv *Server) TuningOptionsListByServer(w http.ResponseWriter, r *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ gen.TuningOptionsListByServerParams) {
+	notImplemented(w, "TuningOptionsListByServer")
+}
+
+func (srv *Server) TuningOptionsGet(w http.ResponseWriter, r *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ gen.TuningOptionsGetParamsTuningOption, _ gen.TuningOptionsGetParams) {
+	notImplemented(w, "TuningOptionsGet")
+}
+
+func (srv *Server) TuningOptionsListRecommendations(w http.ResponseWriter, r *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ gen.TuningOptionsListRecommendationsParamsTuningOption, _ gen.TuningOptionsListRecommendationsParams) {
+	notImplemented(w, "TuningOptionsListRecommendations")
+}
+
+func (srv *Server) VirtualEndpointsListByServer(w http.ResponseWriter, r *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ gen.VirtualEndpointsListByServerParams) {
+	notImplemented(w, "VirtualEndpointsListByServer")
+}
+
+func (srv *Server) VirtualEndpointsDelete(w http.ResponseWriter, r *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ string, _ gen.VirtualEndpointsDeleteParams) {
+	notImplemented(w, "VirtualEndpointsDelete")
+}
+
+func (srv *Server) VirtualEndpointsGet(w http.ResponseWriter, r *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ string, _ gen.VirtualEndpointsGetParams) {
+	notImplemented(w, "VirtualEndpointsGet")
+}
+
+func (srv *Server) VirtualEndpointsUpdate(w http.ResponseWriter, r *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ string, _ gen.VirtualEndpointsUpdateParams) {
+	notImplemented(w, "VirtualEndpointsUpdate")
+}
+
+func (srv *Server) VirtualEndpointsCreate(w http.ResponseWriter, r *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ string, _ gen.VirtualEndpointsCreateParams) {
+	notImplemented(w, "VirtualEndpointsCreate")
+}
+
+// =====================================================================
+// Helpers
+// =====================================================================
+
+// instanceToARM maps a domain.Instance to gen.Server (PostgreSQL
+// FlexibleServer ARM resource). Pointers everywhere because the
+// OpenAPI spec marks every Properties field optional and oapi-codegen
+// emits each as `*T`.
+func instanceToARM(in domain.Instance) *gen.Server {
+	location := "eastus"
+	typ := "Microsoft.DBforPostgreSQL/flexibleServers"
+	resourceID := "/subscriptions/shim/resourceGroups/shim/providers/Microsoft.DBforPostgreSQL/flexibleServers/" + in.Name
+
+	res := &gen.Server{
+		Id:       &resourceID,
+		Name:     &in.Name,
+		Type:     &typ,
+		Location: location,
+		Sku: &gen.Sku{
+			Name: in.InstanceClass,
+			Tier: "GeneralPurpose",
 		},
 	}
+	// Build the properties via JSON round-trip to keep the
+	// anonymous-struct boilerplate out of the call site (same
+	// trick as azure_containerapps).
+	propsBlob := map[string]any{
+		"version": in.EngineVersion,
+		"state":   statusToARM(in.Status),
+		"storage": map[string]any{"storageSizeGB": in.AllocatedStorageGB},
+	}
+	if in.Connection.MasterUsername != "" {
+		propsBlob["administratorLogin"] = in.Connection.MasterUsername
+	}
 	if in.Status == domain.StatusAvailable && in.Connection.Host != "" {
-		res.Properties.FullyQualifiedDomainName = in.Connection.Host
-		res.Properties.AdministratorLogin = in.Connection.MasterUsername
+		propsBlob["fullyQualifiedDomainName"] = in.Connection.Host
+	}
+	envelope := map[string]any{"location": location, "properties": propsBlob}
+	raw, err := json.Marshal(envelope)
+	if err == nil {
+		var hydrated gen.Server
+		if json.Unmarshal(raw, &hydrated) == nil {
+			res.Properties = hydrated.Properties
+		}
 	}
 	return res
 }
@@ -340,29 +500,3 @@ func statusToARM(s domain.Status) string {
 		return "Unknown"
 	}
 }
-
-func decodeJSON(w http.ResponseWriter, r *http.Request, target interface{}) bool {
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		writeError(w, http.StatusBadRequest, "BadRequest", "read body: "+err.Error())
-		return false
-	}
-	if len(body) == 0 {
-		return true
-	}
-	if err := json.Unmarshal(body, target); err != nil {
-		writeError(w, http.StatusBadRequest, "BadRequest", "invalid JSON body: "+err.Error())
-		return false
-	}
-	return true
-}
-
-func writeJSON(w http.ResponseWriter, status int, body interface{}) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(body)
-}
-
-var _ = fmt.Sprintf
-var _ = strings.HasPrefix
-var _ = time.Time{}
