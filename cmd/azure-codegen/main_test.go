@@ -120,6 +120,81 @@ func TestFlattenARMAllOf_LeavesUntouchedWhenNoOwnProperties(t *testing.T) {
 	}
 }
 
+// TestFlattenXMSPaths_MovesEntriesToPaths verifies the basic move:
+// every key under `x-ms-paths` ends up under `paths` with its
+// original key preserved verbatim (the query-string component
+// stays in the path key).
+func TestFlattenXMSPaths_MovesEntriesToPaths(t *testing.T) {
+	input := `{
+		"paths": {},
+		"x-ms-paths": {
+			"/?comp=list": {"get": {"operationId": "List"}},
+			"/?restype=service&comp=properties": {"get": {"operationId": "GetServiceProperties"}}
+		}
+	}`
+	out, err := flattenXMSPaths([]byte(input))
+	if err != nil {
+		t.Fatalf("flattenXMSPaths: %v", err)
+	}
+	var doc map[string]any
+	if err := json.Unmarshal(out, &doc); err != nil {
+		t.Fatal(err)
+	}
+	if _, hasXMSPaths := doc["x-ms-paths"]; hasXMSPaths {
+		t.Error("x-ms-paths still present after flatten")
+	}
+	paths := doc["paths"].(map[string]any)
+	for _, k := range []string{"/?comp=list", "/?restype=service&comp=properties"} {
+		if _, ok := paths[k]; !ok {
+			t.Errorf("paths missing %q after flatten", k)
+		}
+	}
+}
+
+// TestFlattenXMSPaths_PathsWinOnConflict verifies that an existing
+// paths entry isn't clobbered by an x-ms-paths entry with the
+// same key.
+func TestFlattenXMSPaths_PathsWinOnConflict(t *testing.T) {
+	input := `{
+		"paths": {"/foo": {"get": {"operationId": "originalGet"}}},
+		"x-ms-paths": {"/foo": {"get": {"operationId": "xmsGet"}}}
+	}`
+	out, err := flattenXMSPaths([]byte(input))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc map[string]any
+	if err := json.Unmarshal(out, &doc); err != nil {
+		t.Fatal(err)
+	}
+	paths := doc["paths"].(map[string]any)
+	foo := paths["/foo"].(map[string]any)
+	get := foo["get"].(map[string]any)
+	if get["operationId"] != "originalGet" {
+		t.Errorf("paths entry was overwritten by x-ms-paths; operationId = %q, want %q",
+			get["operationId"], "originalGet")
+	}
+}
+
+// TestFlattenXMSPaths_NoOp verifies a spec without x-ms-paths
+// returns the input unchanged.
+func TestFlattenXMSPaths_NoOp(t *testing.T) {
+	input := `{"paths": {"/foo": {"get": {"operationId": "Foo"}}}}`
+	out, err := flattenXMSPaths([]byte(input))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Re-parse and re-marshal both to normalize JSON formatting.
+	var in, after map[string]any
+	_ = json.Unmarshal([]byte(input), &in)
+	_ = json.Unmarshal(out, &after)
+	inN, _ := json.Marshal(in)
+	afterN, _ := json.Marshal(after)
+	if string(inN) != string(afterN) {
+		t.Errorf("spec without x-ms-paths was modified:\n  in:  %s\n  out: %s", inN, afterN)
+	}
+}
+
 // TestFlattenARMAllOf_ChainedInheritance verifies the iterate-until-
 // fixpoint behavior: X → allOf [Y]; Y → allOf [Z] resolves the
 // full chain in one preprocessor pass.
