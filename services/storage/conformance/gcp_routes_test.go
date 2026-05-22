@@ -21,6 +21,54 @@ func TestGCPRoutes_Storage_BasePathSane(t *testing.T) {
 	}
 }
 
+// TestGCPRoutes_Storage_EveryRouteRoundTrips synthesizes a sample
+// request path by substituting placeholders into each Route's
+// URIPattern (using BasePath + the template), then asserts the
+// Pattern matches it and Match() returns at least one candidate.
+// Catches the regression class where templateToRegex emits a
+// pattern that doesn't match its own template — an edge case
+// for routes with unusual literal characters or var positions.
+func TestGCPRoutes_Storage_EveryRouteRoundTrips(t *testing.T) {
+	for _, r := range gcpgen.Routes {
+		path := gcpgen.BasePath + "/" + r.URIPattern
+		// Substitute {var} and {+var} with non-empty sample values.
+		path = expandTemplate(path)
+		if !r.Pattern.MatchString(path) {
+			t.Errorf("Route %q: Pattern %q does not match its own template-derived path %q",
+				r.ID, r.Pattern, path)
+			continue
+		}
+		_, _, ok := gcpgen.Match(r.HTTPMethod, path)
+		if !ok {
+			t.Errorf("Route %q: Match(%q, %q) returned !ok despite Pattern matching",
+				r.ID, r.HTTPMethod, path)
+		}
+	}
+}
+
+// expandTemplate substitutes URI-template variables with sample
+// values. `{var}` and `{+var}` both become `x` (single segment;
+// reserved-expansion sample doesn't need slashes for the test).
+func expandTemplate(t string) string {
+	out := []byte{}
+	for i := 0; i < len(t); {
+		if t[i] == '{' {
+			end := i + 1
+			for end < len(t) && t[end] != '}' {
+				end++
+			}
+			if end < len(t) {
+				out = append(out, 'x')
+				i = end + 1
+				continue
+			}
+		}
+		out = append(out, t[i])
+		i++
+	}
+	return string(out)
+}
+
 func TestGCPRoutes_Storage_InventoryWellFormed(t *testing.T) {
 	if len(gcpgen.Routes) == 0 {
 		t.Fatal("gen.gcp.Routes is empty; cmd/gcp-codegen emitted nothing")
