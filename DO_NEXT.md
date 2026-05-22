@@ -33,6 +33,8 @@ The reference impl is `internal/secrets/frontends/azure_keyvault/server.go` (Pha
 
 **13.A.5 — `azure_servicebus_topics` (pubsub)** — ✅ landed. Same hybrid pattern as 13.A.4. Wires topics + subscriptions admin URLs into gen.EntityPut/Get/Delete/ListEntities + gen.SubscriptionPut/Get/Delete/ListSubscriptions; data-plane Publish/Peek/Ack/Renew stay hand-written.
 
+**13.B.1 — `gcp_secretmanager`** — ✅ landed. Hand-written regex tables retired. ServeHTTP now dispatches by path-shape inspection (`:access` / `:enable` / `:disable` / `:destroy` / `:addVersion` suffixes; then `/versions/{n}`, `/versions`, `/secrets/{n}`, `/secrets` shapes). The `gen.gcp.Routes` inventory stays imported (`_` import) as the spec-drift contract — the existing TestGCPRoutes_Secrets_FrontendDispatchCoverage test in conformance asserts each shape resolves to a real gen op ID via MatchAll. Surfaced: `:destroy` was previously falling through to 404 (which hashicorp/google tolerates as "already deleted"); the migration makes it an explicit no-op success (matches `:disable`'s pattern).
+
 **Next sub-phase: 13.A.6 — `internal/storage/frontends/azure_blob`.**
 - 69 spec methods (Blob data-plane). Biggest hand-written frontend (620 LOC). Data-plane shape — `x-ms-paths` was flattened in Phase 12.A.15, so the gen file's HandleFunc registers paths with embedded `?comp=...` query strings.
 - Hazard: `net/http`'s ServeMux 1.22+ doesn't match query strings — patterns like `/?comp=list` will register against the literal path `/`. The standard `gen.HandlerWithOptions` won't dispatch query-discriminated routes correctly.
