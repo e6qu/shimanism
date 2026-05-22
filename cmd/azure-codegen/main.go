@@ -96,6 +96,27 @@ func main() {
 		raw = promoted
 	}
 
+	// Flatten `x-ms-paths` into `paths`. Azure's data-plane specs
+	// (Blob Storage, Queue Storage, Table Storage, …) use
+	// `x-ms-paths` to disambiguate same-URL operations by query
+	// parameter — e.g. `/?restype=service&comp=properties` vs
+	// `/?comp=list`. Plain OpenAPI v2 / v3 doesn't model that; the
+	// generated server has zero operations if we leave the entries
+	// under x-ms-paths. Move them to `paths` as-is so the path keys
+	// stay distinct (the query-string component is part of the
+	// path-key string from OpenAPI's perspective). Downstream
+	// dispatch must still match requests against the
+	// query-parameter-discriminated route — that's a runtime
+	// concern out of scope here; the generator now sees every
+	// operation declared by the spec.
+	if strings.Contains(string(raw), `"x-ms-paths"`) {
+		flat, err := flattenXMSPaths(raw)
+		if err != nil {
+			fail("flatten x-ms-paths: %v", err)
+		}
+		raw = flat
+	}
+
 	// Parse the v2 spec, convert to v3 in-memory. openapi2conv.ToV3 is
 	// the canonical path Azure SDK teams + the OpenAPI ecosystem use
 	// to bridge Swagger to v3 generators.
@@ -155,6 +176,37 @@ func main() {
 func fail(format string, args ...any) {
 	fmt.Fprintf(os.Stderr, "azure-codegen: "+format+"\n", args...)
 	os.Exit(1)
+}
+
+// flattenXMSPaths moves every entry from the spec's `x-ms-paths`
+// object into `paths`. The key is preserved verbatim so the
+// query-string component (`?restype=service&comp=properties`) stays
+// part of the path key — OpenAPI v2 treats path keys as opaque
+// strings for routing purposes, so distinct query strings produce
+// distinct path entries. On conflict (a key already in `paths`),
+// `paths` wins.
+func flattenXMSPaths(raw []byte) ([]byte, error) {
+	var doc map[string]interface{}
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		return nil, fmt.Errorf("parse spec JSON: %w", err)
+	}
+	xms, ok := doc["x-ms-paths"].(map[string]interface{})
+	if !ok {
+		return raw, nil
+	}
+	paths, _ := doc["paths"].(map[string]interface{})
+	if paths == nil {
+		paths = map[string]interface{}{}
+		doc["paths"] = paths
+	}
+	for k, v := range xms {
+		if _, exists := paths[k]; exists {
+			continue
+		}
+		paths[k] = v
+	}
+	delete(doc, "x-ms-paths")
+	return json.Marshal(doc)
 }
 
 // sortedKeys returns the map's keys in sorted order. Used during
