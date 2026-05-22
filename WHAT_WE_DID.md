@@ -10,18 +10,32 @@ Two tracks per [PLAN.md § Phase 12](PLAN.md#phase-12--cross-cloud-migration-cel
 
 ### Track 2.A — Broader Azure spec-driven migration
 
-The 11.4 pilot proved the `cmd/azure-codegen` toolchain end-to-end with a single handler (SetSecret) in `azure_keyvault`. Phase 12 continues:
+The 11.4 pilot proved `cmd/azure-codegen` end-to-end on a single handler (SetSecret) in `azure_keyvault`. Phase 12 takes it the rest of the way:
 
-- **12.A.1** completes `azure_keyvault`'s type-level migration: every handler now emits `gen.SecretBundle` / `gen.SecretAttributes` / `gen.SecretListResult` / `gen.DeletedSecretBundle` instead of the hand-rolled wire shapes. 78 LOC of local types retired.
+- **12.A.1** completes `azure_keyvault`'s type-level migration: every handler emits `gen.SecretBundle` / `gen.SecretAttributes` / `gen.SecretListResult` / `gen.DeletedSecretBundle` instead of hand-rolled wire shapes. 78 LOC of local types retired.
 - **12.A.2** retires the regex router. `Server` implements `gen.ServerInterface`; `gen.HandlerWithOptions` does dispatch. Spec operations outside the cross-cloud secrets intersection (Backup / Restore / UpdateSecret / GetDeletedSecret*) return a canonical "operation not supported" envelope.
-- **12.A.3** validates the pipeline scales to a second Azure data-plane spec: vendored Azure Service Bus 2021-05 + ran `cmd/azure-codegen` end-to-end. `make codegen` now generates two Azure-side `.gen.go` files cleanly.
+- **12.A.3** validates the pipeline scales to a second Azure data-plane spec: vendored Azure Service Bus 2021-05.
+- **12.A.7** unblocks ARM-shaped specs via a common-types inliner. Azure ARM specs `$ref` shared definitions in `common-types/resource-management/v<N>/<file>.json` by relative path. `kin-openapi`'s loader refuses external refs by default. The inliner merges every reachable common-types file's `definitions`/`parameters` into the main spec at the v2 layer (before ToV3) and rewrites the external refs to local pointers. First ARM proof point: Azure Cache for Redis (216 KB generated).
+- **12.A.8** vendors common-types v1–v6 and teaches the inliner three relative-ref forms (full path, same-version sibling, cross-version sibling). APIM minimal spec lands as second ARM proof. Azure-generated code moves to `services/<svc>/gen/azure/` package `azure` so it doesn't collide with AWS Smithy gen in the same `gen/` namespace.
+- **12.A.9** adds the multi-file sibling inliner: `./<file>.json` refs from the main spec resolve against the spec's own directory. ContainerApps + its `CommonDefinitions.json` sibling generate cleanly.
+- **12.A.10** pre-rewrites merged-content refs to local form before stuffing them into the doc, so the outer walk doesn't re-classify shorthand refs against the wrong context. Skips `./examples/<file>` x-ms-examples refs.
+
+Five Azure specs generate end-to-end via `make codegen`:
+  services/secrets/gen/azure/azure_keyvault.gen.go     (data-plane)
+  services/queue/gen/azure/azure_servicebus.gen.go     (data-plane)
+  services/cache/gen/azure/azure_redis.gen.go          (ARM)
+  services/apigateway/gen/azure/azure_apimanagement.gen.go (ARM, minimal)
+  services/functions/gen/azure/azure_containerapps.gen.go  (ARM, multi-file)
 
 ### Surprises along the way
 
-- **Two SDK idioms aren't in the upstream OpenAPI spec.** `GET /secrets/{name}/` (trailing slash, empty version) and `GET /secrets/{name}` (no slash) both mean "latest version" to the Azure SDK; the spec only emits the two-segment `GET /secrets/{secret-name}/{secret-version}` route. Handled by a pre-dispatch pass in `azure_keyvault`'s `ServeHTTP` that routes the no-version cases directly to `GetSecret` with an empty version (the handler resolves it to version 0).
+- **Two SDK idioms aren't in the upstream OpenAPI spec.** `GET /secrets/{name}/` (trailing slash, empty version) and `GET /secrets/{name}` (no slash) both mean "latest version" to the Azure SDK; the spec only emits the two-segment `GET /secrets/{secret-name}/{secret-version}` route. Handled by a pre-dispatch pass in `azure_keyvault`'s `ServeHTTP`.
 - **`gen.StdHTTPServerOptions.Middlewares` are per-route, not outer.** They wrap inside each `ServerInterfaceWrapper` method, applied after the mux dispatches. Trailing-slash normalisation has to happen BEFORE the mux sees the path — so it sits outside `HandlerWithOptions`.
-- **`kin-openapi`'s empty-`AllOf` shim shows up in more places than 11.4 documented.** The 11.4 normalizer walked component schemas + per-operation parameters. Service Bus's path-item-level parameters (`{minLength: 1}` strings on `entityName` / `topicName` / `subscriptionName` / `ruleName`) and response/request-body headers ALSO get empty `AllOf: []` after the v2→v3 conversion. `normalizeAllOf` extended to walk `pi.Parameters` + `resp.Headers` + `components.{Responses,Headers,RequestBodies}` so codegen succeeds on Service Bus.
-- **ARM specs reference `common-types/resource-management/v4/types.json` externally.** `kin-openapi`'s loader refuses external refs by default ("encountered disallowed external reference"). Azure Cache for Redis was the first ARM spec we tried; deferred pending a common-types vendoring strategy. Data-plane specs (Key Vault, Service Bus) are self-contained and work today.
+- **`kin-openapi`'s empty-`AllOf` shim shows up everywhere.** Component schemas (KV's `DeletionRecoveryLevel`), path-item parameters (SB's `{minLength: 1}` strings on `entityName` etc.), and response/request-body headers all get empty `AllOf: []` after v2→v3 conversion. `normalizeAllOf` walks all the spots so `oapi-codegen.MergeSchemas` doesn't panic on `allOf[0]`.
+- **Type-name collisions across AWS+Azure gen forced a subpackage split.** Container Apps' `Runtime` (a struct) and Lambda's `Runtime` (an enum) collide if both gens land in the same `gen/` package. Azure gen now lives at `services/<svc>/gen/azure/` with `package azure`.
+- **The inliner walks back into merged content.** First version of the inliner copied common-types definitions into `doc.definitions` verbatim. Then the outer doc walk re-entered them and tried to classify their original `./X.json` shorthand refs against the spec dir (the wrong context). Fix: rewrite refs to local form before merging.
+- **Azure x-ms-examples create false sibling refs.** Spec files carry `./examples/X.json` refs for ARM example payloads — `oapi-codegen` ignores them, but the inliner has no reason to follow them either. Classifier skips them.
+- **Per-spec deadlocks still parked.** Azure PostgreSQL ARM has a duplicate-typename collision (`HighAvailabilityMode` as both a standalone enum AND inline on `HighAvailability.properties.mode`) — needs spec preprocessing. Azure Blob Storage uses `x-ms-paths` which oapi-codegen doesn't understand — also needs preprocessing.
 
 ## Phase 11 — tighten the wire boundary (CLOSED — PR #18, `phase-11`)
 
