@@ -186,6 +186,13 @@ func classifyRef(ref, fromCommonTypesVersion, currentDir string) (target, ctVers
 	if strings.HasPrefix(ref, "#") {
 		return "", "", refLocal
 	}
+	// `./examples/<file>` and `./<other>/<file>` shapes are
+	// x-ms-examples metadata — oapi-codegen ignores them and the
+	// inliner has no reason to follow them. Skip anything under a
+	// subdirectory.
+	if strings.HasPrefix(ref, "./examples/") || strings.HasPrefix(ref, "examples/") {
+		return "", "", refLocal
+	}
 	if m := commonTypesPattern.FindStringSubmatch(ref); m != nil {
 		return m[2], m[1], refCommonTypes
 	}
@@ -288,17 +295,58 @@ func inlineExternalRefs(raw []byte, commonTypesRoot, specDir string) ([]byte, er
 		if err != nil {
 			return err
 		}
+		// Rewrite every external ref inside the loaded content to its
+		// local form BEFORE copying into the doc. Without this step
+		// the outer doc walk would re-enter the merged definitions
+		// and try to classify their `./<file>.json` shorthand against
+		// the spec directory (the wrong context), failing with a
+		// file-not-found error.
+		rewriteLocal := func(node interface{}) interface{} {
+			var walk func(interface{}) interface{}
+			walk = func(n interface{}) interface{} {
+				switch v := n.(type) {
+				case map[string]interface{}:
+					if r, ok := v["$ref"].(string); ok {
+						if hi := strings.Index(r, "#"); hi > 0 {
+							out := make(map[string]interface{}, len(v))
+							for k, sub := range v {
+								if k == "$ref" {
+									out[k] = "#" + r[hi+1:]
+								} else {
+									out[k] = walk(sub)
+								}
+							}
+							return out
+						}
+					}
+					out := make(map[string]interface{}, len(v))
+					for k, sub := range v {
+						out[k] = walk(sub)
+					}
+					return out
+				case []interface{}:
+					out := make([]interface{}, len(v))
+					for i, sub := range v {
+						out[i] = walk(sub)
+					}
+					return out
+				default:
+					return v
+				}
+			}
+			return walk(node)
+		}
 		if d, ok := content["definitions"].(map[string]interface{}); ok {
 			for name, def := range d {
 				if _, exists := defs[name]; !exists {
-					defs[name] = def
+					defs[name] = rewriteLocal(def)
 				}
 			}
 		}
 		if p, ok := content["parameters"].(map[string]interface{}); ok {
 			for name, val := range p {
 				if _, exists := params[name]; !exists {
-					params[name] = val
+					params[name] = rewriteLocal(val)
 				}
 			}
 		}
