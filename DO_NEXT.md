@@ -12,7 +12,7 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 
 ## Next concrete actions (in priority order)
 
-**Phase 12 substantively landed on PR #19.** Spec-driven toolchain for both clouds is fully built + validated:
+**Phase 12 is at exit on PR #19** — all three exit criteria met. Ready for user review + merge. Spec-driven toolchain for both clouds is fully built + validated:
 - **8/8 Azure specs codegen end-to-end** with the 8-stage preprocessor (common-types inliner / examples-skip / x-ms-enum with parameter+header gating / parameter+definition name dedup / ARM allOf flatten / x-ms-paths flatten / empty-AllOf normalize / deterministic walk).
 - 8/8 GCP services Discovery → route inventory with compiled `Pattern` + `Match()` + `MatchAll()` helpers.
 - Per-service spec-drift, gen-compile, dispatch-coverage smoke tests.
