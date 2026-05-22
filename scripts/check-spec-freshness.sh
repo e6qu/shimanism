@@ -41,6 +41,7 @@ for sources_md in services/*/spec/SOURCES.md; do
       continue
     fi
     # Extract backticked values: positions 1, 2, 3, 5 of the row.
+    # shellcheck disable=SC2016 # backticks are literal table-cell delimiters in this regex, not command substitution.
     backticked=$(grep -oE '`[^`]+`' <<<"$line" || true)
     local_file=$(sed -n '1p' <<<"$backticked" | tr -d '`')
     upstream_repo=$(sed -n '2p' <<<"$backticked" | tr -d '`')
