@@ -20,12 +20,14 @@ The 11.4 pilot proved `cmd/azure-codegen` end-to-end on a single handler (SetSec
 - **12.A.9** adds the multi-file sibling inliner: `./<file>.json` refs from the main spec resolve against the spec's own directory. ContainerApps + its `CommonDefinitions.json` sibling generate cleanly.
 - **12.A.10** pre-rewrites merged-content refs to local form before stuffing them into the doc, so the outer walk doesn't re-classify shorthand refs against the wrong context. Skips `./examples/<file>` x-ms-examples refs.
 
-Five Azure specs generate end-to-end via `make codegen`:
-  services/secrets/gen/azure/azure_keyvault.gen.go     (data-plane)
-  services/queue/gen/azure/azure_servicebus.gen.go     (data-plane)
-  services/cache/gen/azure/azure_redis.gen.go          (ARM)
+Seven Azure specs generate end-to-end via `make codegen` (7 of 8 service slots; Blob alone parked):
+  services/secrets/gen/azure/azure_keyvault.gen.go         (data-plane)
+  services/queue/gen/azure/azure_servicebus.gen.go         (data-plane)
+  services/pubsub/gen/azure/azure_servicebus.gen.go        (data-plane, shared spec)
+  services/cache/gen/azure/azure_redis.gen.go              (ARM)
   services/apigateway/gen/azure/azure_apimanagement.gen.go (ARM, minimal)
   services/functions/gen/azure/azure_containerapps.gen.go  (ARM, multi-file)
+  services/rdbms/gen/azure/azure_postgresql.gen.go         (ARM, x-ms-enum collisions)
 
 ### Surprises along the way
 
@@ -35,7 +37,9 @@ Five Azure specs generate end-to-end via `make codegen`:
 - **Type-name collisions across AWS+Azure gen forced a subpackage split.** Container Apps' `Runtime` (a struct) and Lambda's `Runtime` (an enum) collide if both gens land in the same `gen/` package. Azure gen now lives at `services/<svc>/gen/azure/` with `package azure`.
 - **The inliner walks back into merged content.** First version of the inliner copied common-types definitions into `doc.definitions` verbatim. Then the outer doc walk re-entered them and tried to classify their original `./X.json` shorthand refs against the spec dir (the wrong context). Fix: rewrite refs to local form before merging.
 - **Azure x-ms-examples create false sibling refs.** Spec files carry `./examples/X.json` refs for ARM example payloads — `oapi-codegen` ignores them, but the inliner has no reason to follow them either. Classifier skips them.
-- **Per-spec deadlocks still parked.** Azure PostgreSQL ARM has a duplicate-typename collision (`HighAvailabilityMode` as both a standalone enum AND inline on `HighAvailability.properties.mode`) — needs spec preprocessing. Azure Blob Storage uses `x-ms-paths` which oapi-codegen doesn't understand — also needs preprocessing.
+- **Inline-enum collisions need `x-ms-enum` honored.** Azure spec authors use `x-ms-enum.name` to say "this inline enum IS the top-level enum of the same name." oapi-codegen ignores the extension; the inline schema gets a Go name derived from the property path (`HighAvailabilityMode` for `HighAvailability.properties.mode`) which collides with the standalone `definitions/HighAvailabilityMode`. The `promoteXMsEnumName` preprocessor walks the spec, finds inline schemas whose `x-ms-enum.name` matches a top-level definition's `x-ms-enum.name`, and rewrites the inline to a `$ref` to the top-level. (Promoting `x-ms-enum.name` to `x-go-name` on the ref-target schema doesn't work — oapi-codegen interprets `x-go-name` on a property's referenced schema as the FIELD name, collapsing distinct properties onto a single name. The right call site for `x-go-name` overrides is each ref, not the ref target — out of scope for this preprocessor.)
+- **Codegen non-determinism from map iteration.** `for k, sub := range v` over maps iterates in non-deterministic order; when a spec references multiple common-types versions (Container Apps refs both v3 and v5 of types.json) the file processed first wins on shared definition names, and runs can differ. `sortedKeys()` everywhere fixed it; codegen output is now byte-identical across runs.
+- **Azure Blob Storage is the last holdout.** Its spec uses `x-ms-paths` (Azure-only extension that disambiguates same-URL operations by query parameter — e.g. `/?restype=service&comp=properties` vs `/?comp=list`). oapi-codegen + std-net-http ServeMux dispatch only on `(method, path-pattern)`, no query awareness. Needs either a custom dispatcher or spec preprocessing that flattens to synthetic path keys + a request-rewriting middleware. The hand-written azure_blob frontend works today; deferring is honest.
 
 ## Phase 11 — tighten the wire boundary (CLOSED — PR #18, `phase-11`)
 
