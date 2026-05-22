@@ -4,9 +4,9 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 
 > Reverse chronological. One section per phase. The *why*, the surprises, the root causes — not per-PR detail. For commit-level history, `git log`. For per-bug detail, [BUGS.md](BUGS.md).
 
-## Phase 12 — Cross-cloud cell expansion + Phase 11 follow-ons (in-flight on `phase-12`, PR #19)
+## Phase 12 — Cross-cloud cell expansion + Phase 11 follow-ons (at exit on `phase-12`, PR #19)
 
-Two tracks per [PLAN.md § Phase 12](PLAN.md#phase-12--cross-cloud-migration-cell-expansion--phase-11-follow-ons). Track 2 (Phase 11 follow-ons) is where the work has gone so far; Track 1 (cross-cloud cells) is partially already proven by Phase 10's cross-cloud Apply tests and gets revisited later in the phase.
+All three exit criteria met. The PR lands the spec-driven toolchain across all 8 services × 3 lanes (AWS Smithy / Azure OpenAPI / GCP Discovery), the `_provenance` audit trail in every vendored spec, the spec-freshness lane, and per-service Terraform walkthroughs in MIGRATION.md. Adapter migration of the remaining 7 Azure + 8 GCP frontends moves to Phase 13.
 
 ### Track 2.A — Broader Azure spec-driven migration
 
