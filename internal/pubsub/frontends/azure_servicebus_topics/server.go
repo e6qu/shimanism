@@ -1,27 +1,35 @@
 // Package azure_servicebus_topics is the Azure Service Bus topics
 // REST data-plane frontend for shimanism's pubsub service.
 //
-// **AMQP open question.** Same posture as Phase 3 — the Azure SDK
+// **AMQP open question.** The Azure SDK
 // (azure-sdk-for-go/sdk/messaging/azservicebus) drives Service Bus
 // over AMQP, not REST. This phase ships REST only; AMQP tier is
-// deferred. SDK conformance against AMQP is documented as
-// deferred; raw-HTTP exercise is the contract for the Azure
-// frontend.
+// deferred. SDK conformance against AMQP is documented as deferred;
+// raw-HTTP exercise is the contract for the Azure frontend.
 //
-// Routes covered (REST data plane):
+// Dispatch: hand-written regex routes admin URLs into the
+// gen.ServerInterface methods directly. The upstream Service Bus
+// admin spec has path-pattern conflicts (`/{entityName}` vs
+// `/{topicName}/subscriptions`) that Go 1.22's ServeMux refuses,
+// so `gen.HandlerWithOptions` would panic at construction. Manual
+// dispatch sidesteps the panic while preserving the spec wire
+// types + the `Server implements gen.ServerInterface` adapter
+// contract.
 //
-//	PUT    /{topic}                                          — CreateTopic
-//	DELETE /{topic}                                          — DeleteTopic
-//	GET    /{topic}                                          — HeadTopic
-//	PUT    /{topic}/Subscriptions/{sub}                      — CreateSubscription
-//	DELETE /{topic}/Subscriptions/{sub}                      — DeleteSubscription
-//	GET    /{topic}/Subscriptions/{sub}                      — HeadSubscription
-//	POST   /{topic}/messages                                 — Publish
-//	POST   /{topic}/Subscriptions/{sub}/messages/head        — Peek-and-lock receive
-//	DELETE /{topic}/Subscriptions/{sub}/messages/{id}/{lock} — Ack
-//	POST   /{topic}/Subscriptions/{sub}/messages/{id}/{lock} — Renew lock
-//	GET    /$Resources/Topics                                — ListTopics
-//	GET    /{topic}/Subscriptions                            — ListSubscriptions
+// Routes covered (REST data plane, hand-written, not in admin spec):
+//
+//	PUT    /{topic}                                          — CreateTopic (admin)
+//	DELETE /{topic}                                          — DeleteTopic (admin)
+//	GET    /{topic}                                          — HeadTopic (admin)
+//	PUT    /{topic}/Subscriptions/{sub}                      — CreateSubscription (admin)
+//	DELETE /{topic}/Subscriptions/{sub}                      — DeleteSubscription (admin)
+//	GET    /{topic}/Subscriptions/{sub}                      — HeadSubscription (admin)
+//	POST   /{topic}/messages                                 — Publish (data plane)
+//	POST   /{topic}/Subscriptions/{sub}/messages/head        — Peek-and-lock receive (data plane)
+//	DELETE /{topic}/Subscriptions/{sub}/messages/{id}/{lock} — Ack (data plane)
+//	POST   /{topic}/Subscriptions/{sub}/messages/{id}/{lock} — Renew lock (data plane)
+//	GET    /$Resources/Topics                                — ListTopics (admin; ListEntities entityType=Topics)
+//	GET    /{topic}/Subscriptions                            — ListSubscriptions (admin)
 package azure_servicebus_topics
 
 import (
@@ -30,14 +38,22 @@ import (
 	"net/http"
 	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/e6qu/shimanism/internal/pubsub/domain"
+	gen "github.com/e6qu/shimanism/services/pubsub/gen/azure"
 )
 
+// Server is the Azure-Service-Bus-topics-shaped HTTP frontend. It
+// implements gen.ServerInterface (the wire types + spec-drift
+// contract); ServeHTTP dispatches hand-written because the gen mux
+// can't register the upstream Service Bus admin spec's overlapping
+// patterns on Go 1.22+ ServeMux.
 type Server struct {
 	s domain.Pubsub
 }
 
+// New returns a frontend bound to the given backend.
 func New(s domain.Pubsub) *Server { return &Server{s: s} }
 
 var (
@@ -50,6 +66,8 @@ var (
 	reListTopics     = regexp.MustCompile(`^/\$Resources/Topics/?$`)
 )
 
+// ServeHTTP dispatches: data-plane messaging URLs to hand-written
+// handlers, admin URLs into the gen.ServerInterface methods.
 func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path
 	method := r.Method
@@ -72,18 +90,18 @@ func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if m := reSubscription.FindStringSubmatch(path); m != nil {
 		switch method {
 		case http.MethodPut:
-			srv.createSubscription(w, r, m[1], m[2])
+			srv.SubscriptionPut(w, r, m[1], m[2], gen.SubscriptionPutParams{})
 		case http.MethodDelete:
-			srv.deleteSubscription(w, r, m[2])
+			srv.SubscriptionDelete(w, r, m[1], m[2], gen.SubscriptionDeleteParams{})
 		case http.MethodGet:
-			srv.getSubscription(w, r, m[1], m[2])
+			srv.SubscriptionGet(w, r, m[1], m[2], gen.SubscriptionGetParams{})
 		default:
 			writeError(w, http.StatusMethodNotAllowed, "MethodNotAllowed", method+" not allowed on subscription")
 		}
 		return
 	}
 	if m := reSubsList.FindStringSubmatch(path); m != nil && method == http.MethodGet {
-		srv.listSubscriptions(w, r, m[1])
+		srv.ListSubscriptions(w, r, m[1], gen.ListSubscriptionsParams{})
 		return
 	}
 	if m := reMessages.FindStringSubmatch(path); m != nil && method == http.MethodPost {
@@ -91,17 +109,17 @@ func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if reListTopics.MatchString(path) && method == http.MethodGet {
-		srv.listTopics(w, r)
+		srv.ListEntities(w, r, "Topics", gen.ListEntitiesParams{})
 		return
 	}
 	if m := reTopic.FindStringSubmatch(path); m != nil {
 		switch method {
 		case http.MethodPut:
-			srv.createTopic(w, r, m[1])
+			srv.EntityPut(w, r, m[1], gen.EntityPutParams{})
 		case http.MethodDelete:
-			srv.deleteTopic(w, r, m[1])
+			srv.EntityDelete(w, r, m[1], gen.EntityDeleteParams{})
 		case http.MethodGet:
-			srv.getTopic(w, r, m[1])
+			srv.EntityGet(w, r, m[1], gen.EntityGetParams{})
 		default:
 			writeError(w, http.StatusMethodNotAllowed, "MethodNotAllowed", method+" not allowed on topic")
 		}
@@ -112,56 +130,65 @@ func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		"no Azure Service Bus route matches "+method+" "+path)
 }
 
-// ----------------------------------------------------------------------
-// Topic handlers
-// ----------------------------------------------------------------------
+// notImplemented writes the Azure "operation not supported" envelope
+// for spec ops outside the cross-cloud pubsub intersection.
+func notImplemented(w http.ResponseWriter, op string) {
+	writeError(w, http.StatusNotImplemented, "OperationNotSupported",
+		op+" is not in the cross-cloud pubsub intersection")
+}
 
-func (srv *Server) createTopic(w http.ResponseWriter, r *http.Request, name string) {
-	if _, err := srv.s.CreateTopic(r.Context(), name, domain.CreateTopicOptions{}); err != nil {
+// =====================================================================
+// Topic admin (gen.ServerInterface — EntityPut/Get/Delete + ListEntities)
+// =====================================================================
+
+func (srv *Server) EntityPut(w http.ResponseWriter, r *http.Request, entityName string, _ gen.EntityPutParams) {
+	if _, err := srv.s.CreateTopic(r.Context(), entityName, domain.CreateTopicOptions{}); err != nil {
 		mapDomainError(w, err)
 		return
 	}
 	w.WriteHeader(http.StatusCreated)
 }
 
-func (srv *Server) deleteTopic(w http.ResponseWriter, r *http.Request, name string) {
-	if err := srv.s.DeleteTopic(r.Context(), name); err != nil {
+func (srv *Server) EntityDelete(w http.ResponseWriter, r *http.Request, entityName string, _ gen.EntityDeleteParams) {
+	if err := srv.s.DeleteTopic(r.Context(), entityName); err != nil {
 		mapDomainError(w, err)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (srv *Server) getTopic(w http.ResponseWriter, r *http.Request, name string) {
-	t, err := srv.s.HeadTopic(r.Context(), name)
+func (srv *Server) EntityGet(w http.ResponseWriter, r *http.Request, entityName string, _ gen.EntityGetParams) {
+	t, err := srv.s.HeadTopic(r.Context(), entityName)
 	if err != nil {
 		mapDomainError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]interface{}{"name": t.Name})
+	writeJSON(w, http.StatusOK, map[string]any{"name": t.Name})
 }
 
-func (srv *Server) listTopics(w http.ResponseWriter, r *http.Request) {
+func (srv *Server) ListEntities(w http.ResponseWriter, r *http.Request, entityType string, _ gen.ListEntitiesParams) {
+	if !strings.EqualFold(entityType, "Topics") {
+		notImplemented(w, "ListEntities entityType="+entityType)
+		return
+	}
 	res, err := srv.s.ListTopics(r.Context(), domain.ListTopicsOptions{})
 	if err != nil {
 		mapDomainError(w, err)
 		return
 	}
-	out := struct {
-		Topics []string `json:"topics"`
-	}{}
+	topics := make([]string, 0, len(res.Topics))
 	for _, t := range res.Topics {
-		out.Topics = append(out.Topics, t.Name)
+		topics = append(topics, t.Name)
 	}
-	writeJSON(w, http.StatusOK, out)
+	writeJSON(w, http.StatusOK, map[string]any{"topics": topics})
 }
 
-// ----------------------------------------------------------------------
-// Subscription handlers
-// ----------------------------------------------------------------------
+// =====================================================================
+// Subscription admin (gen.ServerInterface)
+// =====================================================================
 
-func (srv *Server) createSubscription(w http.ResponseWriter, r *http.Request, topic, sub string) {
-	if _, err := srv.s.CreateSubscription(r.Context(), topic, sub, domain.CreateSubscriptionOptions{
+func (srv *Server) SubscriptionPut(w http.ResponseWriter, r *http.Request, topicName, subscriptionName string, _ gen.SubscriptionPutParams) {
+	if _, err := srv.s.CreateSubscription(r.Context(), topicName, subscriptionName, domain.CreateSubscriptionOptions{
 		Durable: true,
 	}); err != nil {
 		mapDomainError(w, err)
@@ -170,45 +197,68 @@ func (srv *Server) createSubscription(w http.ResponseWriter, r *http.Request, to
 	w.WriteHeader(http.StatusCreated)
 }
 
-func (srv *Server) deleteSubscription(w http.ResponseWriter, r *http.Request, sub string) {
-	if err := srv.s.DeleteSubscription(r.Context(), sub); err != nil {
+func (srv *Server) SubscriptionDelete(w http.ResponseWriter, r *http.Request, _ string, subscriptionName string, _ gen.SubscriptionDeleteParams) {
+	if err := srv.s.DeleteSubscription(r.Context(), subscriptionName); err != nil {
 		mapDomainError(w, err)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (srv *Server) getSubscription(w http.ResponseWriter, r *http.Request, topic, sub string) {
-	s, err := srv.s.HeadSubscription(r.Context(), sub)
+func (srv *Server) SubscriptionGet(w http.ResponseWriter, r *http.Request, _ string, subscriptionName string, _ gen.SubscriptionGetParams) {
+	s, err := srv.s.HeadSubscription(r.Context(), subscriptionName)
 	if err != nil {
 		mapDomainError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]interface{}{
+	writeJSON(w, http.StatusOK, map[string]any{
 		"name":               s.Name,
 		"topic":              s.Topic,
 		"ackDeadlineSeconds": s.AckDeadlineSeconds,
 	})
 }
 
-func (srv *Server) listSubscriptions(w http.ResponseWriter, r *http.Request, topic string) {
-	res, err := srv.s.ListSubscriptions(r.Context(), domain.ListSubscriptionsOptions{Topic: topic})
+func (srv *Server) ListSubscriptions(w http.ResponseWriter, r *http.Request, topicName string, _ gen.ListSubscriptionsParams) {
+	res, err := srv.s.ListSubscriptions(r.Context(), domain.ListSubscriptionsOptions{Topic: topicName})
 	if err != nil {
 		mapDomainError(w, err)
 		return
 	}
-	out := struct {
-		Subscriptions []string `json:"subscriptions"`
-	}{}
+	subs := make([]string, 0, len(res.Subscriptions))
 	for _, s := range res.Subscriptions {
-		out.Subscriptions = append(out.Subscriptions, s.Name)
+		subs = append(subs, s.Name)
 	}
-	writeJSON(w, http.StatusOK, out)
+	writeJSON(w, http.StatusOK, map[string]any{"subscriptions": subs})
 }
 
-// ----------------------------------------------------------------------
-// Publish / Receive / Ack / Renew
-// ----------------------------------------------------------------------
+// =====================================================================
+// Out-of-intersection stubs (namespace, rules) — same gen
+// interface as queue, but rules aren't wired here.
+// =====================================================================
+
+func (srv *Server) NamespaceGet(w http.ResponseWriter, _ *http.Request, _ gen.NamespaceGetParams) {
+	notImplemented(w, "NamespaceGet")
+}
+
+func (srv *Server) ListRules(w http.ResponseWriter, _ *http.Request, _, _ string, _ gen.ListRulesParams) {
+	notImplemented(w, "ListRules")
+}
+
+func (srv *Server) RuleDelete(w http.ResponseWriter, _ *http.Request, _, _, _ string, _ gen.RuleDeleteParams) {
+	notImplemented(w, "RuleDelete")
+}
+
+func (srv *Server) RuleGet(w http.ResponseWriter, _ *http.Request, _, _, _ string, _ gen.RuleGetParams) {
+	notImplemented(w, "RuleGet")
+}
+
+func (srv *Server) RulePut(w http.ResponseWriter, _ *http.Request, _, _, _ string, _ gen.RulePutParams) {
+	notImplemented(w, "RulePut")
+}
+
+// =====================================================================
+// Hand-written messaging-data-plane handlers (not in admin spec)
+// =====================================================================
 
 func (srv *Server) publish(w http.ResponseWriter, r *http.Request, topic string) {
 	body, err := io.ReadAll(r.Body)
@@ -240,7 +290,7 @@ func (srv *Server) peekLock(w http.ResponseWriter, r *http.Request, topic, sub s
 		return
 	}
 	m := msgs[0]
-	bp := map[string]interface{}{
+	bp := map[string]any{
 		"MessageId": m.MessageID,
 		"LockToken": m.ReceiptHandle,
 	}
@@ -268,9 +318,6 @@ func (srv *Server) ack(w http.ResponseWriter, r *http.Request, topic, sub, messa
 func (srv *Server) renewLock(w http.ResponseWriter, r *http.Request, topic, sub, messageID, lockToken string) {
 	_ = messageID
 	_ = topic
-	// Look up the subscription's ack deadline so we extend by the
-	// natural lock duration rather than 0 (which inmem treats as
-	// "release now").
 	s, err := srv.s.HeadSubscription(r.Context(), sub)
 	if err != nil {
 		mapDomainError(w, err)

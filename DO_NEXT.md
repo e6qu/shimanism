@@ -27,20 +27,19 @@ The reference impl is `internal/secrets/frontends/azure_keyvault/server.go` (Pha
 
 **13.A.2 — `azure_containerapps`** — ✅ landed. 5 intersection ops + 6 stubs.
 
-**13.A.3 — `azure_dbadmin`** — ✅ landed. PostgreSQL FlexibleServer ARM frontend; largest ARM gen interface in the project (66 methods). 10 intersection ops (6 server CRUD + 4 backup CRUD), 56 stubs. Properties populated via JSON round-trip from `map[string]any` (anonymous-struct trick).
+**13.A.3 — `azure_dbadmin`** — ✅ landed. 10 intersection ops + 56 stubs (largest ARM gen).
 
-**Next sub-phase: 13.A.4 — `internal/storage/frontends/azure_blob`.**
-- 69 spec methods (Blob data-plane). Biggest hand-written frontend (620 LOC). Data-plane shape — `x-ms-paths` was flattened in Phase 12.A.15, so the gen mux dispatches based on `(method, path)` where the path may carry a query-string discriminator (e.g. `/?comp=list`).
-- Hazard: the gen file's HandleFunc calls use `BaseURL + "/?<query>"` patterns. Need to verify `net/http`'s ServeMux 1.22+ pattern actually matches query-discriminated paths — it may not. If it doesn't, fall back to a custom dispatcher.
+**13.A.4 — `azure_servicebus` (queue)** — ✅ landed. Hybrid dispatch: hand-written regex for messaging data plane (`/messages/...`), hand-written regex into `gen.ServerInterface` methods for admin (Entity*, ListEntities). The gen mux can't be used: Go 1.22's ServeMux refuses the upstream spec's overlapping patterns (`/{entityName}` vs `/{topicName}/subscriptions` both match `GET /x/subscriptions`).
 
-**Next sub-phases (parking the Service Bus pair):**
+**13.A.5 — `azure_servicebus_topics` (pubsub)** — ✅ landed. Same hybrid pattern as 13.A.4. Wires topics + subscriptions admin URLs into gen.EntityPut/Get/Delete/ListEntities + gen.SubscriptionPut/Get/Delete/ListSubscriptions; data-plane Publish/Peek/Ack/Renew stay hand-written.
 
-**13.A.5 — `internal/queue/frontends/azure_servicebus` OR `internal/pubsub/frontends/azure_servicebus_topics`.**
-- **Hazard:** the gen spec uses lowercase `subscriptions` in paths; the existing hand-written frontend + conformance tests use capital `Subscriptions` (historical Azure REST admin URL form). Migration needs a pre-dispatch URL-case normalizer OR a hybrid (gen mux for entity URLs, hand-written regex for the data-plane `/messages/...` URLs which aren't in the admin spec at all).
-- Service Bus is the spec shared between queue + pubsub — fix once, ship twice.
+**Next sub-phase: 13.A.6 — `internal/storage/frontends/azure_blob`.**
+- 69 spec methods (Blob data-plane). Biggest hand-written frontend (620 LOC). Data-plane shape — `x-ms-paths` was flattened in Phase 12.A.15, so the gen file's HandleFunc registers paths with embedded `?comp=...` query strings.
+- Hazard: `net/http`'s ServeMux 1.22+ doesn't match query strings — patterns like `/?comp=list` will register against the literal path `/`. The standard `gen.HandlerWithOptions` won't dispatch query-discriminated routes correctly.
+- Recommended approach: same hybrid as 13.A.4/5 — hand-written dispatch into the gen.ServerInterface methods, with query-param-based switching for `comp=...` / `restype=...` discriminators.
 
-**13.A.6 — `internal/apigateway/frontends/azure_apim`.**
-- The vendored APIM spec is intentionally minimal (0 spec operations). The gen.ServerInterface is empty. Adapter migration here is "types-only" — there's no `gen.HandlerWithOptions` mux to swap in; the work is wiring the gen wire types into request decoding + response encoding for the existing handlers. May be worth deferring as out-of-scope-for-Phase-13 since there's no spec contract to migrate to.
+**13.A.7 — `internal/apigateway/frontends/azure_apim`.**
+- The vendored APIM spec is intentionally minimal (0 spec operations). The gen.ServerInterface is empty. Adapter migration here is "types-only" — there's no spec contract to dispatch through. May be worth deferring as out-of-scope-for-Phase-13.
 
 ### Phase 13.B — GCP adapter migration
 
