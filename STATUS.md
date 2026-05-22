@@ -9,7 +9,7 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 | | |
 |---|---|
 | Active branch | `phase-13` (created from `main` 2026-05-22 after PR #19 merged). |
-| In-flight | **Phase 13 — Full adapter migration + production auth + real-cloud Track A.** First sub-phase 13.A.1 (`azure_redis`) landed; the rest of 13.A (6 frontends), 13.B (8 GCP frontends), 13.C (RS256 JWKS), 13.D (Track A) pending. Sub-phase table in [PLAN.md § Phase 13](PLAN.md#phase-13--full-adapter-migration--production-auth--real-cloud-track-a). |
+| In-flight | **Phase 13 — Full adapter migration + production auth + real-cloud Track A.** 5 of 7 Azure adapter migrations landed on PR #20: `azure_redis` (13.A.1), `azure_containerapps` (13.A.2), `azure_dbadmin` (13.A.3), `azure_servicebus` queue (13.A.4), `azure_servicebus_topics` pubsub (13.A.5). 13.A.4/5 use a hand-written-dispatch hybrid because Go 1.22's ServeMux refuses the upstream Service Bus admin spec's overlapping patterns. Remaining: 13.A.6 (azure_blob — 69-method data-plane spec with query-discriminated URLs), 13.A.7 (azure_apim — empty spec, deferable), 13.B (8 GCP frontends), 13.C (RS256 JWKS), 13.D (Track A). Sub-phase table in [PLAN.md § Phase 13](PLAN.md#phase-13--full-adapter-migration--production-auth--real-cloud-track-a). |
 | Last merged | PR #19 — Phase 12 at `778e8e9` on `main`, 2026-05-22. |
 | Phases 1–12 | All closed. PR index in [PLAN.md § Closed phases](PLAN.md#closed-phases-pr-index). |
 | Bugs | 20 filed · 18 fixed · 2 open · 1 false positive. Both open bugs (BUG-8, BUG-15) absorbed into Phase 13.D (real-cloud Track A). |
