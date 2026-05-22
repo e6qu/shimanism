@@ -23,12 +23,22 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 
 The reference impl is `internal/secrets/frontends/azure_keyvault/server.go` (Phase 12.A.1/2). Pattern: `Server` implements `gen.ServerInterface`, `srv.mux = gen.HandlerWithOptions(srv, gen.StdHTTPServerOptions{})`, out-of-intersection ops return `notImplemented(w, "OpName")` with the Azure error envelope. See [PLAN.md § 13.A](PLAN.md#13a--azure-adapter-migration) for the per-frontend ordering.
 
-**13.A.1 — `internal/cache/frontends/azure_redis`** — ✅ landed. 6 intersection ops (Create / Get / Delete / Update / ListByResourceGroup / ForceReboot) wired through `gen.ServerInterface`; 35 out-of-intersection methods return Azure error envelope via `notImplemented`. `TestAzureGen_Cache_HandlerDispatch` posts a sample Create through the gen mux; full cache conformance stays green.
+**13.A.1 — `azure_redis`** — ✅ landed. 6 intersection ops wired through `gen.ServerInterface`; 35 out-of-intersection return Azure error envelope via `notImplemented`. `TestAzureGen_Cache_HandlerDispatch` posts a sample Create through the gen mux.
 
-**Next sub-phase: 13.A.2 — `internal/functions/frontends/azure_containerapps`.**
-- 310 LOC hand-written. gen interface has 11 methods; ContainerApp struct is a proper Go struct after BUG-20 flatten (12.A.24).
-- Pattern identical to 13.A.1: implement `gen.ServerInterface`, route through `gen.HandlerWithOptions`, stub out-of-intersection ops.
-- Validation: existing `services/functions/conformance/*` stays green. Add `TestAzureGen_Functions_HandlerDispatch`.
+**13.A.2 — `azure_containerapps`** — ✅ landed. 5 intersection ops (CreateOrUpdate / Get / Delete / Update / ListByResourceGroup); 6 out-of-intersection stubs. `Properties` is the anonymous struct gen.ContainerApp emits — populated via JSON round-trip from a `map[string]any` literal so we don't restate the anonymous struct at each call site.
+
+**Next sub-phase: 13.A.3 — `internal/queue/frontends/azure_servicebus` OR `internal/pubsub/frontends/azure_servicebus_topics`.**
+- **Hazard:** the gen spec uses lowercase `subscriptions` in paths; the existing hand-written frontend + conformance tests use capital `Subscriptions` (historical Azure REST admin URL form). Migration needs a pre-dispatch URL-case normalizer OR a hybrid (gen mux for entity URLs, hand-written regex for the data-plane `/messages/...` URLs which aren't in the admin spec at all).
+- Service Bus is also the spec shared between queue + pubsub — fix once, ship twice.
+
+**Next sub-phase: 13.A.4 — `internal/apigateway/frontends/azure_apim`.**
+- The vendored APIM spec is intentionally minimal (0 spec operations). The gen.ServerInterface is empty. Adapter migration here is "types-only" — there's no `gen.HandlerWithOptions` mux to swap in; the work is wiring the gen wire types into request decoding + response encoding for the existing handlers. May be worth deferring as out-of-scope-for-Phase-13 since there's no spec contract to migrate to.
+
+**Next sub-phase: 13.A.6 — `internal/rdbms/frontends/azure_dbadmin`** (PostgreSQL FlexibleServer).
+- gen interface has 66 methods (~6 in intersection). Largest stub-count migration. Server struct is a proper Go struct after BUG-20 flatten.
+
+**Next sub-phase: 13.A.7 — `internal/storage/frontends/azure_blob`.**
+- gen interface has 69 methods (Blob data-plane). Biggest hand-written frontend (620 LOC). Different shape — data-plane spec with `x-ms-paths` flattened in Phase 12.A.15.
 
 ### Phase 13.B — GCP adapter migration
 

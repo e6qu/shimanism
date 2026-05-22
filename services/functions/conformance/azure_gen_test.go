@@ -6,10 +6,15 @@
 package conformance_test
 
 import (
+	"bytes"
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"reflect"
 	"testing"
 
+	"github.com/e6qu/shimanism/internal/functions/frontends/azure_containerapps"
+	"github.com/e6qu/shimanism/services/functions/backends/inmem"
 	azuregen "github.com/e6qu/shimanism/services/functions/gen/azure"
 )
 
@@ -134,5 +139,48 @@ func TestAzureGen_Functions_ContainerAppRoundTrips(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+// TestAzureGen_Functions_HandlerDispatch is the Phase 13.A.2
+// acceptance: the azure_containerapps frontend dispatches through
+// gen.HandlerWithOptions. A canonical ARM CreateOrUpdate request
+// reaches ContainerAppsCreateOrUpdate on the Server, the in-memory
+// backend stores the function, and the response decodes through
+// gen.ContainerApp.
+func TestAzureGen_Functions_HandlerDispatch(t *testing.T) {
+	backend := inmem.New()
+	srv := azure_containerapps.New(backend)
+
+	body := []byte(`{
+		"location": "eastus",
+		"properties": {
+			"template": {
+				"containers": [{"name": "main", "image": "nginx:alpine"}]
+			}
+		}
+	}`)
+	req := httptest.NewRequest(http.MethodPut,
+		"/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg/providers/Microsoft.App/containerApps/shim-app?api-version=2024-08-01",
+		bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	srv.ServeHTTP(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Fatalf("CreateOrUpdate status = %d; want 201. body=%s", w.Code, w.Body.String())
+	}
+	var got azuregen.ContainerApp
+	if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil {
+		t.Fatalf("decode response: %v\nbody=%s", err, w.Body.String())
+	}
+	if got.Name == nil || *got.Name != "shim-app" {
+		t.Errorf("response.Name = %v; want shim-app", got.Name)
+	}
+	if got.Properties == nil || got.Properties.Template == nil || got.Properties.Template.Containers == nil {
+		t.Fatal("response.Properties.Template.Containers missing")
+	}
+	if cs := *got.Properties.Template.Containers; len(cs) == 0 || cs[0].Image == nil || *cs[0].Image != "nginx:alpine" {
+		t.Errorf("Containers[0].Image lost in round-trip: %+v", cs)
 	}
 }

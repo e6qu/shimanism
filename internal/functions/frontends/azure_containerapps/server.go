@@ -1,136 +1,61 @@
-// Package azure_containerapps is the Azure Container Apps REST
-// frontend. ARM URL shape:
-// /subscriptions/{s}/resourceGroups/{rg}/providers/Microsoft.App/containerApps/{name}
+// Package azure_containerapps is the Azure Container Apps ARM frontend.
+// Wire types + routing come from the spec-driven generated stubs in
+// services/functions/gen/azure (cmd/azure-codegen). The adapter on
+// Server implements gen.ServerInterface; gen.HandlerWithOptions
+// dispatches each request.
+//
+// ARM URL shape (path-routed by the gen mux):
+//   /subscriptions/{subscriptionId}
+//     /resourceGroups/{resourceGroupName}
+//       /providers/Microsoft.App/containerApps/{containerAppName}
 package azure_containerapps
 
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
-	"regexp"
 	"strings"
 
 	"github.com/e6qu/shimanism/internal/functions/domain"
+	gen "github.com/e6qu/shimanism/services/functions/gen/azure"
 )
 
+// Server is the Azure-Container-Apps-shaped HTTP frontend.
 type Server struct {
-	s domain.Functions
+	s   domain.Functions
+	mux http.Handler
 }
 
-func New(s domain.Functions) *Server { return &Server{s: s} }
-
-var (
-	reApp     = regexp.MustCompile(`^/subscriptions/[^/]+/resourceGroups/[^/]+/providers/Microsoft\.App/containerApps/([^/]+)/?$`)
-	reAppList = regexp.MustCompile(`^/subscriptions/[^/]+/resourceGroups/[^/]+/providers/Microsoft\.App/containerApps/?$`)
-)
-
-type containerAppBody struct {
-	Location   string             `json:"location,omitempty"`
-	Properties *containerAppProps `json:"properties,omitempty"`
+// New returns a frontend bound to the given backend.
+func New(s domain.Functions) *Server {
+	srv := &Server{s: s}
+	srv.mux = gen.HandlerWithOptions(srv, gen.StdHTTPServerOptions{})
+	return srv
 }
 
-type containerAppProps struct {
-	ManagedEnvironmentID string            `json:"managedEnvironmentId,omitempty"`
-	ProvisioningState    string            `json:"provisioningState,omitempty"`
-	Configuration        *appConfiguration `json:"configuration,omitempty"`
-	Template             *appTemplate      `json:"template,omitempty"`
-}
-
-type appConfiguration struct {
-	Ingress *appIngress `json:"ingress,omitempty"`
-}
-
-type appIngress struct {
-	External   bool   `json:"external,omitempty"`
-	Fqdn       string `json:"fqdn,omitempty"`
-	TargetPort int    `json:"targetPort,omitempty"`
-}
-
-type appTemplate struct {
-	Containers []*appContainer `json:"containers,omitempty"`
-}
-
-type appContainer struct {
-	Name      string        `json:"name,omitempty"`
-	Image     string        `json:"image,omitempty"`
-	Env       []*appEnv     `json:"env,omitempty"`
-	Resources *appResources `json:"resources,omitempty"`
-}
-
-type appEnv struct {
-	Name  string `json:"name,omitempty"`
-	Value string `json:"value,omitempty"`
-}
-
-type appResources struct {
-	CPU    float64 `json:"cpu,omitempty"`
-	Memory string  `json:"memory,omitempty"`
-}
-
-type appResource struct {
-	ID         string             `json:"id"`
-	Name       string             `json:"name"`
-	Type       string             `json:"type"`
-	Location   string             `json:"location"`
-	Properties *containerAppProps `json:"properties"`
-}
-
-type listResponse struct {
-	Value []*appResource `json:"value"`
-}
-
+// ServeHTTP delegates to the generated routing layer.
 func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	path := r.URL.Path
-	method := r.Method
-
-	if m := reApp.FindStringSubmatch(path); m != nil {
-		switch method {
-		case http.MethodPut:
-			srv.createApp(w, r, m[1])
-		case http.MethodGet:
-			srv.getApp(w, r, m[1])
-		case http.MethodDelete:
-			srv.deleteApp(w, r, m[1])
-		case http.MethodPatch:
-			srv.patchApp(w, r, m[1])
-		default:
-			writeError(w, http.StatusMethodNotAllowed, "MethodNotAllowed", method+" not allowed on containerApp")
-		}
-		return
-	}
-	if reAppList.MatchString(path) && method == http.MethodGet {
-		srv.listApps(w, r)
-		return
-	}
-	writeError(w, http.StatusNotFound, "ResourceNotFound",
-		"no Container Apps route matches "+method+" "+path)
+	srv.mux.ServeHTTP(w, r)
 }
 
-func (srv *Server) createApp(w http.ResponseWriter, r *http.Request, name string) {
-	var body containerAppBody
+// notImplemented writes the ARM "operation not supported" envelope
+// for spec ops outside the cross-cloud functions intersection.
+func notImplemented(w http.ResponseWriter, op string) {
+	writeError(w, http.StatusNotImplemented, "OperationNotSupported",
+		op+" is not in the cross-cloud functions intersection")
+}
+
+// =====================================================================
+// In-intersection handlers
+// =====================================================================
+
+func (srv *Server) ContainerAppsCreateOrUpdate(w http.ResponseWriter, r *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, name string, _ gen.ContainerAppsCreateOrUpdateParams) {
+	var body gen.ContainerApp
 	if !decodeJSON(w, r, &body) {
 		return
 	}
 	opt := domain.CreateFunctionOptions{}
-	if body.Properties != nil && body.Properties.Template != nil && len(body.Properties.Template.Containers) > 0 {
-		c := body.Properties.Template.Containers[0]
-		opt.Image = c.Image
-		if len(c.Env) > 0 {
-			opt.Environment = map[string]string{}
-			for _, e := range c.Env {
-				opt.Environment[e.Name] = e.Value
-			}
-		}
-		if c.Resources != nil {
-			if c.Resources.CPU > 0 {
-				opt.CPUMilliCores = int(c.Resources.CPU * 1000)
-			}
-			if c.Resources.Memory != "" {
-				opt.MemoryBytes = parseMemoryString(c.Resources.Memory)
-			}
-		}
-	}
+	extractFromCreateBody(&body, &opt)
 	if _, err := srv.s.CreateFunction(r.Context(), name, opt); err != nil {
 		mapDomainError(w, err)
 		return
@@ -139,7 +64,7 @@ func (srv *Server) createApp(w http.ResponseWriter, r *http.Request, name string
 	writeJSON(w, http.StatusCreated, functionToARM(fn))
 }
 
-func (srv *Server) getApp(w http.ResponseWriter, r *http.Request, name string) {
+func (srv *Server) ContainerAppsGet(w http.ResponseWriter, r *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, name string, _ gen.ContainerAppsGetParams) {
 	fn, err := srv.s.DescribeFunction(r.Context(), name)
 	if err != nil {
 		mapDomainError(w, err)
@@ -148,7 +73,7 @@ func (srv *Server) getApp(w http.ResponseWriter, r *http.Request, name string) {
 	writeJSON(w, http.StatusOK, functionToARM(fn))
 }
 
-func (srv *Server) deleteApp(w http.ResponseWriter, r *http.Request, name string) {
+func (srv *Server) ContainerAppsDelete(w http.ResponseWriter, r *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, name string, _ gen.ContainerAppsDeleteParams) {
 	if err := srv.s.DeleteFunction(r.Context(), name); err != nil {
 		mapDomainError(w, err)
 		return
@@ -156,22 +81,13 @@ func (srv *Server) deleteApp(w http.ResponseWriter, r *http.Request, name string
 	w.WriteHeader(http.StatusAccepted)
 }
 
-func (srv *Server) patchApp(w http.ResponseWriter, r *http.Request, name string) {
-	var body containerAppBody
+func (srv *Server) ContainerAppsUpdate(w http.ResponseWriter, r *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, name string, _ gen.ContainerAppsUpdateParams) {
+	var body gen.ContainerApp
 	if !decodeJSON(w, r, &body) {
 		return
 	}
 	opt := domain.UpdateFunctionOptions{}
-	if body.Properties != nil && body.Properties.Template != nil && len(body.Properties.Template.Containers) > 0 {
-		c := body.Properties.Template.Containers[0]
-		opt.Image = c.Image
-		if len(c.Env) > 0 {
-			opt.Environment = map[string]string{}
-			for _, e := range c.Env {
-				opt.Environment[e.Name] = e.Value
-			}
-		}
-	}
+	extractFromUpdateBody(&body, &opt)
 	if err := srv.s.UpdateFunction(r.Context(), name, opt); err != nil {
 		mapDomainError(w, err)
 		return
@@ -180,19 +96,115 @@ func (srv *Server) patchApp(w http.ResponseWriter, r *http.Request, name string)
 	writeJSON(w, http.StatusOK, functionToARM(fn))
 }
 
-func (srv *Server) listApps(w http.ResponseWriter, r *http.Request) {
+func (srv *Server) ContainerAppsListByResourceGroup(w http.ResponseWriter, r *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ gen.ContainerAppsListByResourceGroupParams) {
 	res, err := srv.s.ListFunctions(r.Context(), domain.ListFunctionsOptions{})
 	if err != nil {
 		mapDomainError(w, err)
 		return
 	}
-	out := listResponse{}
+	values := make([]gen.ContainerApp, 0, len(res.Functions))
 	for _, fn := range res.Functions {
-		out.Value = append(out.Value, functionToARM(fn))
+		values = append(values, *functionToARM(fn))
 	}
-	writeJSON(w, http.StatusOK, &out)
+	writeJSON(w, http.StatusOK, &gen.ContainerAppCollection{Value: values})
 }
 
+// =====================================================================
+// Out-of-intersection stubs — honest 501s
+// =====================================================================
+
+func (srv *Server) ContainerAppsListBySubscription(w http.ResponseWriter, _ *http.Request, _ gen.SubscriptionIdParameter, _ gen.ContainerAppsListBySubscriptionParams) {
+	notImplemented(w, "ContainerAppsListBySubscription")
+}
+
+func (srv *Server) ContainerAppsGetAuthToken(w http.ResponseWriter, _ *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ gen.ContainerAppsGetAuthTokenParams) {
+	notImplemented(w, "ContainerAppsGetAuthToken")
+}
+
+func (srv *Server) ContainerAppsListCustomHostNameAnalysis(w http.ResponseWriter, _ *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ gen.ContainerAppsListCustomHostNameAnalysisParams) {
+	notImplemented(w, "ContainerAppsListCustomHostNameAnalysis")
+}
+
+func (srv *Server) ContainerAppsListSecrets(w http.ResponseWriter, _ *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ gen.ContainerAppsListSecretsParams) {
+	notImplemented(w, "ContainerAppsListSecrets")
+}
+
+func (srv *Server) ContainerAppsStart(w http.ResponseWriter, _ *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ gen.ContainerAppsStartParams) {
+	notImplemented(w, "ContainerAppsStart")
+}
+
+func (srv *Server) ContainerAppsStop(w http.ResponseWriter, _ *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ gen.ContainerAppsStopParams) {
+	notImplemented(w, "ContainerAppsStop")
+}
+
+// =====================================================================
+// Helpers — domain ↔ gen.ContainerApp
+// =====================================================================
+
+// extractFromCreateBody pulls the cross-cloud-intersection fields
+// (image, env, CPU, memory) out of a gen.ContainerApp create body
+// into domain.CreateFunctionOptions. Lots of pointer derefs because
+// oapi-codegen emits OpenAPI optional fields as `*T`.
+func extractFromCreateBody(body *gen.ContainerApp, opt *domain.CreateFunctionOptions) {
+	if body.Properties == nil || body.Properties.Template == nil || body.Properties.Template.Containers == nil {
+		return
+	}
+	containers := *body.Properties.Template.Containers
+	if len(containers) == 0 {
+		return
+	}
+	c := containers[0]
+	if c.Image != nil {
+		opt.Image = *c.Image
+	}
+	if c.Env != nil {
+		opt.Environment = map[string]string{}
+		for _, e := range *c.Env {
+			if e.Name != nil && e.Value != nil {
+				opt.Environment[*e.Name] = *e.Value
+			}
+		}
+		if len(opt.Environment) == 0 {
+			opt.Environment = nil
+		}
+	}
+	if c.Resources != nil {
+		if c.Resources.Cpu != nil && *c.Resources.Cpu > 0 {
+			opt.CPUMilliCores = int(*c.Resources.Cpu * 1000)
+		}
+		if c.Resources.Memory != nil && *c.Resources.Memory != "" {
+			opt.MemoryBytes = parseMemoryString(*c.Resources.Memory)
+		}
+	}
+}
+
+func extractFromUpdateBody(body *gen.ContainerApp, opt *domain.UpdateFunctionOptions) {
+	if body.Properties == nil || body.Properties.Template == nil || body.Properties.Template.Containers == nil {
+		return
+	}
+	containers := *body.Properties.Template.Containers
+	if len(containers) == 0 {
+		return
+	}
+	c := containers[0]
+	if c.Image != nil {
+		opt.Image = *c.Image
+	}
+	if c.Env != nil {
+		opt.Environment = map[string]string{}
+		for _, e := range *c.Env {
+			if e.Name != nil && e.Value != nil {
+				opt.Environment[*e.Name] = *e.Value
+			}
+		}
+		if len(opt.Environment) == 0 {
+			opt.Environment = nil
+		}
+	}
+}
+
+// parseMemoryString parses Kubernetes-style memory quantities ("1Gi",
+// "512Mi") into bytes.
 func parseMemoryString(s string) int64 {
 	if strings.HasSuffix(s, "Gi") {
 		var n float64
@@ -207,6 +219,8 @@ func parseMemoryString(s string) int64 {
 	return 0
 }
 
+// statusToARM maps the domain status enum to Azure's
+// ProvisioningState string.
 func statusToARM(s domain.Status) string {
 	switch s {
 	case domain.StatusAvailable:
@@ -220,49 +234,60 @@ func statusToARM(s domain.Status) string {
 	}
 }
 
-func functionToARM(fn domain.Function) *appResource {
-	res := &appResource{
-		Name:     fn.Name,
-		Type:     "Microsoft.App/containerApps",
-		Location: "eastus",
-		Properties: &containerAppProps{
-			ProvisioningState: statusToARM(fn.Status),
-			Template: &appTemplate{
-				Containers: []*appContainer{{
-					Name:  fn.Name,
-					Image: fn.Image,
-				}},
+// functionToARM maps a domain.Function to the gen.ContainerApp shape.
+// gen.ContainerApp.Properties is an anonymous inline struct (the
+// OpenAPI v3 emitter style after flattenARMAllOf in Phase 12.A.24).
+// We construct it via JSON unmarshal from a concrete intermediate
+// shape — far cleaner than restating the anonymous struct's full
+// field list at every call site, and the field set tracks the gen
+// file automatically (anonymous-struct extra fields stay zero-
+// valued / omitted).
+func functionToARM(fn domain.Function) *gen.ContainerApp {
+	location := "eastus"
+	typ := "Microsoft.App/containerApps"
+	resourceID := "/subscriptions/shim/resourceGroups/shim/providers/Microsoft.App/containerApps/" + fn.Name
+
+	res := &gen.ContainerApp{
+		Id:       &resourceID,
+		Name:     &fn.Name,
+		Type:     &typ,
+		Location: location,
+	}
+
+	// Encode the properties subset we populate, then decode it
+	// into the anonymous struct via the gen.ContainerApp envelope.
+	// Fields not in our intermediate stay zero-valued in the gen.
+	propsBlob := map[string]any{
+		"provisioningState": statusToARM(fn.Status),
+		"template": map[string]any{
+			"containers": []map[string]any{
+				{"name": fn.Name, "image": fn.Image},
 			},
 		},
 	}
 	if fn.Status == domain.StatusAvailable && fn.Endpoint.URL != "" {
 		host := strings.TrimPrefix(fn.Endpoint.URL, "https://")
 		host = strings.TrimPrefix(host, "http://")
-		res.Properties.Configuration = &appConfiguration{
-			Ingress: &appIngress{External: true, Fqdn: host},
+		propsBlob["configuration"] = map[string]any{
+			"ingress": map[string]any{
+				"external":   true,
+				"fqdn":       host,
+				"targetPort": 0,
+			},
 		}
 	}
-	return res
-}
-
-func decodeJSON(w http.ResponseWriter, r *http.Request, target interface{}) bool {
-	body, err := io.ReadAll(r.Body)
+	envelope := map[string]any{
+		"location":   location,
+		"properties": propsBlob,
+	}
+	raw, err := json.Marshal(envelope)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "BadRequest", "read body: "+err.Error())
-		return false
+		return res
 	}
-	if len(body) == 0 {
-		return true
+	var hydrated gen.ContainerApp
+	if err := json.Unmarshal(raw, &hydrated); err != nil {
+		return res
 	}
-	if err := json.Unmarshal(body, target); err != nil {
-		writeError(w, http.StatusBadRequest, "BadRequest", "invalid JSON body: "+err.Error())
-		return false
-	}
-	return true
-}
-
-func writeJSON(w http.ResponseWriter, status int, body interface{}) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(body)
+	res.Properties = hydrated.Properties
+	return res
 }
