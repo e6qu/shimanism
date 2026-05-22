@@ -23,10 +23,13 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/getkin/kin-openapi/openapi2"
@@ -37,10 +40,11 @@ import (
 
 func main() {
 	var (
-		specPath = flag.String("spec", "", "path to the OpenAPI v2 (Swagger) JSON spec")
-		outPath  = flag.String("out", "", "path to the generated .gen.go file")
-		pkgName  = flag.String("pkg", "gen", "Go package name for the generated file")
-		commit   = flag.String("commit", "", "optional upstream commit SHA to record in the file header")
+		specPath        = flag.String("spec", "", "path to the OpenAPI v2 (Swagger) JSON spec")
+		outPath         = flag.String("out", "", "path to the generated .gen.go file")
+		pkgName         = flag.String("pkg", "gen", "Go package name for the generated file")
+		commit          = flag.String("commit", "", "optional upstream commit SHA to record in the file header")
+		commonTypesRoot = flag.String("common-types", "services/common-types", "directory containing vendored Azure common-types/resource-management/v<N>/*.json")
 	)
 	flag.Parse()
 	if *specPath == "" || *outPath == "" {
@@ -52,6 +56,26 @@ func main() {
 	raw, err := os.ReadFile(*specPath)
 	if err != nil {
 		fail("read %s: %v", *specPath, err)
+	}
+
+	// Azure ARM specs $ref Azure's shared common-types
+	// (common-types/resource-management/v<N>/*.json) by a relative
+	// path that mirrors the upstream repo layout. The vendored
+	// copies live under services/common-types/. We inline these
+	// external references at the v2 layer before converting to v3,
+	// so kin-openapi's ToV3 sees a self-contained Swagger doc and
+	// emits self-contained v3 parameters / definitions. Doing this
+	// at the v2 layer (rather than via openapi3.Loader's external-
+	// ref resolution after ToV3) keeps the v2 form of each
+	// reusable parameter intact (`type: string` rather than the v3
+	// shape `schema: {type: string}`), which the v2→v3 converter
+	// then handles correctly.
+	if strings.Contains(string(raw), "common-types/") {
+		inlined, err := inlineCommonTypes(raw, *commonTypesRoot)
+		if err != nil {
+			fail("inline common-types: %v", err)
+		}
+		raw = inlined
 	}
 
 	// Parse the v2 spec, convert to v3 in-memory. openapi2conv.ToV3 is
@@ -114,6 +138,192 @@ func fail(format string, args ...any) {
 	fmt.Fprintf(os.Stderr, "azure-codegen: "+format+"\n", args...)
 	os.Exit(1)
 }
+
+// commonTypesPattern matches a relative `$ref` into the Azure
+// common-types tree (e.g.
+// `../../../../../../common-types/resource-management/v4/types.json`)
+// so the inliner can decide whether to resolve a $ref against the
+// vendored directory.
+var commonTypesPattern = regexp.MustCompile(`common-types/resource-management/(v[0-9]+)/([A-Za-z0-9_.-]+)`)
+
+// inlineCommonTypes makes the Swagger doc self-contained by merging
+// every common-types file's `definitions` and `parameters` blocks
+// into the main doc, then rewriting external `$ref`s to the
+// equivalent local pointer. Local refs inside the merged blocks
+// stay valid because the common-types names are preserved verbatim
+// (no two common-types files in v4 share a definition name today;
+// if that ever changes the inliner would need a prefixing scheme).
+//
+// Two passes:
+//  1. Walk the doc, find every external common-types `$ref`, and
+//     ensure the target file's `definitions`/`parameters` blocks
+//     are merged into the doc (recursive — a common-types file
+//     can itself $ref another common-types file).
+//  2. Walk the doc again, rewriting each external common-types
+//     `$ref` to the local form (`#/definitions/Foo` or
+//     `#/parameters/Foo`).
+func inlineCommonTypes(raw []byte, root string) ([]byte, error) {
+	var doc map[string]interface{}
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		return nil, fmt.Errorf("parse spec JSON: %w", err)
+	}
+
+	cache := map[string]map[string]interface{}{}
+	loadCommon := func(version, file string) (map[string]interface{}, error) {
+		key := version + "/" + file
+		if d, ok := cache[key]; ok {
+			return d, nil
+		}
+		path := filepath.Join(root, "resource-management", version, file)
+		b, err := os.ReadFile(path)
+		if err != nil {
+			return nil, err
+		}
+		var d map[string]interface{}
+		if err := json.Unmarshal(b, &d); err != nil {
+			return nil, fmt.Errorf("parse %s: %w", path, err)
+		}
+		cache[key] = d
+		return d, nil
+	}
+	ensureMap := func(parent map[string]interface{}, key string) map[string]interface{} {
+		if existing, ok := parent[key].(map[string]interface{}); ok {
+			return existing
+		}
+		m := map[string]interface{}{}
+		parent[key] = m
+		return m
+	}
+	defs := ensureMap(doc, "definitions")
+	params := ensureMap(doc, "parameters")
+
+	// Pass 1: gather every reachable common-types $ref + merge.
+	visitedFiles := map[string]bool{}
+	var mergeFile func(version, file string) error
+	mergeFile = func(version, file string) error {
+		key := version + "/" + file
+		if visitedFiles[key] {
+			return nil
+		}
+		visitedFiles[key] = true
+		common, err := loadCommon(version, file)
+		if err != nil {
+			return err
+		}
+		for name, def := range common["definitions"].(map[string]interface{}) {
+			if _, exists := defs[name]; !exists {
+				defs[name] = def
+			}
+		}
+		if commonParams, ok := common["parameters"].(map[string]interface{}); ok {
+			for name, p := range commonParams {
+				if _, exists := params[name]; !exists {
+					params[name] = p
+				}
+			}
+		}
+		// Transitive common-types refs inside the just-merged file.
+		var collect func(node interface{}) error
+		collect = func(node interface{}) error {
+			switch v := node.(type) {
+			case map[string]interface{}:
+				if refRaw, ok := v["$ref"].(string); ok {
+					if m := commonTypesPattern.FindStringSubmatch(refRaw); m != nil {
+						if err := mergeFile(m[1], m[2]); err != nil {
+							return err
+						}
+					}
+				}
+				for _, sub := range v {
+					if err := collect(sub); err != nil {
+						return err
+					}
+				}
+			case []interface{}:
+				for _, sub := range v {
+					if err := collect(sub); err != nil {
+						return err
+					}
+				}
+			}
+			return nil
+		}
+		return collect(common)
+	}
+	var collectFromDoc func(node interface{}) error
+	collectFromDoc = func(node interface{}) error {
+		switch v := node.(type) {
+		case map[string]interface{}:
+			if refRaw, ok := v["$ref"].(string); ok {
+				if m := commonTypesPattern.FindStringSubmatch(refRaw); m != nil {
+					if err := mergeFile(m[1], m[2]); err != nil {
+						return err
+					}
+				}
+			}
+			for _, sub := range v {
+				if err := collectFromDoc(sub); err != nil {
+					return err
+				}
+			}
+		case []interface{}:
+			for _, sub := range v {
+				if err := collectFromDoc(sub); err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	}
+	if err := collectFromDoc(doc); err != nil {
+		return nil, err
+	}
+
+	// Pass 2: rewrite every external $ref (anything with a path
+	// component before `#`) to the local pointer that now resolves
+	// inside the doc itself. This catches both the main spec's
+	// `../../../common-types/v4/types.json#/...` refs and the
+	// transitive `../v4/types.json#/...` refs inside merged
+	// common-types files.
+	var rewrite func(node interface{}) interface{}
+	rewrite = func(node interface{}) interface{} {
+		switch v := node.(type) {
+		case map[string]interface{}:
+			if refRaw, ok := v["$ref"].(string); ok {
+				hashIdx := strings.Index(refRaw, "#")
+				if hashIdx > 0 {
+					out := make(map[string]interface{}, len(v))
+					for k, sub := range v {
+						if k == "$ref" {
+							out[k] = "#" + refRaw[hashIdx+1:]
+						} else {
+							out[k] = rewrite(sub)
+						}
+					}
+					return out
+				}
+			}
+			out := make(map[string]interface{}, len(v))
+			for k, sub := range v {
+				out[k] = rewrite(sub)
+			}
+			return out
+		case []interface{}:
+			out := make([]interface{}, len(v))
+			for i, sub := range v {
+				out[i] = rewrite(sub)
+			}
+			return out
+		default:
+			return v
+		}
+	}
+	return json.Marshal(rewrite(doc))
+}
+
+// keep url referenced for future use in the codegen path even when
+// the inliner is the active common-types resolver.
+var _ = url.Parse
 
 // normalizeAllOf walks every schema in the spec and replaces empty
 // AllOf slices with nil. Empty AllOf is semantically a no-op but

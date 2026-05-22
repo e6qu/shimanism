@@ -3,6 +3,7 @@
 | Local file | Upstream repo | Upstream path | Upstream license | Pinned at | Fetched (UTC) |
 |---|---|---|---|---|---|
 | `aws-elasticache.smithy.json` | `aws/aws-sdk-go-v2` | `codegen/sdk-codegen/aws-models/elasticache.json` | Apache-2.0 | `2517fe9ffa52ed4507b13ccc57efa111b2008750` | 2026-05-19T15:42:00Z |
+| `azure-cache-redis.json` | `Azure/azure-rest-api-specs` | `specification/redis/resource-manager/Microsoft.Cache/Redis/stable/2024-11-01/redis.json` | MIT | `9961298a28684dbb1dde5927bf41afed20ecde86` | 2026-05-22T03:11:00Z |
 
 ElastiCache uses the `awsQuery` wire protocol — same as SNS (Phase
 4) and RDS (Phase 5). Form-encoded request bodies dispatched on
