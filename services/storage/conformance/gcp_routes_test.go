@@ -85,6 +85,34 @@ func TestGCPRoutes_Storage_MatchExtractsParams(t *testing.T) {
 			wantVar: "object",
 			wantVal: "path%2Fto%2Fobject.txt",
 		},
+		{
+			// CopyTo: four path variables in a single route.
+			// Verifies the URI-template compiler emits the right
+			// number of capture groups + ordering matches Vars.
+			name:    "CopyObject_fourVars_first",
+			method:  "POST",
+			path:    "/storage/v1/b/src-bucket/o/src-obj/copyTo/b/dst-bucket/o/dst-obj",
+			wantID:  "storage.objects.copy",
+			wantVar: "sourceBucket",
+			wantVal: "src-bucket",
+		},
+		{
+			name:    "CopyObject_fourVars_last",
+			method:  "POST",
+			path:    "/storage/v1/b/src-bucket/o/src-obj/copyTo/b/dst-bucket/o/dst-obj",
+			wantID:  "storage.objects.copy",
+			wantVar: "destinationObject",
+			wantVal: "dst-obj",
+		},
+		{
+			// Rewrite parallels Copy with a different URI shape.
+			name:    "RewriteObject",
+			method:  "POST",
+			path:    "/storage/v1/b/src-bucket/o/src-obj/rewriteTo/b/dst-bucket/o/dst-obj",
+			wantID:  "storage.objects.rewrite",
+			wantVar: "sourceObject",
+			wantVal: "src-obj",
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
