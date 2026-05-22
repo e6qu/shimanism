@@ -23,4 +23,14 @@ func TestAzureGen_Secrets_PackageCompiles(t *testing.T) {
 	if iface.Kind() != reflect.Interface {
 		t.Fatalf("expected gen.ServerInterface to be an interface, got %s", iface.Kind())
 	}
+	// Key Vault Secrets data-plane declares ~12 operations
+	// (GetSecret / SetSecret / DeleteSecret / UpdateSecret /
+	// GetSecrets / GetSecretVersions / RecoverDeletedSecret /
+	// BackupSecret / RestoreSecret / PurgeDeletedSecret /
+	// GetDeletedSecret / GetDeletedSecrets). A drop below 10
+	// suggests the preprocessor accidentally dropped paths
+	// (e.g. x-ms-paths flattener regressed).
+	if got := iface.NumMethod(); got < 10 {
+		t.Errorf("ServerInterface has %d methods; want ≥10. Spec preprocessor may have dropped operations.", got)
+	}
 }

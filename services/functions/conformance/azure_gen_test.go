@@ -20,4 +20,10 @@ func TestAzureGen_Functions_PackageCompiles(t *testing.T) {
 	if iface.Kind() != reflect.Interface {
 		t.Fatalf("expected gen.ServerInterface to be an interface, got %s", iface.Kind())
 	}
+	// Container Apps ARM spec declares ~11 operations on the
+	// containerApps resource (list / create / get / update /
+	// delete / start / stop / restart / GetAuthToken / ...).
+	if got := iface.NumMethod(); got < 8 {
+		t.Errorf("ServerInterface has %d methods; want ≥8. Spec preprocessor may have dropped operations.", got)
+	}
 }

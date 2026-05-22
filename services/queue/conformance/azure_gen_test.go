@@ -20,4 +20,10 @@ func TestAzureGen_Queue_PackageCompiles(t *testing.T) {
 	if iface.Kind() != reflect.Interface {
 		t.Fatalf("expected gen.ServerInterface to be an interface, got %s", iface.Kind())
 	}
+	// Service Bus data-plane (shared with pubsub) — ~13 ops
+	// covering Send / Receive / Peek / Renew / Delete on
+	// queues.
+	if got := iface.NumMethod(); got < 10 {
+		t.Errorf("ServerInterface has %d methods; want ≥10. Spec preprocessor may have dropped operations.", got)
+	}
 }

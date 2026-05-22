@@ -20,4 +20,10 @@ func TestAzureGen_Rdbms_PackageCompiles(t *testing.T) {
 	if iface.Kind() != reflect.Interface {
 		t.Fatalf("expected gen.ServerInterface to be an interface, got %s", iface.Kind())
 	}
+	// PostgreSQL FlexibleServers ARM spec — ~66 operations
+	// across servers, databases, firewall rules, replicas,
+	// backups, async operation status.
+	if got := iface.NumMethod(); got < 50 {
+		t.Errorf("ServerInterface has %d methods; want ≥50. Spec preprocessor may have dropped operations.", got)
+	}
 }

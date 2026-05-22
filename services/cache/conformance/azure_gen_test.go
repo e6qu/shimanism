@@ -20,4 +20,10 @@ func TestAzureGen_Cache_PackageCompiles(t *testing.T) {
 	if iface.Kind() != reflect.Interface {
 		t.Fatalf("expected gen.ServerInterface to be an interface, got %s", iface.Kind())
 	}
+	// Azure Cache for Redis ARM spec declares ~40 operations
+	// (Redis* + AccessPolicy* + AccessPolicyAssignment* +
+	// AsyncOperationStatusGet + OperationsList + ...).
+	if got := iface.NumMethod(); got < 30 {
+		t.Errorf("ServerInterface has %d methods; want ≥30. Spec preprocessor may have dropped operations.", got)
+	}
 }

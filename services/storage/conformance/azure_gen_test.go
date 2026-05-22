@@ -19,4 +19,11 @@ func TestAzureGen_Storage_PackageCompiles(t *testing.T) {
 	if iface.Kind() != reflect.Interface {
 		t.Fatalf("expected gen.ServerInterface to be an interface, got %s", iface.Kind())
 	}
+	// Blob data-plane is the largest Azure spec — ~70 operations
+	// across blobs / containers / accounts. The x-ms-paths
+	// flattener moves 60 entries from `x-ms-paths` into `paths`;
+	// a regression there would collapse the count dramatically.
+	if got := iface.NumMethod(); got < 50 {
+		t.Errorf("ServerInterface has %d methods; want ≥50. flattenXMSPaths may have regressed.", got)
+	}
 }
