@@ -68,6 +68,12 @@ linters:
         text: "QF1003:"
     paths:
       - services/storage/gen
+      # Spec-driven generated code. The Azure pipeline emits
+      # boilerplate (auth-context types, optional pkgs) that may
+      # be unreferenced for specs without those features; lint
+      # noise there isn't actionable since the file is rewritten
+      # on `make codegen`.
+      - services/.*/gen
       # peers/shimanism/ is a separate Go module released
       # independently (its own go.mod). Some golangci-lint
       # versions enumerate it as part of the main module's ./...

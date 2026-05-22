@@ -146,6 +146,40 @@ func fail(format string, args ...any) {
 // vendored directory.
 var commonTypesPattern = regexp.MustCompile(`common-types/resource-management/(v[0-9]+)/([A-Za-z0-9_.-]+)`)
 
+// crossVersionPattern matches the `../v<N>/<file>.json` form used
+// by common-types files to reference siblings in a different
+// version directory.
+var crossVersionPattern = regexp.MustCompile(`\.\./(v[0-9]+)/([A-Za-z0-9_.-]+\.json)`)
+
+// sameVersionPattern matches the `./<file>.json` form used by
+// common-types files to reference siblings in the same version
+// directory.
+var sameVersionPattern = regexp.MustCompile(`^\./([A-Za-z0-9_.-]+\.json)`)
+
+// resolveCommonTypesRef extracts the target (version, file) pair
+// from a $ref string in any of the three forms the Azure
+// common-types convention uses (full path / same-version sibling /
+// cross-version sibling). currentVersion supplies the fallback for
+// the same-version shorthand. Returns ok=false if the ref isn't a
+// common-types reference.
+func resolveCommonTypesRef(ref, currentVersion string) (version, file string, ok bool) {
+	if m := commonTypesPattern.FindStringSubmatch(ref); m != nil {
+		return m[1], m[2], true
+	}
+	if m := crossVersionPattern.FindStringSubmatch(ref); m != nil {
+		return m[1], m[2], true
+	}
+	// Drop the URI fragment before matching the same-version form.
+	path := ref
+	if hi := strings.Index(path, "#"); hi >= 0 {
+		path = path[:hi]
+	}
+	if m := sameVersionPattern.FindStringSubmatch(path); m != nil {
+		return currentVersion, m[1], true
+	}
+	return "", "", false
+}
+
 // inlineCommonTypes makes the Swagger doc self-contained by merging
 // every common-types file's `definitions` and `parameters` blocks
 // into the main doc, then rewriting external `$ref`s to the
@@ -222,14 +256,20 @@ func inlineCommonTypes(raw []byte, root string) ([]byte, error) {
 				}
 			}
 		}
-		// Transitive common-types refs inside the just-merged file.
+		// Transitive refs inside the just-merged file. In addition to
+		// the full common-types path that appears in main-spec refs,
+		// common-types files reference each other via two relative
+		// shorthand forms:
+		//   - "./<file>.json#/..."         — sibling in same v<N> dir
+		//   - "../v<M>/<file>.json#/..."   — cross-version sibling
+		// Both resolve against the current file's version.
 		var collect func(node interface{}) error
 		collect = func(node interface{}) error {
 			switch v := node.(type) {
 			case map[string]interface{}:
 				if refRaw, ok := v["$ref"].(string); ok {
-					if m := commonTypesPattern.FindStringSubmatch(refRaw); m != nil {
-						if err := mergeFile(m[1], m[2]); err != nil {
+					if tgtVer, tgtFile, ok := resolveCommonTypesRef(refRaw, version); ok {
+						if err := mergeFile(tgtVer, tgtFile); err != nil {
 							return err
 						}
 					}

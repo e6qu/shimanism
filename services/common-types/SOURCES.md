@@ -16,6 +16,22 @@ matches the basename of an external `$ref` against the files in the matching
 | `resource-management/v4/managedidentitywithdelegation.json` | `Azure/azure-rest-api-specs` | `specification/common-types/resource-management/v4/managedidentitywithdelegation.json` | MIT | `b719f25b95dc1af117ac60708398c20eb8a3315f` | 2026-05-22T10:33:00Z |
 | `resource-management/v4/customermanagedkeys.json` | `Azure/azure-rest-api-specs` | `specification/common-types/resource-management/v4/customermanagedkeys.json` | MIT | `b719f25b95dc1af117ac60708398c20eb8a3315f` | 2026-05-22T10:33:00Z |
 
+Versions v1–v3 + v5–v6 vendored alongside v4 — Azure picks per
+spec, and a single common-types file can cross-version `$ref` a
+sibling (e.g. v6/privatelinks.json → v5/types.json). One file per
+version per shape (types/privatelinks/managedidentity/…), all from
+the same upstream commit window. Per-file commit SHAs and fetch
+timestamps available via `git log` on this directory.
+
+| Version | Files vendored |
+|---|---|
+| v1 | privatelinks.json, types.json |
+| v2 | privatelinks.json, types.json |
+| v3 | managedidentity.json, privatelinks.json, types.json |
+| v4 | customermanagedkeys, managedidentity, managedidentitywithdelegation, privatelinks, types |
+| v5 | customermanagedkeys, managedidentity, managedidentitywithdelegation, mobo, networksecurityperimeter, privatelinks, types |
+| v6 | customermanagedkeys, managedidentity, managedidentitywithdelegation, mobo, networksecurityperimeter, privatelinks, types |
+
 ## License of vendored files
 
 `Azure/azure-rest-api-specs` is MIT-licensed; vendored files retain their
