@@ -6,17 +6,16 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 
 ## Where we are
 
-- **Phase 12 PR #19 is at exit.** All three exit criteria met. Waiting on user merge.
-- **Next phase: Phase 13** — full adapter migration (Azure + GCP), production RS256 JWKS, real-cloud Track A (closes BUG-8 + BUG-15). Detailed sub-phase table in [PLAN.md § Phase 13](PLAN.md#phase-13--full-adapter-migration--production-auth--real-cloud-track-a).
+- **Phase 13 in-flight on `phase-13`.** 13.A.1 (`azure_redis`) migrated through `gen.HandlerWithOptions`. The rest of 13.A (6 Azure frontends), 13.B (8 GCP frontends), 13.C (RS256 JWKS), 13.D (Track A — BUG-8, BUG-15) pending. Sub-phase table in [PLAN.md § Phase 13](PLAN.md#phase-13--full-adapter-migration--production-auth--real-cloud-track-a).
+- **Last merged:** PR #19 (Phase 12) at `778e8e9` on `main`, 2026-05-22.
 
 ## Session-start checklist
 
-1. `git fetch origin && git checkout main && git pull` — sync (PR #19 should be merged).
-2. `gh pr list --state open` — verify no in-flight phase-12 PR; if `phase-13` PR exists, check it out instead of creating.
-3. `git checkout -b phase-13` (or `git checkout phase-13` if it exists).
-4. Read this file + [STATUS.md](STATUS.md) snapshot.
-5. Skim open BUGs (2 entries below).
-6. Pick the first concrete action from "Next concrete actions" below.
+1. `git fetch origin && git checkout phase-13 && git pull` — sync.
+2. `gh pr list --state open` — verify the Phase 13 PR (or create one when the first sub-phase is ready for review).
+3. Read this file + [STATUS.md](STATUS.md) snapshot.
+4. Skim open BUGs (2 entries below; both absorbed into 13.D).
+5. Pick the next sub-phase from "Next concrete actions" — `13.A.2 azure_containerapps` is up after the current 13.A.1.
 
 ## Next concrete actions (in priority order)
 
@@ -24,11 +23,12 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 
 The reference impl is `internal/secrets/frontends/azure_keyvault/server.go` (Phase 12.A.1/2). Pattern: `Server` implements `gen.ServerInterface`, `srv.mux = gen.HandlerWithOptions(srv, gen.StdHTTPServerOptions{})`, out-of-intersection ops return `notImplemented(w, "OpName")` with the Azure error envelope. See [PLAN.md § 13.A](PLAN.md#13a--azure-adapter-migration) for the per-frontend ordering.
 
-**First sub-phase: 13.A.1 — `internal/cache/frontends/azure_redis`.**
-- Smallest hand-written (272 LOC). gen interface has 41 methods; ~6 in cross-cloud intersection (Create / Get / Delete / Update / ListByResourceGroup / ForceReboot). The other ~35 return `notImplemented`.
-- Wire types: `gen.RedisResource` is a proper struct after the BUG-20 flatten (12.A.24).
-- Validation: existing `services/cache/conformance/*` stays green. Add `TestAzureGen_Cache_HandlerDispatch` posting a sample Create body through the gen mux.
-- ARM URL shape: `/subscriptions/{s}/resourceGroups/{rg}/providers/Microsoft.Cache/redis/{name}` — preserved by `gen.HandlerWithOptions`'s path-template dispatcher.
+**13.A.1 — `internal/cache/frontends/azure_redis`** — ✅ landed. 6 intersection ops (Create / Get / Delete / Update / ListByResourceGroup / ForceReboot) wired through `gen.ServerInterface`; 35 out-of-intersection methods return Azure error envelope via `notImplemented`. `TestAzureGen_Cache_HandlerDispatch` posts a sample Create through the gen mux; full cache conformance stays green.
+
+**Next sub-phase: 13.A.2 — `internal/functions/frontends/azure_containerapps`.**
+- 310 LOC hand-written. gen interface has 11 methods; ContainerApp struct is a proper Go struct after BUG-20 flatten (12.A.24).
+- Pattern identical to 13.A.1: implement `gen.ServerInterface`, route through `gen.HandlerWithOptions`, stub out-of-intersection ops.
+- Validation: existing `services/functions/conformance/*` stays green. Add `TestAzureGen_Functions_HandlerDispatch`.
 
 ### Phase 13.B — GCP adapter migration
 
