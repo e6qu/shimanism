@@ -159,6 +159,11 @@ func normalizeAllOf(v3 *openapi3.T) {
 		}
 	}
 	for _, pi := range v3.Paths.Map() {
+		for _, p := range pi.Parameters {
+			if p.Value != nil {
+				walk(p.Value.Schema)
+			}
+		}
 		for _, op := range pi.Operations() {
 			for _, p := range op.Parameters {
 				if p.Value != nil {
@@ -177,6 +182,39 @@ func normalizeAllOf(v3 *openapi3.T) {
 				for _, mt := range resp.Value.Content {
 					walk(mt.Schema)
 				}
+				for _, h := range resp.Value.Headers {
+					if h.Value != nil {
+						walk(h.Value.Schema)
+					}
+				}
+			}
+		}
+	}
+	if v3.Components != nil {
+		for _, resp := range v3.Components.Responses {
+			if resp.Value == nil {
+				continue
+			}
+			for _, mt := range resp.Value.Content {
+				walk(mt.Schema)
+			}
+			for _, h := range resp.Value.Headers {
+				if h.Value != nil {
+					walk(h.Value.Schema)
+				}
+			}
+		}
+		for _, h := range v3.Components.Headers {
+			if h.Value != nil {
+				walk(h.Value.Schema)
+			}
+		}
+		for _, rb := range v3.Components.RequestBodies {
+			if rb.Value == nil {
+				continue
+			}
+			for _, mt := range rb.Value.Content {
+				walk(mt.Schema)
 			}
 		}
 	}
