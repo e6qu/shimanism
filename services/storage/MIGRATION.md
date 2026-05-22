@@ -106,6 +106,42 @@ terraform plan -refresh-only -detailed-exitcode  # 0 = no drift
 
 Conformance test reference: `services/storage/conformance/{terraform_import_test.go, cross_cloud_apply_test.go, cross_cloud_import_test.go}`.
 
+### GCS-shaped provider (`hashicorp/google`) against a non-GCS backend
+
+`hashicorp/google`'s `storage_custom_endpoint` knob points its REST calls at any HTTP endpoint that speaks the JSON API. Pair it with the shim's GCS frontend and your existing `google_storage_bucket` resources keep working against whichever backend the shim is fronting.
+
+```hcl
+provider "google" {
+  project                 = "shim-conformance"
+  region                  = "us-central1"
+  access_token            = "test-bearer"
+  storage_custom_endpoint = "http://localhost:9000/storage/v1/"
+}
+
+resource "google_storage_bucket" "shim_bucket" {
+  name          = "tf-gcs-driven"
+  location      = "US"
+  force_destroy = true
+}
+
+resource "google_storage_bucket_object" "shim_object" {
+  name    = "from-terraform.txt"
+  bucket  = google_storage_bucket.shim_bucket.name
+  content = "shimanism + google terraform"
+}
+```
+
+```bash
+shim storage --addr=:9000 --frontend=gcs --backend=aws --aws-region=us-east-1 &
+
+terraform init
+terraform apply -auto-approve
+# Verify in AWS:
+# aws s3 ls s3://tf-gcs-driven/
+```
+
+Conformance test reference: `services/storage/conformance/gcs_terraform_test.go`.
+
 ## What the walkthroughs reveal
 
 - All four backend cells (AWS / GCS / Azure / MinIO) support the migration-critical ops with no per-cell exceptions.
