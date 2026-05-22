@@ -837,6 +837,9 @@ type PrivateLinkServiceConnectionState struct {
 // ProvisioningState Redis instance provisioning status.
 type ProvisioningState string
 
+// ProxyResource Common fields that are returned in the response for all Azure Resource Manager resources
+type ProxyResource = Resource
+
 // PublicNetworkAccess Whether or not public endpoint access is allowed for this cache.  Value is optional but if passed in, must be 'Enabled' or 'Disabled'. If 'Disabled', private endpoints are the exclusive access method. Default value is 'Enabled'
 type PublicNetworkAccess string
 
@@ -852,17 +855,11 @@ type RedisAccessKeys struct {
 	SecondaryKey *string `json:"secondaryKey,omitempty"`
 }
 
-// RedisCacheAccessPolicy Response to get/put access policy.
-type RedisCacheAccessPolicy struct {
-	// Properties All properties of an access policy.
-	Properties *RedisCacheAccessPolicyProperties `json:"properties,omitempty"`
-}
+// RedisCacheAccessPolicy The resource model definition for a Azure Resource Manager proxy resource. It will not have tags and a location
+type RedisCacheAccessPolicy = ProxyResource
 
-// RedisCacheAccessPolicyAssignment Response to an operation on access policy assignment
-type RedisCacheAccessPolicyAssignment struct {
-	// Properties Properties for an access policy assignment
-	Properties *RedisCacheAccessPolicyAssignmentProperties `json:"properties,omitempty"`
-}
+// RedisCacheAccessPolicyAssignment The resource model definition for a Azure Resource Manager proxy resource. It will not have tags and a location
+type RedisCacheAccessPolicyAssignment = ProxyResource
 
 // RedisCacheAccessPolicyAssignmentList List of access policies assignments (with properties) of a Redis cache.
 type RedisCacheAccessPolicyAssignmentList struct {
@@ -1036,11 +1033,8 @@ type RedisCreateProperties struct {
 	ZonalAllocationPolicy *ZonalAllocationPolicy `json:"zonalAllocationPolicy,omitempty"`
 }
 
-// RedisFirewallRule A firewall rule on a redis cache has a name, and describes a contiguous range of IP addresses permitted to connect
-type RedisFirewallRule struct {
-	// Properties Specifies a range of IP addresses permitted to connect to the cache
-	Properties RedisFirewallRuleProperties `json:"properties"`
-}
+// RedisFirewallRule The resource model definition for a Azure Resource Manager proxy resource. It will not have tags and a location
+type RedisFirewallRule = ProxyResource
 
 // RedisFirewallRuleListResult The response of a RedisFirewallRule list operation.
 type RedisFirewallRuleListResult struct {
@@ -1141,11 +1135,8 @@ type RedisLinkedServerProperties struct {
 	ServerRole ReplicationRole `json:"serverRole"`
 }
 
-// RedisLinkedServerWithProperties Response to put/get linked server (with properties) for Redis cache.
-type RedisLinkedServerWithProperties struct {
-	// Properties Properties of a linked server to be returned in get/put response
-	Properties *RedisLinkedServerProperties `json:"properties,omitempty"`
-}
+// RedisLinkedServerWithProperties The resource model definition for a Azure Resource Manager proxy resource. It will not have tags and a location
+type RedisLinkedServerWithProperties = ProxyResource
 
 // RedisLinkedServerWithPropertiesList List of linked servers (with properties) of a Redis cache.
 type RedisLinkedServerWithPropertiesList struct {
@@ -1165,14 +1156,8 @@ type RedisListResult struct {
 	Value []RedisResource `json:"value"`
 }
 
-// RedisPatchSchedule Response to put/get patch schedules for Redis cache.
-type RedisPatchSchedule struct {
-	// Location The geo-location where the resource lives
-	Location *string `json:"location,omitempty"`
-
-	// Properties List of patch schedules for a Redis cache.
-	Properties ScheduleEntries `json:"properties"`
-}
+// RedisPatchSchedule The resource model definition for a Azure Resource Manager proxy resource. It will not have tags and a location
+type RedisPatchSchedule = ProxyResource
 
 // RedisPatchScheduleListResult The response of a RedisPatchSchedule list operation.
 type RedisPatchScheduleListResult struct {
@@ -1275,17 +1260,29 @@ type RedisRegenerateKeyParameters struct {
 
 // RedisResource A single Redis item in List or Get Operation.
 type RedisResource struct {
+	// Id Fully qualified resource ID for the resource. E.g. "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/{resourceProviderNamespace}/{resourceType}/{resourceName}"
+	Id *string `json:"id,omitempty"`
+
 	// Identity Managed service identity (system assigned and/or user assigned identities)
 	Identity *ManagedServiceIdentity `json:"identity,omitempty"`
 
 	// Location The geo-location where the resource lives
 	Location string `json:"location"`
 
+	// Name The name of the resource
+	Name *string `json:"name,omitempty"`
+
 	// Properties Properties of the redis cache.
 	Properties RedisProperties `json:"properties"`
 
+	// SystemData Metadata pertaining to creation and last modification of the resource.
+	SystemData *SystemData `json:"systemData,omitempty"`
+
 	// Tags Resource tags.
 	Tags *map[string]string `json:"tags,omitempty"`
+
+	// Type The type of the resource. E.g. "Microsoft.Compute/virtualMachines" or "Microsoft.Storage/storageAccounts"
+	Type *string `json:"type,omitempty"`
 
 	// Zones The availability zones.
 	Zones *[]string `json:"zones,omitempty"`
@@ -1347,6 +1344,21 @@ type RedisUpdateProperties struct {
 
 // ReplicationRole Role of the linked server.
 type ReplicationRole string
+
+// Resource Common fields that are returned in the response for all Azure Resource Manager resources
+type Resource struct {
+	// Id Fully qualified resource ID for the resource. E.g. "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/{resourceProviderNamespace}/{resourceType}/{resourceName}"
+	Id *string `json:"id,omitempty"`
+
+	// Name The name of the resource
+	Name *string `json:"name,omitempty"`
+
+	// SystemData Metadata pertaining to creation and last modification of the resource.
+	SystemData *SystemData `json:"systemData,omitempty"`
+
+	// Type The type of the resource. E.g. "Microsoft.Compute/virtualMachines" or "Microsoft.Storage/storageAccounts"
+	Type *string `json:"type,omitempty"`
+}
 
 // ScheduleEntries List of patch schedules for a Redis cache.
 type ScheduleEntries struct {

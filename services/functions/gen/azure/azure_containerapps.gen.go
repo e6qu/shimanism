@@ -401,6 +401,54 @@ func (e VolumeStorageType) Valid() bool {
 	}
 }
 
+// Defines values for SystemDataCreatedByType.
+const (
+	SystemDataCreatedByTypeApplication     SystemDataCreatedByType = "Application"
+	SystemDataCreatedByTypeKey             SystemDataCreatedByType = "Key"
+	SystemDataCreatedByTypeManagedIdentity SystemDataCreatedByType = "ManagedIdentity"
+	SystemDataCreatedByTypeUser            SystemDataCreatedByType = "User"
+)
+
+// Valid indicates whether the value is a known member of the SystemDataCreatedByType enum.
+func (e SystemDataCreatedByType) Valid() bool {
+	switch e {
+	case SystemDataCreatedByTypeApplication:
+		return true
+	case SystemDataCreatedByTypeKey:
+		return true
+	case SystemDataCreatedByTypeManagedIdentity:
+		return true
+	case SystemDataCreatedByTypeUser:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SystemDataLastModifiedByType.
+const (
+	SystemDataLastModifiedByTypeApplication     SystemDataLastModifiedByType = "Application"
+	SystemDataLastModifiedByTypeKey             SystemDataLastModifiedByType = "Key"
+	SystemDataLastModifiedByTypeManagedIdentity SystemDataLastModifiedByType = "ManagedIdentity"
+	SystemDataLastModifiedByTypeUser            SystemDataLastModifiedByType = "User"
+)
+
+// Valid indicates whether the value is a known member of the SystemDataLastModifiedByType enum.
+func (e SystemDataLastModifiedByType) Valid() bool {
+	switch e {
+	case SystemDataLastModifiedByTypeApplication:
+		return true
+	case SystemDataLastModifiedByTypeKey:
+		return true
+	case SystemDataLastModifiedByTypeManagedIdentity:
+		return true
+	case SystemDataLastModifiedByTypeUser:
+		return true
+	default:
+		return false
+	}
+}
+
 // BaseContainer Container App base container definition.
 type BaseContainer struct {
 	// Args Container start command arguments.
@@ -492,6 +540,9 @@ type ContainerApp struct {
 	// ExtendedLocation The complex type of the extended location.
 	ExtendedLocation *ExtendedLocation `json:"extendedLocation,omitempty"`
 
+	// Id Fully qualified resource ID for the resource. E.g. "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/{resourceProviderNamespace}/{resourceType}/{resourceName}"
+	Id *string `json:"id,omitempty"`
+
 	// Identity Managed service identity (system assigned and/or user assigned identities)
 	Identity *ManagedServiceIdentity `json:"identity,omitempty"`
 
@@ -503,6 +554,9 @@ type ContainerApp struct {
 
 	// ManagedBy The fully qualified resource ID of the resource that manages this resource. Indicates if this resource is managed by another Azure resource. If this is present, complete mode deployment will not delete the resource if it is removed from the template since it is managed by another resource.
 	ManagedBy *string `json:"managedBy,omitempty"`
+
+	// Name The name of the resource
+	Name *string `json:"name,omitempty"`
 
 	// Properties ContainerApp resource specific properties
 	Properties *struct {
@@ -548,8 +602,14 @@ type ContainerApp struct {
 		WorkloadProfileName *WorkloadProfileName `json:"workloadProfileName,omitempty"`
 	} `json:"properties,omitempty"`
 
+	// SystemData Metadata pertaining to creation and last modification of the resource.
+	SystemData *SystemData `json:"systemData,omitempty"`
+
 	// Tags Resource tags.
 	Tags *map[string]string `json:"tags,omitempty"`
+
+	// Type The type of the resource. E.g. "Microsoft.Compute/virtualMachines" or "Microsoft.Storage/storageAccounts"
+	Type *string `json:"type,omitempty"`
 }
 
 // ContainerAppKind Metadata to represent the container app kind, representing if a container app is workflowapp or functionapp.
@@ -563,8 +623,14 @@ type ContainerAppPropertiesRunningStatus string
 
 // ContainerAppAuthToken Container App Auth Token.
 type ContainerAppAuthToken struct {
+	// Id Fully qualified resource ID for the resource. E.g. "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/{resourceProviderNamespace}/{resourceType}/{resourceName}"
+	Id *string `json:"id,omitempty"`
+
 	// Location The geo-location where the resource lives
 	Location string `json:"location"`
+
+	// Name The name of the resource
+	Name *string `json:"name,omitempty"`
 
 	// Properties Container App auth token resource specific properties
 	Properties *struct {
@@ -575,8 +641,14 @@ type ContainerAppAuthToken struct {
 		Token *string `json:"token,omitempty"`
 	} `json:"properties,omitempty"`
 
+	// SystemData Metadata pertaining to creation and last modification of the resource.
+	SystemData *SystemData `json:"systemData,omitempty"`
+
 	// Tags Resource tags.
 	Tags *map[string]string `json:"tags,omitempty"`
+
+	// Type The type of the resource. E.g. "Microsoft.Compute/virtualMachines" or "Microsoft.Storage/storageAccounts"
+	Type *string `json:"type,omitempty"`
 }
 
 // ContainerAppCollection Container App collection ARM resource.
@@ -1295,6 +1367,33 @@ type VolumeMount struct {
 
 // WorkloadProfileName Workload profile name for container apps to execute on.
 type WorkloadProfileName = string
+
+// SystemData Metadata pertaining to creation and last modification of the resource.
+type SystemData struct {
+	// CreatedAt The timestamp of resource creation (UTC).
+	CreatedAt *time.Time `json:"createdAt,omitempty"`
+
+	// CreatedBy The identity that created the resource.
+	CreatedBy *string `json:"createdBy,omitempty"`
+
+	// CreatedByType The type of identity that created the resource.
+	CreatedByType *SystemDataCreatedByType `json:"createdByType,omitempty"`
+
+	// LastModifiedAt The timestamp of resource last modification (UTC)
+	LastModifiedAt *time.Time `json:"lastModifiedAt,omitempty"`
+
+	// LastModifiedBy The identity that last modified the resource.
+	LastModifiedBy *string `json:"lastModifiedBy,omitempty"`
+
+	// LastModifiedByType The type of identity that last modified the resource.
+	LastModifiedByType *SystemDataLastModifiedByType `json:"lastModifiedByType,omitempty"`
+}
+
+// SystemDataCreatedByType The type of identity that created the resource.
+type SystemDataCreatedByType string
+
+// SystemDataLastModifiedByType The type of identity that last modified the resource.
+type SystemDataLastModifiedByType string
 
 // ApiVersionParameter defines model for ApiVersionParameter.
 type ApiVersionParameter = string

@@ -293,8 +293,13 @@ func flattenARMAllOf(raw []byte) ([]byte, error) {
 		}
 	}
 
-	// Bounded loop in case of cycles in the spec.
-	for pass := 0; pass < 16; pass++ {
+	// Iterate until no definition changes. Each pass merges allOf
+	// referents whose source has already had ITS OWN allOf resolved
+	// (or never had one). This naturally handles chains like
+	// X → allOf [Y]; Y → allOf [Z]: the first pass resolves Y (Z
+	// has no allOf), the next pass resolves X (Y's allOf is now
+	// gone). Bounded at 32 passes to avoid cycles.
+	for pass := 0; pass < 32; pass++ {
 		changed := false
 		for _, name := range sortedKeys(defs) {
 			schema, ok := defs[name].(map[string]interface{})
@@ -317,8 +322,9 @@ func flattenARMAllOf(raw []byte) ([]byte, error) {
 				continue
 			}
 			// Resolve each allOf element. Skip non-local refs
-			// (already inlined by inlineExternalRefs) and inline
-			// referenced definitions that exist locally.
+			// (already inlined by inlineExternalRefs) and defer
+			// merging from sources that still have allOf of their
+			// own — they'll be processed in a later pass.
 			var remaining []interface{}
 			merged := false
 			for _, item := range allOf {
@@ -341,6 +347,13 @@ func flattenARMAllOf(raw []byte) ([]byte, error) {
 				target := strings.TrimPrefix(ref, prefix)
 				source, ok := defs[target].(map[string]interface{})
 				if !ok {
+					remaining = append(remaining, item)
+					continue
+				}
+				// If the source still has unresolved allOf, defer
+				// merging until the next pass so we don't pull in
+				// a partially-resolved view.
+				if srcAllOf, ok := source["allOf"].([]interface{}); ok && len(srcAllOf) > 0 {
 					remaining = append(remaining, item)
 					continue
 				}

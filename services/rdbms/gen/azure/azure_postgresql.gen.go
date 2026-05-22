@@ -1568,11 +1568,8 @@ type AdminCredentialsForPatch struct {
 	TargetServerPassword *string `json:"targetServerPassword,omitempty"`
 }
 
-// AdministratorMicrosoftEntra Server administrator associated to a Microsoft Entra principal.
-type AdministratorMicrosoftEntra struct {
-	// Properties Properties of a server administrator associated to a Microsoft Entra principal.
-	Properties AdministratorMicrosoftEntraProperties `json:"properties"`
-}
+// AdministratorMicrosoftEntra The resource model definition for a Azure Resource Manager proxy resource. It will not have tags and a location
+type AdministratorMicrosoftEntra = ProxyResource
 
 // AdministratorMicrosoftEntraAdd Server administrator associated to a Microsoft Entra principal.
 type AdministratorMicrosoftEntraAdd struct {
@@ -1625,11 +1622,8 @@ type AdvancedThreatProtectionSettingsList struct {
 	Value *[]AdvancedThreatProtectionSettingsModel `json:"value,omitempty"`
 }
 
-// AdvancedThreatProtectionSettingsModel Advanced threat protection settings of the server.
-type AdvancedThreatProtectionSettingsModel struct {
-	// Properties Properties of advanced threat protection state for a server.
-	Properties *AdvancedThreatProtectionSettingsProperties `json:"properties,omitempty"`
-}
+// AdvancedThreatProtectionSettingsModel The resource model definition for a Azure Resource Manager proxy resource. It will not have tags and a location
+type AdvancedThreatProtectionSettingsModel = ProxyResource
 
 // AdvancedThreatProtectionSettingsProperties Properties of advanced threat protection state for a server.
 type AdvancedThreatProtectionSettingsProperties struct {
@@ -1679,11 +1673,8 @@ type Backup struct {
 	GeoRedundantBackup *GeographicallyRedundantBackup `json:"geoRedundantBackup,omitempty"`
 }
 
-// BackupAutomaticAndOnDemand Properties of a backup.
-type BackupAutomaticAndOnDemand struct {
-	// Properties Properties of a backup.
-	Properties *BackupAutomaticAndOnDemandProperties `json:"properties,omitempty"`
-}
+// BackupAutomaticAndOnDemand The resource model definition for a Azure Resource Manager proxy resource. It will not have tags and a location
+type BackupAutomaticAndOnDemand = ProxyResource
 
 // BackupAutomaticAndOnDemandList List of backups.
 type BackupAutomaticAndOnDemandList struct {
@@ -1739,11 +1730,8 @@ type BackupStoreDetails struct {
 // BackupType Type of backup.
 type BackupType string
 
-// BackupsLongTermRetentionOperation Response for the LTR backup Operation API call
-type BackupsLongTermRetentionOperation struct {
-	// Properties Response for the backup request.
-	Properties *LtrBackupOperationResponseProperties `json:"properties,omitempty"`
-}
+// BackupsLongTermRetentionOperation The resource model definition for a Azure Resource Manager proxy resource. It will not have tags and a location
+type BackupsLongTermRetentionOperation = ProxyResource
 
 // BackupsLongTermRetentionRequest Request made for a long term retention backup.
 type BackupsLongTermRetentionRequest struct {
@@ -1826,11 +1814,8 @@ type CapabilityList struct {
 // CapabilityStatus Status of the capability.
 type CapabilityStatus string
 
-// CapturedLog Log file.
-type CapturedLog struct {
-	// Properties Properties of a log file.
-	Properties *CapturedLogProperties `json:"properties,omitempty"`
-}
+// CapturedLog The resource model definition for a Azure Resource Manager proxy resource. It will not have tags and a location
+type CapturedLog = ProxyResource
 
 // CapturedLogList List of log files.
 type CapturedLogList struct {
@@ -1877,11 +1862,8 @@ type Cluster struct {
 	DefaultDatabaseName *string `json:"defaultDatabaseName,omitempty"`
 }
 
-// Configuration Configuration (also known as server parameter).
-type Configuration struct {
-	// Properties Properties of a configuration (also known as server parameter).
-	Properties *ConfigurationProperties `json:"properties,omitempty"`
-}
+// Configuration The resource model definition for a Azure Resource Manager proxy resource. It will not have tags and a location
+type Configuration = ProxyResource
 
 // ConfigurationDataType Data type of the configuration (also known as server parameter).
 type ConfigurationDataType string
@@ -1970,11 +1952,8 @@ type DataEncryption struct {
 // DataEncryptionType Data encryption type used by a server.
 type DataEncryptionType string
 
-// Database Represents a database.
-type Database struct {
-	// Properties Properties of a database.
-	Properties *DatabaseProperties `json:"properties,omitempty"`
-}
+// Database The resource model definition for a Azure Resource Manager proxy resource. It will not have tags and a location
+type Database = ProxyResource
 
 // DatabaseList List of all databases in a server.
 type DatabaseList struct {
@@ -2156,11 +2135,8 @@ type FastProvisioningSupport string
 // FeatureStatus Status of the feature. Indicates if the feature is enabled or not.
 type FeatureStatus string
 
-// FirewallRule Firewall rule.
-type FirewallRule struct {
-	// Properties Properties of a firewall rule.
-	Properties FirewallRuleProperties `json:"properties"`
-}
+// FirewallRule The resource model definition for a Azure Resource Manager proxy resource. It will not have tags and a location
+type FirewallRule = ProxyResource
 
 // FirewallRuleList List of firewall rules.
 type FirewallRuleList struct {
@@ -2368,14 +2344,26 @@ type MigrateRolesAndPermissions string
 
 // Migration Properties of a migration.
 type Migration struct {
+	// Id Fully qualified resource ID for the resource. E.g. "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/{resourceProviderNamespace}/{resourceType}/{resourceName}"
+	Id *string `json:"id,omitempty"`
+
 	// Location The geo-location where the resource lives
 	Location string `json:"location"`
+
+	// Name The name of the resource
+	Name *string `json:"name,omitempty"`
 
 	// Properties Migration.
 	Properties *MigrationProperties `json:"properties,omitempty"`
 
+	// SystemData Metadata pertaining to creation and last modification of the resource.
+	SystemData *SystemData `json:"systemData,omitempty"`
+
 	// Tags Resource tags.
 	Tags *map[string]string `json:"tags,omitempty"`
+
+	// Type The type of the resource. E.g. "Microsoft.Compute/virtualMachines" or "Microsoft.Storage/storageAccounts"
+	Type *string `json:"type,omitempty"`
 }
 
 // MigrationDatabaseState Migration state of a database.
@@ -2646,14 +2634,8 @@ type Network struct {
 	PublicNetworkAccess *ServerPublicNetworkAccessState `json:"publicNetworkAccess,omitempty"`
 }
 
-// ObjectRecommendation Object recommendation properties.
-type ObjectRecommendation struct {
-	// Kind Always empty.
-	Kind *string `json:"kind,omitempty"`
-
-	// Properties Object recommendation properties.
-	Properties *ObjectRecommendationProperties `json:"properties,omitempty"`
-}
+// ObjectRecommendation The resource model definition for a Azure Resource Manager proxy resource. It will not have tags and a location
+type ObjectRecommendation = ProxyResource
 
 // ObjectRecommendationDetails Recommendation details for the recommended action.
 type ObjectRecommendationDetails struct {
@@ -2901,11 +2883,8 @@ type PrivateEndpointConnectionProvisioningState string
 // PrivateEndpointServiceConnectionStatus The private endpoint connection status.
 type PrivateEndpointServiceConnectionStatus string
 
-// PrivateLinkResource A private link resource.
-type PrivateLinkResource struct {
-	// Properties Properties of a private link resource.
-	Properties *PrivateLinkResourceProperties `json:"properties,omitempty"`
-}
+// PrivateLinkResource The resource model definition for a Azure Resource Manager proxy resource. It will not have tags and a location
+type PrivateLinkResource = ProxyResource
 
 // PrivateLinkResourceList A list of private link resources
 type PrivateLinkResourceList struct {
@@ -2939,6 +2918,9 @@ type PrivateLinkServiceConnectionState struct {
 	// Status The private endpoint connection status.
 	Status *PrivateEndpointServiceConnectionStatus `json:"status,omitempty"`
 }
+
+// ProxyResource Common fields that are returned in the response for all Azure Resource Manager resources
+type ProxyResource = Resource
 
 // QuotaUsage Quota usage for servers
 type QuotaUsage struct {
@@ -3000,6 +2982,21 @@ type ReplicationRole string
 // ReplicationState Indicates the replication state of a read replica. This property is returned only when the target server is a read replica.
 type ReplicationState string
 
+// Resource Common fields that are returned in the response for all Azure Resource Manager resources
+type Resource struct {
+	// Id Fully qualified resource ID for the resource. E.g. "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/{resourceProviderNamespace}/{resourceType}/{resourceName}"
+	Id *string `json:"id,omitempty"`
+
+	// Name The name of the resource
+	Name *string `json:"name,omitempty"`
+
+	// SystemData Metadata pertaining to creation and last modification of the resource.
+	SystemData *SystemData `json:"systemData,omitempty"`
+
+	// Type The type of the resource. E.g. "Microsoft.Compute/virtualMachines" or "Microsoft.Storage/storageAccounts"
+	Type *string `json:"type,omitempty"`
+}
+
 // RestartParameter PostgreSQL database engine restart parameters.
 type RestartParameter struct {
 	// FailoverMode Failover mode.
@@ -3011,11 +3008,17 @@ type RestartParameter struct {
 
 // Server Properties of a server.
 type Server struct {
+	// Id Fully qualified resource ID for the resource. E.g. "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/{resourceProviderNamespace}/{resourceType}/{resourceName}"
+	Id *string `json:"id,omitempty"`
+
 	// Identity Identities associated with a server.
 	Identity *UserAssignedIdentity `json:"identity,omitempty"`
 
 	// Location The geo-location where the resource lives
 	Location string `json:"location"`
+
+	// Name The name of the resource
+	Name *string `json:"name,omitempty"`
 
 	// Properties Properties of a server.
 	Properties *ServerProperties `json:"properties,omitempty"`
@@ -3023,8 +3026,14 @@ type Server struct {
 	// Sku Compute information of a server.
 	Sku *Sku `json:"sku,omitempty"`
 
+	// SystemData Metadata pertaining to creation and last modification of the resource.
+	SystemData *SystemData `json:"systemData,omitempty"`
+
 	// Tags Resource tags.
 	Tags *map[string]string `json:"tags,omitempty"`
+
+	// Type The type of the resource. E.g. "Microsoft.Compute/virtualMachines" or "Microsoft.Storage/storageAccounts"
+	Type *string `json:"type,omitempty"`
 }
 
 // ServerEditionCapability Capabilities in terms of compute tier.
@@ -3405,11 +3414,8 @@ type ThreatProtectionState string
 // TriggerCutover Indicates if cutover must be triggered for the entire migration.
 type TriggerCutover string
 
-// TuningOptions Impact on some metric if this recommended action is applied.
-type TuningOptions struct {
-	// Properties Properties of a tuning option.
-	Properties *TuningOptionsProperties `json:"properties,omitempty"`
-}
+// TuningOptions The resource model definition for a Azure Resource Manager proxy resource. It will not have tags and a location
+type TuningOptions = ProxyResource
 
 // TuningOptionsList List of server tuning options.
 type TuningOptionsList struct {
@@ -3492,11 +3498,8 @@ type ValidationSummaryItem struct {
 	Type *string `json:"type,omitempty"`
 }
 
-// VirtualEndpoint Pair of virtual endpoints for a server.
-type VirtualEndpoint struct {
-	// Properties Properties of a pair of virtual endpoints.
-	Properties *VirtualEndpointResourceProperties `json:"properties,omitempty"`
-}
+// VirtualEndpoint The resource model definition for a Azure Resource Manager proxy resource. It will not have tags and a location
+type VirtualEndpoint = ProxyResource
 
 // VirtualEndpointResourceForPatch Pair of virtual endpoints for a server.
 type VirtualEndpointResourceForPatch struct {
