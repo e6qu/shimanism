@@ -1,0 +1,6 @@
+{
+  "_comment": "Phase 12.A.12: Azure PostgreSQL FlexibleServers ARM spec. Sixth Azure spec the cmd/azure-codegen pipeline handles end-to-end — needed the inline-enum→$ref preprocessor (promoteXMsEnumName) for the HighAvailabilityMode collision where the spec author declared the inline `HighAvailability.properties.mode` enum to be the same type as the standalone `PostgreSqlFlexibleServerHighAvailabilityMode` via shared x-ms-enum.name.",
+  "spec": "services/rdbms/spec/azure-postgresql.json",
+  "package": "azure",
+  "out": "services/rdbms/gen/azure/azure_postgresql.gen.go"
+}

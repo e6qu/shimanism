@@ -919,6 +919,9 @@ type OperationStatusResult struct {
 	// PercentComplete Percent of the operation that is complete.
 	PercentComplete *float32 `json:"percentComplete,omitempty"`
 
+	// ResourceId Fully qualified ID of the resource against which the original async operation was started.
+	ResourceId *string `json:"resourceId,omitempty"`
+
 	// StartTime The start time of the operation.
 	StartTime *time.Time `json:"startTime,omitempty"`
 
@@ -961,7 +964,7 @@ type RegistryCredentials struct {
 
 // Resource Common fields that are returned in the response for all Azure Resource Manager resources
 type Resource struct {
-	// Id Fully qualified resource ID for the resource. Ex - /subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/{resourceProviderNamespace}/{resourceType}/{resourceName}
+	// Id Fully qualified resource ID for the resource. E.g. "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/{resourceProviderNamespace}/{resourceType}/{resourceName}"
 	Id *string `json:"id,omitempty"`
 
 	// Name The name of the resource
@@ -1211,7 +1214,7 @@ type ApiVersionParameter = string
 type ResourceGroupNameParameter = string
 
 // SubscriptionIdParameter defines model for SubscriptionIdParameter.
-type SubscriptionIdParameter = string
+type SubscriptionIdParameter = openapi_types.UUID
 
 // azureAuthContextKey is the context key for azure_auth security scheme
 type azureAuthContextKey string
@@ -1346,7 +1349,7 @@ func (siw *ServerInterfaceWrapper) ContainerAppsListBySubscription(w http.Respon
 	// ------------- Path parameter "subscriptionId" -------------
 	var subscriptionId SubscriptionIdParameter
 
-	err = runtime.BindStyledParameterWithOptions("simple", "subscriptionId", r.PathValue("subscriptionId"), &subscriptionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	err = runtime.BindStyledParameterWithOptions("simple", "subscriptionId", r.PathValue("subscriptionId"), &subscriptionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid"})
 	if err != nil {
 		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "subscriptionId", Err: err})
 		return
@@ -1394,7 +1397,7 @@ func (siw *ServerInterfaceWrapper) ContainerAppsListByResourceGroup(w http.Respo
 	// ------------- Path parameter "subscriptionId" -------------
 	var subscriptionId SubscriptionIdParameter
 
-	err = runtime.BindStyledParameterWithOptions("simple", "subscriptionId", r.PathValue("subscriptionId"), &subscriptionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	err = runtime.BindStyledParameterWithOptions("simple", "subscriptionId", r.PathValue("subscriptionId"), &subscriptionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid"})
 	if err != nil {
 		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "subscriptionId", Err: err})
 		return
@@ -1451,7 +1454,7 @@ func (siw *ServerInterfaceWrapper) ContainerAppsDelete(w http.ResponseWriter, r 
 	// ------------- Path parameter "subscriptionId" -------------
 	var subscriptionId SubscriptionIdParameter
 
-	err = runtime.BindStyledParameterWithOptions("simple", "subscriptionId", r.PathValue("subscriptionId"), &subscriptionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	err = runtime.BindStyledParameterWithOptions("simple", "subscriptionId", r.PathValue("subscriptionId"), &subscriptionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid"})
 	if err != nil {
 		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "subscriptionId", Err: err})
 		return
@@ -1517,7 +1520,7 @@ func (siw *ServerInterfaceWrapper) ContainerAppsGet(w http.ResponseWriter, r *ht
 	// ------------- Path parameter "subscriptionId" -------------
 	var subscriptionId SubscriptionIdParameter
 
-	err = runtime.BindStyledParameterWithOptions("simple", "subscriptionId", r.PathValue("subscriptionId"), &subscriptionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	err = runtime.BindStyledParameterWithOptions("simple", "subscriptionId", r.PathValue("subscriptionId"), &subscriptionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid"})
 	if err != nil {
 		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "subscriptionId", Err: err})
 		return
@@ -1583,7 +1586,7 @@ func (siw *ServerInterfaceWrapper) ContainerAppsUpdate(w http.ResponseWriter, r 
 	// ------------- Path parameter "subscriptionId" -------------
 	var subscriptionId SubscriptionIdParameter
 
-	err = runtime.BindStyledParameterWithOptions("simple", "subscriptionId", r.PathValue("subscriptionId"), &subscriptionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	err = runtime.BindStyledParameterWithOptions("simple", "subscriptionId", r.PathValue("subscriptionId"), &subscriptionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid"})
 	if err != nil {
 		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "subscriptionId", Err: err})
 		return
@@ -1649,7 +1652,7 @@ func (siw *ServerInterfaceWrapper) ContainerAppsCreateOrUpdate(w http.ResponseWr
 	// ------------- Path parameter "subscriptionId" -------------
 	var subscriptionId SubscriptionIdParameter
 
-	err = runtime.BindStyledParameterWithOptions("simple", "subscriptionId", r.PathValue("subscriptionId"), &subscriptionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	err = runtime.BindStyledParameterWithOptions("simple", "subscriptionId", r.PathValue("subscriptionId"), &subscriptionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid"})
 	if err != nil {
 		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "subscriptionId", Err: err})
 		return
@@ -1715,7 +1718,7 @@ func (siw *ServerInterfaceWrapper) ContainerAppsGetAuthToken(w http.ResponseWrit
 	// ------------- Path parameter "subscriptionId" -------------
 	var subscriptionId SubscriptionIdParameter
 
-	err = runtime.BindStyledParameterWithOptions("simple", "subscriptionId", r.PathValue("subscriptionId"), &subscriptionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	err = runtime.BindStyledParameterWithOptions("simple", "subscriptionId", r.PathValue("subscriptionId"), &subscriptionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid"})
 	if err != nil {
 		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "subscriptionId", Err: err})
 		return
@@ -1781,7 +1784,7 @@ func (siw *ServerInterfaceWrapper) ContainerAppsListCustomHostNameAnalysis(w htt
 	// ------------- Path parameter "subscriptionId" -------------
 	var subscriptionId SubscriptionIdParameter
 
-	err = runtime.BindStyledParameterWithOptions("simple", "subscriptionId", r.PathValue("subscriptionId"), &subscriptionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	err = runtime.BindStyledParameterWithOptions("simple", "subscriptionId", r.PathValue("subscriptionId"), &subscriptionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid"})
 	if err != nil {
 		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "subscriptionId", Err: err})
 		return
@@ -1860,7 +1863,7 @@ func (siw *ServerInterfaceWrapper) ContainerAppsListSecrets(w http.ResponseWrite
 	// ------------- Path parameter "subscriptionId" -------------
 	var subscriptionId SubscriptionIdParameter
 
-	err = runtime.BindStyledParameterWithOptions("simple", "subscriptionId", r.PathValue("subscriptionId"), &subscriptionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	err = runtime.BindStyledParameterWithOptions("simple", "subscriptionId", r.PathValue("subscriptionId"), &subscriptionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid"})
 	if err != nil {
 		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "subscriptionId", Err: err})
 		return
@@ -1926,7 +1929,7 @@ func (siw *ServerInterfaceWrapper) ContainerAppsStart(w http.ResponseWriter, r *
 	// ------------- Path parameter "subscriptionId" -------------
 	var subscriptionId SubscriptionIdParameter
 
-	err = runtime.BindStyledParameterWithOptions("simple", "subscriptionId", r.PathValue("subscriptionId"), &subscriptionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	err = runtime.BindStyledParameterWithOptions("simple", "subscriptionId", r.PathValue("subscriptionId"), &subscriptionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid"})
 	if err != nil {
 		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "subscriptionId", Err: err})
 		return
@@ -1992,7 +1995,7 @@ func (siw *ServerInterfaceWrapper) ContainerAppsStop(w http.ResponseWriter, r *h
 	// ------------- Path parameter "subscriptionId" -------------
 	var subscriptionId SubscriptionIdParameter
 
-	err = runtime.BindStyledParameterWithOptions("simple", "subscriptionId", r.PathValue("subscriptionId"), &subscriptionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	err = runtime.BindStyledParameterWithOptions("simple", "subscriptionId", r.PathValue("subscriptionId"), &subscriptionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid"})
 	if err != nil {
 		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "subscriptionId", Err: err})
 		return

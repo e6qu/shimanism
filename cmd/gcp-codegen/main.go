@@ -102,7 +102,10 @@ func main() {
 		if routes[i].HTTPMethod != routes[j].HTTPMethod {
 			return routes[i].HTTPMethod < routes[j].HTTPMethod
 		}
-		return routes[i].URIPattern < routes[j].URIPattern
+		if routes[i].URIPattern != routes[j].URIPattern {
+			return routes[i].URIPattern < routes[j].URIPattern
+		}
+		return routes[i].ID < routes[j].ID
 	})
 
 	var b strings.Builder

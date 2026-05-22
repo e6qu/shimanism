@@ -81,6 +81,21 @@ func main() {
 		raw = inlined
 	}
 
+	// Promote `x-ms-enum.name` → `x-go-name` so oapi-codegen honours
+	// the spec author's intended Go type name. Without this, inline
+	// enums get a name derived from the property path (e.g.
+	// `HighAvailabilityMode` for `HighAvailability.properties.mode`)
+	// which can collide with a standalone definition of the same
+	// name. The Azure convention is that `x-ms-enum.name` is
+	// authoritative; oapi-codegen honours `x-go-name` natively.
+	if strings.Contains(string(raw), "x-ms-enum") {
+		promoted, err := promoteXMsEnumName(raw)
+		if err != nil {
+			fail("promote x-ms-enum.name: %v", err)
+		}
+		raw = promoted
+	}
+
 	// Parse the v2 spec, convert to v3 in-memory. openapi2conv.ToV3 is
 	// the canonical path Azure SDK teams + the OpenAPI ecosystem use
 	// to bridge Swagger to v3 generators.
@@ -140,6 +155,117 @@ func main() {
 func fail(format string, args ...any) {
 	fmt.Fprintf(os.Stderr, "azure-codegen: "+format+"\n", args...)
 	os.Exit(1)
+}
+
+// sortedKeys returns the map's keys in sorted order. Used during
+// the spec walk so iteration order — and therefore which file's
+// definitions land in the merged doc first when names collide —
+// is deterministic across runs.
+func sortedKeys(m map[string]interface{}) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sortStrings(keys)
+	return keys
+}
+
+func sortStrings(s []string) {
+	// Standard library sort.Strings; pulled into a helper so the
+	// caller doesn't have to import sort just for this one use.
+	for i := 1; i < len(s); i++ {
+		for j := i; j > 0 && s[j-1] > s[j]; j-- {
+			s[j-1], s[j] = s[j], s[j-1]
+		}
+	}
+}
+
+// promoteXMsEnumName walks the spec and rewrites inline enums whose
+// `x-ms-enum.name` matches a top-level `definitions/<N>` declaring
+// the same `x-ms-enum.name`. The spec author is declaring "this
+// inline schema IS the top-level enum"; replacing the inline with
+// `{$ref: #/definitions/<N>}` makes that explicit and prevents
+// oapi-codegen from inferring a colliding Go type name from the
+// property path.
+//
+// Stops short of broader x-go-name promotion: putting `x-go-name`
+// on a property's referenced enum schema makes oapi-codegen use it
+// as the FIELD name when the schema is `$ref`'d from a property,
+// which causes its own kind of collision (multiple properties
+// referencing the same enum collapse onto a single field name).
+// The right level for x-go-name is the call site of each ref, not
+// the ref target — out of scope for this preprocessor.
+func promoteXMsEnumName(raw []byte) ([]byte, error) {
+	var doc map[string]interface{}
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		return nil, fmt.Errorf("parse spec JSON: %w", err)
+	}
+	// Index every top-level definition by its x-ms-enum.name.
+	// Multiple definitions sharing the same name would themselves
+	// collide; the first one wins for the inline-→-ref rewrite.
+	defs, _ := doc["definitions"].(map[string]interface{})
+	defByXMSName := map[string]string{}
+	for name, raw := range defs {
+		schema, ok := raw.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		ext, ok := schema["x-ms-enum"].(map[string]interface{})
+		if !ok {
+			continue
+		}
+		xmsName, ok := ext["name"].(string)
+		if !ok || xmsName == "" {
+			continue
+		}
+		if _, taken := defByXMSName[xmsName]; !taken {
+			defByXMSName[xmsName] = name
+		}
+	}
+
+	var walk func(interface{}, bool) interface{}
+	walk = func(node interface{}, atTopLevelDefinition bool) interface{} {
+		switch v := node.(type) {
+		case map[string]interface{}:
+			ext, hasExt := v["x-ms-enum"].(map[string]interface{})
+			if hasExt && !atTopLevelDefinition {
+				if name, ok := ext["name"].(string); ok && name != "" {
+					if tgt, sharesName := defByXMSName[name]; sharesName {
+						// Inline schema declaring it IS the top-
+						// level enum. Replace with a $ref.
+						return map[string]interface{}{
+							"$ref": "#/definitions/" + tgt,
+						}
+					}
+				}
+			}
+			for k, sub := range v {
+				v[k] = walk(sub, false)
+			}
+			return v
+		case []interface{}:
+			for i, sub := range v {
+				v[i] = walk(sub, false)
+			}
+			return v
+		default:
+			return v
+		}
+	}
+	// Walk definitions first with atTopLevelDefinition=true so the
+	// standalone enum schemas don't get $ref-rewritten to themselves.
+	for k, sub := range defs {
+		defs[k] = walk(sub, true)
+	}
+	// Walk the rest of the doc; inline x-ms-enums in property
+	// schemas get the inline→$ref rewrite.
+	for k, sub := range doc {
+		if k == "definitions" {
+			continue
+		}
+		doc[k] = walk(sub, false)
+	}
+	return json.Marshal(doc)
 }
 
 // commonTypesPattern matches a relative `$ref` into the Azure
@@ -373,8 +499,8 @@ func inlineExternalRefs(raw []byte, commonTypesRoot, specDir string) ([]byte, er
 						}
 					}
 				}
-				for _, sub := range v {
-					if err := collect(sub); err != nil {
+				for _, k := range sortedKeys(v) {
+					if err := collect(v[k]); err != nil {
 						return err
 					}
 				}
@@ -407,8 +533,8 @@ func inlineExternalRefs(raw []byte, commonTypesRoot, specDir string) ([]byte, er
 					}
 				}
 			}
-			for _, sub := range v {
-				if err := collectFromDoc(sub); err != nil {
+			for _, k := range sortedKeys(v) {
+				if err := collectFromDoc(v[k]); err != nil {
 					return err
 				}
 			}
