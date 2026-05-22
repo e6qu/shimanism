@@ -55,8 +55,16 @@ clean:
 
 # Re-fetch every vendored spec from its upstream, updating the pinned SHA
 # in each services/<svc>/spec/SOURCES.md. Review the diff before
-# committing. Per-service refresh: call scripts/fetch-aws-spec.sh
+# committing. Per-service refresh: call the matching scripts/fetch-*.sh
 # directly.
+#
+# Three pipelines exist today:
+#   - scripts/fetch-aws-spec.sh   <aws-service> <local-dir> [<ref>]
+#   - scripts/fetch-azure-spec.sh <upstream-path> <local-dir> <filename> [<ref>]
+#   - scripts/fetch-gcp-discovery.sh <host> <local-dir> <filename>
+#
+# Each runs cmd/inject-provenance after download so the spec's
+# `_provenance` top-level key stays current.
 fetch-specs:
 	bash scripts/fetch-aws-spec.sh s3 services/storage
 
