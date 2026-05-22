@@ -38,6 +38,78 @@ func (e ConfigurationActiveRevisionsMode) Valid() bool {
 	}
 }
 
+// Defines values for ContainerAppKind.
+const (
+	Functionapp ContainerAppKind = "functionapp"
+	Workflowapp ContainerAppKind = "workflowapp"
+)
+
+// Valid indicates whether the value is a known member of the ContainerAppKind enum.
+func (e ContainerAppKind) Valid() bool {
+	switch e {
+	case Functionapp:
+		return true
+	case Workflowapp:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ContainerAppPropertiesProvisioningState.
+const (
+	ContainerAppPropertiesProvisioningStateCanceled   ContainerAppPropertiesProvisioningState = "Canceled"
+	ContainerAppPropertiesProvisioningStateDeleting   ContainerAppPropertiesProvisioningState = "Deleting"
+	ContainerAppPropertiesProvisioningStateFailed     ContainerAppPropertiesProvisioningState = "Failed"
+	ContainerAppPropertiesProvisioningStateInProgress ContainerAppPropertiesProvisioningState = "InProgress"
+	ContainerAppPropertiesProvisioningStateSucceeded  ContainerAppPropertiesProvisioningState = "Succeeded"
+)
+
+// Valid indicates whether the value is a known member of the ContainerAppPropertiesProvisioningState enum.
+func (e ContainerAppPropertiesProvisioningState) Valid() bool {
+	switch e {
+	case ContainerAppPropertiesProvisioningStateCanceled:
+		return true
+	case ContainerAppPropertiesProvisioningStateDeleting:
+		return true
+	case ContainerAppPropertiesProvisioningStateFailed:
+		return true
+	case ContainerAppPropertiesProvisioningStateInProgress:
+		return true
+	case ContainerAppPropertiesProvisioningStateSucceeded:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ContainerAppPropertiesRunningStatus.
+const (
+	Progressing ContainerAppPropertiesRunningStatus = "Progressing"
+	Ready       ContainerAppPropertiesRunningStatus = "Ready"
+	Running     ContainerAppPropertiesRunningStatus = "Running"
+	Stopped     ContainerAppPropertiesRunningStatus = "Stopped"
+	Suspended   ContainerAppPropertiesRunningStatus = "Suspended"
+)
+
+// Valid indicates whether the value is a known member of the ContainerAppPropertiesRunningStatus enum.
+func (e ContainerAppPropertiesRunningStatus) Valid() bool {
+	switch e {
+	case Progressing:
+		return true
+	case Ready:
+		return true
+	case Running:
+		return true
+	case Stopped:
+		return true
+	case Suspended:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ContainerAppProbeHttpGetScheme.
 const (
 	HTTP  ContainerAppProbeHttpGetScheme = "HTTP"
@@ -100,19 +172,19 @@ func (e CustomDomainBindingType) Valid() bool {
 
 // Defines values for CustomHostnameAnalysisResultCustomDomainVerificationTest.
 const (
-	Failed  CustomHostnameAnalysisResultCustomDomainVerificationTest = "Failed"
-	Passed  CustomHostnameAnalysisResultCustomDomainVerificationTest = "Passed"
-	Skipped CustomHostnameAnalysisResultCustomDomainVerificationTest = "Skipped"
+	CustomHostnameAnalysisResultCustomDomainVerificationTestFailed  CustomHostnameAnalysisResultCustomDomainVerificationTest = "Failed"
+	CustomHostnameAnalysisResultCustomDomainVerificationTestPassed  CustomHostnameAnalysisResultCustomDomainVerificationTest = "Passed"
+	CustomHostnameAnalysisResultCustomDomainVerificationTestSkipped CustomHostnameAnalysisResultCustomDomainVerificationTest = "Skipped"
 )
 
 // Valid indicates whether the value is a known member of the CustomHostnameAnalysisResultCustomDomainVerificationTest enum.
 func (e CustomHostnameAnalysisResultCustomDomainVerificationTest) Valid() bool {
 	switch e {
-	case Failed:
+	case CustomHostnameAnalysisResultCustomDomainVerificationTestFailed:
 		return true
-	case Passed:
+	case CustomHostnameAnalysisResultCustomDomainVerificationTestPassed:
 		return true
-	case Skipped:
+	case CustomHostnameAnalysisResultCustomDomainVerificationTestSkipped:
 		return true
 	default:
 		return false
@@ -329,54 +401,6 @@ func (e VolumeStorageType) Valid() bool {
 	}
 }
 
-// Defines values for SystemDataCreatedByType.
-const (
-	SystemDataCreatedByTypeApplication     SystemDataCreatedByType = "Application"
-	SystemDataCreatedByTypeKey             SystemDataCreatedByType = "Key"
-	SystemDataCreatedByTypeManagedIdentity SystemDataCreatedByType = "ManagedIdentity"
-	SystemDataCreatedByTypeUser            SystemDataCreatedByType = "User"
-)
-
-// Valid indicates whether the value is a known member of the SystemDataCreatedByType enum.
-func (e SystemDataCreatedByType) Valid() bool {
-	switch e {
-	case SystemDataCreatedByTypeApplication:
-		return true
-	case SystemDataCreatedByTypeKey:
-		return true
-	case SystemDataCreatedByTypeManagedIdentity:
-		return true
-	case SystemDataCreatedByTypeUser:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for SystemDataLastModifiedByType.
-const (
-	SystemDataLastModifiedByTypeApplication     SystemDataLastModifiedByType = "Application"
-	SystemDataLastModifiedByTypeKey             SystemDataLastModifiedByType = "Key"
-	SystemDataLastModifiedByTypeManagedIdentity SystemDataLastModifiedByType = "ManagedIdentity"
-	SystemDataLastModifiedByTypeUser            SystemDataLastModifiedByType = "User"
-)
-
-// Valid indicates whether the value is a known member of the SystemDataLastModifiedByType enum.
-func (e SystemDataLastModifiedByType) Valid() bool {
-	switch e {
-	case SystemDataLastModifiedByTypeApplication:
-		return true
-	case SystemDataLastModifiedByTypeKey:
-		return true
-	case SystemDataLastModifiedByTypeManagedIdentity:
-		return true
-	case SystemDataLastModifiedByTypeUser:
-		return true
-	default:
-		return false
-	}
-}
-
 // BaseContainer Container App base container definition.
 type BaseContainer struct {
 	// Args Container start command arguments.
@@ -436,14 +460,124 @@ type Configuration struct {
 // <list><item>Multiple: multiple revisions can be active.</item><item>Single: Only one revision can be active at a time. Revision weights can not be used in this mode. If no value if provided, this is the default.</item></list>
 type ConfigurationActiveRevisionsMode string
 
-// Container Container App base container definition.
-type Container = BaseContainer
+// Container Container App container definition
+type Container struct {
+	// Args Container start command arguments.
+	Args *[]string `json:"args,omitempty"`
 
-// ContainerApp The resource model definition for an Azure Resource Manager tracked top level resource which has 'tags' and a 'location'
-type ContainerApp = TrackedResource
+	// Command Container start command.
+	Command *[]string `json:"command,omitempty"`
 
-// ContainerAppAuthToken The resource model definition for an Azure Resource Manager tracked top level resource which has 'tags' and a 'location'
-type ContainerAppAuthToken = TrackedResource
+	// Env Container environment variables.
+	Env *[]EnvironmentVar `json:"env,omitempty"`
+
+	// Image Container image tag.
+	Image *string `json:"image,omitempty"`
+
+	// Name Custom container name.
+	Name *string `json:"name,omitempty"`
+
+	// Probes List of probes for the container.
+	Probes *[]ContainerAppProbe `json:"probes,omitempty"`
+
+	// Resources Container App container resource requirements.
+	Resources *ContainerResources `json:"resources,omitempty"`
+
+	// VolumeMounts Container volume mounts.
+	VolumeMounts *[]VolumeMount `json:"volumeMounts,omitempty"`
+}
+
+// ContainerApp Container App.
+type ContainerApp struct {
+	// ExtendedLocation The complex type of the extended location.
+	ExtendedLocation *ExtendedLocation `json:"extendedLocation,omitempty"`
+
+	// Identity Managed service identity (system assigned and/or user assigned identities)
+	Identity *ManagedServiceIdentity `json:"identity,omitempty"`
+
+	// Kind Metadata to represent the container app kind, representing if a container app is workflowapp or functionapp.
+	Kind *ContainerAppKind `json:"kind,omitempty"`
+
+	// Location The geo-location where the resource lives
+	Location string `json:"location"`
+
+	// ManagedBy The fully qualified resource ID of the resource that manages this resource. Indicates if this resource is managed by another Azure resource. If this is present, complete mode deployment will not delete the resource if it is removed from the template since it is managed by another resource.
+	ManagedBy *string `json:"managedBy,omitempty"`
+
+	// Properties ContainerApp resource specific properties
+	Properties *struct {
+		// Configuration Non versioned Container App configuration properties that define the mutable settings of a Container app
+		Configuration *Configuration `json:"configuration,omitempty"`
+
+		// CustomDomainVerificationId Id used to verify domain name ownership
+		CustomDomainVerificationId *string `json:"customDomainVerificationId,omitempty"`
+
+		// EnvironmentId Resource ID of environment.
+		EnvironmentId *string `json:"environmentId,omitempty"`
+
+		// EventStreamEndpoint The endpoint of the eventstream of the container app.
+		EventStreamEndpoint *string `json:"eventStreamEndpoint,omitempty"`
+
+		// LatestReadyRevisionName Name of the latest ready revision of the Container App.
+		LatestReadyRevisionName *string `json:"latestReadyRevisionName,omitempty"`
+
+		// LatestRevisionFqdn Fully Qualified Domain Name of the latest revision of the Container App.
+		LatestRevisionFqdn *string `json:"latestRevisionFqdn,omitempty"`
+
+		// LatestRevisionName Name of the latest revision of the Container App.
+		LatestRevisionName *string `json:"latestRevisionName,omitempty"`
+
+		// ManagedEnvironmentId Deprecated. Resource ID of the Container App's environment.
+		ManagedEnvironmentId *string `json:"managedEnvironmentId,omitempty"`
+
+		// OutboundIpAddresses Outbound IP Addresses for container app.
+		OutboundIpAddresses *[]string `json:"outboundIpAddresses,omitempty"`
+
+		// ProvisioningState Provisioning state of the Container App.
+		ProvisioningState *ContainerAppPropertiesProvisioningState `json:"provisioningState,omitempty"`
+
+		// RunningStatus Running status of the Container App.
+		RunningStatus *ContainerAppPropertiesRunningStatus `json:"runningStatus,omitempty"`
+
+		// Template Container App versioned application definition.
+		// Defines the desired state of an immutable revision.
+		// Any changes to this section Will result in a new revision being created
+		Template *Template `json:"template,omitempty"`
+
+		// WorkloadProfileName Workload profile name for container apps to execute on.
+		WorkloadProfileName *WorkloadProfileName `json:"workloadProfileName,omitempty"`
+	} `json:"properties,omitempty"`
+
+	// Tags Resource tags.
+	Tags *map[string]string `json:"tags,omitempty"`
+}
+
+// ContainerAppKind Metadata to represent the container app kind, representing if a container app is workflowapp or functionapp.
+type ContainerAppKind string
+
+// ContainerAppPropertiesProvisioningState Provisioning state of the Container App.
+type ContainerAppPropertiesProvisioningState string
+
+// ContainerAppPropertiesRunningStatus Running status of the Container App.
+type ContainerAppPropertiesRunningStatus string
+
+// ContainerAppAuthToken Container App Auth Token.
+type ContainerAppAuthToken struct {
+	// Location The geo-location where the resource lives
+	Location string `json:"location"`
+
+	// Properties Container App auth token resource specific properties
+	Properties *struct {
+		// Expires Token expiration date.
+		Expires *time.Time `json:"expires,omitempty"`
+
+		// Token Auth token value.
+		Token *string `json:"token,omitempty"`
+	} `json:"properties,omitempty"`
+
+	// Tags Resource tags.
+	Tags *map[string]string `json:"tags,omitempty"`
+}
 
 // ContainerAppCollection Container App collection ARM resource.
 type ContainerAppCollection struct {
@@ -962,21 +1096,6 @@ type RegistryCredentials struct {
 	Username *string `json:"username,omitempty"`
 }
 
-// Resource Common fields that are returned in the response for all Azure Resource Manager resources
-type Resource struct {
-	// Id Fully qualified resource ID for the resource. E.g. "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/{resourceProviderNamespace}/{resourceType}/{resourceName}"
-	Id *string `json:"id,omitempty"`
-
-	// Name The name of the resource
-	Name *string `json:"name,omitempty"`
-
-	// SystemData Metadata pertaining to creation and last modification of the resource.
-	SystemData *SystemData `json:"systemData,omitempty"`
-
-	// Type The type of the resource. E.g. "Microsoft.Compute/virtualMachines" or "Microsoft.Storage/storageAccounts"
-	Type *string `json:"type,omitempty"`
-}
-
 // Runtime Container App Runtime configuration.
 type Runtime struct {
 	// Java Java app configuration
@@ -1114,9 +1233,6 @@ type Template struct {
 	Volumes *[]Volume `json:"volumes,omitempty"`
 }
 
-// TrackedResource Common fields that are returned in the response for all Azure Resource Manager resources
-type TrackedResource = Resource
-
 // TrafficWeight Traffic weight assigned to a revision
 type TrafficWeight struct {
 	// Label Associates a traffic label with a revision
@@ -1179,33 +1295,6 @@ type VolumeMount struct {
 
 // WorkloadProfileName Workload profile name for container apps to execute on.
 type WorkloadProfileName = string
-
-// SystemData Metadata pertaining to creation and last modification of the resource.
-type SystemData struct {
-	// CreatedAt The timestamp of resource creation (UTC).
-	CreatedAt *time.Time `json:"createdAt,omitempty"`
-
-	// CreatedBy The identity that created the resource.
-	CreatedBy *string `json:"createdBy,omitempty"`
-
-	// CreatedByType The type of identity that created the resource.
-	CreatedByType *SystemDataCreatedByType `json:"createdByType,omitempty"`
-
-	// LastModifiedAt The timestamp of resource last modification (UTC)
-	LastModifiedAt *time.Time `json:"lastModifiedAt,omitempty"`
-
-	// LastModifiedBy The identity that last modified the resource.
-	LastModifiedBy *string `json:"lastModifiedBy,omitempty"`
-
-	// LastModifiedByType The type of identity that last modified the resource.
-	LastModifiedByType *SystemDataLastModifiedByType `json:"lastModifiedByType,omitempty"`
-}
-
-// SystemDataCreatedByType The type of identity that created the resource.
-type SystemDataCreatedByType string
-
-// SystemDataLastModifiedByType The type of identity that last modified the resource.
-type SystemDataLastModifiedByType string
 
 // ApiVersionParameter defines model for ApiVersionParameter.
 type ApiVersionParameter = string

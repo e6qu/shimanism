@@ -672,8 +672,35 @@ type OperationListResult struct {
 	Value []Operation `json:"value"`
 }
 
-// OperationStatus The current status of an async operation.
-type OperationStatus = OperationStatusResult
+// OperationStatus Asynchronous operation status
+type OperationStatus struct {
+	// EndTime The end time of the operation.
+	EndTime *time.Time `json:"endTime,omitempty"`
+
+	// Error The error detail.
+	Error *ErrorDetail `json:"error,omitempty"`
+
+	// Id Fully qualified ID for the async operation.
+	Id *string `json:"id,omitempty"`
+
+	// Name Name of the async operation.
+	Name *string `json:"name,omitempty"`
+
+	// Operations The operations list.
+	Operations *[]OperationStatusResult `json:"operations,omitempty"`
+
+	// PercentComplete Percent of the operation that is complete.
+	PercentComplete *float32 `json:"percentComplete,omitempty"`
+
+	// Properties Additional properties from RP, only when operation is successful
+	Properties *map[string]interface{} `json:"properties,omitempty"`
+
+	// StartTime The start time of the operation.
+	StartTime *time.Time `json:"startTime,omitempty"`
+
+	// Status Operation status.
+	Status string `json:"status"`
+}
 
 // OperationStatusResult The current status of an async operation.
 type OperationStatusResult struct {
@@ -708,8 +735,23 @@ type PrivateEndpoint struct {
 	Id *string `json:"id,omitempty"`
 }
 
-// PrivateEndpointConnection Common fields that are returned in the response for all Azure Resource Manager resources
-type PrivateEndpointConnection = Resource
+// PrivateEndpointConnection The private endpoint connection resource.
+type PrivateEndpointConnection struct {
+	// Id Fully qualified resource ID for the resource. E.g. "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/{resourceProviderNamespace}/{resourceType}/{resourceName}"
+	Id *string `json:"id,omitempty"`
+
+	// Name The name of the resource
+	Name *string `json:"name,omitempty"`
+
+	// Properties Properties of the private endpoint connection.
+	Properties *PrivateEndpointConnectionProperties `json:"properties,omitempty"`
+
+	// SystemData Metadata pertaining to creation and last modification of the resource.
+	SystemData *SystemData `json:"systemData,omitempty"`
+
+	// Type The type of the resource. E.g. "Microsoft.Compute/virtualMachines" or "Microsoft.Storage/storageAccounts"
+	Type *string `json:"type,omitempty"`
+}
 
 // PrivateEndpointConnectionListResult The response of a PrivateEndpointConnection list operation.
 type PrivateEndpointConnectionListResult struct {
@@ -741,8 +783,23 @@ type PrivateEndpointConnectionProvisioningState string
 // PrivateEndpointServiceConnectionStatus The private endpoint connection status.
 type PrivateEndpointServiceConnectionStatus string
 
-// PrivateLinkResource Common fields that are returned in the response for all Azure Resource Manager resources
-type PrivateLinkResource = Resource
+// PrivateLinkResource A private link resource.
+type PrivateLinkResource struct {
+	// Id Fully qualified resource ID for the resource. E.g. "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/{resourceProviderNamespace}/{resourceType}/{resourceName}"
+	Id *string `json:"id,omitempty"`
+
+	// Name The name of the resource
+	Name *string `json:"name,omitempty"`
+
+	// Properties Properties of a private link resource.
+	Properties *PrivateLinkResourceProperties `json:"properties,omitempty"`
+
+	// SystemData Metadata pertaining to creation and last modification of the resource.
+	SystemData *SystemData `json:"systemData,omitempty"`
+
+	// Type The type of the resource. E.g. "Microsoft.Compute/virtualMachines" or "Microsoft.Storage/storageAccounts"
+	Type *string `json:"type,omitempty"`
+}
 
 // PrivateLinkResourceListResult The response of a PrivateLinkResource list operation.
 type PrivateLinkResourceListResult struct {
@@ -780,9 +837,6 @@ type PrivateLinkServiceConnectionState struct {
 // ProvisioningState Redis instance provisioning status.
 type ProvisioningState string
 
-// ProxyResource Common fields that are returned in the response for all Azure Resource Manager resources
-type ProxyResource = Resource
-
 // PublicNetworkAccess Whether or not public endpoint access is allowed for this cache.  Value is optional but if passed in, must be 'Enabled' or 'Disabled'. If 'Disabled', private endpoints are the exclusive access method. Default value is 'Enabled'
 type PublicNetworkAccess string
 
@@ -798,11 +852,17 @@ type RedisAccessKeys struct {
 	SecondaryKey *string `json:"secondaryKey,omitempty"`
 }
 
-// RedisCacheAccessPolicy The resource model definition for a Azure Resource Manager proxy resource. It will not have tags and a location
-type RedisCacheAccessPolicy = ProxyResource
+// RedisCacheAccessPolicy Response to get/put access policy.
+type RedisCacheAccessPolicy struct {
+	// Properties All properties of an access policy.
+	Properties *RedisCacheAccessPolicyProperties `json:"properties,omitempty"`
+}
 
-// RedisCacheAccessPolicyAssignment The resource model definition for a Azure Resource Manager proxy resource. It will not have tags and a location
-type RedisCacheAccessPolicyAssignment = ProxyResource
+// RedisCacheAccessPolicyAssignment Response to an operation on access policy assignment
+type RedisCacheAccessPolicyAssignment struct {
+	// Properties Properties for an access policy assignment
+	Properties *RedisCacheAccessPolicyAssignmentProperties `json:"properties,omitempty"`
+}
 
 // RedisCacheAccessPolicyAssignmentList List of access policies assignments (with properties) of a Redis cache.
 type RedisCacheAccessPolicyAssignmentList struct {
@@ -847,45 +907,6 @@ type RedisCacheAccessPolicyProperties struct {
 
 	// Type Built-In or Custom access policy
 	Type *AccessPolicyType `json:"type,omitempty"`
-}
-
-// RedisCommonProperties Create/Update/Get common properties of the redis cache.
-type RedisCommonProperties struct {
-	// DisableAccessKeyAuthentication Authentication to Redis through access keys is disabled when set as true. Default value is false.
-	DisableAccessKeyAuthentication *bool `json:"disableAccessKeyAuthentication,omitempty"`
-
-	// EnableNonSslPort Specifies whether the non-ssl Redis server port (6379) is enabled.
-	EnableNonSslPort *bool `json:"enableNonSslPort,omitempty"`
-
-	// MinimumTlsVersion Optional: requires clients to use a specified TLS version (or higher) to connect (e,g, '1.0', '1.1', '1.2')
-	MinimumTlsVersion *TlsVersion `json:"minimumTlsVersion,omitempty"`
-
-	// PublicNetworkAccess Whether or not public endpoint access is allowed for this cache.  Value is optional but if passed in, must be 'Enabled' or 'Disabled'. If 'Disabled', private endpoints are the exclusive access method. Default value is 'Enabled'
-	PublicNetworkAccess *PublicNetworkAccess `json:"publicNetworkAccess,omitempty"`
-
-	// RedisConfiguration All Redis Settings. Few possible keys: rdb-backup-enabled,rdb-storage-connection-string,rdb-backup-frequency,maxmemory-delta, maxmemory-policy,notify-keyspace-events, aof-backup-enabled, aof-storage-connection-string-0, aof-storage-connection-string-1 etc.
-	RedisConfiguration *RedisCommonPropertiesRedisConfiguration `json:"redisConfiguration,omitempty"`
-
-	// RedisVersion Redis version. This should be in the form 'major[.minor]' (only 'major' is required) or the value 'latest' which refers to the latest stable Redis version that is available. Supported versions: 4.0, 6.0 (latest). Default value is 'latest'.
-	RedisVersion *string `json:"redisVersion,omitempty"`
-
-	// ReplicasPerMaster The number of replicas to be created per primary.
-	ReplicasPerMaster *int32 `json:"replicasPerMaster,omitempty"`
-
-	// ReplicasPerPrimary The number of replicas to be created per primary.
-	ReplicasPerPrimary *int32 `json:"replicasPerPrimary,omitempty"`
-
-	// ShardCount The number of shards to be created on a Premium Cluster Cache.
-	ShardCount *int32 `json:"shardCount,omitempty"`
-
-	// TenantSettings A dictionary of tenant settings
-	TenantSettings *map[string]string `json:"tenantSettings,omitempty"`
-
-	// UpdateChannel Optional: Specifies the update channel for the monthly Redis updates your Redis Cache will receive. Caches using 'Preview' update channel get latest Redis updates at least 4 weeks ahead of 'Stable' channel caches. Default value is 'Stable'.
-	UpdateChannel *UpdateChannel `json:"updateChannel,omitempty"`
-
-	// ZonalAllocationPolicy Optional: Specifies how availability zones are allocated to the Redis cache. 'Automatic' enables zone redundancy and Azure will automatically select zones based on regional availability and capacity. 'UserDefined' will select availability zones passed in by you using the 'zones' parameter. 'NoZones' will produce a non-zonal cache. If 'zonalAllocationPolicy' is not passed, it will be set to 'UserDefined' when zones are passed in, otherwise, it will be set to 'Automatic' in regions where zones are supported and 'NoZones' in regions where zones are not supported.
-	ZonalAllocationPolicy *ZonalAllocationPolicy `json:"zonalAllocationPolicy,omitempty"`
 }
 
 // RedisCommonPropertiesRedisConfiguration All Redis Settings. Few possible keys: rdb-backup-enabled,rdb-storage-connection-string,rdb-backup-frequency,maxmemory-delta, maxmemory-policy,notify-keyspace-events, aof-backup-enabled, aof-storage-connection-string-0, aof-storage-connection-string-1 etc.
@@ -967,11 +988,59 @@ type RedisCreateParameters struct {
 	Zones *[]string `json:"zones,omitempty"`
 }
 
-// RedisCreateProperties Create/Update/Get common properties of the redis cache.
-type RedisCreateProperties = RedisCommonProperties
+// RedisCreateProperties Properties supplied to Create Redis operation.
+type RedisCreateProperties struct {
+	// DisableAccessKeyAuthentication Authentication to Redis through access keys is disabled when set as true. Default value is false.
+	DisableAccessKeyAuthentication *bool `json:"disableAccessKeyAuthentication,omitempty"`
 
-// RedisFirewallRule The resource model definition for a Azure Resource Manager proxy resource. It will not have tags and a location
-type RedisFirewallRule = ProxyResource
+	// EnableNonSslPort Specifies whether the non-ssl Redis server port (6379) is enabled.
+	EnableNonSslPort *bool `json:"enableNonSslPort,omitempty"`
+
+	// MinimumTlsVersion Optional: requires clients to use a specified TLS version (or higher) to connect (e,g, '1.0', '1.1', '1.2')
+	MinimumTlsVersion *TlsVersion `json:"minimumTlsVersion,omitempty"`
+
+	// PublicNetworkAccess Whether or not public endpoint access is allowed for this cache.  Value is optional but if passed in, must be 'Enabled' or 'Disabled'. If 'Disabled', private endpoints are the exclusive access method. Default value is 'Enabled'
+	PublicNetworkAccess *PublicNetworkAccess `json:"publicNetworkAccess,omitempty"`
+
+	// RedisConfiguration All Redis Settings. Few possible keys: rdb-backup-enabled,rdb-storage-connection-string,rdb-backup-frequency,maxmemory-delta, maxmemory-policy,notify-keyspace-events, aof-backup-enabled, aof-storage-connection-string-0, aof-storage-connection-string-1 etc.
+	RedisConfiguration *RedisCommonPropertiesRedisConfiguration `json:"redisConfiguration,omitempty"`
+
+	// RedisVersion Redis version. This should be in the form 'major[.minor]' (only 'major' is required) or the value 'latest' which refers to the latest stable Redis version that is available. Supported versions: 4.0, 6.0 (latest). Default value is 'latest'.
+	RedisVersion *string `json:"redisVersion,omitempty"`
+
+	// ReplicasPerMaster The number of replicas to be created per primary.
+	ReplicasPerMaster *int32 `json:"replicasPerMaster,omitempty"`
+
+	// ReplicasPerPrimary The number of replicas to be created per primary.
+	ReplicasPerPrimary *int32 `json:"replicasPerPrimary,omitempty"`
+
+	// ShardCount The number of shards to be created on a Premium Cluster Cache.
+	ShardCount *int32 `json:"shardCount,omitempty"`
+
+	// Sku SKU parameters supplied to the create Redis operation.
+	Sku Sku `json:"sku"`
+
+	// StaticIP Static IP address. Optionally, may be specified when deploying a Redis cache inside an existing Azure Virtual Network; auto assigned by default.
+	StaticIP *string `json:"staticIP,omitempty"`
+
+	// SubnetId The full resource ID of a subnet in a virtual network to deploy the Redis cache in. Example format: /subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/Microsoft.{Network|ClassicNetwork}/VirtualNetworks/vnet1/subnets/subnet1
+	SubnetId *string `json:"subnetId,omitempty"`
+
+	// TenantSettings A dictionary of tenant settings
+	TenantSettings *map[string]string `json:"tenantSettings,omitempty"`
+
+	// UpdateChannel Optional: Specifies the update channel for the monthly Redis updates your Redis Cache will receive. Caches using 'Preview' update channel get latest Redis updates at least 4 weeks ahead of 'Stable' channel caches. Default value is 'Stable'.
+	UpdateChannel *UpdateChannel `json:"updateChannel,omitempty"`
+
+	// ZonalAllocationPolicy Optional: Specifies how availability zones are allocated to the Redis cache. 'Automatic' enables zone redundancy and Azure will automatically select zones based on regional availability and capacity. 'UserDefined' will select availability zones passed in by you using the 'zones' parameter. 'NoZones' will produce a non-zonal cache. If 'zonalAllocationPolicy' is not passed, it will be set to 'UserDefined' when zones are passed in, otherwise, it will be set to 'Automatic' in regions where zones are supported and 'NoZones' in regions where zones are not supported.
+	ZonalAllocationPolicy *ZonalAllocationPolicy `json:"zonalAllocationPolicy,omitempty"`
+}
+
+// RedisFirewallRule A firewall rule on a redis cache has a name, and describes a contiguous range of IP addresses permitted to connect
+type RedisFirewallRule struct {
+	// Properties Specifies a range of IP addresses permitted to connect to the cache
+	Properties RedisFirewallRuleProperties `json:"properties"`
+}
 
 // RedisFirewallRuleListResult The response of a RedisFirewallRule list operation.
 type RedisFirewallRuleListResult struct {
@@ -1051,11 +1120,32 @@ type RedisLinkedServerCreateProperties struct {
 	ServerRole ReplicationRole `json:"serverRole"`
 }
 
-// RedisLinkedServerProperties Create properties for a linked server
-type RedisLinkedServerProperties = RedisLinkedServerCreateProperties
+// RedisLinkedServerProperties Properties of a linked server to be returned in get/put response
+type RedisLinkedServerProperties struct {
+	// GeoReplicatedPrimaryHostName The unchanging DNS name which will always point to current geo-primary cache among the linked redis caches for seamless Geo Failover experience.
+	GeoReplicatedPrimaryHostName *string `json:"geoReplicatedPrimaryHostName,omitempty"`
 
-// RedisLinkedServerWithProperties The resource model definition for a Azure Resource Manager proxy resource. It will not have tags and a location
-type RedisLinkedServerWithProperties = ProxyResource
+	// LinkedRedisCacheId Fully qualified resourceId of the linked redis cache.
+	LinkedRedisCacheId string `json:"linkedRedisCacheId"`
+
+	// LinkedRedisCacheLocation Location of the linked redis cache.
+	LinkedRedisCacheLocation string `json:"linkedRedisCacheLocation"`
+
+	// PrimaryHostName The changing DNS name that resolves to the current geo-primary cache among the linked redis caches before or after the Geo Failover.
+	PrimaryHostName *string `json:"primaryHostName,omitempty"`
+
+	// ProvisioningState Terminal state of the link between primary and secondary redis cache.
+	ProvisioningState *string `json:"provisioningState,omitempty"`
+
+	// ServerRole Role of the linked server.
+	ServerRole ReplicationRole `json:"serverRole"`
+}
+
+// RedisLinkedServerWithProperties Response to put/get linked server (with properties) for Redis cache.
+type RedisLinkedServerWithProperties struct {
+	// Properties Properties of a linked server to be returned in get/put response
+	Properties *RedisLinkedServerProperties `json:"properties,omitempty"`
+}
 
 // RedisLinkedServerWithPropertiesList List of linked servers (with properties) of a Redis cache.
 type RedisLinkedServerWithPropertiesList struct {
@@ -1075,8 +1165,14 @@ type RedisListResult struct {
 	Value []RedisResource `json:"value"`
 }
 
-// RedisPatchSchedule The resource model definition for a Azure Resource Manager proxy resource. It will not have tags and a location
-type RedisPatchSchedule = ProxyResource
+// RedisPatchSchedule Response to put/get patch schedules for Redis cache.
+type RedisPatchSchedule struct {
+	// Location The geo-location where the resource lives
+	Location *string `json:"location,omitempty"`
+
+	// Properties List of patch schedules for a Redis cache.
+	Properties ScheduleEntries `json:"properties"`
+}
 
 // RedisPatchScheduleListResult The response of a RedisPatchSchedule list operation.
 type RedisPatchScheduleListResult struct {
@@ -1087,8 +1183,77 @@ type RedisPatchScheduleListResult struct {
 	Value []RedisPatchSchedule `json:"value"`
 }
 
-// RedisProperties Properties supplied to Create Redis operation.
-type RedisProperties = RedisCreateProperties
+// RedisProperties Properties of the redis cache.
+type RedisProperties struct {
+	// AccessKeys Redis cache access keys.
+	AccessKeys *RedisAccessKeys `json:"accessKeys,omitempty"`
+
+	// DisableAccessKeyAuthentication Authentication to Redis through access keys is disabled when set as true. Default value is false.
+	DisableAccessKeyAuthentication *bool `json:"disableAccessKeyAuthentication,omitempty"`
+
+	// EnableNonSslPort Specifies whether the non-ssl Redis server port (6379) is enabled.
+	EnableNonSslPort *bool `json:"enableNonSslPort,omitempty"`
+
+	// HostName Redis host name.
+	HostName *string `json:"hostName,omitempty"`
+
+	// Instances List of the Redis instances associated with the cache
+	Instances *[]RedisInstanceDetails `json:"instances,omitempty"`
+
+	// LinkedServers List of the linked servers associated with the cache
+	LinkedServers *[]RedisLinkedServer `json:"linkedServers,omitempty"`
+
+	// MinimumTlsVersion Optional: requires clients to use a specified TLS version (or higher) to connect (e,g, '1.0', '1.1', '1.2')
+	MinimumTlsVersion *TlsVersion `json:"minimumTlsVersion,omitempty"`
+
+	// Port Redis non-SSL port.
+	Port *int32 `json:"port,omitempty"`
+
+	// PrivateEndpointConnections List of private endpoint connection associated with the specified redis cache
+	PrivateEndpointConnections *[]PrivateEndpointConnection `json:"privateEndpointConnections,omitempty"`
+
+	// ProvisioningState Redis instance provisioning status.
+	ProvisioningState *ProvisioningState `json:"provisioningState,omitempty"`
+
+	// PublicNetworkAccess Whether or not public endpoint access is allowed for this cache.  Value is optional but if passed in, must be 'Enabled' or 'Disabled'. If 'Disabled', private endpoints are the exclusive access method. Default value is 'Enabled'
+	PublicNetworkAccess *PublicNetworkAccess `json:"publicNetworkAccess,omitempty"`
+
+	// RedisConfiguration All Redis Settings. Few possible keys: rdb-backup-enabled,rdb-storage-connection-string,rdb-backup-frequency,maxmemory-delta, maxmemory-policy,notify-keyspace-events, aof-backup-enabled, aof-storage-connection-string-0, aof-storage-connection-string-1 etc.
+	RedisConfiguration *RedisCommonPropertiesRedisConfiguration `json:"redisConfiguration,omitempty"`
+
+	// RedisVersion Redis version. This should be in the form 'major[.minor]' (only 'major' is required) or the value 'latest' which refers to the latest stable Redis version that is available. Supported versions: 4.0, 6.0 (latest). Default value is 'latest'.
+	RedisVersion *string `json:"redisVersion,omitempty"`
+
+	// ReplicasPerMaster The number of replicas to be created per primary.
+	ReplicasPerMaster *int32 `json:"replicasPerMaster,omitempty"`
+
+	// ReplicasPerPrimary The number of replicas to be created per primary.
+	ReplicasPerPrimary *int32 `json:"replicasPerPrimary,omitempty"`
+
+	// ShardCount The number of shards to be created on a Premium Cluster Cache.
+	ShardCount *int32 `json:"shardCount,omitempty"`
+
+	// Sku SKU parameters supplied to the create Redis operation.
+	Sku Sku `json:"sku"`
+
+	// SslPort Redis SSL port.
+	SslPort *int32 `json:"sslPort,omitempty"`
+
+	// StaticIP Static IP address. Optionally, may be specified when deploying a Redis cache inside an existing Azure Virtual Network; auto assigned by default.
+	StaticIP *string `json:"staticIP,omitempty"`
+
+	// SubnetId The full resource ID of a subnet in a virtual network to deploy the Redis cache in. Example format: /subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/Microsoft.{Network|ClassicNetwork}/VirtualNetworks/vnet1/subnets/subnet1
+	SubnetId *string `json:"subnetId,omitempty"`
+
+	// TenantSettings A dictionary of tenant settings
+	TenantSettings *map[string]string `json:"tenantSettings,omitempty"`
+
+	// UpdateChannel Optional: Specifies the update channel for the monthly Redis updates your Redis Cache will receive. Caches using 'Preview' update channel get latest Redis updates at least 4 weeks ahead of 'Stable' channel caches. Default value is 'Stable'.
+	UpdateChannel *UpdateChannel `json:"updateChannel,omitempty"`
+
+	// ZonalAllocationPolicy Optional: Specifies how availability zones are allocated to the Redis cache. 'Automatic' enables zone redundancy and Azure will automatically select zones based on regional availability and capacity. 'UserDefined' will select availability zones passed in by you using the 'zones' parameter. 'NoZones' will produce a non-zonal cache. If 'zonalAllocationPolicy' is not passed, it will be set to 'UserDefined' when zones are passed in, otherwise, it will be set to 'Automatic' in regions where zones are supported and 'NoZones' in regions where zones are not supported.
+	ZonalAllocationPolicy *ZonalAllocationPolicy `json:"zonalAllocationPolicy,omitempty"`
+}
 
 // RedisRebootParameters Specifies which Redis node(s) to reboot.
 type RedisRebootParameters struct {
@@ -1108,8 +1273,23 @@ type RedisRegenerateKeyParameters struct {
 	KeyType RedisKeyType `json:"keyType"`
 }
 
-// RedisResource The resource model definition for an Azure Resource Manager tracked top level resource which has 'tags' and a 'location'
-type RedisResource = TrackedResource
+// RedisResource A single Redis item in List or Get Operation.
+type RedisResource struct {
+	// Identity Managed service identity (system assigned and/or user assigned identities)
+	Identity *ManagedServiceIdentity `json:"identity,omitempty"`
+
+	// Location The geo-location where the resource lives
+	Location string `json:"location"`
+
+	// Properties Properties of the redis cache.
+	Properties RedisProperties `json:"properties"`
+
+	// Tags Resource tags.
+	Tags *map[string]string `json:"tags,omitempty"`
+
+	// Zones The availability zones.
+	Zones *[]string `json:"zones,omitempty"`
+}
 
 // RedisUpdateParameters Parameters supplied to the Update Redis operation.
 type RedisUpdateParameters struct {
@@ -1123,26 +1303,50 @@ type RedisUpdateParameters struct {
 	Tags *map[string]string `json:"tags,omitempty"`
 }
 
-// RedisUpdateProperties Create/Update/Get common properties of the redis cache.
-type RedisUpdateProperties = RedisCommonProperties
+// RedisUpdateProperties Patchable properties of the redis cache.
+type RedisUpdateProperties struct {
+	// DisableAccessKeyAuthentication Authentication to Redis through access keys is disabled when set as true. Default value is false.
+	DisableAccessKeyAuthentication *bool `json:"disableAccessKeyAuthentication,omitempty"`
+
+	// EnableNonSslPort Specifies whether the non-ssl Redis server port (6379) is enabled.
+	EnableNonSslPort *bool `json:"enableNonSslPort,omitempty"`
+
+	// MinimumTlsVersion Optional: requires clients to use a specified TLS version (or higher) to connect (e,g, '1.0', '1.1', '1.2')
+	MinimumTlsVersion *TlsVersion `json:"minimumTlsVersion,omitempty"`
+
+	// PublicNetworkAccess Whether or not public endpoint access is allowed for this cache.  Value is optional but if passed in, must be 'Enabled' or 'Disabled'. If 'Disabled', private endpoints are the exclusive access method. Default value is 'Enabled'
+	PublicNetworkAccess *PublicNetworkAccess `json:"publicNetworkAccess,omitempty"`
+
+	// RedisConfiguration All Redis Settings. Few possible keys: rdb-backup-enabled,rdb-storage-connection-string,rdb-backup-frequency,maxmemory-delta, maxmemory-policy,notify-keyspace-events, aof-backup-enabled, aof-storage-connection-string-0, aof-storage-connection-string-1 etc.
+	RedisConfiguration *RedisCommonPropertiesRedisConfiguration `json:"redisConfiguration,omitempty"`
+
+	// RedisVersion Redis version. This should be in the form 'major[.minor]' (only 'major' is required) or the value 'latest' which refers to the latest stable Redis version that is available. Supported versions: 4.0, 6.0 (latest). Default value is 'latest'.
+	RedisVersion *string `json:"redisVersion,omitempty"`
+
+	// ReplicasPerMaster The number of replicas to be created per primary.
+	ReplicasPerMaster *int32 `json:"replicasPerMaster,omitempty"`
+
+	// ReplicasPerPrimary The number of replicas to be created per primary.
+	ReplicasPerPrimary *int32 `json:"replicasPerPrimary,omitempty"`
+
+	// ShardCount The number of shards to be created on a Premium Cluster Cache.
+	ShardCount *int32 `json:"shardCount,omitempty"`
+
+	// Sku SKU parameters supplied to the create Redis operation.
+	Sku *Sku `json:"sku,omitempty"`
+
+	// TenantSettings A dictionary of tenant settings
+	TenantSettings *map[string]string `json:"tenantSettings,omitempty"`
+
+	// UpdateChannel Optional: Specifies the update channel for the monthly Redis updates your Redis Cache will receive. Caches using 'Preview' update channel get latest Redis updates at least 4 weeks ahead of 'Stable' channel caches. Default value is 'Stable'.
+	UpdateChannel *UpdateChannel `json:"updateChannel,omitempty"`
+
+	// ZonalAllocationPolicy Optional: Specifies how availability zones are allocated to the Redis cache. 'Automatic' enables zone redundancy and Azure will automatically select zones based on regional availability and capacity. 'UserDefined' will select availability zones passed in by you using the 'zones' parameter. 'NoZones' will produce a non-zonal cache. If 'zonalAllocationPolicy' is not passed, it will be set to 'UserDefined' when zones are passed in, otherwise, it will be set to 'Automatic' in regions where zones are supported and 'NoZones' in regions where zones are not supported.
+	ZonalAllocationPolicy *ZonalAllocationPolicy `json:"zonalAllocationPolicy,omitempty"`
+}
 
 // ReplicationRole Role of the linked server.
 type ReplicationRole string
-
-// Resource Common fields that are returned in the response for all Azure Resource Manager resources
-type Resource struct {
-	// Id Fully qualified resource ID for the resource. E.g. "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/{resourceProviderNamespace}/{resourceType}/{resourceName}"
-	Id *string `json:"id,omitempty"`
-
-	// Name The name of the resource
-	Name *string `json:"name,omitempty"`
-
-	// SystemData Metadata pertaining to creation and last modification of the resource.
-	SystemData *SystemData `json:"systemData,omitempty"`
-
-	// Type The type of the resource. E.g. "Microsoft.Compute/virtualMachines" or "Microsoft.Storage/storageAccounts"
-	Type *string `json:"type,omitempty"`
-}
 
 // ScheduleEntries List of patch schedules for a Redis cache.
 type ScheduleEntries struct {
@@ -1182,9 +1386,6 @@ type SkuName string
 
 // TlsVersion Optional: requires clients to use a specified TLS version (or higher) to connect (e,g, '1.0', '1.1', '1.2')
 type TlsVersion string
-
-// TrackedResource Common fields that are returned in the response for all Azure Resource Manager resources
-type TrackedResource = Resource
 
 // UpdateChannel Optional: Specifies the update channel for the monthly Redis updates your Redis Cache will receive. Caches using 'Preview' update channel get latest Redis updates at least 4 weeks ahead of 'Stable' channel caches. Default value is 'Stable'.
 type UpdateChannel string

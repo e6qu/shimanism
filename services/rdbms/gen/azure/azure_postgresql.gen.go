@@ -134,24 +134,6 @@ func (e CapabilityStatus) Valid() bool {
 	}
 }
 
-// Defines values for CheckNameAvailabilityResponseReason.
-const (
-	CheckNameAvailabilityResponseReasonAlreadyExists CheckNameAvailabilityResponseReason = "AlreadyExists"
-	CheckNameAvailabilityResponseReasonInvalid       CheckNameAvailabilityResponseReason = "Invalid"
-)
-
-// Valid indicates whether the value is a known member of the CheckNameAvailabilityResponseReason enum.
-func (e CheckNameAvailabilityResponseReason) Valid() bool {
-	switch e {
-	case CheckNameAvailabilityResponseReasonAlreadyExists:
-		return true
-	case CheckNameAvailabilityResponseReasonInvalid:
-		return true
-	default:
-		return false
-	}
-}
-
 // Defines values for ConfigurationDataType.
 const (
 	Boolean     ConfigurationDataType = "Boolean"
@@ -589,16 +571,16 @@ func (e MigrationMode) Valid() bool {
 
 // Defines values for MigrationNameAvailabilityReason.
 const (
-	AlreadyExists MigrationNameAvailabilityReason = "AlreadyExists"
-	Invalid       MigrationNameAvailabilityReason = "Invalid"
+	MigrationNameAvailabilityReasonAlreadyExists MigrationNameAvailabilityReason = "AlreadyExists"
+	MigrationNameAvailabilityReasonInvalid       MigrationNameAvailabilityReason = "Invalid"
 )
 
 // Valid indicates whether the value is a known member of the MigrationNameAvailabilityReason enum.
 func (e MigrationNameAvailabilityReason) Valid() bool {
 	switch e {
-	case AlreadyExists:
+	case MigrationNameAvailabilityReasonAlreadyExists:
 		return true
-	case Invalid:
+	case MigrationNameAvailabilityReasonInvalid:
 		return true
 	default:
 		return false
@@ -701,6 +683,24 @@ func (e MigrationSubstate) Valid() bool {
 	case WaitingForLogicalReplicationSetupRequestOnSourceDB:
 		return true
 	case WaitingForTargetDBOverwriteConfirmation:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NameAvailabilityModelReason.
+const (
+	AlreadyExists NameAvailabilityModelReason = "AlreadyExists"
+	Invalid       NameAvailabilityModelReason = "Invalid"
+)
+
+// Valid indicates whether the value is a known member of the NameAvailabilityModelReason enum.
+func (e NameAvailabilityModelReason) Valid() bool {
+	switch e {
+	case AlreadyExists:
+		return true
+	case Invalid:
 		return true
 	default:
 		return false
@@ -1568,8 +1568,11 @@ type AdminCredentialsForPatch struct {
 	TargetServerPassword *string `json:"targetServerPassword,omitempty"`
 }
 
-// AdministratorMicrosoftEntra The resource model definition for a Azure Resource Manager proxy resource. It will not have tags and a location
-type AdministratorMicrosoftEntra = ProxyResource
+// AdministratorMicrosoftEntra Server administrator associated to a Microsoft Entra principal.
+type AdministratorMicrosoftEntra struct {
+	// Properties Properties of a server administrator associated to a Microsoft Entra principal.
+	Properties AdministratorMicrosoftEntraProperties `json:"properties"`
+}
 
 // AdministratorMicrosoftEntraAdd Server administrator associated to a Microsoft Entra principal.
 type AdministratorMicrosoftEntraAdd struct {
@@ -1622,8 +1625,11 @@ type AdvancedThreatProtectionSettingsList struct {
 	Value *[]AdvancedThreatProtectionSettingsModel `json:"value,omitempty"`
 }
 
-// AdvancedThreatProtectionSettingsModel The resource model definition for a Azure Resource Manager proxy resource. It will not have tags and a location
-type AdvancedThreatProtectionSettingsModel = ProxyResource
+// AdvancedThreatProtectionSettingsModel Advanced threat protection settings of the server.
+type AdvancedThreatProtectionSettingsModel struct {
+	// Properties Properties of advanced threat protection state for a server.
+	Properties *AdvancedThreatProtectionSettingsProperties `json:"properties,omitempty"`
+}
 
 // AdvancedThreatProtectionSettingsProperties Properties of advanced threat protection state for a server.
 type AdvancedThreatProtectionSettingsProperties struct {
@@ -1673,8 +1679,11 @@ type Backup struct {
 	GeoRedundantBackup *GeographicallyRedundantBackup `json:"geoRedundantBackup,omitempty"`
 }
 
-// BackupAutomaticAndOnDemand The resource model definition for a Azure Resource Manager proxy resource. It will not have tags and a location
-type BackupAutomaticAndOnDemand = ProxyResource
+// BackupAutomaticAndOnDemand Properties of a backup.
+type BackupAutomaticAndOnDemand struct {
+	// Properties Properties of a backup.
+	Properties *BackupAutomaticAndOnDemandProperties `json:"properties,omitempty"`
+}
 
 // BackupAutomaticAndOnDemandList List of backups.
 type BackupAutomaticAndOnDemandList struct {
@@ -1730,11 +1739,20 @@ type BackupStoreDetails struct {
 // BackupType Type of backup.
 type BackupType string
 
-// BackupsLongTermRetentionOperation The resource model definition for a Azure Resource Manager proxy resource. It will not have tags and a location
-type BackupsLongTermRetentionOperation = ProxyResource
+// BackupsLongTermRetentionOperation Response for the LTR backup Operation API call
+type BackupsLongTermRetentionOperation struct {
+	// Properties Response for the backup request.
+	Properties *LtrBackupOperationResponseProperties `json:"properties,omitempty"`
+}
 
-// BackupsLongTermRetentionRequest BackupRequestBase is the base for all backup request.
-type BackupsLongTermRetentionRequest = BackupRequestBase
+// BackupsLongTermRetentionRequest Request made for a long term retention backup.
+type BackupsLongTermRetentionRequest struct {
+	// BackupSettings Settings for the long term backup.
+	BackupSettings BackupSettings `json:"backupSettings"`
+
+	// TargetDetails Details about the target where the backup content will be stored.
+	TargetDetails BackupStoreDetails `json:"targetDetails"`
+}
 
 // BackupsLongTermRetentionResponse Response for the LTR backup API call
 type BackupsLongTermRetentionResponse struct {
@@ -1751,16 +1769,49 @@ type BackupsLongTermRetentionResponseProperties struct {
 // Cancel Indicates if cancel must be triggered for the entire migration.
 type Cancel string
 
-// Capability Base object for representing capability
-type Capability = CapabilityBase
+// Capability Capability for the Azure Database for PostgreSQL flexible server.
+type Capability struct {
+	// FastProvisioningSupported Indicates if fast provisioning is supported. 'Enabled' means fast provisioning is supported. 'Disabled' stands for fast provisioning is not supported. Will be deprecated in the future. Look to Supported Features for 'FastProvisioning'.
+	FastProvisioningSupported *FastProvisioningSupport `json:"fastProvisioningSupported,omitempty"`
 
-// CapabilityBase Base object for representing capability
-type CapabilityBase struct {
+	// GeoBackupSupported Indicates if geographically redundant backups are supported in this location. Will be deprecated in the future. Look to Supported Features for 'GeoBackup'.
+	GeoBackupSupported *GeographicallyRedundantBackupSupport `json:"geoBackupSupported,omitempty"`
+
+	// Name Name of flexible servers capabilities.
+	Name *string `json:"name,omitempty"`
+
+	// OnlineResizeSupported Indicates if resizing the storage, without interrupting the operation of the database engine, is supported in this location for the given subscription. Will be deprecated in the future. Look to Supported Features for 'OnlineResize'.
+	OnlineResizeSupported *OnlineStorageResizeSupport `json:"onlineResizeSupported,omitempty"`
+
 	// Reason Reason for the capability not being available.
 	Reason *string `json:"reason,omitempty"`
 
+	// Restricted Indicates if this location is restricted. Will be deprecated in the future. Look to Supported Features for 'Restricted'.
+	Restricted *LocationRestricted `json:"restricted,omitempty"`
+
 	// Status Status of the capability.
 	Status *CapabilityStatus `json:"status,omitempty"`
+
+	// StorageAutoGrowthSupported Indicates if storage autogrow is supported in this location. Will be deprecated in the future. Look to Supported Features for 'StorageAutoGrowth'.
+	StorageAutoGrowthSupported *StorageAutoGrowthSupport `json:"storageAutoGrowthSupported,omitempty"`
+
+	// SupportedFastProvisioningEditions List of compute tiers supporting fast provisioning.
+	SupportedFastProvisioningEditions *[]FastProvisioningEditionCapability `json:"supportedFastProvisioningEditions,omitempty"`
+
+	// SupportedFeatures Features supported.
+	SupportedFeatures *[]SupportedFeature `json:"supportedFeatures,omitempty"`
+
+	// SupportedServerEditions List of supported compute tiers.
+	SupportedServerEditions *[]ServerEditionCapability `json:"supportedServerEditions,omitempty"`
+
+	// SupportedServerVersions List of supported major versions of PostgreSQL database engine.
+	SupportedServerVersions *[]ServerVersionCapability `json:"supportedServerVersions,omitempty"`
+
+	// ZoneRedundantHaAndGeoBackupSupported Indicates if high availability with zone redundancy is supported in conjunction with geographically redundant backups in this location. Will be deprecated in the future. Look to Supported Features for 'ZoneRedundantHaAndGeoBackup'.
+	ZoneRedundantHaAndGeoBackupSupported *ZoneRedundantHighAvailabilityAndGeographicallyRedundantBackupSupport `json:"zoneRedundantHaAndGeoBackupSupported,omitempty"`
+
+	// ZoneRedundantHaSupported Indicates if high availability with zone redundancy is supported in this location. Will be deprecated in the future. Look to Supported Features for  'ZoneRedundantHa'.
+	ZoneRedundantHaSupported *ZoneRedundantHighAvailabilitySupport `json:"zoneRedundantHaSupported,omitempty"`
 }
 
 // CapabilityList List of capabilities for the Azure Database for PostgreSQL flexible server.
@@ -1775,8 +1826,11 @@ type CapabilityList struct {
 // CapabilityStatus Status of the capability.
 type CapabilityStatus string
 
-// CapturedLog The resource model definition for a Azure Resource Manager proxy resource. It will not have tags and a location
-type CapturedLog = ProxyResource
+// CapturedLog Log file.
+type CapturedLog struct {
+	// Properties Properties of a log file.
+	Properties *CapturedLogProperties `json:"properties,omitempty"`
+}
 
 // CapturedLogList List of log files.
 type CapturedLogList struct {
@@ -1814,21 +1868,6 @@ type CheckNameAvailabilityRequest struct {
 	Type *string `json:"type,omitempty"`
 }
 
-// CheckNameAvailabilityResponse The check availability result.
-type CheckNameAvailabilityResponse struct {
-	// Message Detailed reason why the given name is available.
-	Message *string `json:"message,omitempty"`
-
-	// NameAvailable Indicates if the resource name is available.
-	NameAvailable *bool `json:"nameAvailable,omitempty"`
-
-	// Reason The reason why the given name is not available.
-	Reason *CheckNameAvailabilityResponseReason `json:"reason,omitempty"`
-}
-
-// CheckNameAvailabilityResponseReason The reason why the given name is not available.
-type CheckNameAvailabilityResponseReason string
-
 // Cluster Cluster properties of a server.
 type Cluster struct {
 	// ClusterSize Number of nodes assigned to the elastic cluster.
@@ -1838,8 +1877,11 @@ type Cluster struct {
 	DefaultDatabaseName *string `json:"defaultDatabaseName,omitempty"`
 }
 
-// Configuration The resource model definition for a Azure Resource Manager proxy resource. It will not have tags and a location
-type Configuration = ProxyResource
+// Configuration Configuration (also known as server parameter).
+type Configuration struct {
+	// Properties Properties of a configuration (also known as server parameter).
+	Properties *ConfigurationProperties `json:"properties,omitempty"`
+}
 
 // ConfigurationDataType Data type of the configuration (also known as server parameter).
 type ConfigurationDataType string
@@ -1928,8 +1970,11 @@ type DataEncryption struct {
 // DataEncryptionType Data encryption type used by a server.
 type DataEncryptionType string
 
-// Database The resource model definition for a Azure Resource Manager proxy resource. It will not have tags and a location
-type Database = ProxyResource
+// Database Represents a database.
+type Database struct {
+	// Properties Properties of a database.
+	Properties *DatabaseProperties `json:"properties,omitempty"`
+}
 
 // DatabaseList List of all databases in a server.
 type DatabaseList struct {
@@ -2081,8 +2126,29 @@ type ExecutionStatus string
 // FailoverMode Failover mode.
 type FailoverMode string
 
-// FastProvisioningEditionCapability Base object for representing capability
-type FastProvisioningEditionCapability = CapabilityBase
+// FastProvisioningEditionCapability Capability of a fast provisioning compute tier.
+type FastProvisioningEditionCapability struct {
+	// Reason Reason for the capability not being available.
+	Reason *string `json:"reason,omitempty"`
+
+	// ServerCount Count of servers in cache matching this specification.
+	ServerCount *int32 `json:"serverCount,omitempty"`
+
+	// Status Status of the capability.
+	Status *CapabilityStatus `json:"status,omitempty"`
+
+	// SupportedServerVersions Major version of PostgreSQL database engine supporting fast provisioning.
+	SupportedServerVersions *string `json:"supportedServerVersions,omitempty"`
+
+	// SupportedSku Compute name (SKU) supporting fast provisioning.
+	SupportedSku *string `json:"supportedSku,omitempty"`
+
+	// SupportedStorageGb Storage size (in GB) supporting fast provisioning.
+	SupportedStorageGb *int32 `json:"supportedStorageGb,omitempty"`
+
+	// SupportedTier Compute tier supporting fast provisioning.
+	SupportedTier *string `json:"supportedTier,omitempty"`
+}
 
 // FastProvisioningSupport Indicates if fast provisioning is supported. 'Enabled' means fast provisioning is supported. 'Disabled' stands for fast provisioning is not supported. Will be deprecated in the future. Look to Supported Features for 'FastProvisioning'.
 type FastProvisioningSupport string
@@ -2090,8 +2156,11 @@ type FastProvisioningSupport string
 // FeatureStatus Status of the feature. Indicates if the feature is enabled or not.
 type FeatureStatus string
 
-// FirewallRule The resource model definition for a Azure Resource Manager proxy resource. It will not have tags and a location
-type FirewallRule = ProxyResource
+// FirewallRule Firewall rule.
+type FirewallRule struct {
+	// Properties Properties of a firewall rule.
+	Properties FirewallRuleProperties `json:"properties"`
+}
 
 // FirewallRuleList List of firewall rules.
 type FirewallRuleList struct {
@@ -2297,8 +2366,17 @@ type MicrosoftEntraAuth string
 // MigrateRolesAndPermissions Indicates if roles and permissions must be migrated.
 type MigrateRolesAndPermissions string
 
-// Migration The resource model definition for an Azure Resource Manager tracked top level resource which has 'tags' and a 'location'
-type Migration = TrackedResource
+// Migration Properties of a migration.
+type Migration struct {
+	// Location The geo-location where the resource lives
+	Location string `json:"location"`
+
+	// Properties Migration.
+	Properties *MigrationProperties `json:"properties,omitempty"`
+
+	// Tags Resource tags.
+	Tags *map[string]string `json:"tags,omitempty"`
+}
 
 // MigrationDatabaseState Migration state of a database.
 type MigrationDatabaseState string
@@ -2526,8 +2604,26 @@ type MigrationSubstateDetails struct {
 	ValidationDetails *ValidationDetails `json:"validationDetails,omitempty"`
 }
 
-// NameAvailabilityModel The check availability result.
-type NameAvailabilityModel = CheckNameAvailabilityResponse
+// NameAvailabilityModel Availability of a name.
+type NameAvailabilityModel struct {
+	// Message Detailed reason why the given name is available.
+	Message *string `json:"message,omitempty"`
+
+	// Name Name for which validity and availability was checked.
+	Name *string `json:"name,omitempty"`
+
+	// NameAvailable Indicates if the resource name is available.
+	NameAvailable *bool `json:"nameAvailable,omitempty"`
+
+	// Reason The reason why the given name is not available.
+	Reason *NameAvailabilityModelReason `json:"reason,omitempty"`
+
+	// Type Type of resource. It can be 'Microsoft.DBforPostgreSQL/flexibleServers' or 'Microsoft.DBforPostgreSQL/flexibleServers/virtualendpoints'.
+	Type *string `json:"type,omitempty"`
+}
+
+// NameAvailabilityModelReason The reason why the given name is not available.
+type NameAvailabilityModelReason string
 
 // NameProperty Name property for quota usage
 type NameProperty struct {
@@ -2550,8 +2646,14 @@ type Network struct {
 	PublicNetworkAccess *ServerPublicNetworkAccessState `json:"publicNetworkAccess,omitempty"`
 }
 
-// ObjectRecommendation The resource model definition for a Azure Resource Manager proxy resource. It will not have tags and a location
-type ObjectRecommendation = ProxyResource
+// ObjectRecommendation Object recommendation properties.
+type ObjectRecommendation struct {
+	// Kind Always empty.
+	Kind *string `json:"kind,omitempty"`
+
+	// Properties Object recommendation properties.
+	Properties *ObjectRecommendationProperties `json:"properties,omitempty"`
+}
 
 // ObjectRecommendationDetails Recommendation details for the recommended action.
 type ObjectRecommendationDetails struct {
@@ -2751,8 +2853,23 @@ type PrivateEndpoint struct {
 	Id *string `json:"id,omitempty"`
 }
 
-// PrivateEndpointConnection Common fields that are returned in the response for all Azure Resource Manager resources
-type PrivateEndpointConnection = Resource
+// PrivateEndpointConnection The private endpoint connection resource.
+type PrivateEndpointConnection struct {
+	// Id Fully qualified resource ID for the resource. E.g. "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/{resourceProviderNamespace}/{resourceType}/{resourceName}"
+	Id *string `json:"id,omitempty"`
+
+	// Name The name of the resource
+	Name *string `json:"name,omitempty"`
+
+	// Properties Properties of the private endpoint connection.
+	Properties *PrivateEndpointConnectionProperties `json:"properties,omitempty"`
+
+	// SystemData Metadata pertaining to creation and last modification of the resource.
+	SystemData *SystemData `json:"systemData,omitempty"`
+
+	// Type The type of the resource. E.g. "Microsoft.Compute/virtualMachines" or "Microsoft.Storage/storageAccounts"
+	Type *string `json:"type,omitempty"`
+}
 
 // PrivateEndpointConnectionList List of private endpoint connections.
 type PrivateEndpointConnectionList struct {
@@ -2784,8 +2901,11 @@ type PrivateEndpointConnectionProvisioningState string
 // PrivateEndpointServiceConnectionStatus The private endpoint connection status.
 type PrivateEndpointServiceConnectionStatus string
 
-// PrivateLinkResource The resource model definition for a Azure Resource Manager proxy resource. It will not have tags and a location
-type PrivateLinkResource = ProxyResource
+// PrivateLinkResource A private link resource.
+type PrivateLinkResource struct {
+	// Properties Properties of a private link resource.
+	Properties *PrivateLinkResourceProperties `json:"properties,omitempty"`
+}
 
 // PrivateLinkResourceList A list of private link resources
 type PrivateLinkResourceList struct {
@@ -2819,9 +2939,6 @@ type PrivateLinkServiceConnectionState struct {
 	// Status The private endpoint connection status.
 	Status *PrivateEndpointServiceConnectionStatus `json:"status,omitempty"`
 }
-
-// ProxyResource Common fields that are returned in the response for all Azure Resource Manager resources
-type ProxyResource = Resource
 
 // QuotaUsage Quota usage for servers
 type QuotaUsage struct {
@@ -2883,21 +3000,6 @@ type ReplicationRole string
 // ReplicationState Indicates the replication state of a read replica. This property is returned only when the target server is a read replica.
 type ReplicationState string
 
-// Resource Common fields that are returned in the response for all Azure Resource Manager resources
-type Resource struct {
-	// Id Fully qualified resource ID for the resource. E.g. "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/{resourceProviderNamespace}/{resourceType}/{resourceName}"
-	Id *string `json:"id,omitempty"`
-
-	// Name The name of the resource
-	Name *string `json:"name,omitempty"`
-
-	// SystemData Metadata pertaining to creation and last modification of the resource.
-	SystemData *SystemData `json:"systemData,omitempty"`
-
-	// Type The type of the resource. E.g. "Microsoft.Compute/virtualMachines" or "Microsoft.Storage/storageAccounts"
-	Type *string `json:"type,omitempty"`
-}
-
 // RestartParameter PostgreSQL database engine restart parameters.
 type RestartParameter struct {
 	// FailoverMode Failover mode.
@@ -2907,11 +3009,44 @@ type RestartParameter struct {
 	RestartWithFailover *bool `json:"restartWithFailover,omitempty"`
 }
 
-// Server The resource model definition for an Azure Resource Manager tracked top level resource which has 'tags' and a 'location'
-type Server = TrackedResource
+// Server Properties of a server.
+type Server struct {
+	// Identity Identities associated with a server.
+	Identity *UserAssignedIdentity `json:"identity,omitempty"`
 
-// ServerEditionCapability Base object for representing capability
-type ServerEditionCapability = CapabilityBase
+	// Location The geo-location where the resource lives
+	Location string `json:"location"`
+
+	// Properties Properties of a server.
+	Properties *ServerProperties `json:"properties,omitempty"`
+
+	// Sku Compute information of a server.
+	Sku *Sku `json:"sku,omitempty"`
+
+	// Tags Resource tags.
+	Tags *map[string]string `json:"tags,omitempty"`
+}
+
+// ServerEditionCapability Capabilities in terms of compute tier.
+type ServerEditionCapability struct {
+	// DefaultSkuName Default compute name (SKU) for this computer tier.
+	DefaultSkuName *string `json:"defaultSkuName,omitempty"`
+
+	// Name Name of compute tier.
+	Name *string `json:"name,omitempty"`
+
+	// Reason Reason for the capability not being available.
+	Reason *string `json:"reason,omitempty"`
+
+	// Status Status of the capability.
+	Status *CapabilityStatus `json:"status,omitempty"`
+
+	// SupportedServerSkus List of supported compute names (SKUs).
+	SupportedServerSkus *[]ServerSkuCapability `json:"supportedServerSkus,omitempty"`
+
+	// SupportedStorageEditions List of storage editions supported by this compute tier and compute name.
+	SupportedStorageEditions *[]StorageEditionCapability `json:"supportedStorageEditions,omitempty"`
+}
 
 // ServerForPatch Represents a server to be updated.
 type ServerForPatch struct {
@@ -3066,14 +3201,59 @@ type ServerSku struct {
 	Tier *SkuTier `json:"tier,omitempty"`
 }
 
-// ServerSkuCapability Base object for representing capability
-type ServerSkuCapability = CapabilityBase
+// ServerSkuCapability Capabilities in terms of compute.
+type ServerSkuCapability struct {
+	// Name Name of the compute (SKU).
+	Name *string `json:"name,omitempty"`
+
+	// Reason Reason for the capability not being available.
+	Reason *string `json:"reason,omitempty"`
+
+	// SecurityProfile Security profile of the compute. Indicates if it's a Confidential Compute virtual machine.
+	SecurityProfile *string `json:"securityProfile,omitempty"`
+
+	// Status Status of the capability.
+	Status *CapabilityStatus `json:"status,omitempty"`
+
+	// SupportedFeatures Features supported.
+	SupportedFeatures *[]SupportedFeature `json:"supportedFeatures,omitempty"`
+
+	// SupportedHaMode Modes of high availability supported for this compute.
+	SupportedHaMode *[]HighAvailabilityMode `json:"supportedHaMode,omitempty"`
+
+	// SupportedIops Maximum IOPS supported by this compute.
+	SupportedIops *int32 `json:"supportedIops,omitempty"`
+
+	// SupportedMemoryPerVcoreMb Supported memory (in MB) per virtual core assigned to this compute.
+	SupportedMemoryPerVcoreMb *int64 `json:"supportedMemoryPerVcoreMb,omitempty"`
+
+	// SupportedZones List of supported availability zones. E.g. '1', '2', '3'
+	SupportedZones *[]string `json:"supportedZones,omitempty"`
+
+	// VCores vCores available for this compute.
+	VCores *int32 `json:"vCores,omitempty"`
+}
 
 // ServerState State of a server.
 type ServerState string
 
-// ServerVersionCapability Base object for representing capability
-type ServerVersionCapability = CapabilityBase
+// ServerVersionCapability Capabilities in terms of major versions of PostgreSQL database engine.
+type ServerVersionCapability struct {
+	// Name Major version of PostgreSQL database engine.
+	Name *string `json:"name,omitempty"`
+
+	// Reason Reason for the capability not being available.
+	Reason *string `json:"reason,omitempty"`
+
+	// Status Status of the capability.
+	Status *CapabilityStatus `json:"status,omitempty"`
+
+	// SupportedFeatures Features supported.
+	SupportedFeatures *[]SupportedFeature `json:"supportedFeatures,omitempty"`
+
+	// SupportedVersionsToUpgrade Major versions of PostgreSQL database engine to which this version can be automatically upgraded.
+	SupportedVersionsToUpgrade *[]string `json:"supportedVersionsToUpgrade,omitempty"`
+}
 
 // ServiceSpecification Service specification for an operation.
 type ServiceSpecification struct {
@@ -3141,14 +3321,71 @@ type StorageAutoGrow string
 // StorageAutoGrowthSupport Indicates if storage autogrow is supported in this location. Will be deprecated in the future. Look to Supported Features for 'StorageAutoGrowth'.
 type StorageAutoGrowthSupport string
 
-// StorageEditionCapability Base object for representing capability
-type StorageEditionCapability = CapabilityBase
+// StorageEditionCapability Capabilities in terms of storage tier.
+type StorageEditionCapability struct {
+	// DefaultStorageSizeMb Default storage size (in MB) for this storage tier.
+	DefaultStorageSizeMb *int64 `json:"defaultStorageSizeMb,omitempty"`
 
-// StorageMbCapability Base object for representing capability
-type StorageMbCapability = CapabilityBase
+	// Name Name of storage tier.
+	Name *string `json:"name,omitempty"`
 
-// StorageTierCapability Base object for representing capability
-type StorageTierCapability = CapabilityBase
+	// Reason Reason for the capability not being available.
+	Reason *string `json:"reason,omitempty"`
+
+	// Status Status of the capability.
+	Status *CapabilityStatus `json:"status,omitempty"`
+
+	// SupportedStorageMb Configurations of storage supported for this storage tier.
+	SupportedStorageMb *[]StorageMbCapability `json:"supportedStorageMb,omitempty"`
+}
+
+// StorageMbCapability Storage size (in MB) capability.
+type StorageMbCapability struct {
+	// DefaultIopsTier Default IOPS for this tier and storage size.
+	DefaultIopsTier *string `json:"defaultIopsTier,omitempty"`
+
+	// MaximumStorageSizeMb Maximum supported size (in MB) of storage.
+	MaximumStorageSizeMb *int64 `json:"maximumStorageSizeMb,omitempty"`
+
+	// Reason Reason for the capability not being available.
+	Reason *string `json:"reason,omitempty"`
+
+	// Status Status of the capability.
+	Status *CapabilityStatus `json:"status,omitempty"`
+
+	// StorageSizeMb Minimum supported size (in MB) of storage.
+	StorageSizeMb *int64 `json:"storageSizeMb,omitempty"`
+
+	// SupportedIops Minimum IOPS supported by the storage size.
+	SupportedIops *int32 `json:"supportedIops,omitempty"`
+
+	// SupportedIopsTiers List of all supported storage tiers for this tier and storage size.
+	SupportedIopsTiers *[]StorageTierCapability `json:"supportedIopsTiers,omitempty"`
+
+	// SupportedMaximumIops Maximum IOPS supported by the storage size.
+	SupportedMaximumIops *int32 `json:"supportedMaximumIops,omitempty"`
+
+	// SupportedMaximumThroughput Maximum supported throughput (in MB/s) of storage.
+	SupportedMaximumThroughput *int32 `json:"supportedMaximumThroughput,omitempty"`
+
+	// SupportedThroughput Minimum supported throughput (in MB/s) of storage.
+	SupportedThroughput *int32 `json:"supportedThroughput,omitempty"`
+}
+
+// StorageTierCapability Capability of a storage tier.
+type StorageTierCapability struct {
+	// Iops Supported IOPS for the storage tier.
+	Iops *int32 `json:"iops,omitempty"`
+
+	// Name Name of the storage tier.
+	Name *string `json:"name,omitempty"`
+
+	// Reason Reason for the capability not being available.
+	Reason *string `json:"reason,omitempty"`
+
+	// Status Status of the capability.
+	Status *CapabilityStatus `json:"status,omitempty"`
+}
 
 // StorageType Type of storage assigned to a server. If not specified, it defaults to Premium_LRS.
 type StorageType string
@@ -3165,14 +3402,14 @@ type SupportedFeature struct {
 // ThreatProtectionState Specifies the state of the advanced threat protection, whether it is enabled, disabled, or a state has not been applied yet on the server.
 type ThreatProtectionState string
 
-// TrackedResource Common fields that are returned in the response for all Azure Resource Manager resources
-type TrackedResource = Resource
-
 // TriggerCutover Indicates if cutover must be triggered for the entire migration.
 type TriggerCutover string
 
-// TuningOptions The resource model definition for a Azure Resource Manager proxy resource. It will not have tags and a location
-type TuningOptions = ProxyResource
+// TuningOptions Impact on some metric if this recommended action is applied.
+type TuningOptions struct {
+	// Properties Properties of a tuning option.
+	Properties *TuningOptionsProperties `json:"properties,omitempty"`
+}
 
 // TuningOptionsList List of server tuning options.
 type TuningOptionsList struct {
@@ -3255,8 +3492,11 @@ type ValidationSummaryItem struct {
 	Type *string `json:"type,omitempty"`
 }
 
-// VirtualEndpoint The resource model definition for a Azure Resource Manager proxy resource. It will not have tags and a location
-type VirtualEndpoint = ProxyResource
+// VirtualEndpoint Pair of virtual endpoints for a server.
+type VirtualEndpoint struct {
+	// Properties Properties of a pair of virtual endpoints.
+	Properties *VirtualEndpointResourceProperties `json:"properties,omitempty"`
+}
 
 // VirtualEndpointResourceForPatch Pair of virtual endpoints for a server.
 type VirtualEndpointResourceForPatch struct {

@@ -112,6 +112,24 @@ func main() {
 		raw = dedup
 	}
 
+	// Inline ARM `allOf: [{$ref: TrackedResource}]` patterns so
+	// oapi-codegen emits a struct instead of a `type X = Y` alias.
+	// Azure ARM resource definitions consistently use:
+	//   { type: object, allOf: [{$ref: ...}], properties: {own props...} }
+	// oapi-codegen sees the 1-element allOf and aliases the schema
+	// to the referenced type, discarding the schema's own properties.
+	// Merging the referenced schema's properties into the local
+	// definition at v2 time produces a flat schema that oapi-codegen
+	// emits as a proper Go struct. Required for ARM adapter migration
+	// (BUG-20).
+	if strings.Contains(string(raw), `"allOf"`) {
+		flattened, err := flattenARMAllOf(raw)
+		if err != nil {
+			fail("flatten ARM allOf: %v", err)
+		}
+		raw = flattened
+	}
+
 	// Flatten `x-ms-paths` into `paths`. Azure's data-plane specs
 	// (Blob Storage, Queue Storage, Table Storage, …) use
 	// `x-ms-paths` to disambiguate same-URL operations by query
@@ -192,6 +210,157 @@ func main() {
 func fail(format string, args ...any) {
 	fmt.Fprintf(os.Stderr, "azure-codegen: "+format+"\n", args...)
 	os.Exit(1)
+}
+
+// flattenARMAllOf walks every top-level `definitions.<N>` and, when
+// a definition declares both `allOf` (with one or more $refs into
+// the same `definitions.` namespace) AND its own `properties` (or
+// other schema fields beyond description/type), inlines the
+// referenced schemas' properties + required + additionalProperties
+// into the local definition, then removes the allOf array.
+//
+// Why this stage exists: oapi-codegen sees the canonical Azure ARM
+// resource pattern
+//
+//	{ type: object, allOf: [{$ref: TrackedResource}], properties: {own} }
+//
+// and emits `type X = TrackedResource` — a Go type alias that
+// silently discards the schema's `properties`. The alias compiles
+// and the gen file passes the ServerInterface method-count smoke
+// test, but request bodies decoded into `X` lose every field that
+// was declared in the local `properties` block — making adapter
+// migration impossible.
+//
+// Behaviour:
+//   - Cross-file $refs (../../../common-types/...) are skipped
+//     here — the upstream inliner (`inlineExternalRefs`) has
+//     already rewritten them to `#/definitions/<N>` by this point.
+//   - Local properties take precedence on key collision (the spec
+//     author's intent — "this property overrides the inherited one").
+//   - Inlining is shallow per pass; if a referenced definition is
+//     itself allOf-shaped, it gets its own flattening pass through
+//     the same iteration.
+//   - To converge, we iterate until no definition changes; this
+//     handles chains like `X → allOf [Y]; Y → allOf [Z]`.
+func flattenARMAllOf(raw []byte) ([]byte, error) {
+	var doc map[string]interface{}
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		return nil, fmt.Errorf("parse spec JSON: %w", err)
+	}
+	defs, _ := doc["definitions"].(map[string]interface{})
+	if len(defs) == 0 {
+		return raw, nil
+	}
+
+	mergeFrom := func(target, source map[string]interface{}) {
+		// Merge source's properties into target's, leaving target's
+		// existing keys intact (spec-author override wins).
+		if sp, ok := source["properties"].(map[string]interface{}); ok && len(sp) > 0 {
+			tp, _ := target["properties"].(map[string]interface{})
+			if tp == nil {
+				tp = map[string]interface{}{}
+			}
+			for k, v := range sp {
+				if _, exists := tp[k]; !exists {
+					tp[k] = v
+				}
+			}
+			target["properties"] = tp
+		}
+		// Union required field lists.
+		if sr, ok := source["required"].([]interface{}); ok && len(sr) > 0 {
+			tr, _ := target["required"].([]interface{})
+			seen := map[string]bool{}
+			for _, x := range tr {
+				if s, ok := x.(string); ok {
+					seen[s] = true
+				}
+			}
+			for _, x := range sr {
+				if s, ok := x.(string); ok && !seen[s] {
+					tr = append(tr, s)
+					seen[s] = true
+				}
+			}
+			target["required"] = tr
+		}
+		// Propagate additionalProperties only when target doesn't
+		// declare its own.
+		if _, has := target["additionalProperties"]; !has {
+			if ap, ok := source["additionalProperties"]; ok {
+				target["additionalProperties"] = ap
+			}
+		}
+	}
+
+	// Bounded loop in case of cycles in the spec.
+	for pass := 0; pass < 16; pass++ {
+		changed := false
+		for _, name := range sortedKeys(defs) {
+			schema, ok := defs[name].(map[string]interface{})
+			if !ok {
+				continue
+			}
+			allOf, ok := schema["allOf"].([]interface{})
+			if !ok || len(allOf) == 0 {
+				continue
+			}
+			// Only flatten when the schema has its own substance
+			// beyond the allOf — properties, required, etc.
+			// Otherwise leave the allOf alone (downstream may want
+			// the inheritance preserved).
+			hasOwnProps := false
+			if p, ok := schema["properties"].(map[string]interface{}); ok && len(p) > 0 {
+				hasOwnProps = true
+			}
+			if !hasOwnProps {
+				continue
+			}
+			// Resolve each allOf element. Skip non-local refs
+			// (already inlined by inlineExternalRefs) and inline
+			// referenced definitions that exist locally.
+			var remaining []interface{}
+			merged := false
+			for _, item := range allOf {
+				itemMap, ok := item.(map[string]interface{})
+				if !ok {
+					remaining = append(remaining, item)
+					continue
+				}
+				ref, ok := itemMap["$ref"].(string)
+				if !ok {
+					remaining = append(remaining, item)
+					continue
+				}
+				const prefix = "#/definitions/"
+				if !strings.HasPrefix(ref, prefix) {
+					// External ref the inliner didn't catch; leave as-is.
+					remaining = append(remaining, item)
+					continue
+				}
+				target := strings.TrimPrefix(ref, prefix)
+				source, ok := defs[target].(map[string]interface{})
+				if !ok {
+					remaining = append(remaining, item)
+					continue
+				}
+				mergeFrom(schema, source)
+				merged = true
+			}
+			if merged {
+				if len(remaining) == 0 {
+					delete(schema, "allOf")
+				} else {
+					schema["allOf"] = remaining
+				}
+				changed = true
+			}
+		}
+		if !changed {
+			break
+		}
+	}
+	return json.Marshal(doc)
 }
 
 // dedupeParameterDefNameCollisions scans top-level `parameters.<N>`
