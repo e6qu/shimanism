@@ -5,6 +5,7 @@
 | `aws-lambda.smithy.json` | `aws/aws-sdk-go-v2` | `codegen/sdk-codegen/aws-models/lambda.json` | Apache-2.0 | `2517fe9ffa52ed4507b13ccc57efa111b2008750` | 2026-05-19T16:42:00Z |
 | `azure-containerapps.json` | `Azure/azure-rest-api-specs` | `specification/app/resource-manager/Microsoft.App/ContainerApps/stable/2026-01-01/ContainerApps.json` | MIT | `23faa02bb223549c97da5f4c1c4aa2e02d49c419` | 2026-05-22T11:05:00Z |
 | `CommonDefinitions.json` | `Azure/azure-rest-api-specs` | `specification/app/resource-manager/Microsoft.App/ContainerApps/stable/2026-01-01/CommonDefinitions.json` | MIT | `23faa02bb223549c97da5f4c1c4aa2e02d49c419` | 2026-05-22T11:05:00Z |
+| `gcp-functions-discovery.json` | `run.googleapis.com` | `$discovery/rest?version=v2` (live Discovery document) | Apache-2.0 | revision `20260515` | 2026-05-22T11:35:00Z |
 
 Lambda uses the **`restJson1` wire protocol** — actual REST routes
 (e.g. `POST /2015-03-31/functions/`, `GET /2015-03-31/functions/{Name}/configuration`)

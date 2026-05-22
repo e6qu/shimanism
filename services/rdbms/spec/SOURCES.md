@@ -6,6 +6,7 @@ repo so the codegen + build are reproducible without network access.
 | Local file | Upstream repo | Upstream path | Upstream license | Pinned at | Fetched (UTC) |
 |---|---|---|---|---|---|
 | `aws-rds.smithy.json` | `aws/aws-sdk-go-v2` | `codegen/sdk-codegen/aws-models/rds.json` | Apache-2.0 | `2517fe9ffa52ed4507b13ccc57efa111b2008750` | 2026-05-19T14:59:00Z |
+| `gcp-rdbms-discovery.json` | `sqladmin.googleapis.com` | `$discovery/rest?version=v1` (live Discovery document) | Apache-2.0 | revision `20260510` | 2026-05-22T11:35:00Z |
 
 The RDS spec uses the `awsQuery` wire protocol — same as Phase 4's
 SNS. Form-encoded request bodies dispatched on `Action=...`, XML
