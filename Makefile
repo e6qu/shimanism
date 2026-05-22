@@ -109,6 +109,20 @@ codegen:
 			-pkg=$$pkg \
 			-commit="$$commit" || exit $$?; \
 	done
+	@for manifest in $$(find services -maxdepth 2 -name gcp-codegen.json | sort); do \
+		spec=$$(jq -r '.spec' $$manifest); \
+		pkg=$$(jq -r '.package' $$manifest); \
+		out=$$(jq -r '.out' $$manifest); \
+		if [ ! -f $$spec ]; then \
+			echo "gcp-codegen: skipping $$manifest (spec $$spec not vendored yet)"; \
+			continue; \
+		fi; \
+		echo "gcp-codegen: $$manifest -> $$out"; \
+		go run ./cmd/gcp-codegen \
+			-spec=$$spec \
+			-out=$$out \
+			-pkg=$$pkg || exit $$?; \
+	done
 
 # Verify every linked Go dependency carries a license on the allowlist in
 # doc/COMPATIBLE_LICENSES.md. Uses Google's go-licenses tool. Installed on
