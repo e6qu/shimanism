@@ -108,7 +108,8 @@ codegen:
 			continue; \
 		fi; \
 		spec_base=$$(basename $$spec); \
-		commit=$$(grep -F "$$spec_base" $$svc_dir/spec/SOURCES.md 2>/dev/null | grep -oE '`[0-9a-f]{40}`' | head -1 | tr -d '`'); \
+		spec_dir=$$(dirname $$spec); \
+		commit=$$(grep -F "$$spec_base" $$spec_dir/SOURCES.md 2>/dev/null | grep -oE '`[0-9a-f]{40}`' | head -1 | tr -d '`'); \
 		if [ -z "$$commit" ]; then commit=0000000000000000000000000000000000000000; fi; \
 		echo "azure-codegen: $$manifest -> $$out"; \
 		go run ./cmd/azure-codegen \
