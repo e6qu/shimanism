@@ -7,8 +7,8 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 ## Where we are
 
 - **Last merged:** PR #18 at `bcd72e5` on `origin/main`, 2026-05-22. Phase 11 closed — BUG-18 closed end-to-end; 8/8 AWS frontends spec-driven; Azure oapi-codegen pilot proves the spec-driven lane for Azure.
-- **Active branch:** `phase-12`. PR forthcoming once the first substantive chunk lands. One-PR-per-phase rule applies: every Phase 12 sub-phase lands on `phase-12`.
-- **Phase 12 sub-task plan:** lives in [PLAN.md § Phase 12](PLAN.md#phase-12--cross-cloud-migration-cell-expansion--phase-11-follow-ons). Two parallel tracks (12.A/B/C absorb the Phase 11 deferrals; 12.1–12.8 land one cross-cloud Apply cell per service).
+- **Active branch:** `phase-12`, PR #19. **At exit; ready for user review + merge.** 82+ granular commits.
+- **Phase 12 sub-task plan:** lives in [PLAN.md § Phase 12](PLAN.md#phase-12--cross-cloud-migration-cell-expansion--phase-11-follow-ons). Three exit criteria all met (see "Next concrete actions" below for the summary). Phase 13 stub in PLAN.md frames the follow-on (full adapter migration + real-cloud Track A + production RS256 JWKS).
 
 ## Next concrete actions (in priority order)
 

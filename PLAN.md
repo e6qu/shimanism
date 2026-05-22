@@ -223,6 +223,8 @@ Status legend: ✅ done · ◐ in progress (pilot landed, broader work deferred)
 
 ## Phase 12 — Cross-cloud migration cell expansion + Phase 11 follow-ons
 
+> **Status: at exit on PR #19.** All three exit criteria met. 82+ granular commits.
+
 > **Goal:** Phase 9 + 10 proved cross-cloud migration via Terraform on one cell (storage AWS→GCS). Phase 12 takes one honest cross-cloud cell per service end-to-end across all 8, and absorbs the Phase 11 follow-ons that were deferred so the wire-boundary work stays in one continuous arc.
 
 Two parallel tracks:
