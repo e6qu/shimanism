@@ -3,6 +3,8 @@ package main
 import (
 	"encoding/json"
 	"testing"
+
+	"github.com/getkin/kin-openapi/openapi3"
 )
 
 // TestFlattenARMAllOf_BasicInlining exercises the BUG-20 fix: a
@@ -335,6 +337,60 @@ func TestFlattenXMSPaths_NoOp(t *testing.T) {
 	afterN, _ := json.Marshal(after)
 	if string(inN) != string(afterN) {
 		t.Errorf("spec without x-ms-paths was modified:\n  in:  %s\n  out: %s", inN, afterN)
+	}
+}
+
+// TestNormalizeAllOf_NilsEmptySlice covers the workaround for
+// kin-openapi's v2→v3 converter, which attaches `AllOf: []` to
+// scalar enum schemas. oapi-codegen's MergeSchemas then panics
+// on `allOf[0]`. normalizeAllOf must nil the slice everywhere.
+func TestNormalizeAllOf_NilsEmptySlice(t *testing.T) {
+	v3 := &openapi3.T{
+		Components: &openapi3.Components{
+			Schemas: openapi3.Schemas{
+				"EnumLike": &openapi3.SchemaRef{Value: &openapi3.Schema{
+					Type:  &openapi3.Types{"string"},
+					Enum:  []any{"A", "B"},
+					AllOf: openapi3.SchemaRefs{}, // empty — the bug
+				}},
+			},
+		},
+		Paths: openapi3.NewPaths(),
+	}
+
+	normalizeAllOf(v3)
+
+	got := v3.Components.Schemas["EnumLike"].Value
+	if got.AllOf != nil {
+		t.Errorf("empty AllOf was not nil'd; still got len=%d", len(got.AllOf))
+	}
+	// Other fields untouched.
+	if got.Type == nil || (*got.Type)[0] != "string" {
+		t.Error("Type was modified")
+	}
+	if len(got.Enum) != 2 {
+		t.Error("Enum was modified")
+	}
+}
+
+// TestNormalizeAllOf_LeavesPopulatedSliceAlone confirms only EMPTY
+// slices are nil'd — a real allOf with refs survives the walk.
+func TestNormalizeAllOf_LeavesPopulatedSliceAlone(t *testing.T) {
+	innerRef := &openapi3.SchemaRef{Ref: "#/components/schemas/Other"}
+	v3 := &openapi3.T{
+		Components: &openapi3.Components{
+			Schemas: openapi3.Schemas{
+				"WithAllOf": &openapi3.SchemaRef{Value: &openapi3.Schema{
+					AllOf: openapi3.SchemaRefs{innerRef},
+				}},
+			},
+		},
+		Paths: openapi3.NewPaths(),
+	}
+	normalizeAllOf(v3)
+	got := v3.Components.Schemas["WithAllOf"].Value
+	if len(got.AllOf) != 1 {
+		t.Errorf("populated AllOf was modified; got len=%d", len(got.AllOf))
 	}
 }
 
