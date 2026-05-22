@@ -105,3 +105,42 @@ func TestGCPRoutes_Queue_FrontendDispatchCoverage(t *testing.T) {
 		})
 	}
 }
+
+// TestGCPRoutes_Queue_EveryRouteRoundTrips synthesizes a sample path
+// for every Route in gen.gcp.Routes and asserts the Pattern matches
+// + Match() returns a candidate. Catches regressions where
+// templateToRegex emits a pattern that fails to match its own
+// template-derived path.
+func TestGCPRoutes_Queue_EveryRouteRoundTrips(t *testing.T) {
+	for _, r := range gcpgen.Routes {
+		path := gcpgen.BasePath + "/" + r.URIPattern
+		path = expandRouteTemplateQueue(path)
+		if !r.Pattern.MatchString(path) {
+			t.Errorf("Route %q: Pattern %q does not match its own template-derived path %q",
+				r.ID, r.Pattern, path)
+		}
+	}
+}
+
+// expandRouteTemplateQueue substitutes URI-template variables with
+// sample values; both {var} and {+var} become "x".
+func expandRouteTemplateQueue(t string) string {
+	out := []byte{}
+	for i := 0; i < len(t); {
+		if t[i] == '{' {
+			end := i + 1
+			for end < len(t) && t[end] != '}' {
+				end++
+			}
+			if end < len(t) {
+				out = append(out, 'x')
+				i = end + 1
+				continue
+			}
+		}
+		out = append(out, t[i])
+		i++
+	}
+	return string(out)
+}
+
