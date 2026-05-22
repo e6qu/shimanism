@@ -1,4 +1,12 @@
 {
+  "_provenance": {
+    "upstream_repo": "Azure/azure-rest-api-specs",
+    "upstream_path": "specification/apimanagement/resource-manager/Microsoft.ApiManagement/ApiManagement/stable/2024-05-01/apimanagement.json",
+    "upstream_license": "MIT",
+    "pinned_at": "8e3e3baa2523e17becb3d7032eb909aba12b7f2c",
+    "fetched_utc": "2026-05-22T11:00:00Z",
+    "note": "Vendored verbatim except for this top-level `_provenance` key. Refresh with the matching scripts/fetch-*.sh; see SOURCES.md for the authoritative pin."
+  },
   "swagger": "2.0",
   "info": {
     "title": "ApiManagementClient",

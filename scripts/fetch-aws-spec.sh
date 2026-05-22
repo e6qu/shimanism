@@ -85,5 +85,12 @@ for the overall policy).
 EOF
 
 echo "Wrote ${sources_md}"
+
+# Inject the `_provenance` top-level key into the freshly-fetched
+# JSON so the spec self-documents its origin. SOURCES.md is the
+# authoritative store; the spec file's `_provenance` is a derived
+# projection that travels with the file when reviewers open it.
+go run ./cmd/inject-provenance -sources="${sources_md}" -dir="${service_dir}/spec"
+
 echo
 echo "Pinned aws-${aws_service}.smithy.json to ${upstream_repo}@${resolved_sha}"

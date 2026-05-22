@@ -1,4 +1,12 @@
 {
+  "_provenance": {
+    "upstream_repo": "apigateway.googleapis.com",
+    "upstream_path": "$discovery/rest?version=v1",
+    "upstream_license": "Apache-2.0",
+    "pinned_at": "20260513",
+    "fetched_utc": "2026-05-22T11:35:00Z",
+    "note": "Vendored verbatim except for this top-level `_provenance` key. Refresh with the matching scripts/fetch-*.sh; see SOURCES.md for the authoritative pin."
+  },
   "kind": "discovery#restDescription",
   "fullyEncodeReservedExpansion": true,
   "name": "apigateway",

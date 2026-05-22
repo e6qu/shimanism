@@ -1,28 +1,36 @@
 {
- "kind": "discovery#restDescription",
- "version": "v1",
- "id": "storage:v1",
- "rootUrl": "https://storage.googleapis.com/",
- "mtlsRootUrl": "https://storage.mtls.googleapis.com/",
- "baseUrl": "https://storage.googleapis.com/storage/v1/",
- "basePath": "/storage/v1/",
- "servicePath": "storage/v1/",
- "batchPath": "batch/storage/v1",
- "discoveryVersion": "v1",
- "name": "storage",
- "title": "Cloud Storage JSON API",
- "description": "Stores and retrieves potentially large, immutable data objects.",
- "ownerDomain": "google.com",
- "ownerName": "Google",
- "icons": {
+  "_provenance": {
+    "upstream_repo": "storage.googleapis.com",
+    "upstream_path": "$discovery/rest?version=v1",
+    "upstream_license": "Apache-2.0",
+    "pinned_at": "20260516",
+    "fetched_utc": "2026-05-22T11:35:00Z",
+    "note": "Vendored verbatim except for this top-level `_provenance` key. Refresh with the matching scripts/fetch-*.sh; see SOURCES.md for the authoritative pin."
+  },
+  "kind": "discovery#restDescription",
+  "version": "v1",
+  "id": "storage:v1",
+  "rootUrl": "https://storage.googleapis.com/",
+  "mtlsRootUrl": "https://storage.mtls.googleapis.com/",
+  "baseUrl": "https://storage.googleapis.com/storage/v1/",
+  "basePath": "/storage/v1/",
+  "servicePath": "storage/v1/",
+  "batchPath": "batch/storage/v1",
+  "discoveryVersion": "v1",
+  "name": "storage",
+  "title": "Cloud Storage JSON API",
+  "description": "Stores and retrieves potentially large, immutable data objects.",
+  "ownerDomain": "google.com",
+  "ownerName": "Google",
+  "icons": {
   "x16": "https://www.google.com/images/icons/product/cloud_storage-16.png",
   "x32": "https://www.google.com/images/icons/product/cloud_storage-32.png"
  },
- "documentationLink": "https://developers.google.com/storage/docs/json_api/",
- "labels": [
+  "documentationLink": "https://developers.google.com/storage/docs/json_api/",
+  "labels": [
   "labs"
  ],
- "endpoints": [
+  "endpoints": [
   {
    "endpointUrl": "https://storage.africa-south1.rep.googleapis.com/",
    "location": "africa-south1",
@@ -249,8 +257,8 @@
    "description": "Regional Endpoint"
   }
  ],
- "protocol": "rest",
- "parameters": {
+  "protocol": "rest",
+  "parameters": {
   "alt": {
    "type": "string",
    "description": "Data format for the response.",
@@ -302,7 +310,7 @@
    "location": "query"
   }
  },
- "auth": {
+  "auth": {
   "oauth2": {
    "scopes": {
     "https://www.googleapis.com/auth/cloud-platform": {
@@ -323,7 +331,7 @@
    }
   }
  },
- "schemas": {
+  "schemas": {
   "Bucket": {
    "id": "Bucket",
    "type": "object",
@@ -2315,7 +2323,7 @@
    }
   }
  },
- "resources": {
+  "resources": {
   "anywhereCaches": {
    "methods": {
     "insert": {
@@ -6600,6 +6608,6 @@
    }
   }
  },
- "revision": "20260516",
- "etag": "\"38393237373237343035383039383039303331\""
+  "revision": "20260516",
+  "etag": "\"38393237373237343035383039383039303331\""
 }

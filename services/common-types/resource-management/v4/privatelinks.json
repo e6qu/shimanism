@@ -1,4 +1,12 @@
 {
+  "_provenance": {
+    "upstream_repo": "Azure/azure-rest-api-specs",
+    "upstream_path": "specification/common-types/resource-management/v4/privatelinks.json",
+    "upstream_license": "MIT",
+    "pinned_at": "b719f25b95dc1af117ac60708398c20eb8a3315f",
+    "fetched_utc": "2026-05-22T10:33:00Z",
+    "note": "Vendored verbatim except for this top-level `_provenance` key. Refresh with the matching scripts/fetch-*.sh; see SOURCES.md for the authoritative pin."
+  },
   "swagger": "2.0",
   "info": {
     "title": "Common types",

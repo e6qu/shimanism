@@ -1,6 +1,14 @@
 {
-    "smithy": "2.0",
-    "shapes": {
+  "_provenance": {
+    "upstream_repo": "aws/aws-sdk-go-v2",
+    "upstream_path": "codegen/sdk-codegen/aws-models/lambda.json",
+    "upstream_license": "Apache-2.0",
+    "pinned_at": "2517fe9ffa52ed4507b13ccc57efa111b2008750",
+    "fetched_utc": "2026-05-19T16:42:00Z",
+    "note": "Vendored verbatim except for this top-level `_provenance` key. Refresh with the matching scripts/fetch-*.sh; see SOURCES.md for the authoritative pin."
+  },
+  "smithy": "2.0",
+  "shapes": {
         "com.amazonaws.lambda#AWSGirApiService": {
             "type": "service",
             "version": "2015-03-31",

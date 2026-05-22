@@ -1,4 +1,12 @@
 {
+  "_provenance": {
+    "upstream_repo": "Azure/azure-rest-api-specs",
+    "upstream_path": "specification/servicebus/data-plane/ServiceBus/stable/2021-05/servicebus.json",
+    "upstream_license": "MIT",
+    "pinned_at": "d1f7858b0e38771e072759e507e13bb536341641",
+    "fetched_utc": "2026-05-22T03:11:00Z",
+    "note": "Vendored verbatim except for this top-level `_provenance` key. Refresh with the matching scripts/fetch-*.sh; see SOURCES.md for the authoritative pin."
+  },
   "swagger": "2.0",
   "info": {
     "version": "2021-05",

@@ -1,4 +1,12 @@
 {
+  "_provenance": {
+    "upstream_repo": "Azure/azure-rest-api-specs",
+    "upstream_path": "specification/storage/data-plane/Microsoft.BlobStorage/stable/2026-04-06/blob.json",
+    "upstream_license": "MIT",
+    "pinned_at": "be46becafeb29aa993898709e35759d3643b2809",
+    "fetched_utc": "2026-05-22T12:00:00Z",
+    "note": "Vendored verbatim except for this top-level `_provenance` key. Refresh with the matching scripts/fetch-*.sh; see SOURCES.md for the authoritative pin."
+  },
   "swagger": "2.0",
   "info": {
     "title": "Azure Blob Storage",

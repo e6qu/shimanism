@@ -1,4 +1,12 @@
 {
+  "_provenance": {
+    "upstream_repo": "Azure/azure-rest-api-specs",
+    "upstream_path": "specification/postgresql/resource-manager/Microsoft.DBforPostgreSQL/stable/2025-08-01/openapi.json",
+    "upstream_license": "MIT",
+    "pinned_at": "1e6111d12c709c3395fb8546e311b6c67fd87efc",
+    "fetched_utc": "2026-05-22T11:45:00Z",
+    "note": "Vendored verbatim except for this top-level `_provenance` key. Refresh with the matching scripts/fetch-*.sh; see SOURCES.md for the authoritative pin."
+  },
   "swagger": "2.0",
   "info": {
     "title": "PostgreSQLManagementClient",
