@@ -161,15 +161,17 @@ codegen:
 # Regenerate every gen file and assert no diff against the
 # committed copy. Useful both locally before pushing and in CI
 # (the `codegen deterministic` job). A diff here means either
-# an emitter introduced non-determinism or a vendored spec was
-# bumped without committing the regenerated output — both warrant
-# a `make codegen && git add services/ && git commit` cycle.
-codegen-check: codegen
+# an emitter introduced non-determinism, a vendored spec was
+# bumped without committing the regenerated output, or a
+# SOURCES.md row was edited without re-running inject-provenance.
+# All three warrant a `make codegen inject-provenance && git add
+# services/ && git commit` cycle.
+codegen-check: codegen inject-provenance
 	@git diff --exit-code -- services >/dev/null || ( \
-		echo "regenerated gen files differ from committed copy:"; \
+		echo "regenerated gen / provenance files differ from committed copy:"; \
 		git diff --stat -- services; \
 		echo ""; \
-		echo "fix: run 'make codegen' and commit the result"; \
+		echo "fix: run 'make codegen inject-provenance' and commit the result"; \
 		exit 1; \
 	)
 
