@@ -4,7 +4,7 @@
 # enough to run on every PR. Phase-specific targets (codegen, conformance)
 # get added as their sub-phases land.
 
-.PHONY: all build test vet lint typecheck fmt check clean fetch-specs license-check codegen codegen-check spec-freshness
+.PHONY: all build test vet lint typecheck fmt check clean fetch-specs license-check codegen codegen-check spec-freshness inject-provenance
 
 # Default: the full local pre-push lane.
 all: vet test build
@@ -146,6 +146,17 @@ codegen-check: codegen
 		echo "fix: run 'make codegen' and commit the result"; \
 		exit 1; \
 	)
+
+# Refresh the `_provenance` top-level key in every vendored spec
+# from each services/<svc>/spec/SOURCES.md (and the common-types
+# tree's SOURCES.md). Idempotent — files already current are left
+# alone. Use after manually editing a SOURCES.md row.
+inject-provenance:
+	@for sources in $$(find services -name SOURCES.md | sort); do \
+		dir=$$(dirname $$sources); \
+		echo "==> $$sources"; \
+		go run ./cmd/inject-provenance -sources="$$sources" -dir="$$dir" || exit $$?; \
+	done
 
 # Report drift between vendored specs and their upstream HEADs. Reads
 # the SOURCES.md table in every services/<svc>/spec/ directory, asks

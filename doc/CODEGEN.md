@@ -57,11 +57,31 @@ Services covered today: all 8 (storage / secrets / queue / pubsub / rdbms / cach
 
 ## Adding a new service
 
-1. Vendor the spec under `services/<svc>/spec/` and add a row to `SOURCES.md`.
+1. Vendor the spec under `services/<svc>/spec/` via the matching `scripts/fetch-*.sh` (AWS Smithy / Azure REST / GCP Discovery). Each script seeds SOURCES.md and runs `cmd/inject-provenance` so the spec's `_provenance` top-level key is current.
 2. Write a `<lane>-codegen.json` manifest pointing at the spec.
 3. Run `make codegen` — output lands under `services/<svc>/gen/<lane>/`.
 4. Write the per-service adapter that implements the generated `ServerInterface` (Azure) or compiles `gen.Routes` into dispatch (GCP).
 5. Run `make codegen-check` locally to confirm the output is deterministic before pushing.
+
+## Vendored-spec provenance
+
+Every JSON file under `services/*/spec/` and `services/common-types/` carries a `_provenance` top-level key as the first field. JSON has no comment syntax; the field is the closest analogue and the codegen tools tolerate unknown top-level keys.
+
+```json
+{
+  "_provenance": {
+    "upstream_repo": "Azure/azure-rest-api-specs",
+    "upstream_path": "specification/.../blob.json",
+    "upstream_license": "MIT",
+    "pinned_at": "<commit-sha-or-revision>",
+    "fetched_utc": "2026-05-22T12:00:00Z",
+    "note": "..."
+  },
+  ...rest of the spec verbatim...
+}
+```
+
+`SOURCES.md` is the authoritative store; `_provenance` is a derived projection so reviewers see the origin when they open the spec file. `make inject-provenance` re-syncs all specs from their SOURCES.md after a manual table edit; `cmd/inject-provenance` is idempotent and preserves source-file key ordering. The `TestEveryVendoredSpecCarriesProvenance` test in `cmd/inject-provenance/` blocks merges where a spec slipped in without the key.
 
 ## Determinism guarantees
 
