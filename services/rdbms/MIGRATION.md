@@ -72,7 +72,7 @@ terraform import aws_db_instance.existing cross-cloud-db
 
 Conformance test reference: `services/rdbms/conformance/{terraform_import_test.go, cross_cloud_import_test.go}`.
 
-> **Caveat (BUG-5 / Phase 10.1).** GCP's `Operations.get` polling is stateless across replicas. AWS Terraform's apply path doesn't depend on GCP-shaped polling, but if you front a GCP-shaped client against this RDBMS shim, see `internal/operations/` for the stateless polling story.
+> **Caveat (BUG-5 / Phase 10.1).** GCP's `Operations.get` polling is stateless across replicas. AWS Terraform's apply path doesn't depend on GCP-shaped polling, but if you front a GCP-shaped client against this RDBMS shim, see `internal/rdbms/frontends/gcp_cloudsql/server.go`'s `reOperation` handler for the stateless polling story (derives status from the resource's current state, no shim-side operation table).
 
 ## Snapshot/backup-driven migration (incomplete)
 
