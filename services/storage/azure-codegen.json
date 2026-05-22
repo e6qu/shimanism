@@ -1,0 +1,6 @@
+{
+  "_comment": "Phase 12.A.20 — Azure Blob data-plane. The spec uses x-ms-paths heavily (60 entries, 0 native paths); the cmd/azure-codegen preprocessor's flattenXMSPaths stage handles that. Spec is OpenAPI v2 (Swagger 2.0); cmd/azure-codegen converts to v3 via kin-openapi/openapi2conv and runs oapi-codegen.Generate(types + std-http-server).",
+  "spec": "services/storage/spec/azure-blob.json",
+  "package": "azure",
+  "out": "services/storage/gen/azure/azure_blob.gen.go"
+}

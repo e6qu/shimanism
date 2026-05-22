@@ -13,18 +13,17 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 ## Next concrete actions (in priority order)
 
 **Phase 12 substantively landed on PR #19.** Spec-driven toolchain for both clouds is fully built + validated:
-- 7/8 Azure specs codegen end-to-end (`azure_keyvault` fully migrated as reference impl)
-- 8/8 GCP services Discovery → route inventory generated
+- **8/8 Azure specs codegen end-to-end** (`azure_keyvault` fully migrated as reference impl; Blob spec unblocked 12.A.20)
+- 8/8 GCP services Discovery → route inventory generated with `Match()` helper (12.B.7)
 - Per-service spec-drift + gen-compile tests
 - CI `codegen deterministic` job
-- 6-stage Azure preprocessor (common-types / multi-file / examples-skip / x-ms-enum / x-ms-paths flatten)
+- 7-stage Azure preprocessor (common-types / multi-file / examples-skip / x-ms-enum + parameter/header gating / parameter/definition name dedup / x-ms-paths flatten / empty-AllOf normalize)
 
 Mechanical follow-ons remain post-merge:
 
-1. **Adapter migrations.** 6 Azure frontends + 8 GCP frontends still dispatch via hand-written regex routes. Each migration: wire generated types into request decoding + response encoding; route through the gen `ServerInterface` (Azure) / `gen.gcp.Routes` inventory (GCP). The hand-written frontends keep passing conformance, so migration is dispatch-consistency, not fidelity.
-2. **Azure Blob full unblock.** `flattenXMSPaths` handles the `x-ms-paths` layer; the spec has additional ref-shape quirks (refs into `#/components/schemas/AccessTier` the v2→v3 converter expects as parameter refs). Needs another per-spec preprocessor pass.
-3. **Production RS256 JWKS.** Verifiers run test-mode HS256; production paths documented in the verifier comments (`google.golang.org/api/idtoken.Validate`, Microsoft's JWKS).
-4. **Track 1 cross-cloud cells.** Largely covered by Phase 10's per-service cross-cloud Apply tests; matrix-expansion candidates documented in PLAN.md.
+1. **Adapter migrations.** 7 Azure frontends + 8 GCP frontends still dispatch via hand-written regex routes. Each migration: wire generated types into request decoding + response encoding; route through the gen `ServerInterface` (Azure) / `gen.gcp.Routes` inventory (GCP). The hand-written frontends keep passing conformance, so migration is dispatch-consistency, not fidelity.
+2. **Production RS256 JWKS.** Verifiers run test-mode HS256; production paths documented in the verifier comments (`google.golang.org/api/idtoken.Validate`, Microsoft's JWKS).
+3. **Track 1 cross-cloud cells.** Largely covered by Phase 10's per-service cross-cloud Apply tests; matrix-expansion candidates documented in PLAN.md.
 
 ## Invariants snapshot
 

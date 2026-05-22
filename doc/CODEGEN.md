@@ -30,14 +30,15 @@ The preprocessor stages, in order:
 
 1. **External-ref inliner** (`inlineExternalRefs`). Merges `definitions`/`parameters` from Azure's common-types files (vendored under `services/common-types/resource-management/v<N>/`) and from sibling spec files (`./<file>.json` from the spec's own directory) into the main doc. Rewrites every external `$ref` to a local pointer.
 2. **`x-ms-examples` skip** (in `classifyRef`). Refs under `./examples/<file>` are metadata; the inliner doesn't follow them.
-3. **`x-ms-enum` inline→`$ref`** (`promoteXMsEnumName`). When an inline schema's `x-ms-enum.name` matches a top-level definition declaring the same `x-ms-enum.name`, the inline gets `$ref`'d to the top-level. Stops oapi-codegen from generating a duplicate Go type name from the property path.
-4. **`x-ms-paths` flatten** (`flattenXMSPaths`). Azure data-plane specs use `x-ms-paths` to disambiguate same-URL operations by query parameter; OpenAPI v2/v3 don't model that, so we move the entries into `paths` with the same key.
-5. **Empty-`AllOf` normalize** (`normalizeAllOf`). `kin-openapi`'s v2→v3 converter attaches empty `AllOf: []` to scalar enum schemas; oapi-codegen panics on `allOf[0]`. Nil out the empty slice everywhere.
-6. **Deterministic walk** (`sortedKeys`). Every map walk uses sorted keys so multi-version common-types merges produce byte-identical output across runs.
+3. **`x-ms-enum` inline→`$ref`** (`promoteXMsEnumName`). When an inline schema's `x-ms-enum.name` matches a top-level definition declaring the same `x-ms-enum.name`, the inline gets `$ref`'d to the top-level. The walker tracks a "non-schema depth": inside a `parameters` or `headers` container, inline-enum promotion is suppressed (the converted v3 doc would reject parameter/header refs that point at schemas). A `schema` or `items` sub-key inside a parameter/header resets the depth so body-parameter schemas still get the inline→ref rewrite.
+4. **Parameter/definition name dedup** (`dedupeParameterDefNameCollisions`). When `parameters.<N>` and `definitions.<N>` both exist, stamps `x-go-name: <N>Parameter` on the parameter so oapi-codegen doesn't emit two `type <N>` declarations. Azure Blob ships such a collision (string-enum `LeaseDuration` schema vs integer header parameter).
+5. **`x-ms-paths` flatten** (`flattenXMSPaths`). Azure data-plane specs use `x-ms-paths` to disambiguate same-URL operations by query parameter; OpenAPI v2/v3 don't model that, so we move the entries into `paths` with the same key.
+6. **Empty-`AllOf` normalize** (`normalizeAllOf`). `kin-openapi`'s v2→v3 converter attaches empty `AllOf: []` to scalar enum schemas; oapi-codegen panics on `allOf[0]`. Nil out the empty slice everywhere.
+7. **Deterministic walk** (`sortedKeys`). Every map walk uses sorted keys so multi-version common-types merges produce byte-identical output across runs.
 
 After preprocessing, `oapi-codegen` runs with `Models: true` + `StdHTTPServer: true`.
 
-Services covered today: secrets / queue / pubsub (shared) / cache / apigateway / functions / rdbms. Azure Blob's spec needs further per-spec preprocessing — `x-ms-paths` is flattened but additional ref-shape quirks remain.
+Services covered today: secrets / queue / pubsub (shared) / cache / apigateway / functions / rdbms / storage (Blob). Storage was the final unlock — its spec hits all four oddities at once: external $ref shapes, 60 `x-ms-paths` entries, parameters whose inline `x-ms-enum` collides with definition schemas (forced the `schema`/`items`-reset depth tracker in `promoteXMsEnumName`), and a top-level parameter sharing its name with a definition (handled by `dedupeParameterDefNameCollisions`, which stamps `x-go-name: <N>Parameter` on the colliding parameter).
 
 ## GCP Discovery (`cmd/gcp-codegen`)
 

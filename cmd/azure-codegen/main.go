@@ -96,6 +96,22 @@ func main() {
 		raw = promoted
 	}
 
+	// Resolve typename collisions between top-level `definitions.<N>`
+	// and top-level `parameters.<N>` by stamping `x-go-name` on the
+	// colliding parameter. Azure's Blob spec ships, e.g., both
+	// `definitions.LeaseDuration` (a string enum) and
+	// `parameters.LeaseDuration` (an integer header parameter).
+	// oapi-codegen would emit two `type LeaseDuration` declarations
+	// and fail with `duplicate typename`. The schema is the
+	// authoritative reuse target; rename the parameter.
+	if strings.Contains(string(raw), `"parameters"`) {
+		dedup, err := dedupeParameterDefNameCollisions(raw)
+		if err != nil {
+			fail("dedupe parameter/def names: %v", err)
+		}
+		raw = dedup
+	}
+
 	// Flatten `x-ms-paths` into `paths`. Azure's data-plane specs
 	// (Blob Storage, Queue Storage, Table Storage, …) use
 	// `x-ms-paths` to disambiguate same-URL operations by query
@@ -176,6 +192,44 @@ func main() {
 func fail(format string, args ...any) {
 	fmt.Fprintf(os.Stderr, "azure-codegen: "+format+"\n", args...)
 	os.Exit(1)
+}
+
+// dedupeParameterDefNameCollisions scans top-level `parameters.<N>`
+// against top-level `definitions.<N>`; when both exist under the same
+// name, stamps `x-go-name: "<N>Parameter"` on the parameter. The
+// schema is left intact: in the converted v3 doc it becomes
+// `components.schemas.<N>` and is the natural reuse target across
+// the spec, so renaming the schema would force every $ref to rewrite
+// too. Renaming the parameter localises the change to one node.
+//
+// Azure Blob ships `definitions.LeaseDuration` (string enum,
+// "infinite"|"fixed") AND `parameters.LeaseDuration` (integer
+// header). oapi-codegen would emit two `type LeaseDuration`
+// declarations and fail.
+func dedupeParameterDefNameCollisions(raw []byte) ([]byte, error) {
+	var doc map[string]interface{}
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		return nil, fmt.Errorf("parse spec JSON: %w", err)
+	}
+	defs, _ := doc["definitions"].(map[string]interface{})
+	params, _ := doc["parameters"].(map[string]interface{})
+	if len(defs) == 0 || len(params) == 0 {
+		return raw, nil
+	}
+	for _, name := range sortedKeys(params) {
+		if _, collides := defs[name]; !collides {
+			continue
+		}
+		param, ok := params[name].(map[string]interface{})
+		if !ok {
+			continue
+		}
+		if _, alreadySet := param["x-go-name"]; alreadySet {
+			continue
+		}
+		param["x-go-name"] = name + "Parameter"
+	}
+	return json.Marshal(doc)
 }
 
 // flattenXMSPaths moves every entry from the spec's `x-ms-paths`
@@ -275,16 +329,46 @@ func promoteXMsEnumName(raw []byte) ([]byte, error) {
 		}
 	}
 
-	var walk func(interface{}, bool) interface{}
-	walk = func(node interface{}, atTopLevelDefinition bool) interface{} {
+	// nonSchemaContainerKeys names parent keys whose value is a
+	// map/array of parameter or header objects. Such children are
+	// NOT schemas, even though they share the schema-like shape
+	// (inline `type`/`enum`/`format` + optional `x-ms-enum`). The
+	// v2→v3 converter rejects $ref-to-schema substitutions inside
+	// parameters or headers — parameter refs must point at
+	// parameter objects, header refs at header objects.
+	nonSchemaContainerKeys := map[string]bool{
+		"parameters": true,
+		"headers":    true,
+	}
+
+	// resetSchemaKeys names parent keys whose value IS a schema,
+	// even when we're descending from a non-schema parameter or
+	// header. A body-parameter's `schema` is the canonical case;
+	// `items` covers array-typed parameters/headers.
+	resetSchemaKeys := map[string]bool{
+		"schema": true,
+		"items":  true,
+	}
+
+	// The walker tracks "non-schema entry depth" — the number of
+	// nested non-schema container/entry levels we're inside:
+	//   0  → ordinary schema context (promotion allowed)
+	//   1  → the parameters/headers container itself (a map of
+	//        named non-schemas, or array of non-schema items)
+	//   2+ → inside a specific parameter/header object (promotion
+	//        on THIS node would mutate the parameter/header)
+	//
+	// Promotion fires only at depth 0. A `schema` or `items`
+	// sub-key resets the depth back to 0 so body-parameter schemas
+	// still get the inline-→-ref rewrite.
+	var walk func(node interface{}, atTopLevelDefinition bool, nonSchemaDepth int) interface{}
+	walk = func(node interface{}, atTopLevelDefinition bool, nonSchemaDepth int) interface{} {
 		switch v := node.(type) {
 		case map[string]interface{}:
 			ext, hasExt := v["x-ms-enum"].(map[string]interface{})
-			if hasExt && !atTopLevelDefinition {
+			if hasExt && !atTopLevelDefinition && nonSchemaDepth == 0 {
 				if name, ok := ext["name"].(string); ok && name != "" {
 					if tgt, sharesName := defByXMSName[name]; sharesName {
-						// Inline schema declaring it IS the top-
-						// level enum. Replace with a $ref.
 						return map[string]interface{}{
 							"$ref": "#/definitions/" + tgt,
 						}
@@ -292,12 +376,39 @@ func promoteXMsEnumName(raw []byte) ([]byte, error) {
 				}
 			}
 			for k, sub := range v {
-				v[k] = walk(sub, false)
+				var childDepth int
+				switch {
+				case resetSchemaKeys[k]:
+					// `schema` / `items` re-enters schema context.
+					childDepth = 0
+				case nonSchemaContainerKeys[k]:
+					// Entering a parameters/headers container.
+					// Its children (the map/array entries) are
+					// at depth 2 (still inside non-schema).
+					childDepth = 1
+				case nonSchemaDepth > 0:
+					// Stay inside the current non-schema entry.
+					childDepth = nonSchemaDepth + 1
+					if childDepth > 2 {
+						childDepth = 2
+					}
+				default:
+					childDepth = 0
+				}
+				v[k] = walk(sub, false, childDepth)
 			}
 			return v
 		case []interface{}:
+			// Array entries inherit their container's depth. An
+			// array under `parameters` (operation-level params)
+			// has depth=1 here; each entry is the parameter
+			// object, which we mark depth=2.
+			entryDepth := nonSchemaDepth
+			if nonSchemaDepth == 1 {
+				entryDepth = 2
+			}
 			for i, sub := range v {
-				v[i] = walk(sub, false)
+				v[i] = walk(sub, false, entryDepth)
 			}
 			return v
 		default:
@@ -307,7 +418,7 @@ func promoteXMsEnumName(raw []byte) ([]byte, error) {
 	// Walk definitions first with atTopLevelDefinition=true so the
 	// standalone enum schemas don't get $ref-rewritten to themselves.
 	for k, sub := range defs {
-		defs[k] = walk(sub, true)
+		defs[k] = walk(sub, true, 0)
 	}
 	// Walk the rest of the doc; inline x-ms-enums in property
 	// schemas get the inline→$ref rewrite.
@@ -315,7 +426,11 @@ func promoteXMsEnumName(raw []byte) ([]byte, error) {
 		if k == "definitions" {
 			continue
 		}
-		doc[k] = walk(sub, false)
+		var childDepth int
+		if nonSchemaContainerKeys[k] {
+			childDepth = 1
+		}
+		doc[k] = walk(sub, false, childDepth)
 	}
 	return json.Marshal(doc)
 }
