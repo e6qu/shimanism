@@ -4,7 +4,7 @@
 # enough to run on every PR. Phase-specific targets (codegen, conformance)
 # get added as their sub-phases land.
 
-.PHONY: all build test vet lint typecheck fmt check clean fetch-specs license-check codegen codegen-check
+.PHONY: all build test vet lint typecheck fmt check clean fetch-specs license-check codegen codegen-check spec-freshness
 
 # Default: the full local pre-push lane.
 all: vet test build
@@ -138,6 +138,17 @@ codegen-check: codegen
 		echo "fix: run 'make codegen' and commit the result"; \
 		exit 1; \
 	)
+
+# Report drift between vendored specs and their upstream HEADs. Reads
+# the SOURCES.md table in every services/<svc>/spec/ directory, asks
+# GitHub for the latest commit touching each upstream path, and prints
+# a line per spec (ok / DRIFT / skip). Discovery revisions skip (no
+# SHA to compare). Requires `gh` + `jq` on PATH.
+#
+# Informational only; use to gate fetch-specs PRs. CI integration
+# lives under .github/workflows/spec-freshness.yml when it lands.
+spec-freshness:
+	@bash scripts/check-spec-freshness.sh
 
 # Verify every linked Go dependency carries a license on the allowlist in
 # doc/COMPATIBLE_LICENSES.md. Uses Google's go-licenses tool. Installed on

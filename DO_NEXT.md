@@ -44,7 +44,7 @@ Mechanical follow-ons remain post-merge:
 
 - **Track A — Cloud test accounts.** Real-cloud Apply lanes against real AWS / GCP / Azure accounts; also the home for real-signed signature-verification conformance. Blocks BUG-8 closure + BUG-15 reclassification.
 - **Track B — Coding-agent automation.**
-- **Renovate coverage of vendored specs.** Renovate tracks Go modules + GitHub Actions today; vendored specs in `services/<svc>/spec/` are manual. Wire spec freshness into CI (compare vendored hash vs upstream HEAD; alert on drift) — 12.0 candidate.
+- **Spec freshness.** `make spec-freshness` (12.0.1) reports drift between every git-pinned vendored spec and its upstream HEAD. Informational today; CI integration (weekly cron + issue creation on drift > N days) is follow-on. Discovery revisions skip the SHA compare since their freshness is encoded in the revision date.
 
 ## Session-resume checklist
 
