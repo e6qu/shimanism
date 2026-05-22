@@ -4,7 +4,7 @@
 # enough to run on every PR. Phase-specific targets (codegen, conformance)
 # get added as their sub-phases land.
 
-.PHONY: all build test vet lint typecheck fmt check clean fetch-specs license-check codegen
+.PHONY: all build test vet lint typecheck fmt check clean fetch-specs license-check codegen codegen-check
 
 # Default: the full local pre-push lane.
 all: vet test build
@@ -123,6 +123,21 @@ codegen:
 			-out=$$out \
 			-pkg=$$pkg || exit $$?; \
 	done
+
+# Regenerate every gen file and assert no diff against the
+# committed copy. Useful both locally before pushing and in CI
+# (the `codegen deterministic` job). A diff here means either
+# an emitter introduced non-determinism or a vendored spec was
+# bumped without committing the regenerated output — both warrant
+# a `make codegen && git add services/ && git commit` cycle.
+codegen-check: codegen
+	@git diff --exit-code -- services >/dev/null || ( \
+		echo "regenerated gen files differ from committed copy:"; \
+		git diff --stat -- services; \
+		echo ""; \
+		echo "fix: run 'make codegen' and commit the result"; \
+		exit 1; \
+	)
 
 # Verify every linked Go dependency carries a license on the allowlist in
 # doc/COMPATIBLE_LICENSES.md. Uses Google's go-licenses tool. Installed on

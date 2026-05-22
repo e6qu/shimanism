@@ -87,10 +87,7 @@ jobs:
         # across runs and against the committed copy — if it isn't,
         # either an emitter introduced non-determinism or a vendored
         # spec was bumped without committing the regenerated output.
-        run: |
-          set -euo pipefail
-          make codegen
-          git diff --exit-code -- services || (echo "::error::regenerated gen files differ from committed copy; run 'make codegen' locally and commit the result" && exit 1)
+        run: make codegen-check
 
   precommit:
     name: pre-commit
