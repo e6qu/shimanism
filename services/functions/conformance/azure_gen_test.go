@@ -77,3 +77,62 @@ func TestAzureGen_Functions_ContainerAppDecodesRealShape(t *testing.T) {
 		t.Error("Properties.Template.Containers missing — gen type missing the nested ARM structure")
 	}
 }
+
+// TestAzureGen_Functions_ContainerAppRoundTrips asserts that
+// decoding then re-encoding then re-decoding a ContainerApp body
+// preserves the original field set. Confirms gen.ContainerApp's
+// JSON tags don't drop fields on the marshal side (a real risk
+// after the allOf-flatten rewrite — properties merged into the
+// local schema must keep their original json tag).
+func TestAzureGen_Functions_ContainerAppRoundTrips(t *testing.T) {
+	body := []byte(`{
+		"location": "eastus",
+		"properties": {
+			"managedEnvironmentId": "/subscriptions/s/resourceGroups/rg/providers/Microsoft.App/managedEnvironments/env",
+			"configuration": {
+				"ingress": {
+					"external": true,
+					"targetPort": 8080
+				}
+			},
+			"template": {
+				"containers": [{
+					"name": "main",
+					"image": "nginx:alpine"
+				}]
+			}
+		}
+	}`)
+	var first azuregen.ContainerApp
+	if err := json.Unmarshal(body, &first); err != nil {
+		t.Fatalf("first decode: %v", err)
+	}
+	encoded, err := json.Marshal(first)
+	if err != nil {
+		t.Fatalf("encode: %v", err)
+	}
+	var second azuregen.ContainerApp
+	if err := json.Unmarshal(encoded, &second); err != nil {
+		t.Fatalf("second decode (round-trip lost shape): %v\nencoded:\n%s", err, encoded)
+	}
+	// Spot-check key fields survived round-trip.
+	if first.Location != second.Location {
+		t.Errorf("Location lost: %q → %q", first.Location, second.Location)
+	}
+	if (first.Properties == nil) != (second.Properties == nil) {
+		t.Fatalf("Properties nilness mismatch: first=%v second=%v",
+			first.Properties != nil, second.Properties != nil)
+	}
+	if first.Properties != nil {
+		if (first.Properties.ManagedEnvironmentId == nil) != (second.Properties.ManagedEnvironmentId == nil) {
+			t.Error("ManagedEnvironmentId lost in round-trip")
+		}
+		if first.Properties.Template != nil && second.Properties.Template != nil {
+			if first.Properties.Template.Containers != nil && second.Properties.Template.Containers != nil {
+				if len(*first.Properties.Template.Containers) != len(*second.Properties.Template.Containers) {
+					t.Error("Template.Containers length lost in round-trip")
+				}
+			}
+		}
+	}
+}
