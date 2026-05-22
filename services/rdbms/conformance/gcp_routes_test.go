@@ -54,3 +54,41 @@ func TestGCPRoutes_Rdbms_CoversCrossCloudIntersection(t *testing.T) {
 		}
 	}
 }
+
+// TestGCPRoutes_Rdbms_FrontendDispatchCoverage. Cloud SQL Admin's
+// Discovery declares ops under `v1/projects/{project}/instances...`.
+// The hand-written gcp_cloudsql frontend accepts both `/v1/` and
+// `/sql/v1beta4/` prefixes for SDK compatibility, but the gen
+// inventory tracks only the Discovery-canonical /v1/ shape.
+func TestGCPRoutes_Rdbms_FrontendDispatchCoverage(t *testing.T) {
+	cases := []struct {
+		op     string
+		method string
+		path   string
+	}{
+		{"sql.instances.insert", "POST", "/v1/projects/p/instances"},
+		{"sql.instances.get", "GET", "/v1/projects/p/instances/i"},
+		{"sql.instances.delete", "DELETE", "/v1/projects/p/instances/i"},
+		{"sql.instances.list", "GET", "/v1/projects/p/instances"},
+		{"sql.instances.patch", "PATCH", "/v1/projects/p/instances/i"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.op, func(t *testing.T) {
+			candidates := gcpgen.MatchAll(tc.method, tc.path)
+			if len(candidates) == 0 {
+				t.Fatalf("gen.MatchAll(%q, %q) = no matches; gen inventory missing route", tc.method, tc.path)
+			}
+			for _, r := range candidates {
+				if r.ID == tc.op {
+					return
+				}
+			}
+			ids := make([]string, len(candidates))
+			for i, r := range candidates {
+				ids[i] = r.ID
+			}
+			t.Errorf("gen.MatchAll(%q, %q) candidates %v do not include expected %q",
+				tc.method, tc.path, ids, tc.op)
+		})
+	}
+}

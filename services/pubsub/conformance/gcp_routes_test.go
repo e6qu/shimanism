@@ -56,3 +56,45 @@ func TestGCPRoutes_Pubsub_CoversCrossCloudIntersection(t *testing.T) {
 		}
 	}
 }
+
+// TestGCPRoutes_Pubsub_FrontendDispatchCoverage asserts the
+// hand-written gcp_pubsub frontend's dispatch shapes are present
+// in the gen inventory's MatchAll candidates. Pub/Sub's Discovery
+// uses `v1/{+topic}`, `v1/{+subscription}`, etc. as overlapping
+// templates; MatchAll surfaces every candidate so the test passes
+// when the expected op is among them.
+func TestGCPRoutes_Pubsub_FrontendDispatchCoverage(t *testing.T) {
+	cases := []struct {
+		op     string
+		method string
+		path   string
+	}{
+		{"pubsub.projects.topics.create", "PUT", "/v1/projects/p/topics/t"},
+		{"pubsub.projects.topics.get", "GET", "/v1/projects/p/topics/t"},
+		{"pubsub.projects.topics.delete", "DELETE", "/v1/projects/p/topics/t"},
+		{"pubsub.projects.topics.list", "GET", "/v1/projects/p/topics"},
+		{"pubsub.projects.topics.publish", "POST", "/v1/projects/p/topics/t:publish"},
+		{"pubsub.projects.subscriptions.create", "PUT", "/v1/projects/p/subscriptions/s"},
+		{"pubsub.projects.subscriptions.get", "GET", "/v1/projects/p/subscriptions/s"},
+		{"pubsub.projects.subscriptions.delete", "DELETE", "/v1/projects/p/subscriptions/s"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.op, func(t *testing.T) {
+			candidates := gcpgen.MatchAll(tc.method, tc.path)
+			if len(candidates) == 0 {
+				t.Fatalf("gen.MatchAll(%q, %q) = no matches; gen inventory missing route", tc.method, tc.path)
+			}
+			for _, r := range candidates {
+				if r.ID == tc.op {
+					return
+				}
+			}
+			ids := make([]string, len(candidates))
+			for i, r := range candidates {
+				ids[i] = r.ID
+			}
+			t.Errorf("gen.MatchAll(%q, %q) candidates %v do not include expected %q",
+				tc.method, tc.path, ids, tc.op)
+		})
+	}
+}

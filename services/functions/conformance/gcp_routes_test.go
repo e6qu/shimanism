@@ -52,3 +52,37 @@ func TestGCPRoutes_Functions_CoversCrossCloudIntersection(t *testing.T) {
 		}
 	}
 }
+
+// TestGCPRoutes_Functions_FrontendDispatchCoverage. The gcp_cloudrun
+// frontend dispatches against /v2/projects/p/locations/l/services...
+func TestGCPRoutes_Functions_FrontendDispatchCoverage(t *testing.T) {
+	cases := []struct {
+		op     string
+		method string
+		path   string
+	}{
+		{"run.projects.locations.services.create", "POST", "/v2/projects/p/locations/l/services"},
+		{"run.projects.locations.services.get", "GET", "/v2/projects/p/locations/l/services/s"},
+		{"run.projects.locations.services.delete", "DELETE", "/v2/projects/p/locations/l/services/s"},
+		{"run.projects.locations.services.list", "GET", "/v2/projects/p/locations/l/services"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.op, func(t *testing.T) {
+			candidates := gcpgen.MatchAll(tc.method, tc.path)
+			if len(candidates) == 0 {
+				t.Fatalf("gen.MatchAll(%q, %q) = no matches; gen inventory missing route", tc.method, tc.path)
+			}
+			for _, r := range candidates {
+				if r.ID == tc.op {
+					return
+				}
+			}
+			ids := make([]string, len(candidates))
+			for i, r := range candidates {
+				ids[i] = r.ID
+			}
+			t.Errorf("gen.MatchAll(%q, %q) candidates %v do not include expected %q",
+				tc.method, tc.path, ids, tc.op)
+		})
+	}
+}

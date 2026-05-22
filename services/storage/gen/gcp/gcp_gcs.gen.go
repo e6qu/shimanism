@@ -147,3 +147,27 @@ func Match(method, path string) (*Route, map[string]string, bool) {
 	}
 	return nil, nil, false
 }
+
+// MatchAll returns every Route whose HTTPMethod equals method and
+// whose compiled Pattern matches path. Useful for Discovery
+// services like Secret Manager and Pub/Sub that share a
+// `v1/{+name}` URI template across multiple operation IDs —
+// disambiguation depends on parsing the captured `name`'s
+// hierarchy (e.g. `projects/p/secrets/s` vs
+// `projects/p/locations/l`). Callers that need a single
+// operation ID typically inspect Routes themselves; MatchAll
+// surfaces every candidate for spec-drift coverage tests and
+// dispatch consistency checks.
+func MatchAll(method, path string) []*Route {
+	var out []*Route
+	for i := range Routes {
+		r := &Routes[i]
+		if r.HTTPMethod != method {
+			continue
+		}
+		if r.Pattern.MatchString(path) {
+			out = append(out, r)
+		}
+	}
+	return out
+}

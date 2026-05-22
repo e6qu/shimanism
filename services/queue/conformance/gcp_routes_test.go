@@ -59,3 +59,43 @@ func TestGCPRoutes_Queue_CoversCrossCloudIntersection(t *testing.T) {
 		}
 	}
 }
+
+// TestGCPRoutes_Queue_FrontendDispatchCoverage. Queue's frontend
+// reuses Pub/Sub (same Discovery spec) for queue-shaped ops:
+// topics-as-queue + subscriptions/pull/acknowledge.
+func TestGCPRoutes_Queue_FrontendDispatchCoverage(t *testing.T) {
+	cases := []struct {
+		op     string
+		method string
+		path   string
+	}{
+		{"pubsub.projects.topics.create", "PUT", "/v1/projects/p/topics/t"},
+		{"pubsub.projects.topics.get", "GET", "/v1/projects/p/topics/t"},
+		{"pubsub.projects.topics.delete", "DELETE", "/v1/projects/p/topics/t"},
+		{"pubsub.projects.topics.publish", "POST", "/v1/projects/p/topics/t:publish"},
+		{"pubsub.projects.subscriptions.create", "PUT", "/v1/projects/p/subscriptions/s"},
+		{"pubsub.projects.subscriptions.get", "GET", "/v1/projects/p/subscriptions/s"},
+		{"pubsub.projects.subscriptions.delete", "DELETE", "/v1/projects/p/subscriptions/s"},
+		{"pubsub.projects.subscriptions.pull", "POST", "/v1/projects/p/subscriptions/s:pull"},
+		{"pubsub.projects.subscriptions.acknowledge", "POST", "/v1/projects/p/subscriptions/s:acknowledge"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.op, func(t *testing.T) {
+			candidates := gcpgen.MatchAll(tc.method, tc.path)
+			if len(candidates) == 0 {
+				t.Fatalf("gen.MatchAll(%q, %q) = no matches; gen inventory missing route", tc.method, tc.path)
+			}
+			for _, r := range candidates {
+				if r.ID == tc.op {
+					return
+				}
+			}
+			ids := make([]string, len(candidates))
+			for i, r := range candidates {
+				ids[i] = r.ID
+			}
+			t.Errorf("gen.MatchAll(%q, %q) candidates %v do not include expected %q",
+				tc.method, tc.path, ids, tc.op)
+		})
+	}
+}

@@ -64,3 +64,46 @@ func TestGCPRoutes_CoversCrossCloudIntersection(t *testing.T) {
 		}
 	}
 }
+
+// TestGCPRoutes_Secrets_FrontendDispatchCoverage asserts that for
+// each sample request shape the hand-written gcp_secretmanager
+// frontend dispatches, the expected op ID is present in the
+// candidates returned by gen.MatchAll. Discovery's Secret Manager
+// uses `v1/{+name}` for many ops (overloaded by name shape:
+// projects.secrets.get vs projects.locations.secrets.get etc.), so
+// MatchAll exposes every candidate; the assertion is "the expected
+// op is among them," not "Match returns exactly this op."
+func TestGCPRoutes_Secrets_FrontendDispatchCoverage(t *testing.T) {
+	cases := []struct {
+		op     string
+		method string
+		path   string
+	}{
+		{"secretmanager.projects.secrets.create", "POST", "/v1/projects/p/secrets"},
+		{"secretmanager.projects.secrets.get", "GET", "/v1/projects/p/secrets/s"},
+		{"secretmanager.projects.secrets.delete", "DELETE", "/v1/projects/p/secrets/s"},
+		{"secretmanager.projects.secrets.list", "GET", "/v1/projects/p/secrets"},
+		{"secretmanager.projects.secrets.addVersion", "POST", "/v1/projects/p/secrets/s:addVersion"},
+		{"secretmanager.projects.secrets.versions.access", "GET", "/v1/projects/p/secrets/s/versions/1:access"},
+		{"secretmanager.projects.secrets.versions.list", "GET", "/v1/projects/p/secrets/s/versions"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.op, func(t *testing.T) {
+			candidates := gcpgen.MatchAll(tc.method, tc.path)
+			if len(candidates) == 0 {
+				t.Fatalf("gen.MatchAll(%q, %q) = no matches; gen inventory missing route", tc.method, tc.path)
+			}
+			for _, r := range candidates {
+				if r.ID == tc.op {
+					return
+				}
+			}
+			ids := make([]string, len(candidates))
+			for i, r := range candidates {
+				ids[i] = r.ID
+			}
+			t.Errorf("gen.MatchAll(%q, %q) candidates %v do not include expected %q",
+				tc.method, tc.path, ids, tc.op)
+		})
+	}
+}
