@@ -35,6 +35,37 @@ Control-plane migration works; data-plane subject to the AMQP gap from queue.
 
 Same shape; uses NATS subjects as the topic primitive.
 
+## Terraform walkthrough (AWS-shaped provider against a non-AWS backend)
+
+```hcl
+provider "aws" {
+  region                      = "us-east-1"
+  access_key                  = "AKIAIOSFODNN7EXAMPLE"
+  secret_key                  = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+  skip_credentials_validation = true
+  skip_metadata_api_check     = true
+  skip_requesting_account_id  = true
+
+  endpoints {
+    sns = "http://localhost:9400"
+  }
+}
+
+resource "aws_sns_topic" "shim_topic" {
+  name = "cross-cloud-topic"
+}
+```
+
+```bash
+shim pubsub --addr=:9400 --frontend=aws_sns --backend=gcp --gcp-project=$GCP_PROJECT &
+
+terraform init
+terraform apply -auto-approve
+terraform import aws_sns_topic.existing arn:aws:sns:us-east-1:000000000000:cross-cloud-topic
+```
+
+Conformance test reference: `services/pubsub/conformance/{terraform_import_test.go, cross_cloud_import_test.go}`.
+
 ## Coverage
 
 Phase 4 closed clean for the intersection; carried bugs are surfacing in TF cells only.

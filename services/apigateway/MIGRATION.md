@@ -77,3 +77,35 @@ GCP frontend: missing route deployment (BUG-9) → can only do `Gateway` CRUD, n
 Azure frontend: missing route deployment (BUG-10) → same shape.
 
 **Phase 9 priority:** close BUG-9 and BUG-10 so all three frontends carry the route-deployment surface honestly. Without these, "migrate APIM-shaped Terraform onto an AWS backend" doesn't work.
+
+## Terraform walkthrough (AWS-shaped provider against a non-AWS backend)
+
+```hcl
+provider "aws" {
+  region                      = "us-east-1"
+  access_key                  = "AKIAIOSFODNN7EXAMPLE"
+  secret_key                  = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+  skip_credentials_validation = true
+  skip_metadata_api_check     = true
+  skip_requesting_account_id  = true
+
+  endpoints {
+    apigatewayv2 = "http://localhost:9800"
+  }
+}
+
+resource "aws_apigatewayv2_api" "shim_api" {
+  name          = "cross-cloud-api"
+  protocol_type = "HTTP"
+}
+```
+
+```bash
+shim apigateway --addr=:9800 --frontend=aws_apigatewayv2 --backend=gcp --gcp-project=$GCP_PROJECT &
+
+terraform init
+terraform apply -auto-approve
+terraform import aws_apigatewayv2_api.existing <api-id>
+```
+
+Conformance test reference: `services/apigateway/conformance/{terraform_import_test.go, cross_cloud_import_test.go}`.

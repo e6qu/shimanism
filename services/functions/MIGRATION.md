@@ -39,6 +39,41 @@ shim functions --addr=:9700 \
 - **FunctionUrlConfig CRUD** not wired (only synthesized at DescribeFunction). Migration users who Terraform `aws_lambda_function_url` separately need this. Phase 9 fold-in.
 - **Event sources, async invoke, layers, provisioned concurrency** — all out of intersection. Migration users must rewire event triggers on the target cloud; that's the (unavoidable) friction.
 
+## Terraform walkthrough (AWS-shaped provider against a non-AWS backend)
+
+```hcl
+provider "aws" {
+  region                      = "us-east-1"
+  access_key                  = "AKIAIOSFODNN7EXAMPLE"
+  secret_key                  = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+  skip_credentials_validation = true
+  skip_metadata_api_check     = true
+  skip_requesting_account_id  = true
+
+  endpoints {
+    lambda = "http://localhost:9700"
+  }
+}
+
+resource "aws_lambda_function" "shim_func" {
+  function_name = "cross-cloud-func"
+  package_type  = "Image"
+  image_uri     = "ghcr.io/example/api:v1"
+  role          = "arn:aws:iam::000000000000:role/lambda"
+  timeout       = 60
+}
+```
+
+```bash
+shim functions --addr=:9700 --frontend=aws_lambda --backend=gcp --gcp-project=$GCP_PROJECT &
+
+terraform init
+terraform apply -auto-approve
+terraform import aws_lambda_function.existing cross-cloud-func
+```
+
+Conformance test reference: `services/functions/conformance/{terraform_import_test.go, cross_cloud_import_test.go}`.
+
 ## Coverage
 
 Synchronous HTTP-invoke green for the intersection. Async + event-source surfaces are deliberately out.
