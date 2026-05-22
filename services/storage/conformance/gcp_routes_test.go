@@ -105,3 +105,43 @@ func TestGCPRoutes_Storage_MatchExtractsParams(t *testing.T) {
 		t.Error("Match on bogus path returned ok; want false")
 	}
 }
+
+// TestGCPRoutes_Storage_FrontendDispatchCoverage asserts that every
+// cross-cloud-intersection storage operation the GCS frontend
+// dispatches to a real handler is present in gen.gcp.Routes. The
+// hand-written GCS frontend (internal/storage/frontends/gcs) uses
+// regex routing, not the gen inventory directly — so this test is
+// the bridge: when upstream Discovery drops or renames an op the
+// frontend implements, the test fails and forces the migration to
+// happen in the same PR as the spec bump.
+//
+// "Dispatch coverage" is checked by URI shape: for each expected
+// (method, sample-path) tuple the frontend's regex would match, we
+// verify gen.Match() finds the same operation ID.
+func TestGCPRoutes_Storage_FrontendDispatchCoverage(t *testing.T) {
+	cases := []struct {
+		op     string
+		method string
+		path   string
+	}{
+		{"storage.buckets.list", "GET", "/storage/v1/b"},
+		{"storage.buckets.insert", "POST", "/storage/v1/b"},
+		{"storage.buckets.get", "GET", "/storage/v1/b/example"},
+		{"storage.buckets.delete", "DELETE", "/storage/v1/b/example"},
+		{"storage.objects.list", "GET", "/storage/v1/b/example/o"},
+		{"storage.objects.get", "GET", "/storage/v1/b/example/o/key"},
+		{"storage.objects.delete", "DELETE", "/storage/v1/b/example/o/key"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.op, func(t *testing.T) {
+			r, _, ok := gcpgen.Match(tc.method, tc.path)
+			if !ok {
+				t.Fatalf("gen.Match(%q, %q) failed; gen inventory missing route", tc.method, tc.path)
+			}
+			if r.ID != tc.op {
+				t.Errorf("gen.Match(%q, %q) returned %q; want %q (frontend dispatches this shape)",
+					tc.method, tc.path, r.ID, tc.op)
+			}
+		})
+	}
+}
