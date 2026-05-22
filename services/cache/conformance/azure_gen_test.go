@@ -62,3 +62,35 @@ func TestAzureGen_Cache_RedisResourceDecodesRealShape(t *testing.T) {
 		t.Errorf("Properties.Sku.Name = %q; want Premium", r.Properties.Sku.Name)
 	}
 }
+
+// TestAzureGen_Cache_RedisResourceRoundTrips: decode → encode →
+// decode → assert key fields survive. Confirms the JSON tags
+// post-allOf-flatten still serialise correctly on the encode side.
+func TestAzureGen_Cache_RedisResourceRoundTrips(t *testing.T) {
+	body := []byte(`{
+		"location": "eastus",
+		"properties": {
+			"enableNonSslPort": false,
+			"minimumTlsVersion": "1.2",
+			"sku": {"name": "Premium", "family": "P", "capacity": 1}
+		}
+	}`)
+	var first azuregen.RedisResource
+	if err := json.Unmarshal(body, &first); err != nil {
+		t.Fatalf("first decode: %v", err)
+	}
+	encoded, err := json.Marshal(first)
+	if err != nil {
+		t.Fatalf("encode: %v", err)
+	}
+	var second azuregen.RedisResource
+	if err := json.Unmarshal(encoded, &second); err != nil {
+		t.Fatalf("second decode: %v\nencoded:\n%s", err, encoded)
+	}
+	if first.Location != second.Location {
+		t.Errorf("Location lost: %q → %q", first.Location, second.Location)
+	}
+	if first.Properties.Sku.Name != second.Properties.Sku.Name {
+		t.Errorf("Sku.Name lost: %q → %q", first.Properties.Sku.Name, second.Properties.Sku.Name)
+	}
+}

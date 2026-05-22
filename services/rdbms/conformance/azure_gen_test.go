@@ -66,3 +66,40 @@ func TestAzureGen_Rdbms_ServerDecodesRealShape(t *testing.T) {
 		t.Error("Sku.Name missing/wrong — gen type missing the nested ARM structure")
 	}
 }
+
+// TestAzureGen_Rdbms_ServerRoundTrips: decode → encode → decode →
+// assert key fields survive. Confirms the JSON tags post-
+// allOf-flatten still serialise correctly on the encode side.
+func TestAzureGen_Rdbms_ServerRoundTrips(t *testing.T) {
+	body := []byte(`{
+		"location": "eastus",
+		"sku": {"name": "Standard_D2s_v3", "tier": "GeneralPurpose"},
+		"properties": {
+			"administratorLogin": "shimadmin",
+			"createMode": "Default",
+			"version": "16"
+		}
+	}`)
+	var first azuregen.Server
+	if err := json.Unmarshal(body, &first); err != nil {
+		t.Fatalf("first decode: %v", err)
+	}
+	encoded, err := json.Marshal(first)
+	if err != nil {
+		t.Fatalf("encode: %v", err)
+	}
+	var second azuregen.Server
+	if err := json.Unmarshal(encoded, &second); err != nil {
+		t.Fatalf("second decode: %v\nencoded:\n%s", err, encoded)
+	}
+	if first.Location != second.Location {
+		t.Errorf("Location lost: %q → %q", first.Location, second.Location)
+	}
+	if first.Sku.Name != second.Sku.Name {
+		t.Errorf("Sku.Name lost: %q → %q", first.Sku.Name, second.Sku.Name)
+	}
+	if first.Properties.AdministratorLogin == nil || second.Properties.AdministratorLogin == nil ||
+		*first.Properties.AdministratorLogin != *second.Properties.AdministratorLogin {
+		t.Error("Properties.AdministratorLogin lost in round-trip")
+	}
+}
