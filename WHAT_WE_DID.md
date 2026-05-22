@@ -153,6 +153,8 @@ Vendored Discovery JSON + generated route inventories for all 8 GCP services in 
 
 Adapter migrations that swap the existing GCP frontends' hand-written regex dispatch for the generated `gen.gcp.Routes` inventory are mechanical follow-on work — the existing frontends keep passing conformance, so the migration is dispatch-consistency + spec-drift detection, not fidelity.
 
+First concrete consumer of the inventory: `TestGCPRoutes_*` in `services/secrets/conformance/gcp_routes_test.go`. Asserts that `gen.gcp.Routes` is non-empty + sorted + covers the cross-cloud secrets-intersection operations (`secretmanager.projects.secrets.{create,get,delete,list,addVersion,versions.access,versions.list}`). A rename or removal upstream surfaces as a test failure on the next regeneration. Same pattern applies to every other service once its cross-cloud intersection op-IDs are codified.
+
 ### Phase 11 deferrals → Phase 12 follow-on tracks
 
 All three deferrals are absorbed into [Phase 12](PLAN.md#phase-12--cross-cloud-migration-cell-expansion--phase-11-follow-ons) Track 2 so the wire-boundary work stays in one continuous arc:
