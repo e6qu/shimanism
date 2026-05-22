@@ -24,7 +24,7 @@ cd shimanism
 go build ./...
 ```
 
-The main binary is `cmd/shim`. There's also `cmd/shimctl` (CLI for environment / endpoint-override generation) and `cmd/codegen` (regenerate server stubs from upstream specs).
+The main binary is `cmd/shim`. There's also `cmd/shimctl` (CLI for environment / endpoint-override generation) and four codegen tools — `cmd/codegen` (AWS Smithy), `cmd/azure-codegen` (Azure OpenAPI v2), `cmd/gcp-codegen` (GCP Discovery routing), `cmd/inject-provenance` (writes `_provenance` to each vendored spec from SOURCES.md). All three regeneration lanes flow through `make codegen`.
 
 ## Running a shim locally
 
