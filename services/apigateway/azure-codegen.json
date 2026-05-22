@@ -1,6 +1,6 @@
 {
-  "_comment": "Phase 12.A.7-cont: Azure API Management ARM spec. apimanagement.json is the service-root file; the broader APIM surface (apis / operations / products / etc.) is split across dozens of sibling files we don't yet vendor — those require a multi-file inliner extension. This minimal file gives Service-level CRUD as a starting point.",
+  "_comment": "Phase 12.A.7-cont: Azure API Management ARM spec. apimanagement.json is the service-root file; the broader APIM surface (apis / operations / products / etc.) is split across dozens of sibling files we don't yet vendor \u2014 those require a multi-file inliner extension. This minimal file gives Service-level CRUD as a starting point.",
   "spec": "services/apigateway/spec/azure-apimanagement.json",
-  "package": "gen",
-  "out": "services/apigateway/gen/azure_apimanagement.gen.go"
+  "package": "azure",
+  "out": "services/apigateway/gen/azure/azure_apimanagement.gen.go"
 }

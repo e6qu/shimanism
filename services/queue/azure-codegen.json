@@ -1,6 +1,6 @@
 {
-  "_comment": "Phase 12.A.3: Azure Service Bus data-plane spec drives the spec-driven types lane for queue + pubsub Azure frontends. Same cmd/azure-codegen pipeline as services/secrets (Swagger 2.0 → v3 via kin-openapi → oapi-codegen library).",
+  "_comment": "Phase 12.A.3: Azure Service Bus data-plane spec drives the spec-driven types lane for queue + pubsub Azure frontends. Same cmd/azure-codegen pipeline as services/secrets (Swagger 2.0 \u2192 v3 via kin-openapi \u2192 oapi-codegen library).",
   "spec": "services/queue/spec/azure-servicebus.json",
-  "package": "gen",
-  "out": "services/queue/gen/azure_servicebus.gen.go"
+  "package": "azure",
+  "out": "services/queue/gen/azure/azure_servicebus.gen.go"
 }

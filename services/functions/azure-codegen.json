@@ -1,0 +1,6 @@
+{
+  "_comment": "Phase 12.A.9: Azure Container Apps ARM spec. The first multi-file Azure spec the cmd/azure-codegen pipeline handles end-to-end: ContainerApps.json + CommonDefinitions.json (sibling) get merged at the v2 layer via the new ./<file>.json  form in the inliner.",
+  "spec": "services/functions/spec/azure-containerapps.json",
+  "package": "azure",
+  "out": "services/functions/gen/azure/azure_containerapps.gen.go"
+}

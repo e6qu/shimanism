@@ -3,7 +3,7 @@
 // Source spec converted from OpenAPI v2 (Swagger) to v3 via kin-openapi/openapi2conv.ToV3.
 // DO NOT EDIT.
 
-package gen
+package azure
 
 import (
 	"fmt"

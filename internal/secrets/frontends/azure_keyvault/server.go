@@ -19,7 +19,7 @@ import (
 	"time"
 
 	"github.com/e6qu/shimanism/internal/secrets/domain"
-	gen "github.com/e6qu/shimanism/services/secrets/gen"
+	gen "github.com/e6qu/shimanism/services/secrets/gen/azure"
 )
 
 // Server is an Azure-Key-Vault-shaped HTTP frontend. It implements

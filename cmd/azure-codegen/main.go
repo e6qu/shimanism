@@ -60,20 +60,23 @@ func main() {
 
 	// Azure ARM specs $ref Azure's shared common-types
 	// (common-types/resource-management/v<N>/*.json) by a relative
-	// path that mirrors the upstream repo layout. The vendored
-	// copies live under services/common-types/. We inline these
-	// external references at the v2 layer before converting to v3,
-	// so kin-openapi's ToV3 sees a self-contained Swagger doc and
-	// emits self-contained v3 parameters / definitions. Doing this
-	// at the v2 layer (rather than via openapi3.Loader's external-
-	// ref resolution after ToV3) keeps the v2 form of each
-	// reusable parameter intact (`type: string` rather than the v3
-	// shape `schema: {type: string}`), which the v2→v3 converter
-	// then handles correctly.
-	if strings.Contains(string(raw), "common-types/") {
-		inlined, err := inlineCommonTypes(raw, *commonTypesRoot)
+	// path that mirrors the upstream repo layout, and split larger
+	// services across sibling spec files in the same directory
+	// (e.g. ContainerApps.json $refs ./CommonDefinitions.json). We
+	// inline both kinds of external references at the v2 layer
+	// before converting to v3, so kin-openapi's ToV3 sees a
+	// self-contained Swagger doc and emits self-contained v3
+	// parameters / definitions. Doing this at the v2 layer (rather
+	// than via openapi3.Loader's external-ref resolution after
+	// ToV3) keeps the v2 form of each reusable parameter intact
+	// (`type: string` rather than the v3 shape
+	// `schema: {type: string}`), which the v2→v3 converter then
+	// handles correctly.
+	if strings.Contains(string(raw), "common-types/") || strings.Contains(string(raw), `"$ref": "./`) {
+		specDir, _ := filepath.Abs(filepath.Dir(*specPath))
+		inlined, err := inlineExternalRefs(raw, *commonTypesRoot, specDir)
 		if err != nil {
-			fail("inline common-types: %v", err)
+			fail("inline external refs: %v", err)
 		}
 		raw = inlined
 	}
@@ -156,59 +159,92 @@ var crossVersionPattern = regexp.MustCompile(`\.\./(v[0-9]+)/([A-Za-z0-9_.-]+\.j
 // directory.
 var sameVersionPattern = regexp.MustCompile(`^\./([A-Za-z0-9_.-]+\.json)`)
 
-// resolveCommonTypesRef extracts the target (version, file) pair
-// from a $ref string in any of the three forms the Azure
-// common-types convention uses (full path / same-version sibling /
-// cross-version sibling). currentVersion supplies the fallback for
-// the same-version shorthand. Returns ok=false if the ref isn't a
-// common-types reference.
-func resolveCommonTypesRef(ref, currentVersion string) (version, file string, ok bool) {
+// refKind is the dispatch category a $ref falls into after parsing.
+type refKind int
+
+const (
+	refLocal       refKind = iota // local pointer or unrecognised form
+	refCommonTypes                // resolves to a common-types/v<N>/<file>.json
+	refSibling                    // resolves to a sibling file in the spec dir
+)
+
+// classifyRef parses a $ref string and decides how it should be
+// resolved. Returns:
+//
+//   - target file name (basename, or filename within common-types/v<N>/)
+//   - common-types version (only meaningful when kind == refCommonTypes)
+//   - kind (refLocal / refCommonTypes / refSibling)
+//
+// `fromCommonTypesVersion` is non-empty when the $ref appears inside
+// a common-types file we're merging (the same-version shorthand
+// then resolves against that version). `currentDir` is unused for
+// classification (the caller passes it to the file loader); it
+// stays in the signature so the inliner can extend the classifier
+// later without rewiring call sites.
+func classifyRef(ref, fromCommonTypesVersion, currentDir string) (target, ctVersion string, kind refKind) {
+	_ = currentDir
+	if strings.HasPrefix(ref, "#") {
+		return "", "", refLocal
+	}
 	if m := commonTypesPattern.FindStringSubmatch(ref); m != nil {
-		return m[1], m[2], true
+		return m[2], m[1], refCommonTypes
 	}
 	if m := crossVersionPattern.FindStringSubmatch(ref); m != nil {
-		return m[1], m[2], true
+		return m[2], m[1], refCommonTypes
 	}
-	// Drop the URI fragment before matching the same-version form.
 	path := ref
 	if hi := strings.Index(path, "#"); hi >= 0 {
 		path = path[:hi]
 	}
 	if m := sameVersionPattern.FindStringSubmatch(path); m != nil {
-		return currentVersion, m[1], true
+		file := m[1]
+		// "./<file>.json" inside a common-types file → same version
+		// in the common-types tree. Inside the main spec → sibling.
+		if fromCommonTypesVersion != "" {
+			return file, fromCommonTypesVersion, refCommonTypes
+		}
+		return file, "", refSibling
 	}
-	return "", "", false
+	return "", "", refLocal
 }
 
-// inlineCommonTypes makes the Swagger doc self-contained by merging
-// every common-types file's `definitions` and `parameters` blocks
-// into the main doc, then rewriting external `$ref`s to the
-// equivalent local pointer. Local refs inside the merged blocks
-// stay valid because the common-types names are preserved verbatim
-// (no two common-types files in v4 share a definition name today;
-// if that ever changes the inliner would need a prefixing scheme).
+// inlineExternalRefs makes the Swagger doc self-contained by merging
+// every external file's `definitions` and `parameters` blocks into
+// the main doc, then rewriting external `$ref`s to the equivalent
+// local pointer. Two external sources are handled:
+//
+//  1. Azure common-types under
+//     `common-types/resource-management/v<N>/<file>.json` — vendored
+//     at `commonTypesRoot`. Identified by the path containing
+//     `common-types/`.
+//  2. Sibling spec files in the same directory as the main spec
+//     (e.g. `./CommonDefinitions.json`). Identified by the bare
+//     `./<file>.json` prefix when seen from the main doc.
+//
+// Local refs inside merged blocks stay valid because the source
+// names are preserved verbatim. If two source files share a
+// definition name the first wins (a deliberate first-write
+// semantics; Azure's common-types are namespaced enough that this
+// hasn't bitten yet — when it does, the inliner needs a prefixing
+// scheme).
 //
 // Two passes:
-//  1. Walk the doc, find every external common-types `$ref`, and
-//     ensure the target file's `definitions`/`parameters` blocks
-//     are merged into the doc (recursive — a common-types file
-//     can itself $ref another common-types file).
-//  2. Walk the doc again, rewriting each external common-types
-//     `$ref` to the local form (`#/definitions/Foo` or
-//     `#/parameters/Foo`).
-func inlineCommonTypes(raw []byte, root string) ([]byte, error) {
+//  1. Walk the doc + every merged file's content, find every
+//     external `$ref`, and ensure the target file's
+//     `definitions`/`parameters` blocks are merged in.
+//  2. Walk the doc again, rewriting each external `$ref` to the
+//     local form (`#/definitions/Foo` or `#/parameters/Foo`).
+func inlineExternalRefs(raw []byte, commonTypesRoot, specDir string) ([]byte, error) {
 	var doc map[string]interface{}
 	if err := json.Unmarshal(raw, &doc); err != nil {
 		return nil, fmt.Errorf("parse spec JSON: %w", err)
 	}
 
 	cache := map[string]map[string]interface{}{}
-	loadCommon := func(version, file string) (map[string]interface{}, error) {
-		key := version + "/" + file
-		if d, ok := cache[key]; ok {
+	loadFile := func(path string) (map[string]interface{}, error) {
+		if d, ok := cache[path]; ok {
 			return d, nil
 		}
-		path := filepath.Join(root, "resource-management", version, file)
 		b, err := os.ReadFile(path)
 		if err != nil {
 			return nil, err
@@ -217,8 +253,14 @@ func inlineCommonTypes(raw []byte, root string) ([]byte, error) {
 		if err := json.Unmarshal(b, &d); err != nil {
 			return nil, fmt.Errorf("parse %s: %w", path, err)
 		}
-		cache[key] = d
+		cache[path] = d
 		return d, nil
+	}
+	commonTypesPath := func(version, file string) string {
+		return filepath.Join(commonTypesRoot, "resource-management", version, file)
+	}
+	siblingPath := func(file string) string {
+		return filepath.Join(specDir, file)
 	}
 	ensureMap := func(parent map[string]interface{}, key string) map[string]interface{} {
 		if existing, ok := parent[key].(map[string]interface{}); ok {
@@ -231,46 +273,55 @@ func inlineCommonTypes(raw []byte, root string) ([]byte, error) {
 	defs := ensureMap(doc, "definitions")
 	params := ensureMap(doc, "parameters")
 
-	// Pass 1: gather every reachable common-types $ref + merge.
+	// Pass 1: gather every reachable external $ref + merge. Each
+	// merge call is keyed by absolute path to dedupe; the file's
+	// definitions + parameters are copied into the main doc, then
+	// the file is itself scanned for transitive external refs.
 	visitedFiles := map[string]bool{}
-	var mergeFile func(version, file string) error
-	mergeFile = func(version, file string) error {
-		key := version + "/" + file
-		if visitedFiles[key] {
+	var mergeFile func(path string, fromCommonTypesVersion string) error
+	mergeFile = func(path, fromCommonTypesVersion string) error {
+		if visitedFiles[path] {
 			return nil
 		}
-		visitedFiles[key] = true
-		common, err := loadCommon(version, file)
+		visitedFiles[path] = true
+		content, err := loadFile(path)
 		if err != nil {
 			return err
 		}
-		for name, def := range common["definitions"].(map[string]interface{}) {
-			if _, exists := defs[name]; !exists {
-				defs[name] = def
-			}
-		}
-		if commonParams, ok := common["parameters"].(map[string]interface{}); ok {
-			for name, p := range commonParams {
-				if _, exists := params[name]; !exists {
-					params[name] = p
+		if d, ok := content["definitions"].(map[string]interface{}); ok {
+			for name, def := range d {
+				if _, exists := defs[name]; !exists {
+					defs[name] = def
 				}
 			}
 		}
-		// Transitive refs inside the just-merged file. In addition to
-		// the full common-types path that appears in main-spec refs,
-		// common-types files reference each other via two relative
-		// shorthand forms:
-		//   - "./<file>.json#/..."         — sibling in same v<N> dir
-		//   - "../v<M>/<file>.json#/..."   — cross-version sibling
-		// Both resolve against the current file's version.
+		if p, ok := content["parameters"].(map[string]interface{}); ok {
+			for name, val := range p {
+				if _, exists := params[name]; !exists {
+					params[name] = val
+				}
+			}
+		}
+		// Transitive refs inside the just-merged file. `./<file>.json`
+		// resolves against the current file's directory — that's the
+		// common-types version directory when fromCommonTypesVersion is
+		// set, the spec directory otherwise.
+		fileDir := filepath.Dir(path)
 		var collect func(node interface{}) error
 		collect = func(node interface{}) error {
 			switch v := node.(type) {
 			case map[string]interface{}:
 				if refRaw, ok := v["$ref"].(string); ok {
-					if tgtVer, tgtFile, ok := resolveCommonTypesRef(refRaw, version); ok {
-						if err := mergeFile(tgtVer, tgtFile); err != nil {
-							return err
+					if tgt, fromVer, kind := classifyRef(refRaw, fromCommonTypesVersion, fileDir); kind != refLocal {
+						switch kind {
+						case refCommonTypes:
+							if err := mergeFile(commonTypesPath(fromVer, tgt), fromVer); err != nil {
+								return err
+							}
+						case refSibling:
+							if err := mergeFile(filepath.Join(fileDir, tgt), ""); err != nil {
+								return err
+							}
 						}
 					}
 				}
@@ -288,16 +339,23 @@ func inlineCommonTypes(raw []byte, root string) ([]byte, error) {
 			}
 			return nil
 		}
-		return collect(common)
+		return collect(content)
 	}
 	var collectFromDoc func(node interface{}) error
 	collectFromDoc = func(node interface{}) error {
 		switch v := node.(type) {
 		case map[string]interface{}:
 			if refRaw, ok := v["$ref"].(string); ok {
-				if m := commonTypesPattern.FindStringSubmatch(refRaw); m != nil {
-					if err := mergeFile(m[1], m[2]); err != nil {
-						return err
+				if tgt, fromVer, kind := classifyRef(refRaw, "", specDir); kind != refLocal {
+					switch kind {
+					case refCommonTypes:
+						if err := mergeFile(commonTypesPath(fromVer, tgt), fromVer); err != nil {
+							return err
+						}
+					case refSibling:
+						if err := mergeFile(siblingPath(tgt), ""); err != nil {
+							return err
+						}
 					}
 				}
 			}
