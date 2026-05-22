@@ -129,6 +129,26 @@ Two upstream-tooling defects surfaced during the pilot and got worked around in 
 
 Pilot proof-point: `internal/secrets/frontends/azure_keyvault/server.go`'s `setSecret` handler now decodes via `gen.SecretSetParameters` (spec-driven) instead of the hand-written `setSecretRequest`. Full secrets conformance (AWS + GCP + Azure SDK / CLI / Terraform / cross-cloud / matrix) passes with the pilot in place. The remaining handlers stay on hand-written wire types — the pilot's job was to prove the toolchain produces SDK-wire-compatible types, not to delete the existing frontend wholesale. `make codegen` now runs an `azure-codegen` sub-loop after the Smithy loop; `services/secrets/azure-codegen.json` is the manifest (parallel to the AWS `codegen.json`).
 
+### Track 2.B — GCP routing emitter
+
+New `cmd/gcp-codegen` driver reads a Google API Discovery JSON document and emits `Routes []Route` — `(HTTPMethod, URIPattern, OperationID)` triples that downstream frontends compile to their dispatch flavour of choice. Per AGENTS.md decision #11 the emitter is *routing-only*; wire types reuse `google.golang.org/api/<svc>/v1` (the same Discovery-generated source the SDK uses, so re-emitting types would duplicate them).
+
+Vendored Discovery JSON + generated route inventories for all 8 GCP services in one chunk:
+
+| Service | Discovery host | Routes |
+|---|---|---|
+| storage | `storage.googleapis.com` v1 | 108 |
+| secrets | `secretmanager.googleapis.com` v1 | 32 |
+| queue / pubsub | `pubsub.googleapis.com` v1 | 72 each |
+| rdbms | `sqladmin.googleapis.com` v1 | 100 |
+| cache | `redis.googleapis.com` v1 | 71 |
+| functions | `run.googleapis.com` v2 | 84 |
+| apigateway | `apigateway.googleapis.com` v1 | 56 |
+
+`make codegen` now runs three pipelines in series: AWS Smithy → Azure (oapi-codegen library) → GCP (Discovery routing).
+
+Adapter migrations that swap the existing GCP frontends' hand-written regex dispatch for the generated `gen.gcp.Routes` inventory are mechanical follow-on work — the existing frontends keep passing conformance, so the migration is dispatch-consistency + spec-drift detection, not fidelity.
+
 ### Phase 11 deferrals → Phase 12 follow-on tracks
 
 All three deferrals are absorbed into [Phase 12](PLAN.md#phase-12--cross-cloud-migration-cell-expansion--phase-11-follow-ons) Track 2 so the wire-boundary work stays in one continuous arc:
