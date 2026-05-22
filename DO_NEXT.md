@@ -2,57 +2,71 @@
 
 Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BUGS.md) · narrative [WHAT_WE_DID.md](WHAT_WE_DID.md) · philosophy [PHILOSOPHY.md](PHILOSOPHY.md) · rules [AGENTS.md](AGENTS.md).
 
-> **This is the resume-from-cold file.** A fresh agent or post-compaction session should read this top-to-bottom and pick up work without re-deriving context from older messages.
+> **This is the resume-from-cold file.** Read top-to-bottom; pick up Phase 13 without re-deriving context.
 
 ## Where we are
 
-- **Last merged:** PR #18 at `bcd72e5` on `origin/main`, 2026-05-22. Phase 11 closed — BUG-18 closed end-to-end; 8/8 AWS frontends spec-driven; Azure oapi-codegen pilot proves the spec-driven lane for Azure.
-- **Active branch:** `phase-12`, PR #19. **At exit; ready for user review + merge.** 82+ granular commits.
-- **Phase 12 sub-task plan:** lives in [PLAN.md § Phase 12](PLAN.md#phase-12--cross-cloud-migration-cell-expansion--phase-11-follow-ons). Three exit criteria all met (see "Next concrete actions" below for the summary). Phase 13 stub in PLAN.md frames the follow-on (full adapter migration + real-cloud Track A + production RS256 JWKS).
+- **Phase 12 PR #19 is at exit.** All three exit criteria met. Waiting on user merge.
+- **Next phase: Phase 13** — full adapter migration (Azure + GCP), production RS256 JWKS, real-cloud Track A (closes BUG-8 + BUG-15). Detailed sub-phase table in [PLAN.md § Phase 13](PLAN.md#phase-13--full-adapter-migration--production-auth--real-cloud-track-a).
+
+## Session-start checklist
+
+1. `git fetch origin && git checkout main && git pull` — sync (PR #19 should be merged).
+2. `gh pr list --state open` — verify no in-flight phase-12 PR; if `phase-13` PR exists, check it out instead of creating.
+3. `git checkout -b phase-13` (or `git checkout phase-13` if it exists).
+4. Read this file + [STATUS.md](STATUS.md) snapshot.
+5. Skim open BUGs (2 entries below).
+6. Pick the first concrete action from "Next concrete actions" below.
 
 ## Next concrete actions (in priority order)
 
-**Phase 12 is at exit on PR #19** — all three exit criteria met. Ready for user review + merge. Spec-driven toolchain for both clouds is fully built + validated:
-- **8/8 Azure specs codegen end-to-end** with the 8-stage preprocessor (common-types inliner / examples-skip / x-ms-enum with parameter+header gating / parameter+definition name dedup / ARM allOf flatten / x-ms-paths flatten / empty-AllOf normalize / deterministic walk).
-- 8/8 GCP services Discovery → route inventory with compiled `Pattern` + `Match()` + `MatchAll()` helpers.
-- Per-service spec-drift, gen-compile, dispatch-coverage smoke tests.
-- CI: `codegen deterministic` + `TestEveryVendoredSpecCarriesProvenance` guard.
-- Vendored-spec provenance: every JSON spec carries a `_provenance` top-level key matching SOURCES.md.
-- Spec freshness: weekly workflow + `make spec-freshness` surface drift between vendored specs and upstream HEAD.
-- Three fetch scripts (`scripts/fetch-{aws,azure,gcp}-*.sh`) all run `cmd/inject-provenance` after download.
+### Phase 13.A — Azure adapter migration
 
-Mechanical follow-ons remain post-merge:
+The reference impl is `internal/secrets/frontends/azure_keyvault/server.go` (Phase 12.A.1/2). Pattern: `Server` implements `gen.ServerInterface`, `srv.mux = gen.HandlerWithOptions(srv, gen.StdHTTPServerOptions{})`, out-of-intersection ops return `notImplemented(w, "OpName")` with the Azure error envelope. See [PLAN.md § 13.A](PLAN.md#13a--azure-adapter-migration) for the per-frontend ordering.
 
-1. **Adapter migrations.** 7 Azure frontends + 8 GCP frontends still dispatch via hand-written regex routes. Each migration: wire generated types into request decoding + response encoding; route through the gen `ServerInterface` (Azure) / `gen.gcp.Routes` inventory (GCP). The hand-written frontends keep passing conformance, so migration is dispatch-consistency, not fidelity. ARM specs (cache/redis, functions/containerapps, rdbms/dbadmin) are now unblocked via 12.A.24's allOf flatten — `ContainerApp` / `RedisResource` / `Server` emit as proper Go structs.
-2. **Production RS256 JWKS.** Verifiers run test-mode HS256; production paths documented in the verifier comments (`google.golang.org/api/idtoken.Validate`, Microsoft's JWKS).
-3. **Track 1 cross-cloud cells.** Largely covered by Phase 10's per-service cross-cloud Apply tests; matrix-expansion candidates documented in PLAN.md.
+**First sub-phase: 13.A.1 — `internal/cache/frontends/azure_redis`.**
+- Smallest hand-written (272 LOC). gen interface has 41 methods; ~6 in cross-cloud intersection (Create / Get / Delete / Update / ListByResourceGroup / ForceReboot). The other ~35 return `notImplemented`.
+- Wire types: `gen.RedisResource` is a proper struct after the BUG-20 flatten (12.A.24).
+- Validation: existing `services/cache/conformance/*` stays green. Add `TestAzureGen_Cache_HandlerDispatch` posting a sample Create body through the gen mux.
+- ARM URL shape: `/subscriptions/{s}/resourceGroups/{rg}/providers/Microsoft.Cache/redis/{name}` — preserved by `gen.HandlerWithOptions`'s path-template dispatcher.
+
+### Phase 13.B — GCP adapter migration
+
+Pattern: retire per-frontend regex tables, dispatch through `gen.gcp.Match()` / `MatchAll()`. The hand-written disambiguation layer for overloaded `v1/{+name}` patterns stays (Secret Manager, Pub/Sub). See [PLAN.md § 13.B](PLAN.md#13b--gcp-adapter-migration) for the per-frontend ordering.
+
+**First sub-phase: 13.B.1 — `internal/secrets/frontends/gcp_secretmanager`.**
+- 32 gen routes. Overloaded `v1/{+name}` means `MatchAll` + a small `pickByName(parent string)` helper in the frontend.
+- Validation: existing `services/secrets/conformance/*` stays green; the `TestGCPRoutes_Secrets_FrontendDispatchCoverage` test in conformance already pins the dispatch shape.
+
+### Phase 13.C — Production RS256 JWKS
+
+Wire real Microsoft Entra + Google JWKS in `internal/azurebearer/` + `internal/gcpbearer/`. Test mode HS256 stays default. See [doc/VERIFIERS.md § Production deployment path](doc/VERIFIERS.md#production-deployment-path-phase-13c). Add `TestAzureBearer_RealJWKS_*` / `TestGCPBearer_RealJWKS_*` against a mocked JWKS endpoint.
+
+### Phase 13.D — Real-cloud Track A
+
+Requires AWS / GCP / Azure accounts. Closes / reclassifies BUG-8 + BUG-15 (see Open bugs below). Real-signed signature-verification conformance.
+
+### Phase 13.E — Cross-cloud Apply matrix expansion (optional)
+
+Phase 12 ships one cell per service (typically AWS → K8s peer). Expanding to other source/dest pairs is mechanical; pick up only as deployment scenarios demand.
 
 ## Invariants snapshot
 
 - Never auto-merge; user merges every PR.
-- **One PR per phase.** All Phase 12 work lands on `phase-12`.
-- **One plan file.** PLAN.md is the only roadmap doc.
+- One PR per phase — all Phase 13 work lands on `phase-13`.
 - File BUGs in [BUGS.md](BUGS.md) *before* fixing.
-- Update STATUS / WHAT_WE_DID / DO_NEXT at every significant chunk.
+- Update STATUS / WHAT_WE_DID / DO_NEXT every significant chunk.
 - Fidelity to the source cloud's API; real backends only; tests from official client surfaces.
-- **Reuse over reinvention.**
+- Reuse-over-reinvention.
 
-## Open bugs (2)
+## Open bugs (2) — both absorbed into Phase 13.D
 
-- **BUG-8** (P3) — apigateway/gcp-tf-frontend. `hashicorp/google` API Gateway endpoint-override + real OAuth signing. **Track A only** (real-cloud lanes).
-- **BUG-15** (P3) — queue/gcp-frontend. GCP Pub/Sub retention plan/apply asymmetry. Partial fix landed in Phase 10.3; Track-A real-cloud walk pending.
+- **BUG-8** (P3) — apigateway/gcp-tf-frontend. `hashicorp/google` API Gateway endpoint-override + real OAuth signing. **Track A only.**
+- **BUG-15** (P3) — queue/gcp-frontend. GCP Pub/Sub retention plan/apply asymmetry. Partial fix landed in Phase 10.3; **Track A** real-cloud walk pending.
 
-## Resumable tracks
+## Validation lanes to monitor
 
-- **Track A — Cloud test accounts.** Real-cloud Apply lanes against real AWS / GCP / Azure accounts; also the home for real-signed signature-verification conformance. Blocks BUG-8 closure + BUG-15 reclassification.
-- **Track B — Coding-agent automation.**
-- **Spec freshness.** `make spec-freshness` (12.0.1) reports drift between every git-pinned vendored spec and its upstream HEAD. Informational today; CI integration (weekly cron + issue creation on drift > N days) is follow-on. Discovery revisions skip the SHA compare since their freshness is encoded in the revision date.
-
-## Session-resume checklist
-
-1. `git fetch origin && git checkout main && git pull` — sync.
-2. `gh pr list --state open` — Phase 12 PR (`#19` likely) is the open item; verify CI status.
-3. `git checkout phase-12`.
-4. Read STATUS snapshot + this file's "Where we are".
-5. Skim BUGS open (2 entries).
-6. Pick the next ◻ or ◐ sub-task from [PLAN.md § Phase 12](PLAN.md#phase-12--cross-cloud-migration-cell-expansion--phase-11-follow-ons).
+- `make codegen-check` — regenerates every gen file + runs `inject-provenance`; CI's `codegen deterministic` job runs the same.
+- `make spec-freshness` — informational; CI's weekly workflow surfaces upstream drift.
+- `make test` — every Phase 12 smoke / coverage / regression / round-trip / preprocessor-unit test.
+- Per-frontend conformance lanes (minio / gcs / vault / nats / cnpg / knative / envoy / redisop / azureblob) — every adapter migration in 13.A / 13.B must keep these green.
