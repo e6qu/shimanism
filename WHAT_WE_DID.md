@@ -4,6 +4,25 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 
 > Reverse chronological. One section per phase. The *why*, the surprises, the root causes — not per-PR detail. For commit-level history, `git log`. For per-bug detail, [BUGS.md](BUGS.md).
 
+## Phase 12 — Cross-cloud cell expansion + Phase 11 follow-ons (in-flight on `phase-12`, PR #19)
+
+Two tracks per [PLAN.md § Phase 12](PLAN.md#phase-12--cross-cloud-migration-cell-expansion--phase-11-follow-ons). Track 2 (Phase 11 follow-ons) is where the work has gone so far; Track 1 (cross-cloud cells) is partially already proven by Phase 10's cross-cloud Apply tests and gets revisited later in the phase.
+
+### Track 2.A — Broader Azure spec-driven migration
+
+The 11.4 pilot proved the `cmd/azure-codegen` toolchain end-to-end with a single handler (SetSecret) in `azure_keyvault`. Phase 12 continues:
+
+- **12.A.1** completes `azure_keyvault`'s type-level migration: every handler now emits `gen.SecretBundle` / `gen.SecretAttributes` / `gen.SecretListResult` / `gen.DeletedSecretBundle` instead of the hand-rolled wire shapes. 78 LOC of local types retired.
+- **12.A.2** retires the regex router. `Server` implements `gen.ServerInterface`; `gen.HandlerWithOptions` does dispatch. Spec operations outside the cross-cloud secrets intersection (Backup / Restore / UpdateSecret / GetDeletedSecret*) return a canonical "operation not supported" envelope.
+- **12.A.3** validates the pipeline scales to a second Azure data-plane spec: vendored Azure Service Bus 2021-05 + ran `cmd/azure-codegen` end-to-end. `make codegen` now generates two Azure-side `.gen.go` files cleanly.
+
+### Surprises along the way
+
+- **Two SDK idioms aren't in the upstream OpenAPI spec.** `GET /secrets/{name}/` (trailing slash, empty version) and `GET /secrets/{name}` (no slash) both mean "latest version" to the Azure SDK; the spec only emits the two-segment `GET /secrets/{secret-name}/{secret-version}` route. Handled by a pre-dispatch pass in `azure_keyvault`'s `ServeHTTP` that routes the no-version cases directly to `GetSecret` with an empty version (the handler resolves it to version 0).
+- **`gen.StdHTTPServerOptions.Middlewares` are per-route, not outer.** They wrap inside each `ServerInterfaceWrapper` method, applied after the mux dispatches. Trailing-slash normalisation has to happen BEFORE the mux sees the path — so it sits outside `HandlerWithOptions`.
+- **`kin-openapi`'s empty-`AllOf` shim shows up in more places than 11.4 documented.** The 11.4 normalizer walked component schemas + per-operation parameters. Service Bus's path-item-level parameters (`{minLength: 1}` strings on `entityName` / `topicName` / `subscriptionName` / `ruleName`) and response/request-body headers ALSO get empty `AllOf: []` after the v2→v3 conversion. `normalizeAllOf` extended to walk `pi.Parameters` + `resp.Headers` + `components.{Responses,Headers,RequestBodies}` so codegen succeeds on Service Bus.
+- **ARM specs reference `common-types/resource-management/v4/types.json` externally.** `kin-openapi`'s loader refuses external refs by default ("encountered disallowed external reference"). Azure Cache for Redis was the first ARM spec we tried; deferred pending a common-types vendoring strategy. Data-plane specs (Key Vault, Service Bus) are self-contained and work today.
+
 ## Phase 11 — tighten the wire boundary (CLOSED — PR #18, `phase-11`)
 
 The big restructuring phase: replace hand-written wire layers with spec-driven generated stubs across every AWS-shaped frontend, and wire real signature verification (BUG-18) at the new decode boundary. Started with codex review correcting several wrong premises in the initial plan (SigV4 in `signer/v4` is signer-only not verifier; `golang.org/x/oauth2` is token-acquisition not JWT verification; Azure Key Vault is Bearer-only not SharedKey; the existing Smithy emitter was REST-XML-only — extending to awsJson / awsQuery / restJson1 is new emitter work, not a routing-table addition).

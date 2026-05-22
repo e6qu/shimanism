@@ -9,7 +9,7 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 | | |
 |---|---|
 | Active branch | `phase-12` (PR forthcoming). |
-| In-flight | **Phase 12 — Cross-cloud cell expansion + Phase 11 follow-ons.** Two tracks per [PLAN.md § Phase 12](PLAN.md#phase-12--cross-cloud-migration-cell-expansion--phase-11-follow-ons): Track 1 lands one honest cross-cloud Apply cell per service across all 8; Track 2 absorbs Phase 11's three explicit deferrals (12.A broader Azure spec-driven migration starting from the 11.4 pilot; 12.B GCP routing emitter + adapter migrations; 12.C production RS256 JWKS). Same one-PR-per-phase rule as Phase 11. |
+| In-flight | **Phase 12 — Cross-cloud cell expansion + Phase 11 follow-ons.** Track 2 progress on PR #19: 12.A.1 + 12.A.2 fully migrated `azure_keyvault` (wire types via `gen.*`; regex router replaced with `gen.HandlerWithOptions`; spec ops outside the intersection return "not supported"); 12.A.3 validated `cmd/azure-codegen` toolchain scales to a second Azure data-plane spec (Service Bus 2021-05 vendored, gen file shipped). Normalizer extended to walk path-item params + response headers + components.{Responses,Headers,RequestBodies}. Track 1 (cross-cloud cells) largely covered by Phase 10's cross-cloud Apply tests; matrix-expansion candidates documented in PLAN. |
 | Last merged | PR #18 — Phase 11 (BUG-18 closed; 8/8 AWS spec-driven; Azure oapi-codegen pilot). `bcd72e5`, 2026-05-22. |
 | Phases 1-11 | All closed. PR index in [PLAN.md § Closed phases](PLAN.md#closed-phases-pr-index). |
 | Bugs | 19 filed · 17 fixed · 2 open · 1 false positive. Open: BUG-8 (apigateway/gcp-tf — Track A only), BUG-15 (queue/gcp retention plan/apply asymmetry — partial fix, Track-A walk pending). |

@@ -276,10 +276,11 @@ Both tracks land on the same `phase-12` branch / PR (same one-PR-per-phase rule 
 
 | Sub | Status | Headline |
 |---|---|---|
-| 12.0 | ◐ | Phase 12 opener: branch + continuity docs + draft PR. |
-| 12.A.1 | ◻ | Complete `azure_keyvault` spec-driven migration — remaining handlers decode/encode via the spec-driven `gen.*` types (11.4 pilot migrated only `SetSecret`). |
-| 12.A.2 | ◻ | Replace `azure_keyvault`'s regex router with `gen.HandlerWithOptions`; adapter implements `gen.ServerInterface`. |
-| 12.A.3–7 | ◻ | Vendor + codegen + adapter migration for the other 7 Azure frontends (storage / queue / pubsub / rdbms / cache / functions / apigateway). |
+| 12.0 | ✅ | Phase 12 opener: branch + continuity docs + draft PR #19. |
+| 12.A.1 | ✅ | `azure_keyvault` wire-type migration complete — every handler decodes/encodes via `gen.SecretBundle` / `gen.SecretAttributes` / `gen.SecretListResult` / `gen.DeletedSecretBundle`. 78 LOC of hand-rolled wire shapes retired. |
+| 12.A.2 | ✅ | `azure_keyvault` regex router retired; `Server` implements `gen.ServerInterface`; `gen.HandlerWithOptions` dispatches. Operations outside the cross-cloud intersection (Backup / Restore / UpdateSecret / GetDeletedSecret*) return the canonical "not supported" envelope. SDK's empty-version trailing-slash idiom handled by a pre-dispatch pass. |
+| 12.A.3 | ✅ | Validated `cmd/azure-codegen` scales to a second Azure data-plane spec (Service Bus 2021-05). Normalizer extended for path-item params + response headers + components.{Responses,Headers,RequestBodies}. ARM specs deferred pending common-types vendoring strategy. |
+| 12.A.4–7 | ◻ | Adapter migration for the remaining Azure frontends. Data-plane next (storage / queue's SB management surface / pubsub's SB topics management surface); ARM frontends (rdbms / cache / functions / apigateway) gated on common-types resolution. |
 | 12.B.0 | ◻ | GCP routing emitter — Discovery JSON → routing-only Go that reuses `google.golang.org/api/<svc>/v1` wire types. |
 | 12.B.1–8 | ◻ | GCP adapter migrations across the 8 services. |
 | 12.1–12.8 | ◻ | Track 1 cross-cloud Apply cells per service (storage already proves; 7 remaining). |
