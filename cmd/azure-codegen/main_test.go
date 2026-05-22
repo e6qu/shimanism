@@ -176,6 +176,149 @@ func TestFlattenXMSPaths_PathsWinOnConflict(t *testing.T) {
 	}
 }
 
+// TestDedupeParameterDefNameCollisions_StampsXGoName verifies the
+// 12.A.20.ii behavior: when `parameters.<N>` and `definitions.<N>`
+// share a name, the parameter gets `x-go-name: <N>Parameter`.
+func TestDedupeParameterDefNameCollisions_StampsXGoName(t *testing.T) {
+	input := `{
+		"definitions": {
+			"LeaseDuration": {"type": "string", "enum": ["infinite", "fixed"]}
+		},
+		"parameters": {
+			"LeaseDuration": {
+				"name": "x-ms-lease-duration",
+				"in": "header",
+				"type": "integer"
+			},
+			"NotColliding": {
+				"name": "x-ms-other",
+				"in": "header",
+				"type": "string"
+			}
+		}
+	}`
+	out, err := dedupeParameterDefNameCollisions([]byte(input))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc map[string]any
+	if err := json.Unmarshal(out, &doc); err != nil {
+		t.Fatal(err)
+	}
+	params := doc["parameters"].(map[string]any)
+	colliding := params["LeaseDuration"].(map[string]any)
+	if colliding["x-go-name"] != "LeaseDurationParameter" {
+		t.Errorf("colliding parameter x-go-name = %v; want LeaseDurationParameter", colliding["x-go-name"])
+	}
+	other := params["NotColliding"].(map[string]any)
+	if _, hasXGo := other["x-go-name"]; hasXGo {
+		t.Error("non-colliding parameter got x-go-name stamped — should be left alone")
+	}
+}
+
+// TestDedupeParameterDefNameCollisions_RespectsExistingXGoName: the
+// preprocessor shouldn't clobber an x-go-name the spec author
+// already supplied.
+func TestDedupeParameterDefNameCollisions_RespectsExistingXGoName(t *testing.T) {
+	input := `{
+		"definitions": {"Foo": {"type": "string"}},
+		"parameters": {
+			"Foo": {
+				"name": "x-ms-foo",
+				"in": "header",
+				"type": "string",
+				"x-go-name": "AuthoredName"
+			}
+		}
+	}`
+	out, err := dedupeParameterDefNameCollisions([]byte(input))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc map[string]any
+	_ = json.Unmarshal(out, &doc)
+	params := doc["parameters"].(map[string]any)
+	foo := params["Foo"].(map[string]any)
+	if foo["x-go-name"] != "AuthoredName" {
+		t.Errorf("authored x-go-name overwritten: got %v, want AuthoredName", foo["x-go-name"])
+	}
+}
+
+// TestPromoteXMsEnumName_PromotesInlineSchema verifies the 12.A.12
+// behavior: an inline schema with x-ms-enum.name matching a
+// top-level definition is rewritten to a $ref.
+func TestPromoteXMsEnumName_PromotesInlineSchema(t *testing.T) {
+	input := `{
+		"definitions": {
+			"MyMode": {
+				"type": "string",
+				"enum": ["A", "B"],
+				"x-ms-enum": {"name": "MyMode"}
+			},
+			"Container": {
+				"type": "object",
+				"properties": {
+					"mode": {
+						"type": "string",
+						"enum": ["A", "B"],
+						"x-ms-enum": {"name": "MyMode"}
+					}
+				}
+			}
+		}
+	}`
+	out, err := promoteXMsEnumName([]byte(input))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc map[string]any
+	_ = json.Unmarshal(out, &doc)
+	mode := doc["definitions"].(map[string]any)["Container"].(map[string]any)["properties"].(map[string]any)["mode"].(map[string]any)
+	if mode["$ref"] != "#/definitions/MyMode" {
+		t.Errorf("inline schema not promoted: got %v", mode)
+	}
+}
+
+// TestPromoteXMsEnumName_SkipsParameters verifies the 12.A.20.i fix:
+// promotion is suppressed under `parameters` (a parameter with
+// x-ms-enum.name matching a definition must NOT be rewritten to
+// $ref-to-schema — v2/v3 reject parameter refs that point at
+// schemas).
+func TestPromoteXMsEnumName_SkipsParameters(t *testing.T) {
+	input := `{
+		"definitions": {
+			"AccessTier": {
+				"type": "string",
+				"enum": ["Hot", "Cool"],
+				"x-ms-enum": {"name": "AccessTier"}
+			}
+		},
+		"parameters": {
+			"AccessTierOptional": {
+				"name": "x-ms-access-tier",
+				"in": "header",
+				"type": "string",
+				"enum": ["Hot", "Cool"],
+				"x-ms-enum": {"name": "AccessTier"}
+			}
+		}
+	}`
+	out, err := promoteXMsEnumName([]byte(input))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc map[string]any
+	_ = json.Unmarshal(out, &doc)
+	param := doc["parameters"].(map[string]any)["AccessTierOptional"].(map[string]any)
+	if _, hasRef := param["$ref"]; hasRef {
+		t.Error("parameter incorrectly rewritten to $ref-to-schema; promotion must be suppressed under `parameters`")
+	}
+	// The inline enum + x-ms-enum should still be present on the parameter.
+	if param["type"] != "string" {
+		t.Error("parameter lost its type field")
+	}
+}
+
 // TestFlattenXMSPaths_NoOp verifies a spec without x-ms-paths
 // returns the input unchanged.
 func TestFlattenXMSPaths_NoOp(t *testing.T) {
