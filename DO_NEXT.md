@@ -12,14 +12,19 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 
 ## Next concrete actions (in priority order)
 
-The first substantive chunk is **12.A.1 — complete the azure_keyvault spec-driven migration** (the 11.4 pilot migrated only `SetSecret`; the rest of the handlers still use hand-rolled wire types). Smallest unit of work that continues from a known-good baseline.
+**Phase 12 substantively landed on PR #19.** Spec-driven toolchain for both clouds is fully built + validated:
+- 7/8 Azure specs codegen end-to-end (`azure_keyvault` fully migrated as reference impl)
+- 8/8 GCP services Discovery → route inventory generated
+- Per-service spec-drift + gen-compile tests
+- CI `codegen deterministic` job
+- 6-stage Azure preprocessor (common-types / multi-file / examples-skip / x-ms-enum / x-ms-paths flatten)
 
-1. **12.A.1** — migrate the remaining `azure_keyvault` handlers (`getSecret`, `deleteSecret`, `listSecrets`, `listSecretVersions`, `getSecretVersion`, `purgeSecret`) to decode/encode via the spec-driven `gen.SecretBundle` / `gen.DeletedSecretBundle` / `gen.SecretListResult` types. Verify conformance stays green.
-2. **12.A.2** — replace `azure_keyvault/server.go`'s hand-rolled regex router with `gen.HandlerWithOptions`. Adapter implements the generated `gen.ServerInterface`.
-3. **12.A.3–7** — vendor + codegen + adapter migration for the other 7 Azure frontends (storage / queue / pubsub / rdbms / cache / functions / apigateway). Same `cmd/azure-codegen` pipeline; `services/<svc>/azure-codegen.json` per service.
-4. **12.B** — GCP routing emitter (Discovery JSON → routing Go) + 8 adapter migrations. Hand-written GCP frontends keep working; the emitter adds dispatch consistency.
-5. **12.1–12.8** — Track 1 cross-cloud cells. Cell selection per service in [PLAN.md § Phase 12 Track 1 table](PLAN.md#track-1--cross-cloud-cells).
-6. **12.C** — production RS256 JWKS for real Google + Microsoft Entra tokens. Lower priority; deferred until a deployment target requires it.
+Mechanical follow-ons remain post-merge:
+
+1. **Adapter migrations.** 6 Azure frontends + 8 GCP frontends still dispatch via hand-written regex routes. Each migration: wire generated types into request decoding + response encoding; route through the gen `ServerInterface` (Azure) / `gen.gcp.Routes` inventory (GCP). The hand-written frontends keep passing conformance, so migration is dispatch-consistency, not fidelity.
+2. **Azure Blob full unblock.** `flattenXMSPaths` handles the `x-ms-paths` layer; the spec has additional ref-shape quirks (refs into `#/components/schemas/AccessTier` the v2→v3 converter expects as parameter refs). Needs another per-spec preprocessor pass.
+3. **Production RS256 JWKS.** Verifiers run test-mode HS256; production paths documented in the verifier comments (`google.golang.org/api/idtoken.Validate`, Microsoft's JWKS).
+4. **Track 1 cross-cloud cells.** Largely covered by Phase 10's per-service cross-cloud Apply tests; matrix-expansion candidates documented in PLAN.md.
 
 ## Invariants snapshot
 
