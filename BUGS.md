@@ -1,6 +1,6 @@
 # Known Bugs
 
-**19 filed · 17 fixed · 2 open · 1 false positive.**
+**20 filed · 17 fixed · 3 open · 1 false positive.**
 
 Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLAN.md](PLAN.md) · narrative [WHAT_WE_DID.md](WHAT_WE_DID.md) · rules [AGENTS.md](AGENTS.md).
 
@@ -14,6 +14,7 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 |----|-----|------|------------|-----------|
 | BUG-8 | P3 | apigateway/gcp-tf-frontend | `hashicorp/google` | API Gateway endpoint-override attribute name changed across provider major versions and the current provider's API Gateway resource lifecycle requires real OAuth-signed requests the mock httptest server can't sign. `services/apigateway/conformance/gcp_terraform_test.go` is smoke-skipped pending Track A real-cloud TF coverage. |
 | BUG-15 | P3 | queue/gcp-frontend | GCP Pub/Sub `subscriptions.get` | Phase 11.1 walked the drift with the skip removed: even with `message_retention_duration = "604800s"` declared explicitly in HCL and the shim responding "604800s" at every call (Create + Read), hashicorp/google records `"345600s"` in state. Plan after apply diffs `"345600s" -> "604800s"`. The shim's HTTP responses contain "604800s" (verified in harness logs); something in the provider's flatten / state-write path substitutes its schema default. Two honest interpretations: (a) hashicorp/google provider bug — real GCP also returns "604800s" and would exhibit the same drift; (b) the shim's response is missing a field the provider needs to disable its default-substitution path (e.g. `expirationPolicy`, `retainAckedMessages`). **Pinned to Track A** for real-cloud comparison; closes false-positive if (a), reopens as a real fix if (b). |
+| BUG-20 | P2 | azure-codegen / ARM specs | oapi-codegen | ARM resource definitions follow the pattern `{ allOf: [{$ref: TrackedResource}], properties: {...own properties...} }`. oapi-codegen sees the 1-element allOf + properties and emits `type X = TrackedResource` — a Go type alias that discards the schema's own properties. Confirmed for `ContainerApp`, also affects `RedisResource` and `Server` (PostgreSQL FlexibleServer). The gen file compiles but the alias makes the type useless for adapter migration: handlers can't unmarshal request bodies into a type that doesn't have the right field set. Blocks 12.A.14 (Azure ARM adapter migrations). Two candidate fixes: (a) preprocessor stage that inlines allOf $refs into the schema's own properties at v2 time (so oapi-codegen sees a flat struct); (b) tune oapi-codegen via x-oapi-codegen extensions to emit a struct rather than alias. (a) is more general. |
 
 ## False positives
 
