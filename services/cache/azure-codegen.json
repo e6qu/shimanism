@@ -1,0 +1,6 @@
+{
+  "_comment": "Phase 12.A.7: Azure Cache for Redis ARM spec. First ARM-shaped spec the cmd/azure-codegen pipeline handles end-to-end \u2014 needed the common-types inliner to merge Azure/azure-rest-api-specs/specification/common-types/resource-management/v4/{types,privatelinks,managedidentity}.json into the doc before v2\u2192v3 conversion.",
+  "spec": "services/cache/spec/azure-cache-redis.json",
+  "package": "azure",
+  "out": "services/cache/gen/azure/azure_redis.gen.go"
+}

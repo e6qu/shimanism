@@ -64,6 +64,84 @@ gcloud storage ls gs://migrating-bucket/
 
 **Walkthrough holds.** Symmetric with the AWS → GCS path.
 
+## Terraform walkthrough (AWS-shaped provider against a non-AWS backend)
+
+The `hashicorp/aws` provider's `endpoints.s3` block lets existing `aws_s3_bucket` resources provision against whichever backend the shim is fronting. Storage needs `s3_use_path_style = true` because the shim routes by path, not virtual-host.
+
+```hcl
+provider "aws" {
+  region                      = "us-east-1"
+  access_key                  = "AKIAIOSFODNN7EXAMPLE"
+  secret_key                  = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+  skip_credentials_validation = true
+  skip_metadata_api_check     = true
+  skip_requesting_account_id  = true
+  s3_use_path_style           = true
+
+  endpoints {
+    s3 = "http://localhost:9000"
+  }
+}
+
+resource "aws_s3_bucket" "shim_bucket" {
+  bucket = "cross-cloud-bucket"
+}
+
+resource "aws_s3_object" "shim_object" {
+  bucket  = aws_s3_bucket.shim_bucket.id
+  key     = "hello.txt"
+  content = "hello from shim"
+}
+```
+
+```bash
+shim storage --addr=:9000 --frontend=aws_s3 --backend=gcs --gcs-project=$GCP_PROJECT &
+
+terraform init
+terraform apply -auto-approve
+# gsutil ls gs://cross-cloud-bucket/  → hello.txt landed in real GCS
+terraform import aws_s3_bucket.existing cross-cloud-bucket
+terraform plan -refresh-only -detailed-exitcode  # 0 = no drift
+```
+
+Conformance test reference: `services/storage/conformance/{terraform_import_test.go, cross_cloud_apply_test.go, cross_cloud_import_test.go}`.
+
+### GCS-shaped provider (`hashicorp/google`) against a non-GCS backend
+
+`hashicorp/google`'s `storage_custom_endpoint` knob points its REST calls at any HTTP endpoint that speaks the JSON API. Pair it with the shim's GCS frontend and your existing `google_storage_bucket` resources keep working against whichever backend the shim is fronting.
+
+```hcl
+provider "google" {
+  project                 = "shim-conformance"
+  region                  = "us-central1"
+  access_token            = "test-bearer"
+  storage_custom_endpoint = "http://localhost:9000/storage/v1/"
+}
+
+resource "google_storage_bucket" "shim_bucket" {
+  name          = "tf-gcs-driven"
+  location      = "US"
+  force_destroy = true
+}
+
+resource "google_storage_bucket_object" "shim_object" {
+  name    = "from-terraform.txt"
+  bucket  = google_storage_bucket.shim_bucket.name
+  content = "shimanism + google terraform"
+}
+```
+
+```bash
+shim storage --addr=:9000 --frontend=gcs --backend=aws --aws-region=us-east-1 &
+
+terraform init
+terraform apply -auto-approve
+# Verify in AWS:
+# aws s3 ls s3://tf-gcs-driven/
+```
+
+Conformance test reference: `services/storage/conformance/gcs_terraform_test.go`.
+
 ## What the walkthroughs reveal
 
 - All four backend cells (AWS / GCS / Azure / MinIO) support the migration-critical ops with no per-cell exceptions.

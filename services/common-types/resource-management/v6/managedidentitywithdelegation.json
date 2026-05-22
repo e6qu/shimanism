@@ -1,0 +1,62 @@
+{
+  "_provenance": {
+    "upstream_repo": "Azure/azure-rest-api-specs",
+    "upstream_path": "specification/common-types/resource-management/v6/managedidentitywithdelegation.json",
+    "upstream_license": "MIT",
+    "pinned_at": "b719f25b95dc1af117ac60708398c20eb8a3315f",
+    "fetched_utc": "2026-05-22T10:33:00Z",
+    "note": "Vendored verbatim except for this top-level `_provenance` key. Refresh with the matching scripts/fetch-*.sh; see SOURCES.md for the authoritative pin."
+  },
+  "swagger": "2.0",
+  "info": {
+    "title": "Common types",
+    "version": "6.0"
+  },
+  "paths": {},
+  "definitions": {
+    "DelegatedResource": {
+      "type": "object",
+      "description": "Delegated resource properties - internal use only.",
+      "properties": {
+        "resourceId": {
+          "type": "string",
+          "description": "The ARM resource id of the delegated resource - internal use only."
+        },
+        "tenantId": {
+          "type": "string",
+          "format": "uuid",
+          "description": "The tenant id of the delegated resource - internal use only."
+        },
+        "referralResource": {
+          "type": "string",
+          "description": "The delegation id of the referral delegation (optional) - internal use only."
+        },
+        "location": {
+          "type": "string",
+          "description": "The source resource location - internal use only."
+        }
+      }
+    },
+    "DelegatedResources": {
+      "type": "object",
+      "description": "The set of delegated resources. The delegated resources dictionary keys will be source resource internal ids - internal use only.",
+      "additionalProperties": {
+        "$ref": "#/definitions/DelegatedResource"
+      }
+    },
+    "ManagedServiceIdentityWithDelegation": {
+      "type": "object",
+      "description": "Managed service identity (system assigned and/or user assigned identities and/or delegated identities) - internal use only.",
+      "properties": {
+        "delegatedResources": {
+          "$ref": "#/definitions/DelegatedResources"
+        }
+      },
+      "allOf": [
+        {
+          "$ref": "managedidentity.json#/definitions/ManagedServiceIdentity"
+        }
+      ]
+    }
+  }
+}

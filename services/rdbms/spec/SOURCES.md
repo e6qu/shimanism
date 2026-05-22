@@ -6,6 +6,8 @@ repo so the codegen + build are reproducible without network access.
 | Local file | Upstream repo | Upstream path | Upstream license | Pinned at | Fetched (UTC) |
 |---|---|---|---|---|---|
 | `aws-rds.smithy.json` | `aws/aws-sdk-go-v2` | `codegen/sdk-codegen/aws-models/rds.json` | Apache-2.0 | `2517fe9ffa52ed4507b13ccc57efa111b2008750` | 2026-05-19T14:59:00Z |
+| `azure-postgresql.json` | `Azure/azure-rest-api-specs` | `specification/postgresql/resource-manager/Microsoft.DBforPostgreSQL/stable/2025-08-01/openapi.json` | MIT | `1e6111d12c709c3395fb8546e311b6c67fd87efc` | 2026-05-22T11:45:00Z |
+| `gcp-rdbms-discovery.json` | `sqladmin.googleapis.com` | `$discovery/rest?version=v1` (live Discovery document) | Apache-2.0 | revision `20260510` | 2026-05-22T11:35:00Z |
 
 The RDS spec uses the `awsQuery` wire protocol — same as Phase 4's
 SNS. Form-encoded request bodies dispatched on `Action=...`, XML

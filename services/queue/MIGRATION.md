@@ -37,6 +37,37 @@ AMQP data-plane gap: the official `azservicebus` SDK uses AMQP for send/receive,
 
 **Walkthrough partially holds:** control-plane migration works; data-plane migration requires the AMQP frontend (a future phase).
 
+## Terraform walkthrough (AWS-shaped provider against a non-AWS backend)
+
+```hcl
+provider "aws" {
+  region                      = "us-east-1"
+  access_key                  = "AKIAIOSFODNN7EXAMPLE"
+  secret_key                  = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+  skip_credentials_validation = true
+  skip_metadata_api_check     = true
+  skip_requesting_account_id  = true
+
+  endpoints {
+    sqs = "http://localhost:9300"
+  }
+}
+
+resource "aws_sqs_queue" "shim_queue" {
+  name = "cross-cloud-queue"
+}
+```
+
+```bash
+shim queue --addr=:9300 --frontend=aws_sqs --backend=gcp --gcp-project=$GCP_PROJECT &
+
+terraform init
+terraform apply -auto-approve
+terraform import aws_sqs_queue.existing cross-cloud-queue
+```
+
+Conformance test reference: `services/queue/conformance/{terraform_import_test.go, cross_cloud_import_test.go}`.
+
 ## Coverage
 
 Most cells green; BUG-2/3/4 carried, all documented in BUGS.md.

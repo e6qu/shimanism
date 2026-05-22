@@ -1,21 +1,31 @@
 # Codegen
 
-shimanism's plan is for server stubs to come from the cloud providers' own published specs, with hand-written code restricted to per-operation `translate.go` files. **Today this is partially true: only the storage service has spec-driven generated stubs.** The other services compose their wire layer by hand using the cloud SDKs' wire-type packages directly. Migrating the rest to codegen is on the roadmap.
+shimanism generates server stubs from each cloud's published specs. Hand-written code is restricted to per-operation `translate.go` files (or per-frontend adapters that implement the generated `ServerInterface`). All three lanes — AWS Smithy, Azure OpenAPI v2, GCP Discovery — are wired through `make codegen` and produce deterministic output. See [`doc/CODEGEN.md`](../doc/CODEGEN.md) for the full architecture; this file is a high-level overview.
 
-## Current state vs roadmap
+## Current state
 
-| Service | Generated stubs (today) | Spec source | Status |
+| Service | AWS Smithy | Azure OpenAPI | GCP Discovery |
 |---|---|---|---|
-| storage | ✅ `services/storage/gen/` | Smithy (AWS) → custom emitter | Active |
-| secrets | ❌ Hand-written wire | AWS Smithy + GCP gRPC + Azure REST | Roadmap |
-| queue | ❌ Hand-written wire | Smithy (`awsJson1_0`) + GCP REST + Azure REST | Roadmap |
-| pubsub | ❌ Hand-written wire | AWS awsQuery XML + GCP REST + Azure REST | Roadmap |
-| rdbms | ❌ Hand-written wire | AWS awsQuery XML + GCP REST + Azure ARM | Roadmap |
-| cache | ❌ Hand-written wire | AWS awsQuery XML + GCP REST + Azure ARM | Roadmap |
-| functions | ❌ Hand-written wire | AWS restJson1 + GCP REST + Azure ARM | Roadmap |
-| apigateway | ❌ Hand-written wire | AWS restJson1 + GCP REST + Azure ARM | Roadmap |
+| storage | ✅ `services/storage/gen/` | ✅ `gen/azure/azure_blob.gen.go` (Blob data-plane, 1.1 MB) | ✅ `gen/gcp/gcp_gcs.gen.go` (82 routes) |
+| secrets | ✅ `services/secrets/gen/` | ✅ `gen/azure/azure_keyvault.gen.go` | ✅ `gen/gcp/gcp_secretmanager.gen.go` (32 routes) |
+| queue | ✅ | ✅ Service Bus (shared) | ✅ (46 routes) |
+| pubsub | ✅ | ✅ Service Bus (shared) | ✅ (46 routes) |
+| rdbms | ✅ | ✅ PostgreSQL FlexibleServers ARM | ✅ Cloud SQL (74 routes) |
+| cache | ✅ | ✅ Redis ARM | ✅ Memorystore (45 routes) |
+| functions | ✅ | ✅ ContainerApps ARM | ✅ Cloud Run (58 routes) |
+| apigateway | ✅ | ✅ APIM (minimal) | ✅ (30 routes) |
 
-`make codegen` regenerates the storage stubs. The custom emitter at `cmd/codegen/main.go` is Smithy-only today; extending to OpenAPI v3 (Azure) and Discovery / protobuf (GCP) is roadmap work.
+8/8 AWS frontends ship fully migrated through `gen.HandlerWithOptions`. 1/8 Azure frontend (`azure_keyvault`) ships fully migrated; the other 7 keep hand-written dispatch with the gen inventory as the spec-drift contract — adapter migration is Phase 13 follow-on.
+
+`make codegen` regenerates every spec-driven file across all three lanes. `make codegen-check` (and CI's `codegen deterministic` job) asserts the output is byte-identical to the committed copy.
+
+## Toolchain
+
+- `cmd/codegen/main.go` — AWS Smithy emitter. Handles all four protocols (REST-XML / awsJson1_0 / awsJson1_1 / awsQuery / restJson1) via per-protocol templates in `internal/codegen/emit/`.
+- `cmd/azure-codegen/main.go` — Azure preprocessor (8 stages: inline external refs, x-ms-examples skip, x-ms-enum promotion with parameter/header gating, parameter/definition name dedup, ARM `allOf` flatten, x-ms-paths flatten, empty-AllOf normalize, deterministic walk) + `kin-openapi/openapi2conv.ToV3` + `oapi-codegen` as a library.
+- `cmd/gcp-codegen/main.go` — Discovery JSON → routing-only Go. Reuses `google.golang.org/api/<svc>/v1` wire types per AGENTS.md #11. Emits `Routes []Route` + `Match()` / `MatchAll()` helpers.
+- `cmd/inject-provenance/main.go` — writes a `_provenance` top-level key into each vendored spec JSON; idempotent; CI guard blocks merges without it.
+- `scripts/fetch-{aws,azure,gcp}-*.sh` — resolve `<ref>` to a SHA against the upstream repo, download the spec, seed SOURCES.md, and run inject-provenance.
 
 ## Why codegen
 

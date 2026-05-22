@@ -68,12 +68,40 @@
     schedule: ["at any time"],
   },
 
-  // The vendored AWS Smithy spec is fetched via `make fetch-specs` and
-  // pinned in services/storage/spec/SOURCES.md. Renovate cannot track
-  // that pin (custom format); the maintainer refreshes by running the
-  // make target. Listing here keeps Renovate from trying to scan the
-  // file as JSON dependencies.
+  // Don't scan vendored spec JSONs as JSON-dependency files —
+  // they're upstream specs, not Go modules. The custom manager
+  // below tracks their pinned SHAs explicitly.
   ignorePaths: [
-    "services/*/spec/**",
+    "services/*/spec/**.json",
+    "services/common-types/**.json",
+  ],
+
+  // Custom manager: each services/<svc>/spec/SOURCES.md row records
+  // a vendored spec's upstream repo + path + pinned SHA. The shape
+  // is:
+  //
+  //   | `<localFile>` | `<upstream-repo>` | `<upstream-path>` | <license> | `<40-hex-sha>` | <timestamp> |
+  //
+  // Renovate can't re-fetch the spec for us (the file is committed
+  // verbatim and `make inject-provenance` mutates the `_provenance`
+  // block), but it CAN watch the upstream repo for new commits on
+  // the matching path and open an issue when the pinned SHA falls
+  // behind. The maintainer then runs the matching `scripts/fetch-*.sh`
+  // to refresh.
+  //
+  // Doesn't match Discovery rows (those use `revision <yyyymmdd>`
+  // instead of a 40-hex SHA — `make spec-freshness` is the
+  // informational path for those).
+  customManagers: [
+    {
+      customType: "regex",
+      managerFilePatterns: ["/services/.+/SOURCES\\.md$/"],
+      matchStrings: [
+        "\\|\\s*`(?<depName>[^`]+)`\\s*\\|\\s*`(?<packageName>[^`]+)`\\s*\\|\\s*`[^`]+`\\s*\\|[^|]+\\|\\s*`(?<currentDigest>[0-9a-f]{40})`",
+      ],
+      datasourceTemplate: "github-tags",
+      versioningTemplate: "git",
+      depTypeTemplate: "vendored-spec",
+    },
   ],
 }

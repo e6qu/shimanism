@@ -24,7 +24,7 @@ cd shimanism
 go build ./...
 ```
 
-The main binary is `cmd/shim`. There's also `cmd/shimctl` (CLI for environment / endpoint-override generation) and `cmd/codegen` (regenerate server stubs from upstream specs).
+The main binary is `cmd/shim`. There's also `cmd/shimctl` (CLI for environment / endpoint-override generation) and four codegen tools — `cmd/codegen` (AWS Smithy), `cmd/azure-codegen` (Azure OpenAPI v2), `cmd/gcp-codegen` (GCP Discovery routing), `cmd/inject-provenance` (writes `_provenance` to each vendored spec from SOURCES.md). All three regeneration lanes flow through `make codegen`.
 
 ## Running a shim locally
 
@@ -67,8 +67,8 @@ Prints a copy-paste-ready block for `aws-sdk-go-v2`, `boto3`, the `aws` CLI, and
 
 1. **Confirm semantic equivalence** exists in AWS + GCP + Azure + the K8s peer.
 2. **Update the spec** if the operation isn't already in the vendored upstream spec under `services/<svc>/spec/`.
-3. **Update `services/<svc>/codegen.json`** to include the new operation.
-4. **Run `make codegen`.** The server stubs regenerate; the only hand-written code is the `translate.go` file per backend.
+3. **Update the matching manifest** — `services/<svc>/codegen.json` (AWS Smithy), `services/<svc>/azure-codegen.json` (Azure OpenAPI), or `services/<svc>/gcp-codegen.json` (GCP Discovery). Re-fetch the spec via `scripts/fetch-{aws,azure,gcp}-*.sh` if the upstream pinned SHA needs to advance.
+4. **Run `make codegen`.** All three lanes regenerate; the only hand-written code is the `translate.go` file per backend (or the per-frontend adapter that wires `gen.ServerInterface` / `gen.gcp.Match()`).
 5. **Implement the per-backend translation** in `services/<svc>/backends/<backend>/`. Each backend gets a small `translate.go` mapping the source-API request to the backend's domain operation.
 6. **Add SDK + CLI + Terraform conformance tests** under `services/<svc>/conformance/`. SDK is the canonical layer; CLI + TF tests follow the same pattern.
 7. **Update the per-service docs** ([docs/services/<svc>.md](services/), `services/<svc>/OPERATIONS.md`, `INTERSECTION.md`, `APPLY_INTERSECTION.md`).

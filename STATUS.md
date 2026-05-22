@@ -8,36 +8,42 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 
 | | |
 |---|---|
-| Active branch | `phase-11` (PR #18 ready). **Phase 11 closed: BUG-18 closed; Azure oapi-codegen pilot landed.** 8/8 AWS frontends spec-driven via Smithy emitters; 24/24 frontends verifier-wrapped; bypass dropped; every conformance test signs end-to-end across all 3 clouds. Azure Key Vault data-plane secrets spec now drives the spec-driven types lane via cmd/azure-codegen (v2→v3 conversion + oapi-codegen library). |
-| In-flight | **Phase 11 — Tighten the wire boundary — CLOSED.** Spec-driven codegen (5 emitter paths: REST-XML, awsJson1_x, restJson1, awsQuery for AWS Smithy; oapi-codegen library for Azure OpenAPI v2→v3 — 3853 LOC of hand-written AWS wire deleted, Azure pilot proof-point landed) + signature verification (4 verifier packages: `sigv4verifier`, `gcpbearer`, `azurebearer`, `azuresharedkey`). Manual SigV4 canonical-request in `internal/sigv4verifier/canonical.go` accepts Go-SDK + boto3 + presigned URLs uniformly. `azuresharedkey` uses `EscapedPath()` to match the azblob SDK's signed path. BUG-18 P1 → P3 → CLOSED. Collateral defects fixed: awsQuery map-shape XML marshal (`MarshalXML` emitter); SNS GetTopicAttributes Policy default + SetTopicAttributes AWS-only allowlist; kin-openapi empty `AllOf` workaround in `cmd/azure-codegen`. |
-| Phase 12 (planned) | **Cross-cloud migration cell expansion + Phase 11 follow-ons.** Track 1: one honest cross-cloud cell per service end-to-end across all 8 (Phase 9 + 10 proved storage AWS→GCS). Track 2: 12.A broader Azure spec-driven migration (pilot landed in 11.4; 7 Azure frontends remain); 12.B GCP routing emitter + adapter migrations (8 GCP frontends); 12.C production RS256 JWKS for real Google + Microsoft Entra tokens (current verifiers are HS256-test-mode). See [PLAN.md § Phase 12](PLAN.md#phase-12--cross-cloud-migration-cell-expansion--phase-11-follow-ons). |
-| Last merged | PR #17 — Phase 10 + codex doc review (8/8 services apply-active, 8 BUGs closed). `ebc30f7`, 2026-05-21. |
-| Phases 1-10 | All closed. PR index in [PLAN.md § Closed phases](PLAN.md#closed-phases-pr-index). |
-| Bugs | 19 filed · 17 fixed · 2 open · 1 false positive. Open: BUG-8 (apigateway/gcp-tf — Track A only), BUG-15 (queue retention plan/apply asymmetry — partial fix; Phase 11.1 walks). |
-| CI | 16 required checks. Real-cloud lanes wait on Track A. |
-| Renovate | Config committed (48h min release age, weekly batches, pinned action SHAs). **User must install the Renovate GitHub App.** |
+| Active branch | After PR #19 merges: `main`. Next branch: `phase-13` (create from `main`). |
+| In-flight | **Phase 12 PR #19 is at exit** — ready for user merge. All three exit criteria met (cross-cloud Apply tests across 8 services, 8/8 spec-driven gen files, per-service MIGRATION.md Terraform walkthroughs). |
+| Next phase | **Phase 13 — Full adapter migration + production auth + real-cloud Track A.** Detailed sub-phase table in [PLAN.md § Phase 13](PLAN.md#phase-13--full-adapter-migration--production-auth--real-cloud-track-a). |
+| Last merged | PR #18 — Phase 11 at `bcd72e5` on `main`, 2026-05-22. |
+| Phases 1–12 | All closed. PR index in [PLAN.md § Closed phases](PLAN.md#closed-phases-pr-index). |
+| Bugs | 20 filed · 18 fixed · 2 open · 1 false positive. Both open bugs (BUG-8, BUG-15) absorbed into Phase 13.D (real-cloud Track A). |
+| CI | 18 required checks. Real-cloud lanes wait on Track A. |
+| Renovate | Config + custom manager for vendored-spec SHAs (12.0.15). **User must install the Renovate GitHub App.** |
 | Standing merge auth | **None.** User merges every PR. |
 | Live infra | None. |
 
-## Invariants (carry across compactions / fresh sessions)
+## Toolchain (locked-in across phases)
+
+- **Codegen** flows through `make codegen` across three lanes: `cmd/codegen` (AWS Smithy, 5 protocols) · `cmd/azure-codegen` (Azure OpenAPI v2; 8-stage preprocessor) · `cmd/gcp-codegen` (GCP Discovery routing-only). `make codegen-check` (also runs `inject-provenance`) is the deterministic guard; CI's `codegen deterministic` job runs the same. Pipeline architecture in [doc/CODEGEN.md](doc/CODEGEN.md).
+- **Vendored-spec provenance.** Every spec under `services/*/spec/` + `services/common-types/` carries a `_provenance` top-level key derived from SOURCES.md. `cmd/inject-provenance` writes it; three fetch scripts (`scripts/fetch-{aws,azure,gcp}-*.sh`) run the injector after download. CI guards: `TestEveryVendoredSpecCarriesProvenance`, `TestProvenanceMatchesSOURCES`, `TestGenHeadersCarryProvenance`.
+- **Spec freshness.** `make spec-freshness` + weekly workflow (Mondays 14:00 UTC) surface upstream drift. Renovate custom manager tracks vendored-spec SHAs and opens issues on drift.
+- **Signature verification.** Per-cloud verifiers under `internal/{sigv4verifier,gcpbearer,azurebearer,azuresharedkey}/` wrap every frontend at the harness layer. Test mode HS256 with project-owned key. Production RS256 JWKS is Phase 13.C. Architecture in [doc/VERIFIERS.md](doc/VERIFIERS.md).
+
+## Invariants
 
 ### Process
-- **Never auto-merge PRs.** Push, wait for CI green, ping user. User merges.
-- **Single-branch rule.** All work for one phase / sub-phase on one branch; many commits, one PR.
-- **File BUGs *before* fixing.** Survey first, write `BUGS.md § Open` entry, then start the fix commit.
-- **Update continuity docs every significant chunk** (not just at phase end): STATUS.md + WHAT_WE_DID.md + DO_NEXT.md.
-- **Branch hygiene.** Rebase phase branch on `origin/main` before pushing; sync local `main` after merge.
+- **Never auto-merge PRs.** Push, wait for CI green, ping user.
+- **Single-branch rule.** All work for one phase on one branch; many commits, one PR.
+- **File BUGs *before* fixing.** Survey first, write `BUGS.md § Open` entry, then commit.
+- **Update continuity docs every significant chunk** (not just at phase end).
+- **Branch hygiene.** Rebase phase branch on `origin/main` before pushing.
 - **No bug IDs in code comments.** Bug lineage lives in BUGS.md, commits, and PRs.
-- **One plan file.** PLAN.md is the only roadmap doc. Per-phase planning lives inline as a section in PLAN.md; no `PHASE_X_PLAN.md` files.
+- **One plan file.** PLAN.md is the only roadmap doc.
 
-### Architecture (load-bearing across all services)
-- **The shim speaks the cloud's published API exactly.** Error shapes, response headers, status codes, async semantics — match. Server stubs are generated from the upstream spec; hand-written code is translation logic only.
-- **Real backends, never emulators.** A shimmed call drives a real comparable service. The shim holds no state of record.
-- **Stateless shim.** No sidecar storage, no shim-managed key/value namespace, no in-process cache treated as authoritative. State lives in the backend; cross-cloud mappings are derived at request time. See [AGENTS.md § The shim is stateless](AGENTS.md#the-shim-is-stateless).
-- **Intersection-only scope.** Out-of-intersection feature calls fail loud with the source cloud's own error vocabulary. **Never fabricate success.**
-- **Kubernetes is a first-class fourth backend** for every shimmed service.
-- **No fakes, no fallbacks, no degraded modes.** Translation can't be honest → call fails loud.
-- **Test from the official client surfaces.** SDK + CLI + Terraform provider in the same commit, against every backend in scope.
+### Architecture
+- **Fidelity to the source cloud's API.** Error shapes, headers, status codes, async semantics — match. Out-of-intersection calls fail loud in the source cloud's own error vocabulary.
+- **Real backends, never emulators.**
+- **Stateless shim.** No sidecar storage, no shim-managed namespace, no in-process cache treated as authoritative.
+- **Intersection-only scope.**
+- **Kubernetes is a first-class fourth backend.**
+- **No fakes, no fallbacks, no degraded modes.**
+- **Test from the official client surfaces.** SDK + CLI + Terraform per frontend per backend.
 
-### Locked-in decisions
-Full table in [PLAN.md § Locked-in decisions](PLAN.md#locked-in-decisions). Highlights: Go; specs pulled upstream (never forked); codegen owns wire stubs (`translate.go` is the only hand-written code); AGPL-3.0; reuse-over-reinvention; stateless shim; `shima<service>` naming for in-tree K8s peers built on `peers/shimakit/`.
+Full locked-in decisions table in [PLAN.md § Locked-in decisions](PLAN.md#locked-in-decisions).

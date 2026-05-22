@@ -1,0 +1,6 @@
+{
+  "_comment": "Phase 12.B: GCP routing emitter. Discovery JSON drives the route-table inventory; wire types reuse google.golang.org/api/<svc>/v1 per AGENTS.md decision #11.",
+  "spec": "services/storage/spec/gcp-storage-discovery.json",
+  "package": "gcp",
+  "out": "services/storage/gen/gcp/gcp_gcs.gen.go"
+}

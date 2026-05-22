@@ -2,109 +2,59 @@
 
 Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BUGS.md) · philosophy [PHILOSOPHY.md](PHILOSOPHY.md).
 
-> Reverse chronological. One section per phase. The *why*, the surprises, the root causes — not per-PR detail. For commit-level history, `git log`. For per-bug detail, [BUGS.md](BUGS.md).
+> Reverse chronological. One section per phase. The *why*, the surprises, the root causes — not per-PR detail. For commit-level history, `git log`. For per-bug detail, [BUGS.md](BUGS.md). For pipeline + verifier architecture, [doc/CODEGEN.md](doc/CODEGEN.md) + [doc/VERIFIERS.md](doc/VERIFIERS.md).
 
-## Phase 11 — tighten the wire boundary (CLOSED — PR #18, `phase-11`)
+## Phase 12 — Spec-driven toolchain landing (PR #19, at exit)
 
-The big restructuring phase: replace hand-written wire layers with spec-driven generated stubs across every AWS-shaped frontend, and wire real signature verification (BUG-18) at the new decode boundary. Started with codex review correcting several wrong premises in the initial plan (SigV4 in `signer/v4` is signer-only not verifier; `golang.org/x/oauth2` is token-acquisition not JWT verification; Azure Key Vault is Bearer-only not SharedKey; the existing Smithy emitter was REST-XML-only — extending to awsJson / awsQuery / restJson1 is new emitter work, not a routing-table addition).
+The toolchain phase. Phase 11 spec-drove all 8 AWS frontends + 24/24 frontends got signature verification. Phase 12 took the Azure + GCP lanes to the same place, with 82+ granular commits.
 
-### Four wire-protocol emitter paths
+**Track 2.A — Azure (8/8 specs codegen end-to-end).** `cmd/azure-codegen` runs an 8-stage preprocessor before `kin-openapi/openapi2conv.ToV3` + `oapi-codegen` (see [doc/CODEGEN.md](doc/CODEGEN.md) for the stage-by-stage table). Each preprocessor stage was driven by a real spec quirk:
 
-Pre-Phase 11 the emitter at `internal/codegen/emit/` only spoke REST-XML (S3). Phase 11 added three more templates + protocol detection:
+- **Common-types inliner** (12.A.7/8/9/10) — Azure ARM specs `$ref` shared definitions in `common-types/resource-management/v<N>/<file>.json` by relative path; `kin-openapi`'s loader refuses external refs. The inliner merges every reachable common-types file's `definitions`/`parameters` into the main spec at the v2 layer. Vendored v1–v6 common-types, taught the inliner three relative-ref forms (full path, same-version sibling, cross-version sibling), the multi-file sibling case (`./<file>.json` resolving against the spec's own dir), and the `./examples/<file>` skip.
+- **`promoteXMsEnumName`** (12.A.12) — Azure spec authors use `x-ms-enum.name` to say "this inline enum IS the top-level enum of the same name." oapi-codegen ignores the extension; the inline schema gets a Go name from the property path which collides with the standalone definition. The preprocessor rewrites the inline to a `$ref` to the top-level.
+- **Parameter/header depth-gate refinement** (12.A.20) — Azure Blob's `parameters.AccessTierOptional` has `x-ms-enum.name = "AccessTier"` matching `definitions.AccessTier`; rewriting the parameter to a `$ref`-to-schema breaks v2→v3 (parameter refs must point at parameter objects). Same trap with response headers (`x-ms-copy-status` with `x-ms-enum.name = "CopyStatusType"` matching `definitions.CopyStatus`). The walker now tracks "non-schema depth" — suppressed under `parameters`/`headers` containers but reset on `schema`/`items` so body-parameter schemas still get rewritten.
+- **`dedupeParameterDefNameCollisions`** (12.A.20.ii) — Blob ships both `definitions.LeaseDuration` (string enum) AND `parameters.LeaseDuration` (integer header). oapi-codegen emitted two `type LeaseDuration` declarations and failed `duplicate typename`. Preprocessor stamps `x-go-name: <N>Parameter` on the parameter.
+- **`flattenARMAllOf` — BUG-20** (12.A.24) — ARM resource definitions use `{ allOf: [{$ref: TrackedResource}], properties: {own props} }`; oapi-codegen sees the 1-element allOf and emits `type X = TrackedResource` — a Go type alias that silently discards the schema's own properties. The new stage walks every top-level definition; when it has both allOf (with local $refs) AND own properties, inlines the referenced schemas' properties + required + additionalProperties into the local def, then drops the allOf. Local properties win on key collision. **Iterates until no definition changes** to handle chained inheritance (`X → allOf [Y]; Y → allOf [Z]`); the direct unit test in 12.A.31 caught + fixed the original implementation's premature `allOf`-clear that lost Z's properties through X.
+- **`flattenXMSPaths`** (12.A.15) — Azure data-plane specs use `x-ms-paths` to disambiguate same-URL operations by query parameter (e.g. `/?restype=service&comp=properties` vs `/?comp=list`). OpenAPI doesn't model that; preprocessor moves entries into `paths` with the same key (path keys are opaque strings in OpenAPI; distinct query strings → distinct entries).
+- **`normalizeAllOf`** (legacy from 11.4) — `kin-openapi`'s v2→v3 converter attaches empty `AllOf: []` to scalar enum schemas; oapi-codegen panics on `allOf[0]`. Nil the empty slice everywhere.
+- **Deterministic walk** (12.A.12) — `sortedKeys()` everywhere; multi-version common-types merges produce byte-identical output across runs.
 
-- **awsJson1_x** (`template_awsjson.tmpl`) — POST `/` dispatched by `X-Amz-Target` header; JSON request + response bodies; `__type` + `X-Amzn-Errortype` error envelope. Powers Secrets Manager (1_1) and SQS (1_0).
-- **restJson1** (`template_restjson.tmpl`) — HTTP-route dispatched (method + URI template, same as REST-XML); JSON bodies + awsJson-shaped error envelope. Powers Lambda + APIGW v2.
-- **awsQuery** (`template_awsquery.tmpl`) — POST `/` dispatched by `Action` form parameter; form-encoded request; XML response wrapped in `<OpResponse><OpResult>...</OpResult><ResponseMetadata>...</ResponseMetadata></OpResponse>`. Powers SNS, RDS, ElastiCache.
+Every preprocessor stage has direct unit tests (`cmd/azure-codegen/main_test.go`); per-service `azure_gen_test.go` asserts ServerInterface kind + a method-count minimum; BUG-20 regression tests in each service decode + JSON-round-trip a realistic ARM body through `ContainerApp` / `RedisResource` / `Server`.
 
-Each template lives alongside REST-XML and is selected by `pickTemplate()` based on the service shape's protocol trait. The emitter detects `aws.protocols#awsJson1_1` / `#awsJson1_0` / `#awsQuery` / `#restJson1` / `#restXml` and routes to the right template.
+`azure_keyvault` ships fully migrated through `gen.HandlerWithOptions` as the reference impl (Phase 12.A.1/2; Phase 13.A migrates the other 7).
 
-### Three runtime helper packages
+**Track 2.B — GCP routing emitter (8/8 services).** `cmd/gcp-codegen` reads vendored Discovery JSON and emits `Routes []Route` triples + a compiled `*regexp.Regexp` per route + `BasePath` constant + `Match(method, path)` / `MatchAll(method, path)` helpers. Per AGENTS.md #11 the wire types reuse `google.golang.org/api/<svc>/v1`; the emitter is routing-only. Per-service tests assert inventory non-empty + sorted + cross-cloud-intersection ops covered + `BasePath` sane + every route's compiled Pattern matches a template-derived sample path (413 routes total).
 
-- `internal/awsjson/` — Router (X-Amz-Target dispatch), BackendError, EpochTime (epoch-seconds timestamp serialisation; Go's default RFC3339 broke awsJson1_x SDK compat), QueryCompatibleCode (legacy SDK error-code header for SQS).
-- `internal/awsquery/` — Router (Action dispatch), BackendError, WriteResult (OpResponse/OpResult/ResponseMetadata envelope), WithForm/FormFromContext (gives adapters access to raw form values for collections the template doesn't decode).
-- The existing `internal/restxml/` is shared by REST-XML and restJson1 (only the body encoding differs — restJson1 emits JSON, REST-XML emits XML; both use the same router).
+**Vendored-spec provenance (12.0.4–12.0.24).** JSON has no comment syntax; closest analogue is a top-level field. `cmd/inject-provenance` writes `_provenance` as the FIRST top-level key of every spec JSON (24 service + 26 common-types = 50 files), preserving source-file key ordering for everything else (encoding/json's map iteration would re-sort lexicographically and diff massively against verbatim upstream). The three fetch scripts (`scripts/fetch-{aws,azure,gcp}-*.sh`) run the injector after download. CI guards: `TestEveryVendoredSpecCarriesProvenance`, `TestProvenanceMatchesSOURCES`, `TestGenHeadersCarryProvenance` (the last surfaced a real Makefile bug — pubsub's Azure gen had a placeholder zero-SHA because the commit lookup used the manifest dir instead of the spec dir; fixed 12.A.36). `make codegen-check` runs `inject-provenance` too, so a SOURCES.md edit without re-injection trips the pre-push lane.
 
-### Spec-driven AWS frontends — 8/8 migrated
+**Spec freshness lane (12.0.1/2/15).** `make spec-freshness` walks every SOURCES.md and reports drift against upstream HEAD. Weekly workflow (Mondays 14:00 UTC). Renovate custom manager tracks vendored-spec SHAs and opens issues when one falls behind.
 
-| Service | Wire | Hand-written LOC deleted |
-|---|---|---|
-| storage / aws_s3 | REST-XML | (pre-Phase 11, already spec-driven) |
-| secrets / aws_secretsmanager | awsJson1_1 | 865 |
-| queue / aws_sqs | awsJson1_0 | 679 |
-| pubsub / aws_sns | awsQuery | 615 |
-| rdbms / aws_rds | awsQuery | 436 |
-| cache / aws_elasticache | awsQuery | 275 |
-| functions / aws_lambda | restJson1 | 493 |
-| apigateway / aws_apigatewayv2 | restJson1 | 490 |
-| **Total** | | **3853** |
+**Per-service Terraform walkthroughs (12.0.12/13/14).** Every MIGRATION.md gained a copy-pasteable HCL walkthrough — `provider "aws" { endpoints { <svc> = ... } }` against a non-AWS backend; storage also got the symmetric `provider "google" { storage_custom_endpoint = ... }` against a non-GCS backend. HCL pulled from each service's `cross_cloud_import_test.go` fixture so the example is real, not invented.
 
-Each migration follows the same pattern: write a per-service adapter implementing the generated `<Service>Backend` interface; the adapter translates each generated request type into the existing domain layer and back. Helpers (ARN forging, ID encoding, status mapping) carry verbatim from the hand-written wire.
+**Exit criteria all met.** (1) `TestCrossCloudApply_Roundtrip_<svc>_<cell>` exists + passes for all 8 services. (2) 8/8 Azure + 8/8 GCP frontends have gen files compiling + imported by per-service smoke tests. (3) Every MIGRATION.md carries a copy-pasteable Terraform walkthrough. Adapter migration of the 7 remaining Azure + 8 GCP frontends → Phase 13.A/B.
 
-### Signature verification — BUG-18 P1 → P3
+## Phase 11 — Tighten the wire boundary (PR #18, merged 2026-05-22 at `bcd72e5`)
 
-Four verifier packages, each with HMAC-SHA256 test mode + per-cloud error envelope + Middleware() variant + unit-test coverage:
+Replace hand-written wire layers with spec-driven generated stubs across every AWS-shaped frontend, and wire real signature verification at the new decode boundary. Codex review of the initial plan corrected several wrong-library assumptions (SigV4 in `signer/v4` is signer-only, not verifier; `golang.org/x/oauth2` is acquisition not verification; Azure Key Vault is Bearer-only not SharedKey; the existing Smithy emitter was REST-XML only — extending to awsJson / awsQuery / restJson1 is new emitter work, not a routing-table addition).
 
-- `internal/sigv4verifier/` — re-uses `aws-sdk-go-v2/aws/signer/v4`'s canonical-request building blocks. Verify reconstructs the canonical request from the incoming HTTP request, re-signs with the looked-up secret, constant-time compares. Handles clock skew (±15 min default), credential-scope validation, body buffer-and-restore for downstream handlers.
-- `internal/gcpbearer/` — HS256 JWT with iss/aud/exp/iat claims validation. Production RS256 JWKS path is a follow-on. Documents the opaque-OAuth2-access-token gap (those require a network round-trip to tokeninfo per request).
-- `internal/azurebearer/` — HS256 JWT + Microsoft Entra-style claims. WithChallenge option emits the WWW-Authenticate header Key Vault's SDK requires to trigger its token-acquisition retry.
-- `internal/azuresharedkey/` — HMAC-SHA256 over Azure Storage's canonical string (12-line header block + canonical x-ms-* headers + canonical resource path/query). Used by Blob; Key Vault uses Bearer, Service Bus uses SAS / Entra ID.
+**Four wire-protocol emitter paths.** Pre-Phase 11 the emitter only spoke REST-XML (S3). Phase 11 added three more templates + protocol detection: **awsJson1_x** (POST `/` dispatched by `X-Amz-Target`; JSON request + response; `__type` + `X-Amzn-Errortype` envelope — powers Secrets Manager 1_1 + SQS 1_0); **restJson1** (HTTP-route dispatched same as REST-XML; JSON bodies + awsJson-shaped error envelope — powers Lambda + APIGW v2); **awsQuery** (POST `/` dispatched by `Action` form parameter; form-encoded request; XML response wrapped in `<OpResponse><OpResult>...</OpResult><ResponseMetadata>...</ResponseMetadata></OpResponse>` — powers SNS, RDS, ElastiCache). Three runtime helper packages: `internal/awsjson/`, `internal/awsquery/`, plus `internal/restxml/` shared by REST-XML and restJson1.
 
-24/24 service-frontends are now wrapped: 5 SigV4 (AWS) + 8 GCP bearer + 8 Azure bearer + 3 Azure SharedKey (Storage) + 3 storage (one each for AWS/GCP/Azure). Bypass gated on `SHIMANISM_TEST_UNAUTHENTICATED=1` (harness `init()` sets it so existing conformance lanes that use `aws.AnonymousCredentials{}` / `option.WithoutAuthentication()` / `fakeAzureCred` keep passing during the conformance-lane rewrite). The bypass reads env on every call (no `sync.Once` caching) so per-test `t.Setenv` flips take effect.
+**8/8 AWS frontends migrated.** 3,853 LOC of hand-written wire deleted. Each migration follows the same pattern: per-service adapter implementing the generated `<Service>Backend` interface, translating each generated request type into the existing domain layer.
 
-The reject path is enforced end-to-end: 23 unit tests across the 4 verifier packages + 3 end-to-end SigV4 reject conformance tests in `services/secrets/conformance/aws_sigv4_test.go` prove the verifier rejects unsigned / wrong-key / tampered requests with the correct source-cloud error envelope. The positive-case `TestAWSSigV4_AcceptsSignedRequest` is deferred — needs header normalisation work (Content-Length set at sign-time vs. transport-time, httptest Host quirks).
+**Signature verification — BUG-18 closed end-to-end.** Four verifier packages wrap all 24 frontends; per-cloud detail in [doc/VERIFIERS.md](doc/VERIFIERS.md). Each cloud needed a specific fix to make end-to-end signed conformance work: manual SigV4 in `canonical.go` accepting both Go-SDK and boto3 signing shapes (the SDK auto-includes `Content-Length` in `SignedHeaders`, boto3 doesn't — divergence broke verification); test JWT helpers per cloud emitting well-formed HS256 tokens the verifiers accept; `azuresharedkey` uses `EscapedPath()` to match azblob SDK canonicalisation. Also surfaced + fixed during the closer: awsQuery map-shape XML marshalling (`MarshalXML` per Smithy map type emitting `<entry><key>...</key><value>...</value></entry>`); SNS GetTopicAttributes empty Policy field rejected by hashicorp/aws's IAM-policy parser (now emits canonical default policy); SNS SetTopicAttributes unconditionally called for feedback-rate/role-ARN attributes terraform-provider-aws sets on every apply (now no-ops AWS-only attributes via explicit allowlist).
 
-### Surprises along the way
+**Azure oapi-codegen pilot (11.4).** Toolchain proof — vendor Azure Swagger 2.0, convert v2→v3 via `kin-openapi/openapi2conv`, run `oapi-codegen` as a library. `azure_keyvault`'s `SetSecret` decodes via `gen.SecretSetParameters`. Two upstream-tooling defects worked around inside the driver: `kin-openapi` attaches empty `AllOf: []` to scalar enum schemas (`normalizeAllOf` walks + nils); host-template `$ref` preservation (documented; not a blocker).
 
-- **Smithy emitter is REST-XML-shaped under the hood.** Generated handlers `import restxml`, route from `smithy.api#http` operation traits, encode XML responses. Codex review correctly flagged the original plan's "extending to AWS surfaces beyond S3 is a routing-table addition" as wrong — `awsJson1_1`, `awsJson1_0`, `awsQuery`, `restJson1` are each new protocol serde at the emitter level. Phase 11 added them all.
-- **awsJson1_x timestamps are epoch-seconds floats, not RFC3339.** Go's default `time.Time.MarshalJSON` emits RFC3339 strings; AWS SDKs reject them. New `awsjson.EpochTime` type with HMAC-aware MarshalJSON; emitter substitutes `*awsjson.EpochTime` for `*time.Time` when the protocol uses epoch-seconds.
-- **awsQuery list element names differ per spec.** SNS uses `<member>` (the protocol default); RDS / ElastiCache use `<DBInstance>` / `<CacheCluster>` (via `@xmlName` traits). The emitter respects the trait when set; falls back to `<member>` for awsQuery, target-shape short-name for REST-XML.
-- **awsQuery error envelope's outer element is awkward to emit.** `xml.Marshal(result)` produces `<ResultType>...</ResultType>` by default; wrapping that inside `<OpResult>` produced double-nested output the SDK couldn't parse. `WriteResult` now strips the result struct's own outer element so its fields inline cleanly inside the OpResult wrapper.
-- **APIGateway v2 frontend carries per-process state for the multi-step deploy flow.** AWS splits gateway creation into Api + Routes + Integrations + Deployment; the domain has a single atomic DeployGateway. The adapter retains the pending-routes / integration-IDs map in per-process memory — explicitly documented as a known compromise of the stateless-shim rule (the deployed routing table itself still lives in the backend; only in-flight accumulation is per-process).
-- **Lambda's required-Role makes cross-cloud Create-via-Lambda-SDK intersection-out.** The AWS Lambda SDK enforces Role as a required client-side field; non-AWS backends honestly reject non-empty Role. The matrix test for non-AWS cells now asserts the InvalidParameterValueException (negative conformance for the cross-cloud Role contract).
-- **`http.Request.Form` is populated lazily.** `awsquery.Router` calls `r.ParseForm()` in ServeHTTP; generated per-op handlers then stash `r.Form` on the request context so adapters can retrieve it via `awsquery.FormFromContext(ctx)` for collection decoding the template doesn't emit (SNS MessageAttributes, etc).
+**Surprises (knowledge artifacts).**
 
-### Phase 11.14 closer — BUG-18 closed end-to-end
+- **Smithy emitter is REST-XML-shaped under the hood.** Generated handlers `import restxml`, route from `smithy.api#http` traits. awsJson / awsQuery / restJson1 each need new protocol serde at the emitter level, not "routing-table addition".
+- **awsJson1_x timestamps are epoch-seconds floats, not RFC3339.** Go's default MarshalJSON emits RFC3339; AWS SDKs reject. New `awsjson.EpochTime` type with custom MarshalJSON.
+- **awsQuery list element names differ per spec.** SNS uses `<member>` (protocol default); RDS / ElastiCache use `<DBInstance>` / `<CacheCluster>` (via `@xmlName` traits). Emitter respects trait when set; falls back to `<member>` for awsQuery.
+- **awsQuery error envelope's outer element is awkward.** `xml.Marshal(result)` produces `<ResultType>...</ResultType>` by default; wrapping that inside `<OpResult>` produced double-nested output. `WriteResult` strips the result struct's own outer element so its fields inline cleanly.
+- **APIGateway v2's multi-step deploy flow carries per-process state.** AWS splits gateway creation into Api + Routes + Integrations + Deployment; the domain has a single atomic DeployGateway. Adapter retains the pending-routes / integration-IDs map in per-process memory — documented compromise of stateless-shim (deployed routing table itself still lives in backend; only in-flight accumulation is per-process).
+- **Lambda's required-Role makes cross-cloud Create-via-Lambda-SDK intersection-out.** Non-AWS backends honestly reject non-empty Role with `InvalidParameterValueException`.
 
-The closer turned out to be substantially more than "flip a flag." Each cloud needed a specific fix to make end-to-end signed conformance work:
-
-- **AWS-CLI vs. aws-sdk-go-v2 SigV4 divergence.** `aws-sdk-go-v2/aws/signer/v4`'s `Signer.SignHTTP` auto-includes `Content-Length` in the SignedHeaders list when `ContentLength > 0`; boto3 (the `aws` CLI's signer) does not. The verifier that re-used `v4.SignHTTP` produced a canonical request with one extra signed header vs. what the CLI actually signed, so CLI-driven conformance failed. Fix: implement SigV4 from scratch in `internal/sigv4verifier/canonical.go`. The verifier computes the canonical request using ONLY the `SignedHeaders` list the original client declared, with explicit special-cases for Host (from `r.Host`) and Content-Length (from `r.ContentLength` since `net/http` stores it out-of-band). This handles every signer uniformly because it follows the spec, not any one SDK's auto-detection. Same `canonical.go` also handles SigV4 presigned URLs — query-string signature, `UNSIGNED-PAYLOAD`, canonical query excludes `X-Amz-Signature` from itself.
-
-- **GCP test JWT helper.** `internal/gcpbearer/testjwt.go` builds well-formed HS256 JWTs the verifier accepts; conformance tests assemble bearer tokens via `option.WithTokenSource(oauth2.StaticTokenSource{gcpbearer.TestJWT(...)})` per service audience. 17 GCP-shaped tests migrated from `option.WithoutAuthentication()` to signed tokens; gcloud CLI tests use `CLOUDSDK_AUTH_ACCESS_TOKEN=<jwt>`; Terraform tests thread the JWT into the `google` provider's `access_token`.
-
-- **Azure test JWT + SharedKey helpers.** `internal/azurebearer/testjwt.go` symmetric to gcpbearer. Conformance tests use `azcore.TokenCredential` implementations that return a real signed JWT; raw-HTTP Azure Service Bus REST tests inject `Authorization: Bearer <jwt>` per request. Storage Blob tests switch from `NewClientWithNoCredential` to `NewSharedKeyCredential` with the verifier's trusted (account, key) pair base64-encoded. `azuresharedkey` verifier defect surfaced and fixed: was using `r.URL.Path` (URL-decoded by net/http) but the azblob SDK signs over `r.URL.EscapedPath()`; object keys with slashes produced spurious signature mismatches.
-
-- **awsQuery map-shape XML marshal.** Go's `encoding/xml` doesn't natively serialise map types. The Smithy emitter generated `TopicAttributesMap = map[string]string` (and friends) tagged with the XML field name, but the runtime emitted them as empty elements. terraform-provider-aws's SNS importer parsed the empty `<Attributes/>` and concluded the topic didn't exist. Fix: emitter now generates a `MarshalXML` method per Smithy map shape that writes `<Field><entry><key>...</key><value>...</value></entry>...</Field>` in sorted-key order.
-
-- **SNS GetTopicAttributes fidelity gaps.** hashicorp/aws's importer parses the `Policy` field via the AWS IAM-policy parser and aborts the import on empty / `{}`. Adapter now emits the canonical SNS default-policy JSON document (Version 2008-10-17, `__default_policy_ID`, every default Allow action). Separately, terraform-provider-aws's `aws_sns_topic` Create flow unconditionally calls `SetTopicAttributes` for every feedback-sample-rate / feedback-role-ARN / KMS / fifo / tracing attribute, even when HCL doesn't declare them. Returning `InvalidParameter` for these blocked every `aws_sns_topic` apply. Adapter now no-ops these AWS-only attributes via an explicit `awsOnlySNSAttribute` allowlist; attributes that would change cross-cloud state (DisplayName, custom Policy) still reject non-default values.
-
-Bypass dropped from harness `init()` — no per-cloud bypass env var is set anymore. Every conformance test signs end-to-end with verification enforced. BUG-18 marked Closed.
-
-### Phase 11.4 — Azure Key Vault oapi-codegen pilot
-
-The Azure spec-driven lane lands as a pilot, proving the toolchain end-to-end without rewriting every Azure frontend in this PR.
-
-Azure publishes data-plane specs as Swagger 2.0 (OpenAPI v2) today; the upstream v3 cutover is still in progress. The path that works:
-
-1. Vendor the spec (`services/secrets/spec/azure-keyvault-secrets.json`, `Azure/azure-rest-api-specs` commit `9473ef10`, MIT).
-2. `cmd/azure-codegen` (new driver) converts v2 → v3 in memory via `kin-openapi/openapi2conv.ToV3`.
-3. Calls `oapi-codegen.Generate(v3, …)` as a library to emit Go types + std-net-http `ServerInterface`.
-
-Two upstream-tooling defects surfaced during the pilot and got worked around in `cmd/azure-codegen` itself:
-
-- **`kin-openapi` attaches empty `AllOf: []` to scalar enum schemas during v2→v3 conversion** (e.g. Key Vault's `DeletionRecoveryLevel`). `oapi-codegen.MergeSchemas` then panics with out-of-range `allOf[0]`. `normalizeAllOf` walks every schema in the converted spec and nil-replaces empty `AllOf` slices before generation.
-- **`kin-openapi` preserves global host-template parameters as operation-level `$ref`s without resolving them** (Azure's `vaultBaseUrl` pattern). Not a blocker — the resulting refs point at well-formed component parameters and oapi-codegen handles them; documented in `cmd/azure-codegen` so a future reader doesn't relitigate.
-
-Pilot proof-point: `internal/secrets/frontends/azure_keyvault/server.go`'s `setSecret` handler now decodes via `gen.SecretSetParameters` (spec-driven) instead of the hand-written `setSecretRequest`. Full secrets conformance (AWS + GCP + Azure SDK / CLI / Terraform / cross-cloud / matrix) passes with the pilot in place. The remaining handlers stay on hand-written wire types — the pilot's job was to prove the toolchain produces SDK-wire-compatible types, not to delete the existing frontend wholesale. `make codegen` now runs an `azure-codegen` sub-loop after the Smithy loop; `services/secrets/azure-codegen.json` is the manifest (parallel to the AWS `codegen.json`).
-
-### Phase 11 deferrals → Phase 12 follow-on tracks
-
-All three deferrals are absorbed into [Phase 12](PLAN.md#phase-12--cross-cloud-migration-cell-expansion--phase-11-follow-ons) Track 2 so the wire-boundary work stays in one continuous arc:
-
-- **12.A — Broader Azure spec-driven migration.** Pilot covers `SetSecret` only; migrating the rest of `azure_keyvault` + the other 7 Azure frontends to the generated `ServerInterface` uses the same `cmd/azure-codegen` pipeline.
-- **12.B — GCP routing emitter** + 8 GCP adapter migrations. Hand-written GCP frontends already use Discovery-generated wire types; the emitter adds dispatch consistency + spec-drift detection.
-- **12.C — Production RS256 JWKS** for real Google / Microsoft Entra tokens. Test mode is HS256 with a static shared key; the verifier comments document the production code path (`google.golang.org/api/idtoken.Validate`, Microsoft's JWKS).
-
-Track-A continuations (real-cloud comparison required, not Phase 12-bound): BUG-15 (queue/gcp retention drift), BUG-8 (apigateway/gcp-tf), real-cloud signature verification.
+**Deferrals → Phase 12 (now closed in PR #19).** Broader Azure spec-driven migration (11.4 continuation), GCP routing emitter (11.5), production RS256 JWKS (now Phase 13.C). Track-A bugs (BUG-8, BUG-15) carried to Phase 13.D.
 
 ## Phase 10 — cross-cloud `terraform apply` through the shim (PR #17, merged 2026-05-21 at `ebc30f7`)
 

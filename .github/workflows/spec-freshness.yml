@@ -1,0 +1,34 @@
+# Weekly spec-freshness check.
+#
+# Reads every services/*/spec/SOURCES.md row, asks GitHub for the
+# most-recent commit touching that upstream path, and flags drift.
+# Output lives in the job log; this lane does NOT gate PRs (vendored
+# specs intentionally stay at known-good SHAs and bump out-of-band
+# via a deliberate refresh PR), but periodically surfacing drift is
+# how we avoid silently shipping against years-stale specs.
+#
+# Manual trigger via `workflow_dispatch` lets a contributor verify
+# freshness on demand without waiting for the weekly cron.
+
+name: spec-freshness
+
+on:
+  schedule:
+    # Mondays at 14:00 UTC — well after Renovate's typical weekly
+    # batch window (Sundays) so the dep updates land first and the
+    # spec check runs on a known-clean main.
+    - cron: '0 14 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  spec-freshness:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Run scripts/check-spec-freshness.sh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash scripts/check-spec-freshness.sh

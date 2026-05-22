@@ -4,10 +4,35 @@
 # enough to run on every PR. Phase-specific targets (codegen, conformance)
 # get added as their sub-phases land.
 
-.PHONY: all build test vet lint typecheck fmt check clean fetch-specs license-check codegen
+.PHONY: all build test vet lint typecheck fmt check clean fetch-specs license-check codegen codegen-check spec-freshness inject-provenance help
 
 # Default: the full local pre-push lane.
 all: vet test build
+
+# Print a one-line summary of every PHONY target.
+help:
+	@echo "shimanism Makefile targets"
+	@echo ""
+	@echo "Build + test:"
+	@echo "  all                 vet + test + build (default)"
+	@echo "  build               go build ./... → bin/"
+	@echo "  test                go test ./..."
+	@echo "  vet                 go vet ./..."
+	@echo "  lint                golangci-lint run ./..."
+	@echo "  typecheck           go build + go vet (fast no-test check)"
+	@echo "  fmt                 gofmt -w ."
+	@echo "  check               repo hygiene (rebased + symlinks)"
+	@echo "  clean               rm -rf bin/"
+	@echo ""
+	@echo "Codegen:"
+	@echo "  codegen             regenerate every services/<svc>/gen/ from SOURCES.md"
+	@echo "  codegen-check       codegen + assert no diff (CI's determinism guard)"
+	@echo "  inject-provenance   re-sync every spec's \`_provenance\` from SOURCES.md"
+	@echo "  fetch-specs         re-fetch every vendored spec (review diff before commit)"
+	@echo "  spec-freshness      report drift between vendored specs and upstream HEAD"
+	@echo ""
+	@echo "Licensing:"
+	@echo "  license-check       verify every linked dep carries an AGPL-compatible license"
 
 # Build every package + the shim binary into ./bin/.
 build:
@@ -55,8 +80,16 @@ clean:
 
 # Re-fetch every vendored spec from its upstream, updating the pinned SHA
 # in each services/<svc>/spec/SOURCES.md. Review the diff before
-# committing. Per-service refresh: call scripts/fetch-aws-spec.sh
+# committing. Per-service refresh: call the matching scripts/fetch-*.sh
 # directly.
+#
+# Three pipelines exist today:
+#   - scripts/fetch-aws-spec.sh   <aws-service> <local-dir> [<ref>]
+#   - scripts/fetch-azure-spec.sh <upstream-path> <local-dir> <filename> [<ref>]
+#   - scripts/fetch-gcp-discovery.sh <host> <local-dir> <filename>
+#
+# Each runs cmd/inject-provenance after download so the spec's
+# `_provenance` top-level key stays current.
 fetch-specs:
 	bash scripts/fetch-aws-spec.sh s3 services/storage
 
@@ -100,7 +133,8 @@ codegen:
 			continue; \
 		fi; \
 		spec_base=$$(basename $$spec); \
-		commit=$$(grep -F "$$spec_base" $$svc_dir/spec/SOURCES.md 2>/dev/null | grep -oE '`[0-9a-f]{40}`' | head -1 | tr -d '`'); \
+		spec_dir=$$(dirname $$spec); \
+		commit=$$(grep -F "$$spec_base" $$spec_dir/SOURCES.md 2>/dev/null | grep -oE '`[0-9a-f]{40}`' | head -1 | tr -d '`'); \
 		if [ -z "$$commit" ]; then commit=0000000000000000000000000000000000000000; fi; \
 		echo "azure-codegen: $$manifest -> $$out"; \
 		go run ./cmd/azure-codegen \
@@ -109,6 +143,59 @@ codegen:
 			-pkg=$$pkg \
 			-commit="$$commit" || exit $$?; \
 	done
+	@for manifest in $$(find services -maxdepth 2 -name gcp-codegen.json | sort); do \
+		spec=$$(jq -r '.spec' $$manifest); \
+		pkg=$$(jq -r '.package' $$manifest); \
+		out=$$(jq -r '.out' $$manifest); \
+		if [ ! -f $$spec ]; then \
+			echo "gcp-codegen: skipping $$manifest (spec $$spec not vendored yet)"; \
+			continue; \
+		fi; \
+		echo "gcp-codegen: $$manifest -> $$out"; \
+		go run ./cmd/gcp-codegen \
+			-spec=$$spec \
+			-out=$$out \
+			-pkg=$$pkg || exit $$?; \
+	done
+
+# Regenerate every gen file and assert no diff against the
+# committed copy. Useful both locally before pushing and in CI
+# (the `codegen deterministic` job). A diff here means either
+# an emitter introduced non-determinism, a vendored spec was
+# bumped without committing the regenerated output, or a
+# SOURCES.md row was edited without re-running inject-provenance.
+# All three warrant a `make codegen inject-provenance && git add
+# services/ && git commit` cycle.
+codegen-check: codegen inject-provenance
+	@git diff --exit-code -- services >/dev/null || ( \
+		echo "regenerated gen / provenance files differ from committed copy:"; \
+		git diff --stat -- services; \
+		echo ""; \
+		echo "fix: run 'make codegen inject-provenance' and commit the result"; \
+		exit 1; \
+	)
+
+# Refresh the `_provenance` top-level key in every vendored spec
+# from each services/<svc>/spec/SOURCES.md (and the common-types
+# tree's SOURCES.md). Idempotent — files already current are left
+# alone. Use after manually editing a SOURCES.md row.
+inject-provenance:
+	@for sources in $$(find services -name SOURCES.md | sort); do \
+		dir=$$(dirname $$sources); \
+		echo "==> $$sources"; \
+		go run ./cmd/inject-provenance -sources="$$sources" -dir="$$dir" || exit $$?; \
+	done
+
+# Report drift between vendored specs and their upstream HEADs. Reads
+# the SOURCES.md table in every services/<svc>/spec/ directory, asks
+# GitHub for the latest commit touching each upstream path, and prints
+# a line per spec (ok / DRIFT / skip). Discovery revisions skip (no
+# SHA to compare). Requires `gh` + `jq` on PATH.
+#
+# Informational only; use to gate fetch-specs PRs. CI integration
+# lives under .github/workflows/spec-freshness.yml when it lands.
+spec-freshness:
+	@bash scripts/check-spec-freshness.sh
 
 # Verify every linked Go dependency carries a license on the allowlist in
 # doc/COMPATIBLE_LICENSES.md. Uses Google's go-licenses tool. Installed on

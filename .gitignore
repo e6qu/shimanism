@@ -7,6 +7,9 @@
 # everything under bin/.
 /shim
 /cmd/shim/shim
+/codegen
+/azure-codegen
+/gcp-codegen
 
 # Go
 /vendor/
