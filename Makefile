@@ -4,10 +4,35 @@
 # enough to run on every PR. Phase-specific targets (codegen, conformance)
 # get added as their sub-phases land.
 
-.PHONY: all build test vet lint typecheck fmt check clean fetch-specs license-check codegen codegen-check spec-freshness inject-provenance
+.PHONY: all build test vet lint typecheck fmt check clean fetch-specs license-check codegen codegen-check spec-freshness inject-provenance help
 
 # Default: the full local pre-push lane.
 all: vet test build
+
+# Print a one-line summary of every PHONY target.
+help:
+	@echo "shimanism Makefile targets"
+	@echo ""
+	@echo "Build + test:"
+	@echo "  all                 vet + test + build (default)"
+	@echo "  build               go build ./... → bin/"
+	@echo "  test                go test ./..."
+	@echo "  vet                 go vet ./..."
+	@echo "  lint                golangci-lint run ./..."
+	@echo "  typecheck           go build + go vet (fast no-test check)"
+	@echo "  fmt                 gofmt -w ."
+	@echo "  check               repo hygiene (rebased + symlinks)"
+	@echo "  clean               rm -rf bin/"
+	@echo ""
+	@echo "Codegen:"
+	@echo "  codegen             regenerate every services/<svc>/gen/ from SOURCES.md"
+	@echo "  codegen-check       codegen + assert no diff (CI's determinism guard)"
+	@echo "  inject-provenance   re-sync every spec's \`_provenance\` from SOURCES.md"
+	@echo "  fetch-specs         re-fetch every vendored spec (review diff before commit)"
+	@echo "  spec-freshness      report drift between vendored specs and upstream HEAD"
+	@echo ""
+	@echo "Licensing:"
+	@echo "  license-check       verify every linked dep carries an AGPL-compatible license"
 
 # Build every package + the shim binary into ./bin/.
 build:
