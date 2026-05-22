@@ -316,6 +316,21 @@ Both tracks land on the same `phase-12` branch / PR (same one-PR-per-phase rule 
 
 **Exit criteria:** every service has `TestCrossCloudApply_Roundtrip_<svc>_<cell>` green in CI (Track 1); 8/8 Azure frontends + 8/8 GCP frontends spec-driven (Track 2 A+B); per-service `MIGRATION.md` includes a copy-pasteable Terraform + endpoint-override walkthrough.
 
+## Phase 13 — Full adapter migration + production auth + real-cloud Track A
+
+Phase 12 lands the spec-driven *toolchain*. Phase 13 turns the remaining hand-written dispatch layers over to it.
+
+### Sub-phase outline
+
+| # | Status | Notes |
+|---|--------|-------|
+| 13.A | ◻ | Migrate the 7 remaining Azure frontends through `gen.HandlerWithOptions`. `azure_keyvault` is the reference impl (12.A.1/2). ARM specs already emit proper Go structs thanks to 12.A.24's `flattenARMAllOf`; the per-service work is: implement `gen.ServerInterface`, route through `HandlerWithOptions`, stub out-of-intersection ops with the cloud's "not supported" envelope, keep the trailing-slash + idiomatic-URL pre-dispatch pass where applicable. |
+| 13.B | ◻ | Migrate the 8 GCP frontends to dispatch via `gen.gcp.Match()` / `MatchAll()`. The hand-written regex tables stay as the disambiguation layer for Discovery-overloaded `v1/{+name}` patterns (Secret Manager, Pub/Sub) — the gen inventory is the spec-drift contract, and dispatch goes through it. |
+| 13.C | ⏸ | Production RS256 JWKS for Google + Microsoft Entra tokens. Test mode (HS256) stays the default; gates on a deployment target. |
+| 13.D | ◻ | Real-cloud Track A — live AWS / GCP / Azure accounts. Unblocks BUG-8 closure + BUG-15 reclassification. |
+
+**Exit criteria:** every frontend dispatches through its gen inventory (Azure: `gen.ServerInterface` implemented + routed via `HandlerWithOptions`; GCP: `gen.gcp.Match()`-based dispatch); BUG-8 and BUG-15 closed or reclassified against real cloud; production JWKS path documented + exercised against at least one real Google or Entra issuer.
+
 ## Standing open questions (not phase-gated)
 
 - Single org-wide deployment vs per-tenant — affects auth model.
