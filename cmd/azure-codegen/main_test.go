@@ -338,6 +338,85 @@ func TestFlattenXMSPaths_NoOp(t *testing.T) {
 	}
 }
 
+// TestClassifyRef covers the parser that decides how each $ref in
+// an Azure spec should be resolved. Every shape Azure ships maps
+// to one of the three refKinds.
+func TestClassifyRef(t *testing.T) {
+	cases := []struct {
+		name        string
+		ref         string
+		fromCTVer   string // non-empty when scanning inside a common-types file
+		currentDir  string
+		wantTarget  string
+		wantVersion string
+		wantKind    refKind
+	}{
+		{
+			name:     "local-pointer",
+			ref:      "#/definitions/Foo",
+			wantKind: refLocal,
+		},
+		{
+			name:     "examples-skipped",
+			ref:      "./examples/Foo.json",
+			wantKind: refLocal,
+		},
+		{
+			name:     "examples-no-dot-prefix-also-skipped",
+			ref:      "examples/Foo.json",
+			wantKind: refLocal,
+		},
+		{
+			name:        "common-types-fullpath",
+			ref:         "../../../../../../common-types/resource-management/v4/types.json#/definitions/TrackedResource",
+			wantTarget:  "types.json",
+			wantVersion: "v4",
+			wantKind:    refCommonTypes,
+		},
+		{
+			name:        "common-types-cross-version-from-CT",
+			ref:         "../v5/types.json#/definitions/Resource",
+			fromCTVer:   "v6",
+			wantTarget:  "types.json",
+			wantVersion: "v5",
+			wantKind:    refCommonTypes,
+		},
+		{
+			name:        "common-types-same-version-from-CT",
+			ref:         "./types.json#/definitions/Resource",
+			fromCTVer:   "v4",
+			wantTarget:  "types.json",
+			wantVersion: "v4",
+			wantKind:    refCommonTypes,
+		},
+		{
+			name:       "sibling-from-main-spec",
+			ref:        "./CommonDefinitions.json#/definitions/ExtendedLocation",
+			wantTarget: "CommonDefinitions.json",
+			wantKind:   refSibling,
+		},
+		{
+			name:     "unrecognized-falls-through-to-local",
+			ref:      "https://example.com/spec.json",
+			wantKind: refLocal,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			tgt, ver, kind := classifyRef(tc.ref, tc.fromCTVer, tc.currentDir)
+			if kind != tc.wantKind {
+				t.Errorf("kind = %v, want %v", kind, tc.wantKind)
+			}
+			if tgt != tc.wantTarget {
+				t.Errorf("target = %q, want %q", tgt, tc.wantTarget)
+			}
+			if ver != tc.wantVersion {
+				t.Errorf("version = %q, want %q", ver, tc.wantVersion)
+			}
+		})
+	}
+}
+
 // TestFlattenARMAllOf_ChainedInheritance verifies the iterate-until-
 // fixpoint behavior: X → allOf [Y]; Y → allOf [Z] resolves the
 // full chain in one preprocessor pass.
