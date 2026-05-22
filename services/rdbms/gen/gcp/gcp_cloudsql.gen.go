@@ -5,96 +5,137 @@
 
 package gcp
 
+import "regexp"
+
 // Route is one (httpMethod, uriPattern, operationID) entry from
 // the upstream Google API Discovery document. URIPattern uses
 // Discovery's URI-template syntax verbatim — e.g. `v1/{+name}` —
 // so downstream frontends can compile it to their own dispatch
 // (regex, ServeMux 1.22+ pattern, or otherwise) without losing
-// the original spec semantics.
+// the original spec semantics. Vars lists the URI-template
+// variables in declaration order; Pattern is the compiled regex
+// the Match helper uses.
 type Route struct {
 	ID         string
 	HTTPMethod string
 	URIPattern string
+	Vars       []string
+	Pattern    *regexp.Regexp
 }
 
 // Routes is the full operation set the upstream Discovery
 // document declares for this service, sorted by (HTTPMethod,
-// URIPattern) for stable output. Frontends typically intersect
-// this against the cross-cloud operation set documented in
-// per-service OPERATIONS.md.
+// URIPattern, ID) for stable output. Frontends typically
+// intersect this against the cross-cloud operation set documented
+// in per-service OPERATIONS.md.
+// BasePath is the URL prefix Discovery roots every operation at.
+// Match expects request paths that include this prefix.
+const BasePath = ""
+
 var Routes = []Route{
-	{ID: "sql.instances.delete", HTTPMethod: "DELETE", URIPattern: "v1/projects/{project}/instances/{instance}"},
-	{ID: "sql.backupRuns.delete", HTTPMethod: "DELETE", URIPattern: "v1/projects/{project}/instances/{instance}/backupRuns/{id}"},
-	{ID: "sql.databases.delete", HTTPMethod: "DELETE", URIPattern: "v1/projects/{project}/instances/{instance}/databases/{database}"},
-	{ID: "sql.sslCerts.delete", HTTPMethod: "DELETE", URIPattern: "v1/projects/{project}/instances/{instance}/sslCerts/{sha1Fingerprint}"},
-	{ID: "sql.users.delete", HTTPMethod: "DELETE", URIPattern: "v1/projects/{project}/instances/{instance}/users"},
-	{ID: "sql.Backups.DeleteBackup", HTTPMethod: "DELETE", URIPattern: "v1/{+name}"},
-	{ID: "sql.flags.list", HTTPMethod: "GET", URIPattern: "v1/flags"},
-	{ID: "sql.instances.list", HTTPMethod: "GET", URIPattern: "v1/projects/{project}/instances"},
-	{ID: "sql.instances.get", HTTPMethod: "GET", URIPattern: "v1/projects/{project}/instances/{instance}"},
-	{ID: "sql.backupRuns.list", HTTPMethod: "GET", URIPattern: "v1/projects/{project}/instances/{instance}/backupRuns"},
-	{ID: "sql.backupRuns.get", HTTPMethod: "GET", URIPattern: "v1/projects/{project}/instances/{instance}/backupRuns/{id}"},
-	{ID: "sql.connect.get", HTTPMethod: "GET", URIPattern: "v1/projects/{project}/instances/{instance}/connectSettings"},
-	{ID: "sql.databases.list", HTTPMethod: "GET", URIPattern: "v1/projects/{project}/instances/{instance}/databases"},
-	{ID: "sql.databases.get", HTTPMethod: "GET", URIPattern: "v1/projects/{project}/instances/{instance}/databases/{database}"},
-	{ID: "sql.projects.instances.getDiskShrinkConfig", HTTPMethod: "GET", URIPattern: "v1/projects/{project}/instances/{instance}/getDiskShrinkConfig"},
-	{ID: "sql.projects.instances.getLatestRecoveryTime", HTTPMethod: "GET", URIPattern: "v1/projects/{project}/instances/{instance}/getLatestRecoveryTime"},
-	{ID: "sql.instances.ListEntraIdCertificates", HTTPMethod: "GET", URIPattern: "v1/projects/{project}/instances/{instance}/listEntraIdCertificates"},
-	{ID: "sql.instances.listServerCas", HTTPMethod: "GET", URIPattern: "v1/projects/{project}/instances/{instance}/listServerCas"},
-	{ID: "sql.instances.ListServerCertificates", HTTPMethod: "GET", URIPattern: "v1/projects/{project}/instances/{instance}/listServerCertificates"},
-	{ID: "sql.sslCerts.list", HTTPMethod: "GET", URIPattern: "v1/projects/{project}/instances/{instance}/sslCerts"},
-	{ID: "sql.sslCerts.get", HTTPMethod: "GET", URIPattern: "v1/projects/{project}/instances/{instance}/sslCerts/{sha1Fingerprint}"},
-	{ID: "sql.users.list", HTTPMethod: "GET", URIPattern: "v1/projects/{project}/instances/{instance}/users"},
-	{ID: "sql.users.get", HTTPMethod: "GET", URIPattern: "v1/projects/{project}/instances/{instance}/users/{name}"},
-	{ID: "sql.operations.list", HTTPMethod: "GET", URIPattern: "v1/projects/{project}/operations"},
-	{ID: "sql.operations.get", HTTPMethod: "GET", URIPattern: "v1/projects/{project}/operations/{operation}"},
-	{ID: "sql.tiers.list", HTTPMethod: "GET", URIPattern: "v1/projects/{project}/tiers"},
-	{ID: "sql.Backups.GetBackup", HTTPMethod: "GET", URIPattern: "v1/{+name}"},
-	{ID: "sql.Backups.ListBackups", HTTPMethod: "GET", URIPattern: "v1/{+parent}/backups"},
-	{ID: "sql.instances.patch", HTTPMethod: "PATCH", URIPattern: "v1/projects/{project}/instances/{instance}"},
-	{ID: "sql.databases.patch", HTTPMethod: "PATCH", URIPattern: "v1/projects/{project}/instances/{instance}/databases/{database}"},
-	{ID: "sql.Backups.UpdateBackup", HTTPMethod: "PATCH", URIPattern: "v1/{+name}"},
-	{ID: "sql.instances.insert", HTTPMethod: "POST", URIPattern: "v1/projects/{project}/instances"},
-	{ID: "sql.instances.acquireSsrsLease", HTTPMethod: "POST", URIPattern: "v1/projects/{project}/instances/{instance}/acquireSsrsLease"},
-	{ID: "sql.instances.addEntraIdCertificate", HTTPMethod: "POST", URIPattern: "v1/projects/{project}/instances/{instance}/addEntraIdCertificate"},
-	{ID: "sql.instances.addServerCa", HTTPMethod: "POST", URIPattern: "v1/projects/{project}/instances/{instance}/addServerCa"},
-	{ID: "sql.instances.addServerCertificate", HTTPMethod: "POST", URIPattern: "v1/projects/{project}/instances/{instance}/addServerCertificate"},
-	{ID: "sql.backupRuns.insert", HTTPMethod: "POST", URIPattern: "v1/projects/{project}/instances/{instance}/backupRuns"},
-	{ID: "sql.instances.clone", HTTPMethod: "POST", URIPattern: "v1/projects/{project}/instances/{instance}/clone"},
-	{ID: "sql.sslCerts.createEphemeral", HTTPMethod: "POST", URIPattern: "v1/projects/{project}/instances/{instance}/createEphemeral"},
-	{ID: "sql.databases.insert", HTTPMethod: "POST", URIPattern: "v1/projects/{project}/instances/{instance}/databases"},
-	{ID: "sql.instances.demote", HTTPMethod: "POST", URIPattern: "v1/projects/{project}/instances/{instance}/demote"},
-	{ID: "sql.instances.demoteMaster", HTTPMethod: "POST", URIPattern: "v1/projects/{project}/instances/{instance}/demoteMaster"},
-	{ID: "sql.instances.executeSql", HTTPMethod: "POST", URIPattern: "v1/projects/{project}/instances/{instance}/executeSql"},
-	{ID: "sql.instances.export", HTTPMethod: "POST", URIPattern: "v1/projects/{project}/instances/{instance}/export"},
-	{ID: "sql.instances.failover", HTTPMethod: "POST", URIPattern: "v1/projects/{project}/instances/{instance}/failover"},
-	{ID: "sql.instances.import", HTTPMethod: "POST", URIPattern: "v1/projects/{project}/instances/{instance}/import"},
-	{ID: "sql.projects.instances.performDiskShrink", HTTPMethod: "POST", URIPattern: "v1/projects/{project}/instances/{instance}/performDiskShrink"},
-	{ID: "sql.instances.preCheckMajorVersionUpgrade", HTTPMethod: "POST", URIPattern: "v1/projects/{project}/instances/{instance}/preCheckMajorVersionUpgrade"},
-	{ID: "sql.instances.promoteReplica", HTTPMethod: "POST", URIPattern: "v1/projects/{project}/instances/{instance}/promoteReplica"},
-	{ID: "sql.instances.reencrypt", HTTPMethod: "POST", URIPattern: "v1/projects/{project}/instances/{instance}/reencrypt"},
-	{ID: "sql.instances.releaseSsrsLease", HTTPMethod: "POST", URIPattern: "v1/projects/{project}/instances/{instance}/releaseSsrsLease"},
-	{ID: "sql.projects.instances.rescheduleMaintenance", HTTPMethod: "POST", URIPattern: "v1/projects/{project}/instances/{instance}/rescheduleMaintenance"},
-	{ID: "sql.projects.instances.resetReplicaSize", HTTPMethod: "POST", URIPattern: "v1/projects/{project}/instances/{instance}/resetReplicaSize"},
-	{ID: "sql.instances.resetSslConfig", HTTPMethod: "POST", URIPattern: "v1/projects/{project}/instances/{instance}/resetSslConfig"},
-	{ID: "sql.instances.restart", HTTPMethod: "POST", URIPattern: "v1/projects/{project}/instances/{instance}/restart"},
-	{ID: "sql.instances.restoreBackup", HTTPMethod: "POST", URIPattern: "v1/projects/{project}/instances/{instance}/restoreBackup"},
-	{ID: "sql.instances.RotateEntraIdCertificate", HTTPMethod: "POST", URIPattern: "v1/projects/{project}/instances/{instance}/rotateEntraIdCertificate"},
-	{ID: "sql.instances.rotateServerCa", HTTPMethod: "POST", URIPattern: "v1/projects/{project}/instances/{instance}/rotateServerCa"},
-	{ID: "sql.instances.RotateServerCertificate", HTTPMethod: "POST", URIPattern: "v1/projects/{project}/instances/{instance}/rotateServerCertificate"},
-	{ID: "sql.sslCerts.insert", HTTPMethod: "POST", URIPattern: "v1/projects/{project}/instances/{instance}/sslCerts"},
-	{ID: "sql.projects.instances.startExternalSync", HTTPMethod: "POST", URIPattern: "v1/projects/{project}/instances/{instance}/startExternalSync"},
-	{ID: "sql.instances.startReplica", HTTPMethod: "POST", URIPattern: "v1/projects/{project}/instances/{instance}/startReplica"},
-	{ID: "sql.instances.stopReplica", HTTPMethod: "POST", URIPattern: "v1/projects/{project}/instances/{instance}/stopReplica"},
-	{ID: "sql.instances.switchover", HTTPMethod: "POST", URIPattern: "v1/projects/{project}/instances/{instance}/switchover"},
-	{ID: "sql.instances.truncateLog", HTTPMethod: "POST", URIPattern: "v1/projects/{project}/instances/{instance}/truncateLog"},
-	{ID: "sql.users.insert", HTTPMethod: "POST", URIPattern: "v1/projects/{project}/instances/{instance}/users"},
-	{ID: "sql.projects.instances.verifyExternalSyncSettings", HTTPMethod: "POST", URIPattern: "v1/projects/{project}/instances/{instance}/verifyExternalSyncSettings"},
-	{ID: "sql.connect.generateEphemeral", HTTPMethod: "POST", URIPattern: "v1/projects/{project}/instances/{instance}:generateEphemeralCert"},
-	{ID: "sql.operations.cancel", HTTPMethod: "POST", URIPattern: "v1/projects/{project}/operations/{operation}/cancel"},
-	{ID: "sql.Backups.CreateBackup", HTTPMethod: "POST", URIPattern: "v1/{+parent}/backups"},
-	{ID: "sql.instances.pointInTimeRestore", HTTPMethod: "POST", URIPattern: "v1/{+parent}:pointInTimeRestore"},
-	{ID: "sql.instances.update", HTTPMethod: "PUT", URIPattern: "v1/projects/{project}/instances/{instance}"},
-	{ID: "sql.databases.update", HTTPMethod: "PUT", URIPattern: "v1/projects/{project}/instances/{instance}/databases/{database}"},
-	{ID: "sql.users.update", HTTPMethod: "PUT", URIPattern: "v1/projects/{project}/instances/{instance}/users"},
+	{ID: "sql.instances.delete", HTTPMethod: "DELETE", URIPattern: "v1/projects/{project}/instances/{instance}", Vars: []string{"project", "instance"}, Pattern: regexp.MustCompile("^/?/v1/projects/([^/]+)/instances/([^/]+)$")},
+	{ID: "sql.backupRuns.delete", HTTPMethod: "DELETE", URIPattern: "v1/projects/{project}/instances/{instance}/backupRuns/{id}", Vars: []string{"project", "instance", "id"}, Pattern: regexp.MustCompile("^/?/v1/projects/([^/]+)/instances/([^/]+)/backupRuns/([^/]+)$")},
+	{ID: "sql.databases.delete", HTTPMethod: "DELETE", URIPattern: "v1/projects/{project}/instances/{instance}/databases/{database}", Vars: []string{"project", "instance", "database"}, Pattern: regexp.MustCompile("^/?/v1/projects/([^/]+)/instances/([^/]+)/databases/([^/]+)$")},
+	{ID: "sql.sslCerts.delete", HTTPMethod: "DELETE", URIPattern: "v1/projects/{project}/instances/{instance}/sslCerts/{sha1Fingerprint}", Vars: []string{"project", "instance", "sha1Fingerprint"}, Pattern: regexp.MustCompile("^/?/v1/projects/([^/]+)/instances/([^/]+)/sslCerts/([^/]+)$")},
+	{ID: "sql.users.delete", HTTPMethod: "DELETE", URIPattern: "v1/projects/{project}/instances/{instance}/users", Vars: []string{"project", "instance"}, Pattern: regexp.MustCompile("^/?/v1/projects/([^/]+)/instances/([^/]+)/users$")},
+	{ID: "sql.Backups.DeleteBackup", HTTPMethod: "DELETE", URIPattern: "v1/{+name}", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v1/(.+)$")},
+	{ID: "sql.flags.list", HTTPMethod: "GET", URIPattern: "v1/flags", Vars: nil, Pattern: regexp.MustCompile("^/?/v1/flags$")},
+	{ID: "sql.instances.list", HTTPMethod: "GET", URIPattern: "v1/projects/{project}/instances", Vars: []string{"project"}, Pattern: regexp.MustCompile("^/?/v1/projects/([^/]+)/instances$")},
+	{ID: "sql.instances.get", HTTPMethod: "GET", URIPattern: "v1/projects/{project}/instances/{instance}", Vars: []string{"project", "instance"}, Pattern: regexp.MustCompile("^/?/v1/projects/([^/]+)/instances/([^/]+)$")},
+	{ID: "sql.backupRuns.list", HTTPMethod: "GET", URIPattern: "v1/projects/{project}/instances/{instance}/backupRuns", Vars: []string{"project", "instance"}, Pattern: regexp.MustCompile("^/?/v1/projects/([^/]+)/instances/([^/]+)/backupRuns$")},
+	{ID: "sql.backupRuns.get", HTTPMethod: "GET", URIPattern: "v1/projects/{project}/instances/{instance}/backupRuns/{id}", Vars: []string{"project", "instance", "id"}, Pattern: regexp.MustCompile("^/?/v1/projects/([^/]+)/instances/([^/]+)/backupRuns/([^/]+)$")},
+	{ID: "sql.connect.get", HTTPMethod: "GET", URIPattern: "v1/projects/{project}/instances/{instance}/connectSettings", Vars: []string{"project", "instance"}, Pattern: regexp.MustCompile("^/?/v1/projects/([^/]+)/instances/([^/]+)/connectSettings$")},
+	{ID: "sql.databases.list", HTTPMethod: "GET", URIPattern: "v1/projects/{project}/instances/{instance}/databases", Vars: []string{"project", "instance"}, Pattern: regexp.MustCompile("^/?/v1/projects/([^/]+)/instances/([^/]+)/databases$")},
+	{ID: "sql.databases.get", HTTPMethod: "GET", URIPattern: "v1/projects/{project}/instances/{instance}/databases/{database}", Vars: []string{"project", "instance", "database"}, Pattern: regexp.MustCompile("^/?/v1/projects/([^/]+)/instances/([^/]+)/databases/([^/]+)$")},
+	{ID: "sql.projects.instances.getDiskShrinkConfig", HTTPMethod: "GET", URIPattern: "v1/projects/{project}/instances/{instance}/getDiskShrinkConfig", Vars: []string{"project", "instance"}, Pattern: regexp.MustCompile("^/?/v1/projects/([^/]+)/instances/([^/]+)/getDiskShrinkConfig$")},
+	{ID: "sql.projects.instances.getLatestRecoveryTime", HTTPMethod: "GET", URIPattern: "v1/projects/{project}/instances/{instance}/getLatestRecoveryTime", Vars: []string{"project", "instance"}, Pattern: regexp.MustCompile("^/?/v1/projects/([^/]+)/instances/([^/]+)/getLatestRecoveryTime$")},
+	{ID: "sql.instances.ListEntraIdCertificates", HTTPMethod: "GET", URIPattern: "v1/projects/{project}/instances/{instance}/listEntraIdCertificates", Vars: []string{"project", "instance"}, Pattern: regexp.MustCompile("^/?/v1/projects/([^/]+)/instances/([^/]+)/listEntraIdCertificates$")},
+	{ID: "sql.instances.listServerCas", HTTPMethod: "GET", URIPattern: "v1/projects/{project}/instances/{instance}/listServerCas", Vars: []string{"project", "instance"}, Pattern: regexp.MustCompile("^/?/v1/projects/([^/]+)/instances/([^/]+)/listServerCas$")},
+	{ID: "sql.instances.ListServerCertificates", HTTPMethod: "GET", URIPattern: "v1/projects/{project}/instances/{instance}/listServerCertificates", Vars: []string{"project", "instance"}, Pattern: regexp.MustCompile("^/?/v1/projects/([^/]+)/instances/([^/]+)/listServerCertificates$")},
+	{ID: "sql.sslCerts.list", HTTPMethod: "GET", URIPattern: "v1/projects/{project}/instances/{instance}/sslCerts", Vars: []string{"project", "instance"}, Pattern: regexp.MustCompile("^/?/v1/projects/([^/]+)/instances/([^/]+)/sslCerts$")},
+	{ID: "sql.sslCerts.get", HTTPMethod: "GET", URIPattern: "v1/projects/{project}/instances/{instance}/sslCerts/{sha1Fingerprint}", Vars: []string{"project", "instance", "sha1Fingerprint"}, Pattern: regexp.MustCompile("^/?/v1/projects/([^/]+)/instances/([^/]+)/sslCerts/([^/]+)$")},
+	{ID: "sql.users.list", HTTPMethod: "GET", URIPattern: "v1/projects/{project}/instances/{instance}/users", Vars: []string{"project", "instance"}, Pattern: regexp.MustCompile("^/?/v1/projects/([^/]+)/instances/([^/]+)/users$")},
+	{ID: "sql.users.get", HTTPMethod: "GET", URIPattern: "v1/projects/{project}/instances/{instance}/users/{name}", Vars: []string{"project", "instance", "name"}, Pattern: regexp.MustCompile("^/?/v1/projects/([^/]+)/instances/([^/]+)/users/([^/]+)$")},
+	{ID: "sql.operations.list", HTTPMethod: "GET", URIPattern: "v1/projects/{project}/operations", Vars: []string{"project"}, Pattern: regexp.MustCompile("^/?/v1/projects/([^/]+)/operations$")},
+	{ID: "sql.operations.get", HTTPMethod: "GET", URIPattern: "v1/projects/{project}/operations/{operation}", Vars: []string{"project", "operation"}, Pattern: regexp.MustCompile("^/?/v1/projects/([^/]+)/operations/([^/]+)$")},
+	{ID: "sql.tiers.list", HTTPMethod: "GET", URIPattern: "v1/projects/{project}/tiers", Vars: []string{"project"}, Pattern: regexp.MustCompile("^/?/v1/projects/([^/]+)/tiers$")},
+	{ID: "sql.Backups.GetBackup", HTTPMethod: "GET", URIPattern: "v1/{+name}", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v1/(.+)$")},
+	{ID: "sql.Backups.ListBackups", HTTPMethod: "GET", URIPattern: "v1/{+parent}/backups", Vars: []string{"parent"}, Pattern: regexp.MustCompile("^/?/v1/(.+)/backups$")},
+	{ID: "sql.instances.patch", HTTPMethod: "PATCH", URIPattern: "v1/projects/{project}/instances/{instance}", Vars: []string{"project", "instance"}, Pattern: regexp.MustCompile("^/?/v1/projects/([^/]+)/instances/([^/]+)$")},
+	{ID: "sql.databases.patch", HTTPMethod: "PATCH", URIPattern: "v1/projects/{project}/instances/{instance}/databases/{database}", Vars: []string{"project", "instance", "database"}, Pattern: regexp.MustCompile("^/?/v1/projects/([^/]+)/instances/([^/]+)/databases/([^/]+)$")},
+	{ID: "sql.Backups.UpdateBackup", HTTPMethod: "PATCH", URIPattern: "v1/{+name}", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v1/(.+)$")},
+	{ID: "sql.instances.insert", HTTPMethod: "POST", URIPattern: "v1/projects/{project}/instances", Vars: []string{"project"}, Pattern: regexp.MustCompile("^/?/v1/projects/([^/]+)/instances$")},
+	{ID: "sql.instances.acquireSsrsLease", HTTPMethod: "POST", URIPattern: "v1/projects/{project}/instances/{instance}/acquireSsrsLease", Vars: []string{"project", "instance"}, Pattern: regexp.MustCompile("^/?/v1/projects/([^/]+)/instances/([^/]+)/acquireSsrsLease$")},
+	{ID: "sql.instances.addEntraIdCertificate", HTTPMethod: "POST", URIPattern: "v1/projects/{project}/instances/{instance}/addEntraIdCertificate", Vars: []string{"project", "instance"}, Pattern: regexp.MustCompile("^/?/v1/projects/([^/]+)/instances/([^/]+)/addEntraIdCertificate$")},
+	{ID: "sql.instances.addServerCa", HTTPMethod: "POST", URIPattern: "v1/projects/{project}/instances/{instance}/addServerCa", Vars: []string{"project", "instance"}, Pattern: regexp.MustCompile("^/?/v1/projects/([^/]+)/instances/([^/]+)/addServerCa$")},
+	{ID: "sql.instances.addServerCertificate", HTTPMethod: "POST", URIPattern: "v1/projects/{project}/instances/{instance}/addServerCertificate", Vars: []string{"project", "instance"}, Pattern: regexp.MustCompile("^/?/v1/projects/([^/]+)/instances/([^/]+)/addServerCertificate$")},
+	{ID: "sql.backupRuns.insert", HTTPMethod: "POST", URIPattern: "v1/projects/{project}/instances/{instance}/backupRuns", Vars: []string{"project", "instance"}, Pattern: regexp.MustCompile("^/?/v1/projects/([^/]+)/instances/([^/]+)/backupRuns$")},
+	{ID: "sql.instances.clone", HTTPMethod: "POST", URIPattern: "v1/projects/{project}/instances/{instance}/clone", Vars: []string{"project", "instance"}, Pattern: regexp.MustCompile("^/?/v1/projects/([^/]+)/instances/([^/]+)/clone$")},
+	{ID: "sql.sslCerts.createEphemeral", HTTPMethod: "POST", URIPattern: "v1/projects/{project}/instances/{instance}/createEphemeral", Vars: []string{"project", "instance"}, Pattern: regexp.MustCompile("^/?/v1/projects/([^/]+)/instances/([^/]+)/createEphemeral$")},
+	{ID: "sql.databases.insert", HTTPMethod: "POST", URIPattern: "v1/projects/{project}/instances/{instance}/databases", Vars: []string{"project", "instance"}, Pattern: regexp.MustCompile("^/?/v1/projects/([^/]+)/instances/([^/]+)/databases$")},
+	{ID: "sql.instances.demote", HTTPMethod: "POST", URIPattern: "v1/projects/{project}/instances/{instance}/demote", Vars: []string{"project", "instance"}, Pattern: regexp.MustCompile("^/?/v1/projects/([^/]+)/instances/([^/]+)/demote$")},
+	{ID: "sql.instances.demoteMaster", HTTPMethod: "POST", URIPattern: "v1/projects/{project}/instances/{instance}/demoteMaster", Vars: []string{"project", "instance"}, Pattern: regexp.MustCompile("^/?/v1/projects/([^/]+)/instances/([^/]+)/demoteMaster$")},
+	{ID: "sql.instances.executeSql", HTTPMethod: "POST", URIPattern: "v1/projects/{project}/instances/{instance}/executeSql", Vars: []string{"project", "instance"}, Pattern: regexp.MustCompile("^/?/v1/projects/([^/]+)/instances/([^/]+)/executeSql$")},
+	{ID: "sql.instances.export", HTTPMethod: "POST", URIPattern: "v1/projects/{project}/instances/{instance}/export", Vars: []string{"project", "instance"}, Pattern: regexp.MustCompile("^/?/v1/projects/([^/]+)/instances/([^/]+)/export$")},
+	{ID: "sql.instances.failover", HTTPMethod: "POST", URIPattern: "v1/projects/{project}/instances/{instance}/failover", Vars: []string{"project", "instance"}, Pattern: regexp.MustCompile("^/?/v1/projects/([^/]+)/instances/([^/]+)/failover$")},
+	{ID: "sql.instances.import", HTTPMethod: "POST", URIPattern: "v1/projects/{project}/instances/{instance}/import", Vars: []string{"project", "instance"}, Pattern: regexp.MustCompile("^/?/v1/projects/([^/]+)/instances/([^/]+)/import$")},
+	{ID: "sql.projects.instances.performDiskShrink", HTTPMethod: "POST", URIPattern: "v1/projects/{project}/instances/{instance}/performDiskShrink", Vars: []string{"project", "instance"}, Pattern: regexp.MustCompile("^/?/v1/projects/([^/]+)/instances/([^/]+)/performDiskShrink$")},
+	{ID: "sql.instances.preCheckMajorVersionUpgrade", HTTPMethod: "POST", URIPattern: "v1/projects/{project}/instances/{instance}/preCheckMajorVersionUpgrade", Vars: []string{"project", "instance"}, Pattern: regexp.MustCompile("^/?/v1/projects/([^/]+)/instances/([^/]+)/preCheckMajorVersionUpgrade$")},
+	{ID: "sql.instances.promoteReplica", HTTPMethod: "POST", URIPattern: "v1/projects/{project}/instances/{instance}/promoteReplica", Vars: []string{"project", "instance"}, Pattern: regexp.MustCompile("^/?/v1/projects/([^/]+)/instances/([^/]+)/promoteReplica$")},
+	{ID: "sql.instances.reencrypt", HTTPMethod: "POST", URIPattern: "v1/projects/{project}/instances/{instance}/reencrypt", Vars: []string{"project", "instance"}, Pattern: regexp.MustCompile("^/?/v1/projects/([^/]+)/instances/([^/]+)/reencrypt$")},
+	{ID: "sql.instances.releaseSsrsLease", HTTPMethod: "POST", URIPattern: "v1/projects/{project}/instances/{instance}/releaseSsrsLease", Vars: []string{"project", "instance"}, Pattern: regexp.MustCompile("^/?/v1/projects/([^/]+)/instances/([^/]+)/releaseSsrsLease$")},
+	{ID: "sql.projects.instances.rescheduleMaintenance", HTTPMethod: "POST", URIPattern: "v1/projects/{project}/instances/{instance}/rescheduleMaintenance", Vars: []string{"project", "instance"}, Pattern: regexp.MustCompile("^/?/v1/projects/([^/]+)/instances/([^/]+)/rescheduleMaintenance$")},
+	{ID: "sql.projects.instances.resetReplicaSize", HTTPMethod: "POST", URIPattern: "v1/projects/{project}/instances/{instance}/resetReplicaSize", Vars: []string{"project", "instance"}, Pattern: regexp.MustCompile("^/?/v1/projects/([^/]+)/instances/([^/]+)/resetReplicaSize$")},
+	{ID: "sql.instances.resetSslConfig", HTTPMethod: "POST", URIPattern: "v1/projects/{project}/instances/{instance}/resetSslConfig", Vars: []string{"project", "instance"}, Pattern: regexp.MustCompile("^/?/v1/projects/([^/]+)/instances/([^/]+)/resetSslConfig$")},
+	{ID: "sql.instances.restart", HTTPMethod: "POST", URIPattern: "v1/projects/{project}/instances/{instance}/restart", Vars: []string{"project", "instance"}, Pattern: regexp.MustCompile("^/?/v1/projects/([^/]+)/instances/([^/]+)/restart$")},
+	{ID: "sql.instances.restoreBackup", HTTPMethod: "POST", URIPattern: "v1/projects/{project}/instances/{instance}/restoreBackup", Vars: []string{"project", "instance"}, Pattern: regexp.MustCompile("^/?/v1/projects/([^/]+)/instances/([^/]+)/restoreBackup$")},
+	{ID: "sql.instances.RotateEntraIdCertificate", HTTPMethod: "POST", URIPattern: "v1/projects/{project}/instances/{instance}/rotateEntraIdCertificate", Vars: []string{"project", "instance"}, Pattern: regexp.MustCompile("^/?/v1/projects/([^/]+)/instances/([^/]+)/rotateEntraIdCertificate$")},
+	{ID: "sql.instances.rotateServerCa", HTTPMethod: "POST", URIPattern: "v1/projects/{project}/instances/{instance}/rotateServerCa", Vars: []string{"project", "instance"}, Pattern: regexp.MustCompile("^/?/v1/projects/([^/]+)/instances/([^/]+)/rotateServerCa$")},
+	{ID: "sql.instances.RotateServerCertificate", HTTPMethod: "POST", URIPattern: "v1/projects/{project}/instances/{instance}/rotateServerCertificate", Vars: []string{"project", "instance"}, Pattern: regexp.MustCompile("^/?/v1/projects/([^/]+)/instances/([^/]+)/rotateServerCertificate$")},
+	{ID: "sql.sslCerts.insert", HTTPMethod: "POST", URIPattern: "v1/projects/{project}/instances/{instance}/sslCerts", Vars: []string{"project", "instance"}, Pattern: regexp.MustCompile("^/?/v1/projects/([^/]+)/instances/([^/]+)/sslCerts$")},
+	{ID: "sql.projects.instances.startExternalSync", HTTPMethod: "POST", URIPattern: "v1/projects/{project}/instances/{instance}/startExternalSync", Vars: []string{"project", "instance"}, Pattern: regexp.MustCompile("^/?/v1/projects/([^/]+)/instances/([^/]+)/startExternalSync$")},
+	{ID: "sql.instances.startReplica", HTTPMethod: "POST", URIPattern: "v1/projects/{project}/instances/{instance}/startReplica", Vars: []string{"project", "instance"}, Pattern: regexp.MustCompile("^/?/v1/projects/([^/]+)/instances/([^/]+)/startReplica$")},
+	{ID: "sql.instances.stopReplica", HTTPMethod: "POST", URIPattern: "v1/projects/{project}/instances/{instance}/stopReplica", Vars: []string{"project", "instance"}, Pattern: regexp.MustCompile("^/?/v1/projects/([^/]+)/instances/([^/]+)/stopReplica$")},
+	{ID: "sql.instances.switchover", HTTPMethod: "POST", URIPattern: "v1/projects/{project}/instances/{instance}/switchover", Vars: []string{"project", "instance"}, Pattern: regexp.MustCompile("^/?/v1/projects/([^/]+)/instances/([^/]+)/switchover$")},
+	{ID: "sql.instances.truncateLog", HTTPMethod: "POST", URIPattern: "v1/projects/{project}/instances/{instance}/truncateLog", Vars: []string{"project", "instance"}, Pattern: regexp.MustCompile("^/?/v1/projects/([^/]+)/instances/([^/]+)/truncateLog$")},
+	{ID: "sql.users.insert", HTTPMethod: "POST", URIPattern: "v1/projects/{project}/instances/{instance}/users", Vars: []string{"project", "instance"}, Pattern: regexp.MustCompile("^/?/v1/projects/([^/]+)/instances/([^/]+)/users$")},
+	{ID: "sql.projects.instances.verifyExternalSyncSettings", HTTPMethod: "POST", URIPattern: "v1/projects/{project}/instances/{instance}/verifyExternalSyncSettings", Vars: []string{"project", "instance"}, Pattern: regexp.MustCompile("^/?/v1/projects/([^/]+)/instances/([^/]+)/verifyExternalSyncSettings$")},
+	{ID: "sql.connect.generateEphemeral", HTTPMethod: "POST", URIPattern: "v1/projects/{project}/instances/{instance}:generateEphemeralCert", Vars: []string{"project", "instance"}, Pattern: regexp.MustCompile("^/?/v1/projects/([^/]+)/instances/([^/]+):generateEphemeralCert$")},
+	{ID: "sql.operations.cancel", HTTPMethod: "POST", URIPattern: "v1/projects/{project}/operations/{operation}/cancel", Vars: []string{"project", "operation"}, Pattern: regexp.MustCompile("^/?/v1/projects/([^/]+)/operations/([^/]+)/cancel$")},
+	{ID: "sql.Backups.CreateBackup", HTTPMethod: "POST", URIPattern: "v1/{+parent}/backups", Vars: []string{"parent"}, Pattern: regexp.MustCompile("^/?/v1/(.+)/backups$")},
+	{ID: "sql.instances.pointInTimeRestore", HTTPMethod: "POST", URIPattern: "v1/{+parent}:pointInTimeRestore", Vars: []string{"parent"}, Pattern: regexp.MustCompile("^/?/v1/(.+):pointInTimeRestore$")},
+	{ID: "sql.instances.update", HTTPMethod: "PUT", URIPattern: "v1/projects/{project}/instances/{instance}", Vars: []string{"project", "instance"}, Pattern: regexp.MustCompile("^/?/v1/projects/([^/]+)/instances/([^/]+)$")},
+	{ID: "sql.databases.update", HTTPMethod: "PUT", URIPattern: "v1/projects/{project}/instances/{instance}/databases/{database}", Vars: []string{"project", "instance", "database"}, Pattern: regexp.MustCompile("^/?/v1/projects/([^/]+)/instances/([^/]+)/databases/([^/]+)$")},
+	{ID: "sql.users.update", HTTPMethod: "PUT", URIPattern: "v1/projects/{project}/instances/{instance}/users", Vars: []string{"project", "instance"}, Pattern: regexp.MustCompile("^/?/v1/projects/([^/]+)/instances/([^/]+)/users$")},
+}
+
+// Match scans Routes in declaration order (sorted by HTTPMethod,
+// URIPattern, ID) and returns the first route whose HTTPMethod
+// equals method and whose compiled Pattern matches path. The
+// returned map zips Route.Vars to the captured submatches.
+// Returns (nil, nil, false) when no route matches.
+//
+// Note: several Discovery services expose two ID variants per
+// pattern (e.g. `projects.secrets.get` + the
+// `projects.locations.secrets.get` regional twin). Both routes
+// share the same URIPattern; the sort ordering picks one
+// deterministically. Callers that need to distinguish should
+// iterate Routes themselves or inspect the parent of the path.
+func Match(method, path string) (*Route, map[string]string, bool) {
+	for i := range Routes {
+		r := &Routes[i]
+		if r.HTTPMethod != method {
+			continue
+		}
+		m := r.Pattern.FindStringSubmatch(path)
+		if m == nil {
+			continue
+		}
+		params := make(map[string]string, len(r.Vars))
+		for j, v := range r.Vars {
+			params[v] = m[j+1]
+		}
+		return r, params, true
+	}
+	return nil, nil, false
 }

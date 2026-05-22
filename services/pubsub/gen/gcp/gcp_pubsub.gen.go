@@ -5,68 +5,109 @@
 
 package gcp
 
+import "regexp"
+
 // Route is one (httpMethod, uriPattern, operationID) entry from
 // the upstream Google API Discovery document. URIPattern uses
 // Discovery's URI-template syntax verbatim — e.g. `v1/{+name}` —
 // so downstream frontends can compile it to their own dispatch
 // (regex, ServeMux 1.22+ pattern, or otherwise) without losing
-// the original spec semantics.
+// the original spec semantics. Vars lists the URI-template
+// variables in declaration order; Pattern is the compiled regex
+// the Match helper uses.
 type Route struct {
 	ID         string
 	HTTPMethod string
 	URIPattern string
+	Vars       []string
+	Pattern    *regexp.Regexp
 }
 
 // Routes is the full operation set the upstream Discovery
 // document declares for this service, sorted by (HTTPMethod,
-// URIPattern) for stable output. Frontends typically intersect
-// this against the cross-cloud operation set documented in
-// per-service OPERATIONS.md.
+// URIPattern, ID) for stable output. Frontends typically
+// intersect this against the cross-cloud operation set documented
+// in per-service OPERATIONS.md.
+// BasePath is the URL prefix Discovery roots every operation at.
+// Match expects request paths that include this prefix.
+const BasePath = ""
+
 var Routes = []Route{
-	{ID: "pubsub.projects.schemas.delete", HTTPMethod: "DELETE", URIPattern: "v1/{+name}"},
-	{ID: "pubsub.projects.schemas.deleteRevision", HTTPMethod: "DELETE", URIPattern: "v1/{+name}:deleteRevision"},
-	{ID: "pubsub.projects.snapshots.delete", HTTPMethod: "DELETE", URIPattern: "v1/{+snapshot}"},
-	{ID: "pubsub.projects.subscriptions.delete", HTTPMethod: "DELETE", URIPattern: "v1/{+subscription}"},
-	{ID: "pubsub.projects.topics.delete", HTTPMethod: "DELETE", URIPattern: "v1/{+topic}"},
-	{ID: "pubsub.projects.schemas.get", HTTPMethod: "GET", URIPattern: "v1/{+name}"},
-	{ID: "pubsub.projects.schemas.listRevisions", HTTPMethod: "GET", URIPattern: "v1/{+name}:listRevisions"},
-	{ID: "pubsub.projects.schemas.list", HTTPMethod: "GET", URIPattern: "v1/{+parent}/schemas"},
-	{ID: "pubsub.projects.snapshots.list", HTTPMethod: "GET", URIPattern: "v1/{+project}/snapshots"},
-	{ID: "pubsub.projects.subscriptions.list", HTTPMethod: "GET", URIPattern: "v1/{+project}/subscriptions"},
-	{ID: "pubsub.projects.topics.list", HTTPMethod: "GET", URIPattern: "v1/{+project}/topics"},
-	{ID: "pubsub.projects.schemas.getIamPolicy", HTTPMethod: "GET", URIPattern: "v1/{+resource}:getIamPolicy"},
-	{ID: "pubsub.projects.snapshots.getIamPolicy", HTTPMethod: "GET", URIPattern: "v1/{+resource}:getIamPolicy"},
-	{ID: "pubsub.projects.subscriptions.getIamPolicy", HTTPMethod: "GET", URIPattern: "v1/{+resource}:getIamPolicy"},
-	{ID: "pubsub.projects.topics.getIamPolicy", HTTPMethod: "GET", URIPattern: "v1/{+resource}:getIamPolicy"},
-	{ID: "pubsub.projects.snapshots.get", HTTPMethod: "GET", URIPattern: "v1/{+snapshot}"},
-	{ID: "pubsub.projects.subscriptions.get", HTTPMethod: "GET", URIPattern: "v1/{+subscription}"},
-	{ID: "pubsub.projects.topics.get", HTTPMethod: "GET", URIPattern: "v1/{+topic}"},
-	{ID: "pubsub.projects.topics.snapshots.list", HTTPMethod: "GET", URIPattern: "v1/{+topic}/snapshots"},
-	{ID: "pubsub.projects.topics.subscriptions.list", HTTPMethod: "GET", URIPattern: "v1/{+topic}/subscriptions"},
-	{ID: "pubsub.projects.snapshots.patch", HTTPMethod: "PATCH", URIPattern: "v1/{+name}"},
-	{ID: "pubsub.projects.subscriptions.patch", HTTPMethod: "PATCH", URIPattern: "v1/{+name}"},
-	{ID: "pubsub.projects.topics.patch", HTTPMethod: "PATCH", URIPattern: "v1/{+name}"},
-	{ID: "pubsub.projects.schemas.commit", HTTPMethod: "POST", URIPattern: "v1/{+name}:commit"},
-	{ID: "pubsub.projects.schemas.rollback", HTTPMethod: "POST", URIPattern: "v1/{+name}:rollback"},
-	{ID: "pubsub.projects.schemas.create", HTTPMethod: "POST", URIPattern: "v1/{+parent}/schemas"},
-	{ID: "pubsub.projects.schemas.validate", HTTPMethod: "POST", URIPattern: "v1/{+parent}/schemas:validate"},
-	{ID: "pubsub.projects.schemas.validateMessage", HTTPMethod: "POST", URIPattern: "v1/{+parent}/schemas:validateMessage"},
-	{ID: "pubsub.projects.schemas.setIamPolicy", HTTPMethod: "POST", URIPattern: "v1/{+resource}:setIamPolicy"},
-	{ID: "pubsub.projects.snapshots.setIamPolicy", HTTPMethod: "POST", URIPattern: "v1/{+resource}:setIamPolicy"},
-	{ID: "pubsub.projects.subscriptions.setIamPolicy", HTTPMethod: "POST", URIPattern: "v1/{+resource}:setIamPolicy"},
-	{ID: "pubsub.projects.topics.setIamPolicy", HTTPMethod: "POST", URIPattern: "v1/{+resource}:setIamPolicy"},
-	{ID: "pubsub.projects.schemas.testIamPermissions", HTTPMethod: "POST", URIPattern: "v1/{+resource}:testIamPermissions"},
-	{ID: "pubsub.projects.snapshots.testIamPermissions", HTTPMethod: "POST", URIPattern: "v1/{+resource}:testIamPermissions"},
-	{ID: "pubsub.projects.subscriptions.testIamPermissions", HTTPMethod: "POST", URIPattern: "v1/{+resource}:testIamPermissions"},
-	{ID: "pubsub.projects.topics.testIamPermissions", HTTPMethod: "POST", URIPattern: "v1/{+resource}:testIamPermissions"},
-	{ID: "pubsub.projects.subscriptions.acknowledge", HTTPMethod: "POST", URIPattern: "v1/{+subscription}:acknowledge"},
-	{ID: "pubsub.projects.subscriptions.detach", HTTPMethod: "POST", URIPattern: "v1/{+subscription}:detach"},
-	{ID: "pubsub.projects.subscriptions.modifyAckDeadline", HTTPMethod: "POST", URIPattern: "v1/{+subscription}:modifyAckDeadline"},
-	{ID: "pubsub.projects.subscriptions.modifyPushConfig", HTTPMethod: "POST", URIPattern: "v1/{+subscription}:modifyPushConfig"},
-	{ID: "pubsub.projects.subscriptions.pull", HTTPMethod: "POST", URIPattern: "v1/{+subscription}:pull"},
-	{ID: "pubsub.projects.subscriptions.seek", HTTPMethod: "POST", URIPattern: "v1/{+subscription}:seek"},
-	{ID: "pubsub.projects.topics.publish", HTTPMethod: "POST", URIPattern: "v1/{+topic}:publish"},
-	{ID: "pubsub.projects.snapshots.create", HTTPMethod: "PUT", URIPattern: "v1/{+name}"},
-	{ID: "pubsub.projects.subscriptions.create", HTTPMethod: "PUT", URIPattern: "v1/{+name}"},
-	{ID: "pubsub.projects.topics.create", HTTPMethod: "PUT", URIPattern: "v1/{+name}"},
+	{ID: "pubsub.projects.schemas.delete", HTTPMethod: "DELETE", URIPattern: "v1/{+name}", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v1/(.+)$")},
+	{ID: "pubsub.projects.schemas.deleteRevision", HTTPMethod: "DELETE", URIPattern: "v1/{+name}:deleteRevision", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v1/(.+):deleteRevision$")},
+	{ID: "pubsub.projects.snapshots.delete", HTTPMethod: "DELETE", URIPattern: "v1/{+snapshot}", Vars: []string{"snapshot"}, Pattern: regexp.MustCompile("^/?/v1/(.+)$")},
+	{ID: "pubsub.projects.subscriptions.delete", HTTPMethod: "DELETE", URIPattern: "v1/{+subscription}", Vars: []string{"subscription"}, Pattern: regexp.MustCompile("^/?/v1/(.+)$")},
+	{ID: "pubsub.projects.topics.delete", HTTPMethod: "DELETE", URIPattern: "v1/{+topic}", Vars: []string{"topic"}, Pattern: regexp.MustCompile("^/?/v1/(.+)$")},
+	{ID: "pubsub.projects.schemas.get", HTTPMethod: "GET", URIPattern: "v1/{+name}", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v1/(.+)$")},
+	{ID: "pubsub.projects.schemas.listRevisions", HTTPMethod: "GET", URIPattern: "v1/{+name}:listRevisions", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v1/(.+):listRevisions$")},
+	{ID: "pubsub.projects.schemas.list", HTTPMethod: "GET", URIPattern: "v1/{+parent}/schemas", Vars: []string{"parent"}, Pattern: regexp.MustCompile("^/?/v1/(.+)/schemas$")},
+	{ID: "pubsub.projects.snapshots.list", HTTPMethod: "GET", URIPattern: "v1/{+project}/snapshots", Vars: []string{"project"}, Pattern: regexp.MustCompile("^/?/v1/(.+)/snapshots$")},
+	{ID: "pubsub.projects.subscriptions.list", HTTPMethod: "GET", URIPattern: "v1/{+project}/subscriptions", Vars: []string{"project"}, Pattern: regexp.MustCompile("^/?/v1/(.+)/subscriptions$")},
+	{ID: "pubsub.projects.topics.list", HTTPMethod: "GET", URIPattern: "v1/{+project}/topics", Vars: []string{"project"}, Pattern: regexp.MustCompile("^/?/v1/(.+)/topics$")},
+	{ID: "pubsub.projects.schemas.getIamPolicy", HTTPMethod: "GET", URIPattern: "v1/{+resource}:getIamPolicy", Vars: []string{"resource"}, Pattern: regexp.MustCompile("^/?/v1/(.+):getIamPolicy$")},
+	{ID: "pubsub.projects.snapshots.getIamPolicy", HTTPMethod: "GET", URIPattern: "v1/{+resource}:getIamPolicy", Vars: []string{"resource"}, Pattern: regexp.MustCompile("^/?/v1/(.+):getIamPolicy$")},
+	{ID: "pubsub.projects.subscriptions.getIamPolicy", HTTPMethod: "GET", URIPattern: "v1/{+resource}:getIamPolicy", Vars: []string{"resource"}, Pattern: regexp.MustCompile("^/?/v1/(.+):getIamPolicy$")},
+	{ID: "pubsub.projects.topics.getIamPolicy", HTTPMethod: "GET", URIPattern: "v1/{+resource}:getIamPolicy", Vars: []string{"resource"}, Pattern: regexp.MustCompile("^/?/v1/(.+):getIamPolicy$")},
+	{ID: "pubsub.projects.snapshots.get", HTTPMethod: "GET", URIPattern: "v1/{+snapshot}", Vars: []string{"snapshot"}, Pattern: regexp.MustCompile("^/?/v1/(.+)$")},
+	{ID: "pubsub.projects.subscriptions.get", HTTPMethod: "GET", URIPattern: "v1/{+subscription}", Vars: []string{"subscription"}, Pattern: regexp.MustCompile("^/?/v1/(.+)$")},
+	{ID: "pubsub.projects.topics.get", HTTPMethod: "GET", URIPattern: "v1/{+topic}", Vars: []string{"topic"}, Pattern: regexp.MustCompile("^/?/v1/(.+)$")},
+	{ID: "pubsub.projects.topics.snapshots.list", HTTPMethod: "GET", URIPattern: "v1/{+topic}/snapshots", Vars: []string{"topic"}, Pattern: regexp.MustCompile("^/?/v1/(.+)/snapshots$")},
+	{ID: "pubsub.projects.topics.subscriptions.list", HTTPMethod: "GET", URIPattern: "v1/{+topic}/subscriptions", Vars: []string{"topic"}, Pattern: regexp.MustCompile("^/?/v1/(.+)/subscriptions$")},
+	{ID: "pubsub.projects.snapshots.patch", HTTPMethod: "PATCH", URIPattern: "v1/{+name}", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v1/(.+)$")},
+	{ID: "pubsub.projects.subscriptions.patch", HTTPMethod: "PATCH", URIPattern: "v1/{+name}", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v1/(.+)$")},
+	{ID: "pubsub.projects.topics.patch", HTTPMethod: "PATCH", URIPattern: "v1/{+name}", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v1/(.+)$")},
+	{ID: "pubsub.projects.schemas.commit", HTTPMethod: "POST", URIPattern: "v1/{+name}:commit", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v1/(.+):commit$")},
+	{ID: "pubsub.projects.schemas.rollback", HTTPMethod: "POST", URIPattern: "v1/{+name}:rollback", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v1/(.+):rollback$")},
+	{ID: "pubsub.projects.schemas.create", HTTPMethod: "POST", URIPattern: "v1/{+parent}/schemas", Vars: []string{"parent"}, Pattern: regexp.MustCompile("^/?/v1/(.+)/schemas$")},
+	{ID: "pubsub.projects.schemas.validate", HTTPMethod: "POST", URIPattern: "v1/{+parent}/schemas:validate", Vars: []string{"parent"}, Pattern: regexp.MustCompile("^/?/v1/(.+)/schemas:validate$")},
+	{ID: "pubsub.projects.schemas.validateMessage", HTTPMethod: "POST", URIPattern: "v1/{+parent}/schemas:validateMessage", Vars: []string{"parent"}, Pattern: regexp.MustCompile("^/?/v1/(.+)/schemas:validateMessage$")},
+	{ID: "pubsub.projects.schemas.setIamPolicy", HTTPMethod: "POST", URIPattern: "v1/{+resource}:setIamPolicy", Vars: []string{"resource"}, Pattern: regexp.MustCompile("^/?/v1/(.+):setIamPolicy$")},
+	{ID: "pubsub.projects.snapshots.setIamPolicy", HTTPMethod: "POST", URIPattern: "v1/{+resource}:setIamPolicy", Vars: []string{"resource"}, Pattern: regexp.MustCompile("^/?/v1/(.+):setIamPolicy$")},
+	{ID: "pubsub.projects.subscriptions.setIamPolicy", HTTPMethod: "POST", URIPattern: "v1/{+resource}:setIamPolicy", Vars: []string{"resource"}, Pattern: regexp.MustCompile("^/?/v1/(.+):setIamPolicy$")},
+	{ID: "pubsub.projects.topics.setIamPolicy", HTTPMethod: "POST", URIPattern: "v1/{+resource}:setIamPolicy", Vars: []string{"resource"}, Pattern: regexp.MustCompile("^/?/v1/(.+):setIamPolicy$")},
+	{ID: "pubsub.projects.schemas.testIamPermissions", HTTPMethod: "POST", URIPattern: "v1/{+resource}:testIamPermissions", Vars: []string{"resource"}, Pattern: regexp.MustCompile("^/?/v1/(.+):testIamPermissions$")},
+	{ID: "pubsub.projects.snapshots.testIamPermissions", HTTPMethod: "POST", URIPattern: "v1/{+resource}:testIamPermissions", Vars: []string{"resource"}, Pattern: regexp.MustCompile("^/?/v1/(.+):testIamPermissions$")},
+	{ID: "pubsub.projects.subscriptions.testIamPermissions", HTTPMethod: "POST", URIPattern: "v1/{+resource}:testIamPermissions", Vars: []string{"resource"}, Pattern: regexp.MustCompile("^/?/v1/(.+):testIamPermissions$")},
+	{ID: "pubsub.projects.topics.testIamPermissions", HTTPMethod: "POST", URIPattern: "v1/{+resource}:testIamPermissions", Vars: []string{"resource"}, Pattern: regexp.MustCompile("^/?/v1/(.+):testIamPermissions$")},
+	{ID: "pubsub.projects.subscriptions.acknowledge", HTTPMethod: "POST", URIPattern: "v1/{+subscription}:acknowledge", Vars: []string{"subscription"}, Pattern: regexp.MustCompile("^/?/v1/(.+):acknowledge$")},
+	{ID: "pubsub.projects.subscriptions.detach", HTTPMethod: "POST", URIPattern: "v1/{+subscription}:detach", Vars: []string{"subscription"}, Pattern: regexp.MustCompile("^/?/v1/(.+):detach$")},
+	{ID: "pubsub.projects.subscriptions.modifyAckDeadline", HTTPMethod: "POST", URIPattern: "v1/{+subscription}:modifyAckDeadline", Vars: []string{"subscription"}, Pattern: regexp.MustCompile("^/?/v1/(.+):modifyAckDeadline$")},
+	{ID: "pubsub.projects.subscriptions.modifyPushConfig", HTTPMethod: "POST", URIPattern: "v1/{+subscription}:modifyPushConfig", Vars: []string{"subscription"}, Pattern: regexp.MustCompile("^/?/v1/(.+):modifyPushConfig$")},
+	{ID: "pubsub.projects.subscriptions.pull", HTTPMethod: "POST", URIPattern: "v1/{+subscription}:pull", Vars: []string{"subscription"}, Pattern: regexp.MustCompile("^/?/v1/(.+):pull$")},
+	{ID: "pubsub.projects.subscriptions.seek", HTTPMethod: "POST", URIPattern: "v1/{+subscription}:seek", Vars: []string{"subscription"}, Pattern: regexp.MustCompile("^/?/v1/(.+):seek$")},
+	{ID: "pubsub.projects.topics.publish", HTTPMethod: "POST", URIPattern: "v1/{+topic}:publish", Vars: []string{"topic"}, Pattern: regexp.MustCompile("^/?/v1/(.+):publish$")},
+	{ID: "pubsub.projects.snapshots.create", HTTPMethod: "PUT", URIPattern: "v1/{+name}", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v1/(.+)$")},
+	{ID: "pubsub.projects.subscriptions.create", HTTPMethod: "PUT", URIPattern: "v1/{+name}", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v1/(.+)$")},
+	{ID: "pubsub.projects.topics.create", HTTPMethod: "PUT", URIPattern: "v1/{+name}", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v1/(.+)$")},
+}
+
+// Match scans Routes in declaration order (sorted by HTTPMethod,
+// URIPattern, ID) and returns the first route whose HTTPMethod
+// equals method and whose compiled Pattern matches path. The
+// returned map zips Route.Vars to the captured submatches.
+// Returns (nil, nil, false) when no route matches.
+//
+// Note: several Discovery services expose two ID variants per
+// pattern (e.g. `projects.secrets.get` + the
+// `projects.locations.secrets.get` regional twin). Both routes
+// share the same URIPattern; the sort ordering picks one
+// deterministically. Callers that need to distinguish should
+// iterate Routes themselves or inspect the parent of the path.
+func Match(method, path string) (*Route, map[string]string, bool) {
+	for i := range Routes {
+		r := &Routes[i]
+		if r.HTTPMethod != method {
+			continue
+		}
+		m := r.Pattern.FindStringSubmatch(path)
+		if m == nil {
+			continue
+		}
+		params := make(map[string]string, len(r.Vars))
+		for j, v := range r.Vars {
+			params[v] = m[j+1]
+		}
+		return r, params, true
+	}
+	return nil, nil, false
 }

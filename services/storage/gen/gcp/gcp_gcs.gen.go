@@ -5,104 +5,145 @@
 
 package gcp
 
+import "regexp"
+
 // Route is one (httpMethod, uriPattern, operationID) entry from
 // the upstream Google API Discovery document. URIPattern uses
 // Discovery's URI-template syntax verbatim — e.g. `v1/{+name}` —
 // so downstream frontends can compile it to their own dispatch
 // (regex, ServeMux 1.22+ pattern, or otherwise) without losing
-// the original spec semantics.
+// the original spec semantics. Vars lists the URI-template
+// variables in declaration order; Pattern is the compiled regex
+// the Match helper uses.
 type Route struct {
 	ID         string
 	HTTPMethod string
 	URIPattern string
+	Vars       []string
+	Pattern    *regexp.Regexp
 }
 
 // Routes is the full operation set the upstream Discovery
 // document declares for this service, sorted by (HTTPMethod,
-// URIPattern) for stable output. Frontends typically intersect
-// this against the cross-cloud operation set documented in
-// per-service OPERATIONS.md.
+// URIPattern, ID) for stable output. Frontends typically
+// intersect this against the cross-cloud operation set documented
+// in per-service OPERATIONS.md.
+// BasePath is the URL prefix Discovery roots every operation at.
+// Match expects request paths that include this prefix.
+const BasePath = "/storage/v1"
+
 var Routes = []Route{
-	{ID: "storage.buckets.delete", HTTPMethod: "DELETE", URIPattern: "b/{bucket}"},
-	{ID: "storage.bucketAccessControls.delete", HTTPMethod: "DELETE", URIPattern: "b/{bucket}/acl/{entity}"},
-	{ID: "storage.defaultObjectAccessControls.delete", HTTPMethod: "DELETE", URIPattern: "b/{bucket}/defaultObjectAcl/{entity}"},
-	{ID: "storage.folders.delete", HTTPMethod: "DELETE", URIPattern: "b/{bucket}/folders/{folder}"},
-	{ID: "storage.managedFolders.delete", HTTPMethod: "DELETE", URIPattern: "b/{bucket}/managedFolders/{managedFolder}"},
-	{ID: "storage.notifications.delete", HTTPMethod: "DELETE", URIPattern: "b/{bucket}/notificationConfigs/{notification}"},
-	{ID: "storage.objects.delete", HTTPMethod: "DELETE", URIPattern: "b/{bucket}/o/{object}"},
-	{ID: "storage.objectAccessControls.delete", HTTPMethod: "DELETE", URIPattern: "b/{bucket}/o/{object}/acl/{entity}"},
-	{ID: "storage.projects.hmacKeys.delete", HTTPMethod: "DELETE", URIPattern: "projects/{projectId}/hmacKeys/{accessId}"},
-	{ID: "storage.buckets.list", HTTPMethod: "GET", URIPattern: "b"},
-	{ID: "storage.buckets.get", HTTPMethod: "GET", URIPattern: "b/{bucket}"},
-	{ID: "storage.bucketAccessControls.list", HTTPMethod: "GET", URIPattern: "b/{bucket}/acl"},
-	{ID: "storage.bucketAccessControls.get", HTTPMethod: "GET", URIPattern: "b/{bucket}/acl/{entity}"},
-	{ID: "storage.anywhereCaches.list", HTTPMethod: "GET", URIPattern: "b/{bucket}/anywhereCaches"},
-	{ID: "storage.anywhereCaches.get", HTTPMethod: "GET", URIPattern: "b/{bucket}/anywhereCaches/{anywhereCacheId}"},
-	{ID: "storage.defaultObjectAccessControls.list", HTTPMethod: "GET", URIPattern: "b/{bucket}/defaultObjectAcl"},
-	{ID: "storage.defaultObjectAccessControls.get", HTTPMethod: "GET", URIPattern: "b/{bucket}/defaultObjectAcl/{entity}"},
-	{ID: "storage.folders.list", HTTPMethod: "GET", URIPattern: "b/{bucket}/folders"},
-	{ID: "storage.folders.get", HTTPMethod: "GET", URIPattern: "b/{bucket}/folders/{folder}"},
-	{ID: "storage.buckets.getIamPolicy", HTTPMethod: "GET", URIPattern: "b/{bucket}/iam"},
-	{ID: "storage.buckets.testIamPermissions", HTTPMethod: "GET", URIPattern: "b/{bucket}/iam/testPermissions"},
-	{ID: "storage.managedFolders.list", HTTPMethod: "GET", URIPattern: "b/{bucket}/managedFolders"},
-	{ID: "storage.managedFolders.get", HTTPMethod: "GET", URIPattern: "b/{bucket}/managedFolders/{managedFolder}"},
-	{ID: "storage.managedFolders.getIamPolicy", HTTPMethod: "GET", URIPattern: "b/{bucket}/managedFolders/{managedFolder}/iam"},
-	{ID: "storage.managedFolders.testIamPermissions", HTTPMethod: "GET", URIPattern: "b/{bucket}/managedFolders/{managedFolder}/iam/testPermissions"},
-	{ID: "storage.notifications.list", HTTPMethod: "GET", URIPattern: "b/{bucket}/notificationConfigs"},
-	{ID: "storage.notifications.get", HTTPMethod: "GET", URIPattern: "b/{bucket}/notificationConfigs/{notification}"},
-	{ID: "storage.objects.list", HTTPMethod: "GET", URIPattern: "b/{bucket}/o"},
-	{ID: "storage.objects.get", HTTPMethod: "GET", URIPattern: "b/{bucket}/o/{object}"},
-	{ID: "storage.objectAccessControls.list", HTTPMethod: "GET", URIPattern: "b/{bucket}/o/{object}/acl"},
-	{ID: "storage.objectAccessControls.get", HTTPMethod: "GET", URIPattern: "b/{bucket}/o/{object}/acl/{entity}"},
-	{ID: "storage.objects.getIamPolicy", HTTPMethod: "GET", URIPattern: "b/{bucket}/o/{object}/iam"},
-	{ID: "storage.objects.testIamPermissions", HTTPMethod: "GET", URIPattern: "b/{bucket}/o/{object}/iam/testPermissions"},
-	{ID: "storage.buckets.operations.list", HTTPMethod: "GET", URIPattern: "b/{bucket}/operations"},
-	{ID: "storage.buckets.operations.get", HTTPMethod: "GET", URIPattern: "b/{bucket}/operations/{operationId}"},
-	{ID: "storage.buckets.getStorageLayout", HTTPMethod: "GET", URIPattern: "b/{bucket}/storageLayout"},
-	{ID: "storage.projects.hmacKeys.list", HTTPMethod: "GET", URIPattern: "projects/{projectId}/hmacKeys"},
-	{ID: "storage.projects.hmacKeys.get", HTTPMethod: "GET", URIPattern: "projects/{projectId}/hmacKeys/{accessId}"},
-	{ID: "storage.projects.serviceAccount.get", HTTPMethod: "GET", URIPattern: "projects/{projectId}/serviceAccount"},
-	{ID: "storage.buckets.patch", HTTPMethod: "PATCH", URIPattern: "b/{bucket}"},
-	{ID: "storage.bucketAccessControls.patch", HTTPMethod: "PATCH", URIPattern: "b/{bucket}/acl/{entity}"},
-	{ID: "storage.anywhereCaches.update", HTTPMethod: "PATCH", URIPattern: "b/{bucket}/anywhereCaches/{anywhereCacheId}"},
-	{ID: "storage.defaultObjectAccessControls.patch", HTTPMethod: "PATCH", URIPattern: "b/{bucket}/defaultObjectAcl/{entity}"},
-	{ID: "storage.objects.patch", HTTPMethod: "PATCH", URIPattern: "b/{bucket}/o/{object}"},
-	{ID: "storage.objectAccessControls.patch", HTTPMethod: "PATCH", URIPattern: "b/{bucket}/o/{object}/acl/{entity}"},
-	{ID: "storage.buckets.insert", HTTPMethod: "POST", URIPattern: "b"},
-	{ID: "storage.bucketAccessControls.insert", HTTPMethod: "POST", URIPattern: "b/{bucket}/acl"},
-	{ID: "storage.anywhereCaches.insert", HTTPMethod: "POST", URIPattern: "b/{bucket}/anywhereCaches"},
-	{ID: "storage.anywhereCaches.disable", HTTPMethod: "POST", URIPattern: "b/{bucket}/anywhereCaches/{anywhereCacheId}/disable"},
-	{ID: "storage.anywhereCaches.pause", HTTPMethod: "POST", URIPattern: "b/{bucket}/anywhereCaches/{anywhereCacheId}/pause"},
-	{ID: "storage.anywhereCaches.resume", HTTPMethod: "POST", URIPattern: "b/{bucket}/anywhereCaches/{anywhereCacheId}/resume"},
-	{ID: "storage.defaultObjectAccessControls.insert", HTTPMethod: "POST", URIPattern: "b/{bucket}/defaultObjectAcl"},
-	{ID: "storage.folders.insert", HTTPMethod: "POST", URIPattern: "b/{bucket}/folders"},
-	{ID: "storage.folders.deleteRecursive", HTTPMethod: "POST", URIPattern: "b/{bucket}/folders/{folder}/deleteRecursive"},
-	{ID: "storage.folders.rename", HTTPMethod: "POST", URIPattern: "b/{bucket}/folders/{sourceFolder}/renameTo/folders/{destinationFolder}"},
-	{ID: "storage.buckets.lockRetentionPolicy", HTTPMethod: "POST", URIPattern: "b/{bucket}/lockRetentionPolicy"},
-	{ID: "storage.managedFolders.insert", HTTPMethod: "POST", URIPattern: "b/{bucket}/managedFolders"},
-	{ID: "storage.notifications.insert", HTTPMethod: "POST", URIPattern: "b/{bucket}/notificationConfigs"},
-	{ID: "storage.objects.insert", HTTPMethod: "POST", URIPattern: "b/{bucket}/o"},
-	{ID: "storage.objects.bulkRestore", HTTPMethod: "POST", URIPattern: "b/{bucket}/o/bulkRestore"},
-	{ID: "storage.objects.watchAll", HTTPMethod: "POST", URIPattern: "b/{bucket}/o/watch"},
-	{ID: "storage.objectAccessControls.insert", HTTPMethod: "POST", URIPattern: "b/{bucket}/o/{object}/acl"},
-	{ID: "storage.objects.restore", HTTPMethod: "POST", URIPattern: "b/{bucket}/o/{object}/restore"},
-	{ID: "storage.objects.move", HTTPMethod: "POST", URIPattern: "b/{bucket}/o/{sourceObject}/moveTo/o/{destinationObject}"},
-	{ID: "storage.buckets.operations.advanceRelocateBucket", HTTPMethod: "POST", URIPattern: "b/{bucket}/operations/{operationId}/advanceRelocateBucket"},
-	{ID: "storage.buckets.operations.cancel", HTTPMethod: "POST", URIPattern: "b/{bucket}/operations/{operationId}/cancel"},
-	{ID: "storage.buckets.relocate", HTTPMethod: "POST", URIPattern: "b/{bucket}/relocate"},
-	{ID: "storage.buckets.restore", HTTPMethod: "POST", URIPattern: "b/{bucket}/restore"},
-	{ID: "storage.objects.compose", HTTPMethod: "POST", URIPattern: "b/{destinationBucket}/o/{destinationObject}/compose"},
-	{ID: "storage.objects.copy", HTTPMethod: "POST", URIPattern: "b/{sourceBucket}/o/{sourceObject}/copyTo/b/{destinationBucket}/o/{destinationObject}"},
-	{ID: "storage.objects.rewrite", HTTPMethod: "POST", URIPattern: "b/{sourceBucket}/o/{sourceObject}/rewriteTo/b/{destinationBucket}/o/{destinationObject}"},
-	{ID: "storage.channels.stop", HTTPMethod: "POST", URIPattern: "channels/stop"},
-	{ID: "storage.projects.hmacKeys.create", HTTPMethod: "POST", URIPattern: "projects/{projectId}/hmacKeys"},
-	{ID: "storage.buckets.update", HTTPMethod: "PUT", URIPattern: "b/{bucket}"},
-	{ID: "storage.bucketAccessControls.update", HTTPMethod: "PUT", URIPattern: "b/{bucket}/acl/{entity}"},
-	{ID: "storage.defaultObjectAccessControls.update", HTTPMethod: "PUT", URIPattern: "b/{bucket}/defaultObjectAcl/{entity}"},
-	{ID: "storage.buckets.setIamPolicy", HTTPMethod: "PUT", URIPattern: "b/{bucket}/iam"},
-	{ID: "storage.managedFolders.setIamPolicy", HTTPMethod: "PUT", URIPattern: "b/{bucket}/managedFolders/{managedFolder}/iam"},
-	{ID: "storage.objects.update", HTTPMethod: "PUT", URIPattern: "b/{bucket}/o/{object}"},
-	{ID: "storage.objectAccessControls.update", HTTPMethod: "PUT", URIPattern: "b/{bucket}/o/{object}/acl/{entity}"},
-	{ID: "storage.objects.setIamPolicy", HTTPMethod: "PUT", URIPattern: "b/{bucket}/o/{object}/iam"},
-	{ID: "storage.projects.hmacKeys.update", HTTPMethod: "PUT", URIPattern: "projects/{projectId}/hmacKeys/{accessId}"},
+	{ID: "storage.buckets.delete", HTTPMethod: "DELETE", URIPattern: "b/{bucket}", Vars: []string{"bucket"}, Pattern: regexp.MustCompile("^/?/storage/v1/b/([^/]+)$")},
+	{ID: "storage.bucketAccessControls.delete", HTTPMethod: "DELETE", URIPattern: "b/{bucket}/acl/{entity}", Vars: []string{"bucket", "entity"}, Pattern: regexp.MustCompile("^/?/storage/v1/b/([^/]+)/acl/([^/]+)$")},
+	{ID: "storage.defaultObjectAccessControls.delete", HTTPMethod: "DELETE", URIPattern: "b/{bucket}/defaultObjectAcl/{entity}", Vars: []string{"bucket", "entity"}, Pattern: regexp.MustCompile("^/?/storage/v1/b/([^/]+)/defaultObjectAcl/([^/]+)$")},
+	{ID: "storage.folders.delete", HTTPMethod: "DELETE", URIPattern: "b/{bucket}/folders/{folder}", Vars: []string{"bucket", "folder"}, Pattern: regexp.MustCompile("^/?/storage/v1/b/([^/]+)/folders/([^/]+)$")},
+	{ID: "storage.managedFolders.delete", HTTPMethod: "DELETE", URIPattern: "b/{bucket}/managedFolders/{managedFolder}", Vars: []string{"bucket", "managedFolder"}, Pattern: regexp.MustCompile("^/?/storage/v1/b/([^/]+)/managedFolders/([^/]+)$")},
+	{ID: "storage.notifications.delete", HTTPMethod: "DELETE", URIPattern: "b/{bucket}/notificationConfigs/{notification}", Vars: []string{"bucket", "notification"}, Pattern: regexp.MustCompile("^/?/storage/v1/b/([^/]+)/notificationConfigs/([^/]+)$")},
+	{ID: "storage.objects.delete", HTTPMethod: "DELETE", URIPattern: "b/{bucket}/o/{object}", Vars: []string{"bucket", "object"}, Pattern: regexp.MustCompile("^/?/storage/v1/b/([^/]+)/o/([^/]+)$")},
+	{ID: "storage.objectAccessControls.delete", HTTPMethod: "DELETE", URIPattern: "b/{bucket}/o/{object}/acl/{entity}", Vars: []string{"bucket", "object", "entity"}, Pattern: regexp.MustCompile("^/?/storage/v1/b/([^/]+)/o/([^/]+)/acl/([^/]+)$")},
+	{ID: "storage.projects.hmacKeys.delete", HTTPMethod: "DELETE", URIPattern: "projects/{projectId}/hmacKeys/{accessId}", Vars: []string{"projectId", "accessId"}, Pattern: regexp.MustCompile("^/?/storage/v1/projects/([^/]+)/hmacKeys/([^/]+)$")},
+	{ID: "storage.buckets.list", HTTPMethod: "GET", URIPattern: "b", Vars: nil, Pattern: regexp.MustCompile("^/?/storage/v1/b$")},
+	{ID: "storage.buckets.get", HTTPMethod: "GET", URIPattern: "b/{bucket}", Vars: []string{"bucket"}, Pattern: regexp.MustCompile("^/?/storage/v1/b/([^/]+)$")},
+	{ID: "storage.bucketAccessControls.list", HTTPMethod: "GET", URIPattern: "b/{bucket}/acl", Vars: []string{"bucket"}, Pattern: regexp.MustCompile("^/?/storage/v1/b/([^/]+)/acl$")},
+	{ID: "storage.bucketAccessControls.get", HTTPMethod: "GET", URIPattern: "b/{bucket}/acl/{entity}", Vars: []string{"bucket", "entity"}, Pattern: regexp.MustCompile("^/?/storage/v1/b/([^/]+)/acl/([^/]+)$")},
+	{ID: "storage.anywhereCaches.list", HTTPMethod: "GET", URIPattern: "b/{bucket}/anywhereCaches", Vars: []string{"bucket"}, Pattern: regexp.MustCompile("^/?/storage/v1/b/([^/]+)/anywhereCaches$")},
+	{ID: "storage.anywhereCaches.get", HTTPMethod: "GET", URIPattern: "b/{bucket}/anywhereCaches/{anywhereCacheId}", Vars: []string{"bucket", "anywhereCacheId"}, Pattern: regexp.MustCompile("^/?/storage/v1/b/([^/]+)/anywhereCaches/([^/]+)$")},
+	{ID: "storage.defaultObjectAccessControls.list", HTTPMethod: "GET", URIPattern: "b/{bucket}/defaultObjectAcl", Vars: []string{"bucket"}, Pattern: regexp.MustCompile("^/?/storage/v1/b/([^/]+)/defaultObjectAcl$")},
+	{ID: "storage.defaultObjectAccessControls.get", HTTPMethod: "GET", URIPattern: "b/{bucket}/defaultObjectAcl/{entity}", Vars: []string{"bucket", "entity"}, Pattern: regexp.MustCompile("^/?/storage/v1/b/([^/]+)/defaultObjectAcl/([^/]+)$")},
+	{ID: "storage.folders.list", HTTPMethod: "GET", URIPattern: "b/{bucket}/folders", Vars: []string{"bucket"}, Pattern: regexp.MustCompile("^/?/storage/v1/b/([^/]+)/folders$")},
+	{ID: "storage.folders.get", HTTPMethod: "GET", URIPattern: "b/{bucket}/folders/{folder}", Vars: []string{"bucket", "folder"}, Pattern: regexp.MustCompile("^/?/storage/v1/b/([^/]+)/folders/([^/]+)$")},
+	{ID: "storage.buckets.getIamPolicy", HTTPMethod: "GET", URIPattern: "b/{bucket}/iam", Vars: []string{"bucket"}, Pattern: regexp.MustCompile("^/?/storage/v1/b/([^/]+)/iam$")},
+	{ID: "storage.buckets.testIamPermissions", HTTPMethod: "GET", URIPattern: "b/{bucket}/iam/testPermissions", Vars: []string{"bucket"}, Pattern: regexp.MustCompile("^/?/storage/v1/b/([^/]+)/iam/testPermissions$")},
+	{ID: "storage.managedFolders.list", HTTPMethod: "GET", URIPattern: "b/{bucket}/managedFolders", Vars: []string{"bucket"}, Pattern: regexp.MustCompile("^/?/storage/v1/b/([^/]+)/managedFolders$")},
+	{ID: "storage.managedFolders.get", HTTPMethod: "GET", URIPattern: "b/{bucket}/managedFolders/{managedFolder}", Vars: []string{"bucket", "managedFolder"}, Pattern: regexp.MustCompile("^/?/storage/v1/b/([^/]+)/managedFolders/([^/]+)$")},
+	{ID: "storage.managedFolders.getIamPolicy", HTTPMethod: "GET", URIPattern: "b/{bucket}/managedFolders/{managedFolder}/iam", Vars: []string{"bucket", "managedFolder"}, Pattern: regexp.MustCompile("^/?/storage/v1/b/([^/]+)/managedFolders/([^/]+)/iam$")},
+	{ID: "storage.managedFolders.testIamPermissions", HTTPMethod: "GET", URIPattern: "b/{bucket}/managedFolders/{managedFolder}/iam/testPermissions", Vars: []string{"bucket", "managedFolder"}, Pattern: regexp.MustCompile("^/?/storage/v1/b/([^/]+)/managedFolders/([^/]+)/iam/testPermissions$")},
+	{ID: "storage.notifications.list", HTTPMethod: "GET", URIPattern: "b/{bucket}/notificationConfigs", Vars: []string{"bucket"}, Pattern: regexp.MustCompile("^/?/storage/v1/b/([^/]+)/notificationConfigs$")},
+	{ID: "storage.notifications.get", HTTPMethod: "GET", URIPattern: "b/{bucket}/notificationConfigs/{notification}", Vars: []string{"bucket", "notification"}, Pattern: regexp.MustCompile("^/?/storage/v1/b/([^/]+)/notificationConfigs/([^/]+)$")},
+	{ID: "storage.objects.list", HTTPMethod: "GET", URIPattern: "b/{bucket}/o", Vars: []string{"bucket"}, Pattern: regexp.MustCompile("^/?/storage/v1/b/([^/]+)/o$")},
+	{ID: "storage.objects.get", HTTPMethod: "GET", URIPattern: "b/{bucket}/o/{object}", Vars: []string{"bucket", "object"}, Pattern: regexp.MustCompile("^/?/storage/v1/b/([^/]+)/o/([^/]+)$")},
+	{ID: "storage.objectAccessControls.list", HTTPMethod: "GET", URIPattern: "b/{bucket}/o/{object}/acl", Vars: []string{"bucket", "object"}, Pattern: regexp.MustCompile("^/?/storage/v1/b/([^/]+)/o/([^/]+)/acl$")},
+	{ID: "storage.objectAccessControls.get", HTTPMethod: "GET", URIPattern: "b/{bucket}/o/{object}/acl/{entity}", Vars: []string{"bucket", "object", "entity"}, Pattern: regexp.MustCompile("^/?/storage/v1/b/([^/]+)/o/([^/]+)/acl/([^/]+)$")},
+	{ID: "storage.objects.getIamPolicy", HTTPMethod: "GET", URIPattern: "b/{bucket}/o/{object}/iam", Vars: []string{"bucket", "object"}, Pattern: regexp.MustCompile("^/?/storage/v1/b/([^/]+)/o/([^/]+)/iam$")},
+	{ID: "storage.objects.testIamPermissions", HTTPMethod: "GET", URIPattern: "b/{bucket}/o/{object}/iam/testPermissions", Vars: []string{"bucket", "object"}, Pattern: regexp.MustCompile("^/?/storage/v1/b/([^/]+)/o/([^/]+)/iam/testPermissions$")},
+	{ID: "storage.buckets.operations.list", HTTPMethod: "GET", URIPattern: "b/{bucket}/operations", Vars: []string{"bucket"}, Pattern: regexp.MustCompile("^/?/storage/v1/b/([^/]+)/operations$")},
+	{ID: "storage.buckets.operations.get", HTTPMethod: "GET", URIPattern: "b/{bucket}/operations/{operationId}", Vars: []string{"bucket", "operationId"}, Pattern: regexp.MustCompile("^/?/storage/v1/b/([^/]+)/operations/([^/]+)$")},
+	{ID: "storage.buckets.getStorageLayout", HTTPMethod: "GET", URIPattern: "b/{bucket}/storageLayout", Vars: []string{"bucket"}, Pattern: regexp.MustCompile("^/?/storage/v1/b/([^/]+)/storageLayout$")},
+	{ID: "storage.projects.hmacKeys.list", HTTPMethod: "GET", URIPattern: "projects/{projectId}/hmacKeys", Vars: []string{"projectId"}, Pattern: regexp.MustCompile("^/?/storage/v1/projects/([^/]+)/hmacKeys$")},
+	{ID: "storage.projects.hmacKeys.get", HTTPMethod: "GET", URIPattern: "projects/{projectId}/hmacKeys/{accessId}", Vars: []string{"projectId", "accessId"}, Pattern: regexp.MustCompile("^/?/storage/v1/projects/([^/]+)/hmacKeys/([^/]+)$")},
+	{ID: "storage.projects.serviceAccount.get", HTTPMethod: "GET", URIPattern: "projects/{projectId}/serviceAccount", Vars: []string{"projectId"}, Pattern: regexp.MustCompile("^/?/storage/v1/projects/([^/]+)/serviceAccount$")},
+	{ID: "storage.buckets.patch", HTTPMethod: "PATCH", URIPattern: "b/{bucket}", Vars: []string{"bucket"}, Pattern: regexp.MustCompile("^/?/storage/v1/b/([^/]+)$")},
+	{ID: "storage.bucketAccessControls.patch", HTTPMethod: "PATCH", URIPattern: "b/{bucket}/acl/{entity}", Vars: []string{"bucket", "entity"}, Pattern: regexp.MustCompile("^/?/storage/v1/b/([^/]+)/acl/([^/]+)$")},
+	{ID: "storage.anywhereCaches.update", HTTPMethod: "PATCH", URIPattern: "b/{bucket}/anywhereCaches/{anywhereCacheId}", Vars: []string{"bucket", "anywhereCacheId"}, Pattern: regexp.MustCompile("^/?/storage/v1/b/([^/]+)/anywhereCaches/([^/]+)$")},
+	{ID: "storage.defaultObjectAccessControls.patch", HTTPMethod: "PATCH", URIPattern: "b/{bucket}/defaultObjectAcl/{entity}", Vars: []string{"bucket", "entity"}, Pattern: regexp.MustCompile("^/?/storage/v1/b/([^/]+)/defaultObjectAcl/([^/]+)$")},
+	{ID: "storage.objects.patch", HTTPMethod: "PATCH", URIPattern: "b/{bucket}/o/{object}", Vars: []string{"bucket", "object"}, Pattern: regexp.MustCompile("^/?/storage/v1/b/([^/]+)/o/([^/]+)$")},
+	{ID: "storage.objectAccessControls.patch", HTTPMethod: "PATCH", URIPattern: "b/{bucket}/o/{object}/acl/{entity}", Vars: []string{"bucket", "object", "entity"}, Pattern: regexp.MustCompile("^/?/storage/v1/b/([^/]+)/o/([^/]+)/acl/([^/]+)$")},
+	{ID: "storage.buckets.insert", HTTPMethod: "POST", URIPattern: "b", Vars: nil, Pattern: regexp.MustCompile("^/?/storage/v1/b$")},
+	{ID: "storage.bucketAccessControls.insert", HTTPMethod: "POST", URIPattern: "b/{bucket}/acl", Vars: []string{"bucket"}, Pattern: regexp.MustCompile("^/?/storage/v1/b/([^/]+)/acl$")},
+	{ID: "storage.anywhereCaches.insert", HTTPMethod: "POST", URIPattern: "b/{bucket}/anywhereCaches", Vars: []string{"bucket"}, Pattern: regexp.MustCompile("^/?/storage/v1/b/([^/]+)/anywhereCaches$")},
+	{ID: "storage.anywhereCaches.disable", HTTPMethod: "POST", URIPattern: "b/{bucket}/anywhereCaches/{anywhereCacheId}/disable", Vars: []string{"bucket", "anywhereCacheId"}, Pattern: regexp.MustCompile("^/?/storage/v1/b/([^/]+)/anywhereCaches/([^/]+)/disable$")},
+	{ID: "storage.anywhereCaches.pause", HTTPMethod: "POST", URIPattern: "b/{bucket}/anywhereCaches/{anywhereCacheId}/pause", Vars: []string{"bucket", "anywhereCacheId"}, Pattern: regexp.MustCompile("^/?/storage/v1/b/([^/]+)/anywhereCaches/([^/]+)/pause$")},
+	{ID: "storage.anywhereCaches.resume", HTTPMethod: "POST", URIPattern: "b/{bucket}/anywhereCaches/{anywhereCacheId}/resume", Vars: []string{"bucket", "anywhereCacheId"}, Pattern: regexp.MustCompile("^/?/storage/v1/b/([^/]+)/anywhereCaches/([^/]+)/resume$")},
+	{ID: "storage.defaultObjectAccessControls.insert", HTTPMethod: "POST", URIPattern: "b/{bucket}/defaultObjectAcl", Vars: []string{"bucket"}, Pattern: regexp.MustCompile("^/?/storage/v1/b/([^/]+)/defaultObjectAcl$")},
+	{ID: "storage.folders.insert", HTTPMethod: "POST", URIPattern: "b/{bucket}/folders", Vars: []string{"bucket"}, Pattern: regexp.MustCompile("^/?/storage/v1/b/([^/]+)/folders$")},
+	{ID: "storage.folders.deleteRecursive", HTTPMethod: "POST", URIPattern: "b/{bucket}/folders/{folder}/deleteRecursive", Vars: []string{"bucket", "folder"}, Pattern: regexp.MustCompile("^/?/storage/v1/b/([^/]+)/folders/([^/]+)/deleteRecursive$")},
+	{ID: "storage.folders.rename", HTTPMethod: "POST", URIPattern: "b/{bucket}/folders/{sourceFolder}/renameTo/folders/{destinationFolder}", Vars: []string{"bucket", "sourceFolder", "destinationFolder"}, Pattern: regexp.MustCompile("^/?/storage/v1/b/([^/]+)/folders/([^/]+)/renameTo/folders/([^/]+)$")},
+	{ID: "storage.buckets.lockRetentionPolicy", HTTPMethod: "POST", URIPattern: "b/{bucket}/lockRetentionPolicy", Vars: []string{"bucket"}, Pattern: regexp.MustCompile("^/?/storage/v1/b/([^/]+)/lockRetentionPolicy$")},
+	{ID: "storage.managedFolders.insert", HTTPMethod: "POST", URIPattern: "b/{bucket}/managedFolders", Vars: []string{"bucket"}, Pattern: regexp.MustCompile("^/?/storage/v1/b/([^/]+)/managedFolders$")},
+	{ID: "storage.notifications.insert", HTTPMethod: "POST", URIPattern: "b/{bucket}/notificationConfigs", Vars: []string{"bucket"}, Pattern: regexp.MustCompile("^/?/storage/v1/b/([^/]+)/notificationConfigs$")},
+	{ID: "storage.objects.insert", HTTPMethod: "POST", URIPattern: "b/{bucket}/o", Vars: []string{"bucket"}, Pattern: regexp.MustCompile("^/?/storage/v1/b/([^/]+)/o$")},
+	{ID: "storage.objects.bulkRestore", HTTPMethod: "POST", URIPattern: "b/{bucket}/o/bulkRestore", Vars: []string{"bucket"}, Pattern: regexp.MustCompile("^/?/storage/v1/b/([^/]+)/o/bulkRestore$")},
+	{ID: "storage.objects.watchAll", HTTPMethod: "POST", URIPattern: "b/{bucket}/o/watch", Vars: []string{"bucket"}, Pattern: regexp.MustCompile("^/?/storage/v1/b/([^/]+)/o/watch$")},
+	{ID: "storage.objectAccessControls.insert", HTTPMethod: "POST", URIPattern: "b/{bucket}/o/{object}/acl", Vars: []string{"bucket", "object"}, Pattern: regexp.MustCompile("^/?/storage/v1/b/([^/]+)/o/([^/]+)/acl$")},
+	{ID: "storage.objects.restore", HTTPMethod: "POST", URIPattern: "b/{bucket}/o/{object}/restore", Vars: []string{"bucket", "object"}, Pattern: regexp.MustCompile("^/?/storage/v1/b/([^/]+)/o/([^/]+)/restore$")},
+	{ID: "storage.objects.move", HTTPMethod: "POST", URIPattern: "b/{bucket}/o/{sourceObject}/moveTo/o/{destinationObject}", Vars: []string{"bucket", "sourceObject", "destinationObject"}, Pattern: regexp.MustCompile("^/?/storage/v1/b/([^/]+)/o/([^/]+)/moveTo/o/([^/]+)$")},
+	{ID: "storage.buckets.operations.advanceRelocateBucket", HTTPMethod: "POST", URIPattern: "b/{bucket}/operations/{operationId}/advanceRelocateBucket", Vars: []string{"bucket", "operationId"}, Pattern: regexp.MustCompile("^/?/storage/v1/b/([^/]+)/operations/([^/]+)/advanceRelocateBucket$")},
+	{ID: "storage.buckets.operations.cancel", HTTPMethod: "POST", URIPattern: "b/{bucket}/operations/{operationId}/cancel", Vars: []string{"bucket", "operationId"}, Pattern: regexp.MustCompile("^/?/storage/v1/b/([^/]+)/operations/([^/]+)/cancel$")},
+	{ID: "storage.buckets.relocate", HTTPMethod: "POST", URIPattern: "b/{bucket}/relocate", Vars: []string{"bucket"}, Pattern: regexp.MustCompile("^/?/storage/v1/b/([^/]+)/relocate$")},
+	{ID: "storage.buckets.restore", HTTPMethod: "POST", URIPattern: "b/{bucket}/restore", Vars: []string{"bucket"}, Pattern: regexp.MustCompile("^/?/storage/v1/b/([^/]+)/restore$")},
+	{ID: "storage.objects.compose", HTTPMethod: "POST", URIPattern: "b/{destinationBucket}/o/{destinationObject}/compose", Vars: []string{"destinationBucket", "destinationObject"}, Pattern: regexp.MustCompile("^/?/storage/v1/b/([^/]+)/o/([^/]+)/compose$")},
+	{ID: "storage.objects.copy", HTTPMethod: "POST", URIPattern: "b/{sourceBucket}/o/{sourceObject}/copyTo/b/{destinationBucket}/o/{destinationObject}", Vars: []string{"sourceBucket", "sourceObject", "destinationBucket", "destinationObject"}, Pattern: regexp.MustCompile("^/?/storage/v1/b/([^/]+)/o/([^/]+)/copyTo/b/([^/]+)/o/([^/]+)$")},
+	{ID: "storage.objects.rewrite", HTTPMethod: "POST", URIPattern: "b/{sourceBucket}/o/{sourceObject}/rewriteTo/b/{destinationBucket}/o/{destinationObject}", Vars: []string{"sourceBucket", "sourceObject", "destinationBucket", "destinationObject"}, Pattern: regexp.MustCompile("^/?/storage/v1/b/([^/]+)/o/([^/]+)/rewriteTo/b/([^/]+)/o/([^/]+)$")},
+	{ID: "storage.channels.stop", HTTPMethod: "POST", URIPattern: "channels/stop", Vars: nil, Pattern: regexp.MustCompile("^/?/storage/v1/channels/stop$")},
+	{ID: "storage.projects.hmacKeys.create", HTTPMethod: "POST", URIPattern: "projects/{projectId}/hmacKeys", Vars: []string{"projectId"}, Pattern: regexp.MustCompile("^/?/storage/v1/projects/([^/]+)/hmacKeys$")},
+	{ID: "storage.buckets.update", HTTPMethod: "PUT", URIPattern: "b/{bucket}", Vars: []string{"bucket"}, Pattern: regexp.MustCompile("^/?/storage/v1/b/([^/]+)$")},
+	{ID: "storage.bucketAccessControls.update", HTTPMethod: "PUT", URIPattern: "b/{bucket}/acl/{entity}", Vars: []string{"bucket", "entity"}, Pattern: regexp.MustCompile("^/?/storage/v1/b/([^/]+)/acl/([^/]+)$")},
+	{ID: "storage.defaultObjectAccessControls.update", HTTPMethod: "PUT", URIPattern: "b/{bucket}/defaultObjectAcl/{entity}", Vars: []string{"bucket", "entity"}, Pattern: regexp.MustCompile("^/?/storage/v1/b/([^/]+)/defaultObjectAcl/([^/]+)$")},
+	{ID: "storage.buckets.setIamPolicy", HTTPMethod: "PUT", URIPattern: "b/{bucket}/iam", Vars: []string{"bucket"}, Pattern: regexp.MustCompile("^/?/storage/v1/b/([^/]+)/iam$")},
+	{ID: "storage.managedFolders.setIamPolicy", HTTPMethod: "PUT", URIPattern: "b/{bucket}/managedFolders/{managedFolder}/iam", Vars: []string{"bucket", "managedFolder"}, Pattern: regexp.MustCompile("^/?/storage/v1/b/([^/]+)/managedFolders/([^/]+)/iam$")},
+	{ID: "storage.objects.update", HTTPMethod: "PUT", URIPattern: "b/{bucket}/o/{object}", Vars: []string{"bucket", "object"}, Pattern: regexp.MustCompile("^/?/storage/v1/b/([^/]+)/o/([^/]+)$")},
+	{ID: "storage.objectAccessControls.update", HTTPMethod: "PUT", URIPattern: "b/{bucket}/o/{object}/acl/{entity}", Vars: []string{"bucket", "object", "entity"}, Pattern: regexp.MustCompile("^/?/storage/v1/b/([^/]+)/o/([^/]+)/acl/([^/]+)$")},
+	{ID: "storage.objects.setIamPolicy", HTTPMethod: "PUT", URIPattern: "b/{bucket}/o/{object}/iam", Vars: []string{"bucket", "object"}, Pattern: regexp.MustCompile("^/?/storage/v1/b/([^/]+)/o/([^/]+)/iam$")},
+	{ID: "storage.projects.hmacKeys.update", HTTPMethod: "PUT", URIPattern: "projects/{projectId}/hmacKeys/{accessId}", Vars: []string{"projectId", "accessId"}, Pattern: regexp.MustCompile("^/?/storage/v1/projects/([^/]+)/hmacKeys/([^/]+)$")},
+}
+
+// Match scans Routes in declaration order (sorted by HTTPMethod,
+// URIPattern, ID) and returns the first route whose HTTPMethod
+// equals method and whose compiled Pattern matches path. The
+// returned map zips Route.Vars to the captured submatches.
+// Returns (nil, nil, false) when no route matches.
+//
+// Note: several Discovery services expose two ID variants per
+// pattern (e.g. `projects.secrets.get` + the
+// `projects.locations.secrets.get` regional twin). Both routes
+// share the same URIPattern; the sort ordering picks one
+// deterministically. Callers that need to distinguish should
+// iterate Routes themselves or inspect the parent of the path.
+func Match(method, path string) (*Route, map[string]string, bool) {
+	for i := range Routes {
+		r := &Routes[i]
+		if r.HTTPMethod != method {
+			continue
+		}
+		m := r.Pattern.FindStringSubmatch(path)
+		if m == nil {
+			continue
+		}
+		params := make(map[string]string, len(r.Vars))
+		for j, v := range r.Vars {
+			params[v] = m[j+1]
+		}
+		return r, params, true
+	}
+	return nil, nil, false
 }

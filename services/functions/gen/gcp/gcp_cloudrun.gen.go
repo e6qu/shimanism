@@ -5,80 +5,121 @@
 
 package gcp
 
+import "regexp"
+
 // Route is one (httpMethod, uriPattern, operationID) entry from
 // the upstream Google API Discovery document. URIPattern uses
 // Discovery's URI-template syntax verbatim — e.g. `v1/{+name}` —
 // so downstream frontends can compile it to their own dispatch
 // (regex, ServeMux 1.22+ pattern, or otherwise) without losing
-// the original spec semantics.
+// the original spec semantics. Vars lists the URI-template
+// variables in declaration order; Pattern is the compiled regex
+// the Match helper uses.
 type Route struct {
 	ID         string
 	HTTPMethod string
 	URIPattern string
+	Vars       []string
+	Pattern    *regexp.Regexp
 }
 
 // Routes is the full operation set the upstream Discovery
 // document declares for this service, sorted by (HTTPMethod,
-// URIPattern) for stable output. Frontends typically intersect
-// this against the cross-cloud operation set documented in
-// per-service OPERATIONS.md.
+// URIPattern, ID) for stable output. Frontends typically
+// intersect this against the cross-cloud operation set documented
+// in per-service OPERATIONS.md.
+// BasePath is the URL prefix Discovery roots every operation at.
+// Match expects request paths that include this prefix.
+const BasePath = ""
+
 var Routes = []Route{
-	{ID: "run.projects.locations.instances.delete", HTTPMethod: "DELETE", URIPattern: "v2/{+name}"},
-	{ID: "run.projects.locations.jobs.delete", HTTPMethod: "DELETE", URIPattern: "v2/{+name}"},
-	{ID: "run.projects.locations.jobs.executions.delete", HTTPMethod: "DELETE", URIPattern: "v2/{+name}"},
-	{ID: "run.projects.locations.operations.delete", HTTPMethod: "DELETE", URIPattern: "v2/{+name}"},
-	{ID: "run.projects.locations.services.delete", HTTPMethod: "DELETE", URIPattern: "v2/{+name}"},
-	{ID: "run.projects.locations.services.revisions.delete", HTTPMethod: "DELETE", URIPattern: "v2/{+name}"},
-	{ID: "run.projects.locations.workerPools.delete", HTTPMethod: "DELETE", URIPattern: "v2/{+name}"},
-	{ID: "run.projects.locations.workerPools.revisions.delete", HTTPMethod: "DELETE", URIPattern: "v2/{+name}"},
-	{ID: "run.projects.locations.instances.get", HTTPMethod: "GET", URIPattern: "v2/{+name}"},
-	{ID: "run.projects.locations.jobs.executions.get", HTTPMethod: "GET", URIPattern: "v2/{+name}"},
-	{ID: "run.projects.locations.jobs.executions.tasks.get", HTTPMethod: "GET", URIPattern: "v2/{+name}"},
-	{ID: "run.projects.locations.jobs.get", HTTPMethod: "GET", URIPattern: "v2/{+name}"},
-	{ID: "run.projects.locations.operations.get", HTTPMethod: "GET", URIPattern: "v2/{+name}"},
-	{ID: "run.projects.locations.services.get", HTTPMethod: "GET", URIPattern: "v2/{+name}"},
-	{ID: "run.projects.locations.services.revisions.get", HTTPMethod: "GET", URIPattern: "v2/{+name}"},
-	{ID: "run.projects.locations.workerPools.get", HTTPMethod: "GET", URIPattern: "v2/{+name}"},
-	{ID: "run.projects.locations.workerPools.revisions.get", HTTPMethod: "GET", URIPattern: "v2/{+name}"},
-	{ID: "run.projects.locations.operations.list", HTTPMethod: "GET", URIPattern: "v2/{+name}/operations"},
-	{ID: "run.projects.locations.jobs.executions.exportStatus", HTTPMethod: "GET", URIPattern: "v2/{+name}/{+operationId}:exportStatus"},
-	{ID: "run.projects.locations.services.revisions.exportStatus", HTTPMethod: "GET", URIPattern: "v2/{+name}/{+operationId}:exportStatus"},
-	{ID: "run.projects.locations.exportImageMetadata", HTTPMethod: "GET", URIPattern: "v2/{+name}:exportImageMetadata"},
-	{ID: "run.projects.locations.exportMetadata", HTTPMethod: "GET", URIPattern: "v2/{+name}:exportMetadata"},
-	{ID: "run.projects.locations.exportProjectMetadata", HTTPMethod: "GET", URIPattern: "v2/{+name}:exportProjectMetadata"},
-	{ID: "run.projects.locations.jobs.executions.list", HTTPMethod: "GET", URIPattern: "v2/{+parent}/executions"},
-	{ID: "run.projects.locations.instances.list", HTTPMethod: "GET", URIPattern: "v2/{+parent}/instances"},
-	{ID: "run.projects.locations.jobs.list", HTTPMethod: "GET", URIPattern: "v2/{+parent}/jobs"},
-	{ID: "run.projects.locations.services.revisions.list", HTTPMethod: "GET", URIPattern: "v2/{+parent}/revisions"},
-	{ID: "run.projects.locations.workerPools.revisions.list", HTTPMethod: "GET", URIPattern: "v2/{+parent}/revisions"},
-	{ID: "run.projects.locations.services.list", HTTPMethod: "GET", URIPattern: "v2/{+parent}/services"},
-	{ID: "run.projects.locations.jobs.executions.tasks.list", HTTPMethod: "GET", URIPattern: "v2/{+parent}/tasks"},
-	{ID: "run.projects.locations.workerPools.list", HTTPMethod: "GET", URIPattern: "v2/{+parent}/workerPools"},
-	{ID: "run.projects.locations.instances.getIamPolicy", HTTPMethod: "GET", URIPattern: "v2/{+resource}:getIamPolicy"},
-	{ID: "run.projects.locations.jobs.getIamPolicy", HTTPMethod: "GET", URIPattern: "v2/{+resource}:getIamPolicy"},
-	{ID: "run.projects.locations.services.getIamPolicy", HTTPMethod: "GET", URIPattern: "v2/{+resource}:getIamPolicy"},
-	{ID: "run.projects.locations.workerPools.getIamPolicy", HTTPMethod: "GET", URIPattern: "v2/{+resource}:getIamPolicy"},
-	{ID: "run.projects.locations.instances.patch", HTTPMethod: "PATCH", URIPattern: "v2/{+name}"},
-	{ID: "run.projects.locations.jobs.patch", HTTPMethod: "PATCH", URIPattern: "v2/{+name}"},
-	{ID: "run.projects.locations.services.patch", HTTPMethod: "PATCH", URIPattern: "v2/{+name}"},
-	{ID: "run.projects.locations.workerPools.patch", HTTPMethod: "PATCH", URIPattern: "v2/{+name}"},
-	{ID: "run.projects.locations.jobs.executions.cancel", HTTPMethod: "POST", URIPattern: "v2/{+name}:cancel"},
-	{ID: "run.projects.locations.exportImage", HTTPMethod: "POST", URIPattern: "v2/{+name}:exportImage"},
-	{ID: "run.projects.locations.jobs.run", HTTPMethod: "POST", URIPattern: "v2/{+name}:run"},
-	{ID: "run.projects.locations.instances.start", HTTPMethod: "POST", URIPattern: "v2/{+name}:start"},
-	{ID: "run.projects.locations.instances.stop", HTTPMethod: "POST", URIPattern: "v2/{+name}:stop"},
-	{ID: "run.projects.locations.operations.wait", HTTPMethod: "POST", URIPattern: "v2/{+name}:wait"},
-	{ID: "run.projects.locations.builds.submit", HTTPMethod: "POST", URIPattern: "v2/{+parent}/builds:submit"},
-	{ID: "run.projects.locations.instances.create", HTTPMethod: "POST", URIPattern: "v2/{+parent}/instances"},
-	{ID: "run.projects.locations.jobs.create", HTTPMethod: "POST", URIPattern: "v2/{+parent}/jobs"},
-	{ID: "run.projects.locations.services.create", HTTPMethod: "POST", URIPattern: "v2/{+parent}/services"},
-	{ID: "run.projects.locations.workerPools.create", HTTPMethod: "POST", URIPattern: "v2/{+parent}/workerPools"},
-	{ID: "run.projects.locations.instances.setIamPolicy", HTTPMethod: "POST", URIPattern: "v2/{+resource}:setIamPolicy"},
-	{ID: "run.projects.locations.jobs.setIamPolicy", HTTPMethod: "POST", URIPattern: "v2/{+resource}:setIamPolicy"},
-	{ID: "run.projects.locations.services.setIamPolicy", HTTPMethod: "POST", URIPattern: "v2/{+resource}:setIamPolicy"},
-	{ID: "run.projects.locations.workerPools.setIamPolicy", HTTPMethod: "POST", URIPattern: "v2/{+resource}:setIamPolicy"},
-	{ID: "run.projects.locations.instances.testIamPermissions", HTTPMethod: "POST", URIPattern: "v2/{+resource}:testIamPermissions"},
-	{ID: "run.projects.locations.jobs.testIamPermissions", HTTPMethod: "POST", URIPattern: "v2/{+resource}:testIamPermissions"},
-	{ID: "run.projects.locations.services.testIamPermissions", HTTPMethod: "POST", URIPattern: "v2/{+resource}:testIamPermissions"},
-	{ID: "run.projects.locations.workerPools.testIamPermissions", HTTPMethod: "POST", URIPattern: "v2/{+resource}:testIamPermissions"},
+	{ID: "run.projects.locations.instances.delete", HTTPMethod: "DELETE", URIPattern: "v2/{+name}", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v2/(.+)$")},
+	{ID: "run.projects.locations.jobs.delete", HTTPMethod: "DELETE", URIPattern: "v2/{+name}", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v2/(.+)$")},
+	{ID: "run.projects.locations.jobs.executions.delete", HTTPMethod: "DELETE", URIPattern: "v2/{+name}", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v2/(.+)$")},
+	{ID: "run.projects.locations.operations.delete", HTTPMethod: "DELETE", URIPattern: "v2/{+name}", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v2/(.+)$")},
+	{ID: "run.projects.locations.services.delete", HTTPMethod: "DELETE", URIPattern: "v2/{+name}", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v2/(.+)$")},
+	{ID: "run.projects.locations.services.revisions.delete", HTTPMethod: "DELETE", URIPattern: "v2/{+name}", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v2/(.+)$")},
+	{ID: "run.projects.locations.workerPools.delete", HTTPMethod: "DELETE", URIPattern: "v2/{+name}", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v2/(.+)$")},
+	{ID: "run.projects.locations.workerPools.revisions.delete", HTTPMethod: "DELETE", URIPattern: "v2/{+name}", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v2/(.+)$")},
+	{ID: "run.projects.locations.instances.get", HTTPMethod: "GET", URIPattern: "v2/{+name}", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v2/(.+)$")},
+	{ID: "run.projects.locations.jobs.executions.get", HTTPMethod: "GET", URIPattern: "v2/{+name}", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v2/(.+)$")},
+	{ID: "run.projects.locations.jobs.executions.tasks.get", HTTPMethod: "GET", URIPattern: "v2/{+name}", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v2/(.+)$")},
+	{ID: "run.projects.locations.jobs.get", HTTPMethod: "GET", URIPattern: "v2/{+name}", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v2/(.+)$")},
+	{ID: "run.projects.locations.operations.get", HTTPMethod: "GET", URIPattern: "v2/{+name}", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v2/(.+)$")},
+	{ID: "run.projects.locations.services.get", HTTPMethod: "GET", URIPattern: "v2/{+name}", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v2/(.+)$")},
+	{ID: "run.projects.locations.services.revisions.get", HTTPMethod: "GET", URIPattern: "v2/{+name}", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v2/(.+)$")},
+	{ID: "run.projects.locations.workerPools.get", HTTPMethod: "GET", URIPattern: "v2/{+name}", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v2/(.+)$")},
+	{ID: "run.projects.locations.workerPools.revisions.get", HTTPMethod: "GET", URIPattern: "v2/{+name}", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v2/(.+)$")},
+	{ID: "run.projects.locations.operations.list", HTTPMethod: "GET", URIPattern: "v2/{+name}/operations", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v2/(.+)/operations$")},
+	{ID: "run.projects.locations.jobs.executions.exportStatus", HTTPMethod: "GET", URIPattern: "v2/{+name}/{+operationId}:exportStatus", Vars: []string{"name", "operationId"}, Pattern: regexp.MustCompile("^/?/v2/(.+)/(.+):exportStatus$")},
+	{ID: "run.projects.locations.services.revisions.exportStatus", HTTPMethod: "GET", URIPattern: "v2/{+name}/{+operationId}:exportStatus", Vars: []string{"name", "operationId"}, Pattern: regexp.MustCompile("^/?/v2/(.+)/(.+):exportStatus$")},
+	{ID: "run.projects.locations.exportImageMetadata", HTTPMethod: "GET", URIPattern: "v2/{+name}:exportImageMetadata", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v2/(.+):exportImageMetadata$")},
+	{ID: "run.projects.locations.exportMetadata", HTTPMethod: "GET", URIPattern: "v2/{+name}:exportMetadata", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v2/(.+):exportMetadata$")},
+	{ID: "run.projects.locations.exportProjectMetadata", HTTPMethod: "GET", URIPattern: "v2/{+name}:exportProjectMetadata", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v2/(.+):exportProjectMetadata$")},
+	{ID: "run.projects.locations.jobs.executions.list", HTTPMethod: "GET", URIPattern: "v2/{+parent}/executions", Vars: []string{"parent"}, Pattern: regexp.MustCompile("^/?/v2/(.+)/executions$")},
+	{ID: "run.projects.locations.instances.list", HTTPMethod: "GET", URIPattern: "v2/{+parent}/instances", Vars: []string{"parent"}, Pattern: regexp.MustCompile("^/?/v2/(.+)/instances$")},
+	{ID: "run.projects.locations.jobs.list", HTTPMethod: "GET", URIPattern: "v2/{+parent}/jobs", Vars: []string{"parent"}, Pattern: regexp.MustCompile("^/?/v2/(.+)/jobs$")},
+	{ID: "run.projects.locations.services.revisions.list", HTTPMethod: "GET", URIPattern: "v2/{+parent}/revisions", Vars: []string{"parent"}, Pattern: regexp.MustCompile("^/?/v2/(.+)/revisions$")},
+	{ID: "run.projects.locations.workerPools.revisions.list", HTTPMethod: "GET", URIPattern: "v2/{+parent}/revisions", Vars: []string{"parent"}, Pattern: regexp.MustCompile("^/?/v2/(.+)/revisions$")},
+	{ID: "run.projects.locations.services.list", HTTPMethod: "GET", URIPattern: "v2/{+parent}/services", Vars: []string{"parent"}, Pattern: regexp.MustCompile("^/?/v2/(.+)/services$")},
+	{ID: "run.projects.locations.jobs.executions.tasks.list", HTTPMethod: "GET", URIPattern: "v2/{+parent}/tasks", Vars: []string{"parent"}, Pattern: regexp.MustCompile("^/?/v2/(.+)/tasks$")},
+	{ID: "run.projects.locations.workerPools.list", HTTPMethod: "GET", URIPattern: "v2/{+parent}/workerPools", Vars: []string{"parent"}, Pattern: regexp.MustCompile("^/?/v2/(.+)/workerPools$")},
+	{ID: "run.projects.locations.instances.getIamPolicy", HTTPMethod: "GET", URIPattern: "v2/{+resource}:getIamPolicy", Vars: []string{"resource"}, Pattern: regexp.MustCompile("^/?/v2/(.+):getIamPolicy$")},
+	{ID: "run.projects.locations.jobs.getIamPolicy", HTTPMethod: "GET", URIPattern: "v2/{+resource}:getIamPolicy", Vars: []string{"resource"}, Pattern: regexp.MustCompile("^/?/v2/(.+):getIamPolicy$")},
+	{ID: "run.projects.locations.services.getIamPolicy", HTTPMethod: "GET", URIPattern: "v2/{+resource}:getIamPolicy", Vars: []string{"resource"}, Pattern: regexp.MustCompile("^/?/v2/(.+):getIamPolicy$")},
+	{ID: "run.projects.locations.workerPools.getIamPolicy", HTTPMethod: "GET", URIPattern: "v2/{+resource}:getIamPolicy", Vars: []string{"resource"}, Pattern: regexp.MustCompile("^/?/v2/(.+):getIamPolicy$")},
+	{ID: "run.projects.locations.instances.patch", HTTPMethod: "PATCH", URIPattern: "v2/{+name}", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v2/(.+)$")},
+	{ID: "run.projects.locations.jobs.patch", HTTPMethod: "PATCH", URIPattern: "v2/{+name}", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v2/(.+)$")},
+	{ID: "run.projects.locations.services.patch", HTTPMethod: "PATCH", URIPattern: "v2/{+name}", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v2/(.+)$")},
+	{ID: "run.projects.locations.workerPools.patch", HTTPMethod: "PATCH", URIPattern: "v2/{+name}", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v2/(.+)$")},
+	{ID: "run.projects.locations.jobs.executions.cancel", HTTPMethod: "POST", URIPattern: "v2/{+name}:cancel", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v2/(.+):cancel$")},
+	{ID: "run.projects.locations.exportImage", HTTPMethod: "POST", URIPattern: "v2/{+name}:exportImage", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v2/(.+):exportImage$")},
+	{ID: "run.projects.locations.jobs.run", HTTPMethod: "POST", URIPattern: "v2/{+name}:run", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v2/(.+):run$")},
+	{ID: "run.projects.locations.instances.start", HTTPMethod: "POST", URIPattern: "v2/{+name}:start", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v2/(.+):start$")},
+	{ID: "run.projects.locations.instances.stop", HTTPMethod: "POST", URIPattern: "v2/{+name}:stop", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v2/(.+):stop$")},
+	{ID: "run.projects.locations.operations.wait", HTTPMethod: "POST", URIPattern: "v2/{+name}:wait", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v2/(.+):wait$")},
+	{ID: "run.projects.locations.builds.submit", HTTPMethod: "POST", URIPattern: "v2/{+parent}/builds:submit", Vars: []string{"parent"}, Pattern: regexp.MustCompile("^/?/v2/(.+)/builds:submit$")},
+	{ID: "run.projects.locations.instances.create", HTTPMethod: "POST", URIPattern: "v2/{+parent}/instances", Vars: []string{"parent"}, Pattern: regexp.MustCompile("^/?/v2/(.+)/instances$")},
+	{ID: "run.projects.locations.jobs.create", HTTPMethod: "POST", URIPattern: "v2/{+parent}/jobs", Vars: []string{"parent"}, Pattern: regexp.MustCompile("^/?/v2/(.+)/jobs$")},
+	{ID: "run.projects.locations.services.create", HTTPMethod: "POST", URIPattern: "v2/{+parent}/services", Vars: []string{"parent"}, Pattern: regexp.MustCompile("^/?/v2/(.+)/services$")},
+	{ID: "run.projects.locations.workerPools.create", HTTPMethod: "POST", URIPattern: "v2/{+parent}/workerPools", Vars: []string{"parent"}, Pattern: regexp.MustCompile("^/?/v2/(.+)/workerPools$")},
+	{ID: "run.projects.locations.instances.setIamPolicy", HTTPMethod: "POST", URIPattern: "v2/{+resource}:setIamPolicy", Vars: []string{"resource"}, Pattern: regexp.MustCompile("^/?/v2/(.+):setIamPolicy$")},
+	{ID: "run.projects.locations.jobs.setIamPolicy", HTTPMethod: "POST", URIPattern: "v2/{+resource}:setIamPolicy", Vars: []string{"resource"}, Pattern: regexp.MustCompile("^/?/v2/(.+):setIamPolicy$")},
+	{ID: "run.projects.locations.services.setIamPolicy", HTTPMethod: "POST", URIPattern: "v2/{+resource}:setIamPolicy", Vars: []string{"resource"}, Pattern: regexp.MustCompile("^/?/v2/(.+):setIamPolicy$")},
+	{ID: "run.projects.locations.workerPools.setIamPolicy", HTTPMethod: "POST", URIPattern: "v2/{+resource}:setIamPolicy", Vars: []string{"resource"}, Pattern: regexp.MustCompile("^/?/v2/(.+):setIamPolicy$")},
+	{ID: "run.projects.locations.instances.testIamPermissions", HTTPMethod: "POST", URIPattern: "v2/{+resource}:testIamPermissions", Vars: []string{"resource"}, Pattern: regexp.MustCompile("^/?/v2/(.+):testIamPermissions$")},
+	{ID: "run.projects.locations.jobs.testIamPermissions", HTTPMethod: "POST", URIPattern: "v2/{+resource}:testIamPermissions", Vars: []string{"resource"}, Pattern: regexp.MustCompile("^/?/v2/(.+):testIamPermissions$")},
+	{ID: "run.projects.locations.services.testIamPermissions", HTTPMethod: "POST", URIPattern: "v2/{+resource}:testIamPermissions", Vars: []string{"resource"}, Pattern: regexp.MustCompile("^/?/v2/(.+):testIamPermissions$")},
+	{ID: "run.projects.locations.workerPools.testIamPermissions", HTTPMethod: "POST", URIPattern: "v2/{+resource}:testIamPermissions", Vars: []string{"resource"}, Pattern: regexp.MustCompile("^/?/v2/(.+):testIamPermissions$")},
+}
+
+// Match scans Routes in declaration order (sorted by HTTPMethod,
+// URIPattern, ID) and returns the first route whose HTTPMethod
+// equals method and whose compiled Pattern matches path. The
+// returned map zips Route.Vars to the captured submatches.
+// Returns (nil, nil, false) when no route matches.
+//
+// Note: several Discovery services expose two ID variants per
+// pattern (e.g. `projects.secrets.get` + the
+// `projects.locations.secrets.get` regional twin). Both routes
+// share the same URIPattern; the sort ordering picks one
+// deterministically. Callers that need to distinguish should
+// iterate Routes themselves or inspect the parent of the path.
+func Match(method, path string) (*Route, map[string]string, bool) {
+	for i := range Routes {
+		r := &Routes[i]
+		if r.HTTPMethod != method {
+			continue
+		}
+		m := r.Pattern.FindStringSubmatch(path)
+		if m == nil {
+			continue
+		}
+		params := make(map[string]string, len(r.Vars))
+		for j, v := range r.Vars {
+			params[v] = m[j+1]
+		}
+		return r, params, true
+	}
+	return nil, nil, false
 }

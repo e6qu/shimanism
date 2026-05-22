@@ -5,54 +5,95 @@
 
 package gcp
 
+import "regexp"
+
 // Route is one (httpMethod, uriPattern, operationID) entry from
 // the upstream Google API Discovery document. URIPattern uses
 // Discovery's URI-template syntax verbatim — e.g. `v1/{+name}` —
 // so downstream frontends can compile it to their own dispatch
 // (regex, ServeMux 1.22+ pattern, or otherwise) without losing
-// the original spec semantics.
+// the original spec semantics. Vars lists the URI-template
+// variables in declaration order; Pattern is the compiled regex
+// the Match helper uses.
 type Route struct {
 	ID         string
 	HTTPMethod string
 	URIPattern string
+	Vars       []string
+	Pattern    *regexp.Regexp
 }
 
 // Routes is the full operation set the upstream Discovery
 // document declares for this service, sorted by (HTTPMethod,
-// URIPattern) for stable output. Frontends typically intersect
-// this against the cross-cloud operation set documented in
-// per-service OPERATIONS.md.
+// URIPattern, ID) for stable output. Frontends typically
+// intersect this against the cross-cloud operation set documented
+// in per-service OPERATIONS.md.
+// BasePath is the URL prefix Discovery roots every operation at.
+// Match expects request paths that include this prefix.
+const BasePath = ""
+
 var Routes = []Route{
-	{ID: "secretmanager.projects.locations.secrets.delete", HTTPMethod: "DELETE", URIPattern: "v1/{+name}"},
-	{ID: "secretmanager.projects.secrets.delete", HTTPMethod: "DELETE", URIPattern: "v1/{+name}"},
-	{ID: "secretmanager.projects.locations.get", HTTPMethod: "GET", URIPattern: "v1/{+name}"},
-	{ID: "secretmanager.projects.locations.secrets.get", HTTPMethod: "GET", URIPattern: "v1/{+name}"},
-	{ID: "secretmanager.projects.locations.secrets.versions.get", HTTPMethod: "GET", URIPattern: "v1/{+name}"},
-	{ID: "secretmanager.projects.secrets.get", HTTPMethod: "GET", URIPattern: "v1/{+name}"},
-	{ID: "secretmanager.projects.secrets.versions.get", HTTPMethod: "GET", URIPattern: "v1/{+name}"},
-	{ID: "secretmanager.projects.locations.list", HTTPMethod: "GET", URIPattern: "v1/{+name}/locations"},
-	{ID: "secretmanager.projects.locations.secrets.versions.access", HTTPMethod: "GET", URIPattern: "v1/{+name}:access"},
-	{ID: "secretmanager.projects.secrets.versions.access", HTTPMethod: "GET", URIPattern: "v1/{+name}:access"},
-	{ID: "secretmanager.projects.locations.secrets.list", HTTPMethod: "GET", URIPattern: "v1/{+parent}/secrets"},
-	{ID: "secretmanager.projects.secrets.list", HTTPMethod: "GET", URIPattern: "v1/{+parent}/secrets"},
-	{ID: "secretmanager.projects.locations.secrets.versions.list", HTTPMethod: "GET", URIPattern: "v1/{+parent}/versions"},
-	{ID: "secretmanager.projects.secrets.versions.list", HTTPMethod: "GET", URIPattern: "v1/{+parent}/versions"},
-	{ID: "secretmanager.projects.locations.secrets.getIamPolicy", HTTPMethod: "GET", URIPattern: "v1/{+resource}:getIamPolicy"},
-	{ID: "secretmanager.projects.secrets.getIamPolicy", HTTPMethod: "GET", URIPattern: "v1/{+resource}:getIamPolicy"},
-	{ID: "secretmanager.projects.locations.secrets.patch", HTTPMethod: "PATCH", URIPattern: "v1/{+name}"},
-	{ID: "secretmanager.projects.secrets.patch", HTTPMethod: "PATCH", URIPattern: "v1/{+name}"},
-	{ID: "secretmanager.projects.locations.secrets.versions.destroy", HTTPMethod: "POST", URIPattern: "v1/{+name}:destroy"},
-	{ID: "secretmanager.projects.secrets.versions.destroy", HTTPMethod: "POST", URIPattern: "v1/{+name}:destroy"},
-	{ID: "secretmanager.projects.locations.secrets.versions.disable", HTTPMethod: "POST", URIPattern: "v1/{+name}:disable"},
-	{ID: "secretmanager.projects.secrets.versions.disable", HTTPMethod: "POST", URIPattern: "v1/{+name}:disable"},
-	{ID: "secretmanager.projects.locations.secrets.versions.enable", HTTPMethod: "POST", URIPattern: "v1/{+name}:enable"},
-	{ID: "secretmanager.projects.secrets.versions.enable", HTTPMethod: "POST", URIPattern: "v1/{+name}:enable"},
-	{ID: "secretmanager.projects.locations.secrets.create", HTTPMethod: "POST", URIPattern: "v1/{+parent}/secrets"},
-	{ID: "secretmanager.projects.secrets.create", HTTPMethod: "POST", URIPattern: "v1/{+parent}/secrets"},
-	{ID: "secretmanager.projects.locations.secrets.addVersion", HTTPMethod: "POST", URIPattern: "v1/{+parent}:addVersion"},
-	{ID: "secretmanager.projects.secrets.addVersion", HTTPMethod: "POST", URIPattern: "v1/{+parent}:addVersion"},
-	{ID: "secretmanager.projects.locations.secrets.setIamPolicy", HTTPMethod: "POST", URIPattern: "v1/{+resource}:setIamPolicy"},
-	{ID: "secretmanager.projects.secrets.setIamPolicy", HTTPMethod: "POST", URIPattern: "v1/{+resource}:setIamPolicy"},
-	{ID: "secretmanager.projects.locations.secrets.testIamPermissions", HTTPMethod: "POST", URIPattern: "v1/{+resource}:testIamPermissions"},
-	{ID: "secretmanager.projects.secrets.testIamPermissions", HTTPMethod: "POST", URIPattern: "v1/{+resource}:testIamPermissions"},
+	{ID: "secretmanager.projects.locations.secrets.delete", HTTPMethod: "DELETE", URIPattern: "v1/{+name}", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v1/(.+)$")},
+	{ID: "secretmanager.projects.secrets.delete", HTTPMethod: "DELETE", URIPattern: "v1/{+name}", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v1/(.+)$")},
+	{ID: "secretmanager.projects.locations.get", HTTPMethod: "GET", URIPattern: "v1/{+name}", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v1/(.+)$")},
+	{ID: "secretmanager.projects.locations.secrets.get", HTTPMethod: "GET", URIPattern: "v1/{+name}", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v1/(.+)$")},
+	{ID: "secretmanager.projects.locations.secrets.versions.get", HTTPMethod: "GET", URIPattern: "v1/{+name}", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v1/(.+)$")},
+	{ID: "secretmanager.projects.secrets.get", HTTPMethod: "GET", URIPattern: "v1/{+name}", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v1/(.+)$")},
+	{ID: "secretmanager.projects.secrets.versions.get", HTTPMethod: "GET", URIPattern: "v1/{+name}", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v1/(.+)$")},
+	{ID: "secretmanager.projects.locations.list", HTTPMethod: "GET", URIPattern: "v1/{+name}/locations", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v1/(.+)/locations$")},
+	{ID: "secretmanager.projects.locations.secrets.versions.access", HTTPMethod: "GET", URIPattern: "v1/{+name}:access", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v1/(.+):access$")},
+	{ID: "secretmanager.projects.secrets.versions.access", HTTPMethod: "GET", URIPattern: "v1/{+name}:access", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v1/(.+):access$")},
+	{ID: "secretmanager.projects.locations.secrets.list", HTTPMethod: "GET", URIPattern: "v1/{+parent}/secrets", Vars: []string{"parent"}, Pattern: regexp.MustCompile("^/?/v1/(.+)/secrets$")},
+	{ID: "secretmanager.projects.secrets.list", HTTPMethod: "GET", URIPattern: "v1/{+parent}/secrets", Vars: []string{"parent"}, Pattern: regexp.MustCompile("^/?/v1/(.+)/secrets$")},
+	{ID: "secretmanager.projects.locations.secrets.versions.list", HTTPMethod: "GET", URIPattern: "v1/{+parent}/versions", Vars: []string{"parent"}, Pattern: regexp.MustCompile("^/?/v1/(.+)/versions$")},
+	{ID: "secretmanager.projects.secrets.versions.list", HTTPMethod: "GET", URIPattern: "v1/{+parent}/versions", Vars: []string{"parent"}, Pattern: regexp.MustCompile("^/?/v1/(.+)/versions$")},
+	{ID: "secretmanager.projects.locations.secrets.getIamPolicy", HTTPMethod: "GET", URIPattern: "v1/{+resource}:getIamPolicy", Vars: []string{"resource"}, Pattern: regexp.MustCompile("^/?/v1/(.+):getIamPolicy$")},
+	{ID: "secretmanager.projects.secrets.getIamPolicy", HTTPMethod: "GET", URIPattern: "v1/{+resource}:getIamPolicy", Vars: []string{"resource"}, Pattern: regexp.MustCompile("^/?/v1/(.+):getIamPolicy$")},
+	{ID: "secretmanager.projects.locations.secrets.patch", HTTPMethod: "PATCH", URIPattern: "v1/{+name}", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v1/(.+)$")},
+	{ID: "secretmanager.projects.secrets.patch", HTTPMethod: "PATCH", URIPattern: "v1/{+name}", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v1/(.+)$")},
+	{ID: "secretmanager.projects.locations.secrets.versions.destroy", HTTPMethod: "POST", URIPattern: "v1/{+name}:destroy", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v1/(.+):destroy$")},
+	{ID: "secretmanager.projects.secrets.versions.destroy", HTTPMethod: "POST", URIPattern: "v1/{+name}:destroy", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v1/(.+):destroy$")},
+	{ID: "secretmanager.projects.locations.secrets.versions.disable", HTTPMethod: "POST", URIPattern: "v1/{+name}:disable", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v1/(.+):disable$")},
+	{ID: "secretmanager.projects.secrets.versions.disable", HTTPMethod: "POST", URIPattern: "v1/{+name}:disable", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v1/(.+):disable$")},
+	{ID: "secretmanager.projects.locations.secrets.versions.enable", HTTPMethod: "POST", URIPattern: "v1/{+name}:enable", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v1/(.+):enable$")},
+	{ID: "secretmanager.projects.secrets.versions.enable", HTTPMethod: "POST", URIPattern: "v1/{+name}:enable", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v1/(.+):enable$")},
+	{ID: "secretmanager.projects.locations.secrets.create", HTTPMethod: "POST", URIPattern: "v1/{+parent}/secrets", Vars: []string{"parent"}, Pattern: regexp.MustCompile("^/?/v1/(.+)/secrets$")},
+	{ID: "secretmanager.projects.secrets.create", HTTPMethod: "POST", URIPattern: "v1/{+parent}/secrets", Vars: []string{"parent"}, Pattern: regexp.MustCompile("^/?/v1/(.+)/secrets$")},
+	{ID: "secretmanager.projects.locations.secrets.addVersion", HTTPMethod: "POST", URIPattern: "v1/{+parent}:addVersion", Vars: []string{"parent"}, Pattern: regexp.MustCompile("^/?/v1/(.+):addVersion$")},
+	{ID: "secretmanager.projects.secrets.addVersion", HTTPMethod: "POST", URIPattern: "v1/{+parent}:addVersion", Vars: []string{"parent"}, Pattern: regexp.MustCompile("^/?/v1/(.+):addVersion$")},
+	{ID: "secretmanager.projects.locations.secrets.setIamPolicy", HTTPMethod: "POST", URIPattern: "v1/{+resource}:setIamPolicy", Vars: []string{"resource"}, Pattern: regexp.MustCompile("^/?/v1/(.+):setIamPolicy$")},
+	{ID: "secretmanager.projects.secrets.setIamPolicy", HTTPMethod: "POST", URIPattern: "v1/{+resource}:setIamPolicy", Vars: []string{"resource"}, Pattern: regexp.MustCompile("^/?/v1/(.+):setIamPolicy$")},
+	{ID: "secretmanager.projects.locations.secrets.testIamPermissions", HTTPMethod: "POST", URIPattern: "v1/{+resource}:testIamPermissions", Vars: []string{"resource"}, Pattern: regexp.MustCompile("^/?/v1/(.+):testIamPermissions$")},
+	{ID: "secretmanager.projects.secrets.testIamPermissions", HTTPMethod: "POST", URIPattern: "v1/{+resource}:testIamPermissions", Vars: []string{"resource"}, Pattern: regexp.MustCompile("^/?/v1/(.+):testIamPermissions$")},
+}
+
+// Match scans Routes in declaration order (sorted by HTTPMethod,
+// URIPattern, ID) and returns the first route whose HTTPMethod
+// equals method and whose compiled Pattern matches path. The
+// returned map zips Route.Vars to the captured submatches.
+// Returns (nil, nil, false) when no route matches.
+//
+// Note: several Discovery services expose two ID variants per
+// pattern (e.g. `projects.secrets.get` + the
+// `projects.locations.secrets.get` regional twin). Both routes
+// share the same URIPattern; the sort ordering picks one
+// deterministically. Callers that need to distinguish should
+// iterate Routes themselves or inspect the parent of the path.
+func Match(method, path string) (*Route, map[string]string, bool) {
+	for i := range Routes {
+		r := &Routes[i]
+		if r.HTTPMethod != method {
+			continue
+		}
+		m := r.Pattern.FindStringSubmatch(path)
+		if m == nil {
+			continue
+		}
+		params := make(map[string]string, len(r.Vars))
+		for j, v := range r.Vars {
+			params[v] = m[j+1]
+		}
+		return r, params, true
+	}
+	return nil, nil, false
 }

@@ -56,3 +56,52 @@ func TestGCPRoutes_Storage_CoversCrossCloudIntersection(t *testing.T) {
 		}
 	}
 }
+
+func TestGCPRoutes_Storage_MatchExtractsParams(t *testing.T) {
+	cases := []struct {
+		name    string
+		method  string
+		path    string
+		wantID  string
+		wantVar string // expected variable name in the match
+		wantVal string // expected value for that variable
+	}{
+		{
+			name:    "GetBucket",
+			method:  "GET",
+			path:    "/storage/v1/b/my-bucket",
+			wantID:  "storage.buckets.get",
+			wantVar: "bucket",
+			wantVal: "my-bucket",
+		},
+		{
+			// Object names with slashes are URL-encoded as %2F per the
+			// Discovery `{object}` (non-reserved) variable. The GCS
+			// SDK does this encoding; the frontend then decodes.
+			name:    "GetObject_singleSegmentVar",
+			method:  "GET",
+			path:    "/storage/v1/b/my-bucket/o/path%2Fto%2Fobject.txt",
+			wantID:  "storage.objects.get",
+			wantVar: "object",
+			wantVal: "path%2Fto%2Fobject.txt",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			r, params, ok := gcpgen.Match(tc.method, tc.path)
+			if !ok {
+				t.Fatalf("Match(%q, %q) = !ok; want match", tc.method, tc.path)
+			}
+			if r.ID != tc.wantID {
+				t.Errorf("matched ID = %q; want %q", r.ID, tc.wantID)
+			}
+			if got := params[tc.wantVar]; got != tc.wantVal {
+				t.Errorf("params[%q] = %q; want %q", tc.wantVar, got, tc.wantVal)
+			}
+		})
+	}
+
+	if _, _, ok := gcpgen.Match("GET", "/nonsense/path"); ok {
+		t.Error("Match on bogus path returned ok; want false")
+	}
+}

@@ -47,7 +47,7 @@ Services covered today: secrets / queue / pubsub (shared) / cache / apigateway /
 | Output | `services/<svc>/gen/gcp/gcp_<svc>.gen.go`, package `gcp` |
 | Wire types | reused from `google.golang.org/api/<svc>/v1` (per AGENTS.md decision #11); the emitter is routing-only |
 
-Output is a `Routes []Route` slice of `(HTTPMethod, URIPattern, OperationID)` triples sorted by `(HTTPMethod, URIPattern, ID)` for stable diffs. Downstream consumers compile the URI templates to their dispatch flavour of choice (regex, ServeMux 1.22+ patterns).
+Output is a `Routes []Route` slice of `(HTTPMethod, URIPattern, OperationID, Vars, Pattern)` quintuples sorted by `(HTTPMethod, URIPattern, ID)` for stable diffs. Each Route's `Pattern` is a pre-compiled `*regexp.Regexp` derived from the Discovery URI template — `{var}` → `([^/]+)`, `{+var}` → `(.+)` — and anchored against `BasePath + path`. A `gen.Match(method, path) (*Route, params, ok)` helper walks Routes in declaration order and returns the first match with extracted variables. Frontends that want a different match precedence iterate `Routes` themselves.
 
 First consumers: `services/<svc>/conformance/gcp_routes_test.go` — assert the inventory is non-empty + sorted + covers each service's cross-cloud-intersection op IDs. A spec drift (rename / removal / addition upstream) surfaces as a test failure on the next regeneration.
 

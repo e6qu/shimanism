@@ -5,67 +5,108 @@
 
 package gcp
 
+import "regexp"
+
 // Route is one (httpMethod, uriPattern, operationID) entry from
 // the upstream Google API Discovery document. URIPattern uses
 // Discovery's URI-template syntax verbatim — e.g. `v1/{+name}` —
 // so downstream frontends can compile it to their own dispatch
 // (regex, ServeMux 1.22+ pattern, or otherwise) without losing
-// the original spec semantics.
+// the original spec semantics. Vars lists the URI-template
+// variables in declaration order; Pattern is the compiled regex
+// the Match helper uses.
 type Route struct {
 	ID         string
 	HTTPMethod string
 	URIPattern string
+	Vars       []string
+	Pattern    *regexp.Regexp
 }
 
 // Routes is the full operation set the upstream Discovery
 // document declares for this service, sorted by (HTTPMethod,
-// URIPattern) for stable output. Frontends typically intersect
-// this against the cross-cloud operation set documented in
-// per-service OPERATIONS.md.
+// URIPattern, ID) for stable output. Frontends typically
+// intersect this against the cross-cloud operation set documented
+// in per-service OPERATIONS.md.
+// BasePath is the URL prefix Discovery roots every operation at.
+// Match expects request paths that include this prefix.
+const BasePath = ""
+
 var Routes = []Route{
-	{ID: "redis.projects.locations.aclPolicies.delete", HTTPMethod: "DELETE", URIPattern: "v1/{+name}"},
-	{ID: "redis.projects.locations.backupCollections.backups.delete", HTTPMethod: "DELETE", URIPattern: "v1/{+name}"},
-	{ID: "redis.projects.locations.clusters.delete", HTTPMethod: "DELETE", URIPattern: "v1/{+name}"},
-	{ID: "redis.projects.locations.clusters.tokenAuthUsers.authTokens.delete", HTTPMethod: "DELETE", URIPattern: "v1/{+name}"},
-	{ID: "redis.projects.locations.clusters.tokenAuthUsers.delete", HTTPMethod: "DELETE", URIPattern: "v1/{+name}"},
-	{ID: "redis.projects.locations.instances.delete", HTTPMethod: "DELETE", URIPattern: "v1/{+name}"},
-	{ID: "redis.projects.locations.operations.delete", HTTPMethod: "DELETE", URIPattern: "v1/{+name}"},
-	{ID: "redis.projects.locations.aclPolicies.get", HTTPMethod: "GET", URIPattern: "v1/{+name}"},
-	{ID: "redis.projects.locations.backupCollections.backups.get", HTTPMethod: "GET", URIPattern: "v1/{+name}"},
-	{ID: "redis.projects.locations.backupCollections.get", HTTPMethod: "GET", URIPattern: "v1/{+name}"},
-	{ID: "redis.projects.locations.clusters.get", HTTPMethod: "GET", URIPattern: "v1/{+name}"},
-	{ID: "redis.projects.locations.clusters.getCertificateAuthority", HTTPMethod: "GET", URIPattern: "v1/{+name}"},
-	{ID: "redis.projects.locations.clusters.tokenAuthUsers.authTokens.get", HTTPMethod: "GET", URIPattern: "v1/{+name}"},
-	{ID: "redis.projects.locations.clusters.tokenAuthUsers.get", HTTPMethod: "GET", URIPattern: "v1/{+name}"},
-	{ID: "redis.projects.locations.get", HTTPMethod: "GET", URIPattern: "v1/{+name}"},
-	{ID: "redis.projects.locations.getSharedRegionalCertificateAuthority", HTTPMethod: "GET", URIPattern: "v1/{+name}"},
-	{ID: "redis.projects.locations.instances.get", HTTPMethod: "GET", URIPattern: "v1/{+name}"},
-	{ID: "redis.projects.locations.operations.get", HTTPMethod: "GET", URIPattern: "v1/{+name}"},
-	{ID: "redis.projects.locations.instances.getAuthString", HTTPMethod: "GET", URIPattern: "v1/{+name}/authString"},
-	{ID: "redis.projects.locations.list", HTTPMethod: "GET", URIPattern: "v1/{+name}/locations"},
-	{ID: "redis.projects.locations.operations.list", HTTPMethod: "GET", URIPattern: "v1/{+name}/operations"},
-	{ID: "redis.projects.locations.aclPolicies.list", HTTPMethod: "GET", URIPattern: "v1/{+parent}/aclPolicies"},
-	{ID: "redis.projects.locations.clusters.tokenAuthUsers.authTokens.list", HTTPMethod: "GET", URIPattern: "v1/{+parent}/authTokens"},
-	{ID: "redis.projects.locations.backupCollections.list", HTTPMethod: "GET", URIPattern: "v1/{+parent}/backupCollections"},
-	{ID: "redis.projects.locations.backupCollections.backups.list", HTTPMethod: "GET", URIPattern: "v1/{+parent}/backups"},
-	{ID: "redis.projects.locations.clusters.list", HTTPMethod: "GET", URIPattern: "v1/{+parent}/clusters"},
-	{ID: "redis.projects.locations.instances.list", HTTPMethod: "GET", URIPattern: "v1/{+parent}/instances"},
-	{ID: "redis.projects.locations.clusters.tokenAuthUsers.list", HTTPMethod: "GET", URIPattern: "v1/{+parent}/tokenAuthUsers"},
-	{ID: "redis.projects.locations.aclPolicies.patch", HTTPMethod: "PATCH", URIPattern: "v1/{+name}"},
-	{ID: "redis.projects.locations.clusters.patch", HTTPMethod: "PATCH", URIPattern: "v1/{+name}"},
-	{ID: "redis.projects.locations.instances.patch", HTTPMethod: "PATCH", URIPattern: "v1/{+name}"},
-	{ID: "redis.projects.locations.clusters.addTokenAuthUser", HTTPMethod: "POST", URIPattern: "v1/{+cluster}:addTokenAuthUser"},
-	{ID: "redis.projects.locations.clusters.backup", HTTPMethod: "POST", URIPattern: "v1/{+name}:backup"},
-	{ID: "redis.projects.locations.operations.cancel", HTTPMethod: "POST", URIPattern: "v1/{+name}:cancel"},
-	{ID: "redis.projects.locations.backupCollections.backups.export", HTTPMethod: "POST", URIPattern: "v1/{+name}:export"},
-	{ID: "redis.projects.locations.instances.export", HTTPMethod: "POST", URIPattern: "v1/{+name}:export"},
-	{ID: "redis.projects.locations.instances.failover", HTTPMethod: "POST", URIPattern: "v1/{+name}:failover"},
-	{ID: "redis.projects.locations.instances.import", HTTPMethod: "POST", URIPattern: "v1/{+name}:import"},
-	{ID: "redis.projects.locations.clusters.rescheduleClusterMaintenance", HTTPMethod: "POST", URIPattern: "v1/{+name}:rescheduleClusterMaintenance"},
-	{ID: "redis.projects.locations.instances.rescheduleMaintenance", HTTPMethod: "POST", URIPattern: "v1/{+name}:rescheduleMaintenance"},
-	{ID: "redis.projects.locations.instances.upgrade", HTTPMethod: "POST", URIPattern: "v1/{+name}:upgrade"},
-	{ID: "redis.projects.locations.aclPolicies.create", HTTPMethod: "POST", URIPattern: "v1/{+parent}/aclPolicies"},
-	{ID: "redis.projects.locations.clusters.create", HTTPMethod: "POST", URIPattern: "v1/{+parent}/clusters"},
-	{ID: "redis.projects.locations.instances.create", HTTPMethod: "POST", URIPattern: "v1/{+parent}/instances"},
-	{ID: "redis.projects.locations.clusters.tokenAuthUsers.addAuthToken", HTTPMethod: "POST", URIPattern: "v1/{+tokenAuthUser}:addAuthToken"},
+	{ID: "redis.projects.locations.aclPolicies.delete", HTTPMethod: "DELETE", URIPattern: "v1/{+name}", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v1/(.+)$")},
+	{ID: "redis.projects.locations.backupCollections.backups.delete", HTTPMethod: "DELETE", URIPattern: "v1/{+name}", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v1/(.+)$")},
+	{ID: "redis.projects.locations.clusters.delete", HTTPMethod: "DELETE", URIPattern: "v1/{+name}", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v1/(.+)$")},
+	{ID: "redis.projects.locations.clusters.tokenAuthUsers.authTokens.delete", HTTPMethod: "DELETE", URIPattern: "v1/{+name}", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v1/(.+)$")},
+	{ID: "redis.projects.locations.clusters.tokenAuthUsers.delete", HTTPMethod: "DELETE", URIPattern: "v1/{+name}", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v1/(.+)$")},
+	{ID: "redis.projects.locations.instances.delete", HTTPMethod: "DELETE", URIPattern: "v1/{+name}", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v1/(.+)$")},
+	{ID: "redis.projects.locations.operations.delete", HTTPMethod: "DELETE", URIPattern: "v1/{+name}", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v1/(.+)$")},
+	{ID: "redis.projects.locations.aclPolicies.get", HTTPMethod: "GET", URIPattern: "v1/{+name}", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v1/(.+)$")},
+	{ID: "redis.projects.locations.backupCollections.backups.get", HTTPMethod: "GET", URIPattern: "v1/{+name}", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v1/(.+)$")},
+	{ID: "redis.projects.locations.backupCollections.get", HTTPMethod: "GET", URIPattern: "v1/{+name}", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v1/(.+)$")},
+	{ID: "redis.projects.locations.clusters.get", HTTPMethod: "GET", URIPattern: "v1/{+name}", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v1/(.+)$")},
+	{ID: "redis.projects.locations.clusters.getCertificateAuthority", HTTPMethod: "GET", URIPattern: "v1/{+name}", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v1/(.+)$")},
+	{ID: "redis.projects.locations.clusters.tokenAuthUsers.authTokens.get", HTTPMethod: "GET", URIPattern: "v1/{+name}", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v1/(.+)$")},
+	{ID: "redis.projects.locations.clusters.tokenAuthUsers.get", HTTPMethod: "GET", URIPattern: "v1/{+name}", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v1/(.+)$")},
+	{ID: "redis.projects.locations.get", HTTPMethod: "GET", URIPattern: "v1/{+name}", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v1/(.+)$")},
+	{ID: "redis.projects.locations.getSharedRegionalCertificateAuthority", HTTPMethod: "GET", URIPattern: "v1/{+name}", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v1/(.+)$")},
+	{ID: "redis.projects.locations.instances.get", HTTPMethod: "GET", URIPattern: "v1/{+name}", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v1/(.+)$")},
+	{ID: "redis.projects.locations.operations.get", HTTPMethod: "GET", URIPattern: "v1/{+name}", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v1/(.+)$")},
+	{ID: "redis.projects.locations.instances.getAuthString", HTTPMethod: "GET", URIPattern: "v1/{+name}/authString", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v1/(.+)/authString$")},
+	{ID: "redis.projects.locations.list", HTTPMethod: "GET", URIPattern: "v1/{+name}/locations", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v1/(.+)/locations$")},
+	{ID: "redis.projects.locations.operations.list", HTTPMethod: "GET", URIPattern: "v1/{+name}/operations", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v1/(.+)/operations$")},
+	{ID: "redis.projects.locations.aclPolicies.list", HTTPMethod: "GET", URIPattern: "v1/{+parent}/aclPolicies", Vars: []string{"parent"}, Pattern: regexp.MustCompile("^/?/v1/(.+)/aclPolicies$")},
+	{ID: "redis.projects.locations.clusters.tokenAuthUsers.authTokens.list", HTTPMethod: "GET", URIPattern: "v1/{+parent}/authTokens", Vars: []string{"parent"}, Pattern: regexp.MustCompile("^/?/v1/(.+)/authTokens$")},
+	{ID: "redis.projects.locations.backupCollections.list", HTTPMethod: "GET", URIPattern: "v1/{+parent}/backupCollections", Vars: []string{"parent"}, Pattern: regexp.MustCompile("^/?/v1/(.+)/backupCollections$")},
+	{ID: "redis.projects.locations.backupCollections.backups.list", HTTPMethod: "GET", URIPattern: "v1/{+parent}/backups", Vars: []string{"parent"}, Pattern: regexp.MustCompile("^/?/v1/(.+)/backups$")},
+	{ID: "redis.projects.locations.clusters.list", HTTPMethod: "GET", URIPattern: "v1/{+parent}/clusters", Vars: []string{"parent"}, Pattern: regexp.MustCompile("^/?/v1/(.+)/clusters$")},
+	{ID: "redis.projects.locations.instances.list", HTTPMethod: "GET", URIPattern: "v1/{+parent}/instances", Vars: []string{"parent"}, Pattern: regexp.MustCompile("^/?/v1/(.+)/instances$")},
+	{ID: "redis.projects.locations.clusters.tokenAuthUsers.list", HTTPMethod: "GET", URIPattern: "v1/{+parent}/tokenAuthUsers", Vars: []string{"parent"}, Pattern: regexp.MustCompile("^/?/v1/(.+)/tokenAuthUsers$")},
+	{ID: "redis.projects.locations.aclPolicies.patch", HTTPMethod: "PATCH", URIPattern: "v1/{+name}", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v1/(.+)$")},
+	{ID: "redis.projects.locations.clusters.patch", HTTPMethod: "PATCH", URIPattern: "v1/{+name}", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v1/(.+)$")},
+	{ID: "redis.projects.locations.instances.patch", HTTPMethod: "PATCH", URIPattern: "v1/{+name}", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v1/(.+)$")},
+	{ID: "redis.projects.locations.clusters.addTokenAuthUser", HTTPMethod: "POST", URIPattern: "v1/{+cluster}:addTokenAuthUser", Vars: []string{"cluster"}, Pattern: regexp.MustCompile("^/?/v1/(.+):addTokenAuthUser$")},
+	{ID: "redis.projects.locations.clusters.backup", HTTPMethod: "POST", URIPattern: "v1/{+name}:backup", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v1/(.+):backup$")},
+	{ID: "redis.projects.locations.operations.cancel", HTTPMethod: "POST", URIPattern: "v1/{+name}:cancel", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v1/(.+):cancel$")},
+	{ID: "redis.projects.locations.backupCollections.backups.export", HTTPMethod: "POST", URIPattern: "v1/{+name}:export", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v1/(.+):export$")},
+	{ID: "redis.projects.locations.instances.export", HTTPMethod: "POST", URIPattern: "v1/{+name}:export", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v1/(.+):export$")},
+	{ID: "redis.projects.locations.instances.failover", HTTPMethod: "POST", URIPattern: "v1/{+name}:failover", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v1/(.+):failover$")},
+	{ID: "redis.projects.locations.instances.import", HTTPMethod: "POST", URIPattern: "v1/{+name}:import", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v1/(.+):import$")},
+	{ID: "redis.projects.locations.clusters.rescheduleClusterMaintenance", HTTPMethod: "POST", URIPattern: "v1/{+name}:rescheduleClusterMaintenance", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v1/(.+):rescheduleClusterMaintenance$")},
+	{ID: "redis.projects.locations.instances.rescheduleMaintenance", HTTPMethod: "POST", URIPattern: "v1/{+name}:rescheduleMaintenance", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v1/(.+):rescheduleMaintenance$")},
+	{ID: "redis.projects.locations.instances.upgrade", HTTPMethod: "POST", URIPattern: "v1/{+name}:upgrade", Vars: []string{"name"}, Pattern: regexp.MustCompile("^/?/v1/(.+):upgrade$")},
+	{ID: "redis.projects.locations.aclPolicies.create", HTTPMethod: "POST", URIPattern: "v1/{+parent}/aclPolicies", Vars: []string{"parent"}, Pattern: regexp.MustCompile("^/?/v1/(.+)/aclPolicies$")},
+	{ID: "redis.projects.locations.clusters.create", HTTPMethod: "POST", URIPattern: "v1/{+parent}/clusters", Vars: []string{"parent"}, Pattern: regexp.MustCompile("^/?/v1/(.+)/clusters$")},
+	{ID: "redis.projects.locations.instances.create", HTTPMethod: "POST", URIPattern: "v1/{+parent}/instances", Vars: []string{"parent"}, Pattern: regexp.MustCompile("^/?/v1/(.+)/instances$")},
+	{ID: "redis.projects.locations.clusters.tokenAuthUsers.addAuthToken", HTTPMethod: "POST", URIPattern: "v1/{+tokenAuthUser}:addAuthToken", Vars: []string{"tokenAuthUser"}, Pattern: regexp.MustCompile("^/?/v1/(.+):addAuthToken$")},
+}
+
+// Match scans Routes in declaration order (sorted by HTTPMethod,
+// URIPattern, ID) and returns the first route whose HTTPMethod
+// equals method and whose compiled Pattern matches path. The
+// returned map zips Route.Vars to the captured submatches.
+// Returns (nil, nil, false) when no route matches.
+//
+// Note: several Discovery services expose two ID variants per
+// pattern (e.g. `projects.secrets.get` + the
+// `projects.locations.secrets.get` regional twin). Both routes
+// share the same URIPattern; the sort ordering picks one
+// deterministically. Callers that need to distinguish should
+// iterate Routes themselves or inspect the parent of the path.
+func Match(method, path string) (*Route, map[string]string, bool) {
+	for i := range Routes {
+		r := &Routes[i]
+		if r.HTTPMethod != method {
+			continue
+		}
+		m := r.Pattern.FindStringSubmatch(path)
+		if m == nil {
+			continue
+		}
+		params := make(map[string]string, len(r.Vars))
+		for j, v := range r.Vars {
+			params[v] = m[j+1]
+		}
+		return r, params, true
+	}
+	return nil, nil, false
 }

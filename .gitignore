@@ -7,6 +7,9 @@
 # everything under bin/.
 /shim
 /cmd/shim/shim
+/codegen
+/azure-codegen
+/gcp-codegen
 
 # Go
 /vendor/
@@ -29,4 +32,3 @@ coverage.html
 
 # Local conformance harness recordings (committed selectively, not wholesale)
 /services/*/conformance/recordings/*.tmp
-/azure-codegen

@@ -18,10 +18,6 @@
 //	  -spec=services/secrets/spec/gcp-secretmanager-discovery.json \
 //	  -out=services/secrets/gen/gcp/gcp_secretmanager.gen.go \
 //	  -pkg=gcp
-//
-// Phase 12.B pilot. Single-service driver for now; manifest input
-// arrives when the pattern proves out across the remaining 7 GCP
-// frontends.
 package main
 
 import (
@@ -36,6 +32,7 @@ import (
 
 type discoveryDoc struct {
 	BaseURL          string                       `json:"baseUrl"`
+	BasePath         string                       `json:"basePath"`
 	DiscoveryVersion string                       `json:"discoveryVersion"`
 	Revision         string                       `json:"revision"`
 	Resources        map[string]discoveryResource `json:"resources"`
@@ -70,6 +67,55 @@ func walk(res discoveryResource, out *[]route) {
 	for _, sub := range res.Resources {
 		walk(sub, out)
 	}
+}
+
+// templateToRegex compiles a Discovery URI template into a Go regexp
+// source. `{name}` matches a single path segment; `{+name}` matches a
+// reserved-expansion (slashes allowed). Leading `/` on the request path
+// is tolerated. The returned regex is anchored.
+//
+// The second return value is the ordered list of variable names so a
+// caller can zip extracted submatches back to parameter names.
+func templateToRegex(tmpl string) (string, []string) {
+	var (
+		out  strings.Builder
+		vars []string
+	)
+	out.WriteString("^/?")
+	for i := 0; i < len(tmpl); {
+		c := tmpl[i]
+		if c != '{' {
+			// Escape regex metacharacters inside literal segments.
+			switch c {
+			case '.', '+', '*', '?', '(', ')', '|', '[', ']', '^', '$', '\\':
+				out.WriteByte('\\')
+			}
+			out.WriteByte(c)
+			i++
+			continue
+		}
+		end := strings.IndexByte(tmpl[i:], '}')
+		if end < 0 {
+			out.WriteByte(c)
+			i++
+			continue
+		}
+		spec := tmpl[i+1 : i+end]
+		reserved := false
+		if len(spec) > 0 && spec[0] == '+' {
+			reserved = true
+			spec = spec[1:]
+		}
+		vars = append(vars, spec)
+		if reserved {
+			out.WriteString(`(.+)`)
+		} else {
+			out.WriteString(`([^/]+)`)
+		}
+		i += end + 1
+	}
+	out.WriteByte('$')
+	return out.String(), vars
 }
 
 func main() {
@@ -116,27 +162,77 @@ func main() {
 	fmt.Fprintln(&b)
 	fmt.Fprintf(&b, "package %s\n", *pkgName)
 	fmt.Fprintln(&b)
+	fmt.Fprintln(&b, `import "regexp"`)
+	fmt.Fprintln(&b)
 	fmt.Fprintln(&b, "// Route is one (httpMethod, uriPattern, operationID) entry from")
 	fmt.Fprintln(&b, "// the upstream Google API Discovery document. URIPattern uses")
 	fmt.Fprintln(&b, "// Discovery's URI-template syntax verbatim — e.g. `v1/{+name}` —")
 	fmt.Fprintln(&b, "// so downstream frontends can compile it to their own dispatch")
 	fmt.Fprintln(&b, "// (regex, ServeMux 1.22+ pattern, or otherwise) without losing")
-	fmt.Fprintln(&b, "// the original spec semantics.")
+	fmt.Fprintln(&b, "// the original spec semantics. Vars lists the URI-template")
+	fmt.Fprintln(&b, "// variables in declaration order; Pattern is the compiled regex")
+	fmt.Fprintln(&b, "// the Match helper uses.")
 	fmt.Fprintln(&b, "type Route struct {")
 	fmt.Fprintln(&b, "\tID         string")
 	fmt.Fprintln(&b, "\tHTTPMethod string")
 	fmt.Fprintln(&b, "\tURIPattern string")
+	fmt.Fprintln(&b, "\tVars       []string")
+	fmt.Fprintln(&b, "\tPattern    *regexp.Regexp")
 	fmt.Fprintln(&b, "}")
 	fmt.Fprintln(&b)
 	fmt.Fprintln(&b, "// Routes is the full operation set the upstream Discovery")
 	fmt.Fprintln(&b, "// document declares for this service, sorted by (HTTPMethod,")
-	fmt.Fprintln(&b, "// URIPattern) for stable output. Frontends typically intersect")
-	fmt.Fprintln(&b, "// this against the cross-cloud operation set documented in")
-	fmt.Fprintln(&b, "// per-service OPERATIONS.md.")
+	fmt.Fprintln(&b, "// URIPattern, ID) for stable output. Frontends typically")
+	fmt.Fprintln(&b, "// intersect this against the cross-cloud operation set documented")
+	fmt.Fprintln(&b, "// in per-service OPERATIONS.md.")
+	// Discovery's `basePath` (e.g. `/storage/v1/`) is the URL prefix
+	// every method path is rooted at. Compile-time regex matches the
+	// full request path, which includes basePath; the URIPattern
+	// field stays verbatim relative to basePath so downstream
+	// spec-drift comparisons match the upstream Discovery shape.
+	basePath := strings.TrimRight(doc.BasePath, "/")
+	fmt.Fprintf(&b, "// BasePath is the URL prefix Discovery roots every operation at.\n")
+	fmt.Fprintf(&b, "// Match expects request paths that include this prefix.\n")
+	fmt.Fprintf(&b, "const BasePath = %q\n", basePath)
+	fmt.Fprintln(&b)
 	fmt.Fprintln(&b, "var Routes = []Route{")
 	for _, r := range routes {
-		fmt.Fprintf(&b, "\t{ID: %q, HTTPMethod: %q, URIPattern: %q},\n", r.ID, r.HTTPMethod, r.URIPattern)
+		full := basePath + "/" + strings.TrimLeft(r.URIPattern, "/")
+		re, vars := templateToRegex(full)
+		fmt.Fprintf(&b, "\t{ID: %q, HTTPMethod: %q, URIPattern: %q, Vars: %s, Pattern: regexp.MustCompile(%q)},\n",
+			r.ID, r.HTTPMethod, r.URIPattern, goStringSlice(vars), re)
 	}
+	fmt.Fprintln(&b, "}")
+	fmt.Fprintln(&b)
+	fmt.Fprintln(&b, "// Match scans Routes in declaration order (sorted by HTTPMethod,")
+	fmt.Fprintln(&b, "// URIPattern, ID) and returns the first route whose HTTPMethod")
+	fmt.Fprintln(&b, "// equals method and whose compiled Pattern matches path. The")
+	fmt.Fprintln(&b, "// returned map zips Route.Vars to the captured submatches.")
+	fmt.Fprintln(&b, "// Returns (nil, nil, false) when no route matches.")
+	fmt.Fprintln(&b, "//")
+	fmt.Fprintln(&b, "// Note: several Discovery services expose two ID variants per")
+	fmt.Fprintln(&b, "// pattern (e.g. `projects.secrets.get` + the")
+	fmt.Fprintln(&b, "// `projects.locations.secrets.get` regional twin). Both routes")
+	fmt.Fprintln(&b, "// share the same URIPattern; the sort ordering picks one")
+	fmt.Fprintln(&b, "// deterministically. Callers that need to distinguish should")
+	fmt.Fprintln(&b, "// iterate Routes themselves or inspect the parent of the path.")
+	fmt.Fprintln(&b, "func Match(method, path string) (*Route, map[string]string, bool) {")
+	fmt.Fprintln(&b, "\tfor i := range Routes {")
+	fmt.Fprintln(&b, "\t\tr := &Routes[i]")
+	fmt.Fprintln(&b, "\t\tif r.HTTPMethod != method {")
+	fmt.Fprintln(&b, "\t\t\tcontinue")
+	fmt.Fprintln(&b, "\t\t}")
+	fmt.Fprintln(&b, "\t\tm := r.Pattern.FindStringSubmatch(path)")
+	fmt.Fprintln(&b, "\t\tif m == nil {")
+	fmt.Fprintln(&b, "\t\t\tcontinue")
+	fmt.Fprintln(&b, "\t\t}")
+	fmt.Fprintln(&b, "\t\tparams := make(map[string]string, len(r.Vars))")
+	fmt.Fprintln(&b, "\t\tfor j, v := range r.Vars {")
+	fmt.Fprintln(&b, "\t\t\tparams[v] = m[j+1]")
+	fmt.Fprintln(&b, "\t\t}")
+	fmt.Fprintln(&b, "\t\treturn r, params, true")
+	fmt.Fprintln(&b, "\t}")
+	fmt.Fprintln(&b, "\treturn nil, nil, false")
 	fmt.Fprintln(&b, "}")
 
 	if err := os.MkdirAll(filepath.Dir(*outPath), 0o755); err != nil {
@@ -146,6 +242,19 @@ func main() {
 		fail("write %s: %v", *outPath, err)
 	}
 	fmt.Printf("wrote %s (%d routes)\n", *outPath, len(routes))
+}
+
+// goStringSlice formats a string slice as a Go literal. Empty slices
+// render as `nil` to keep the gen file compact.
+func goStringSlice(ss []string) string {
+	if len(ss) == 0 {
+		return "nil"
+	}
+	parts := make([]string, len(ss))
+	for i, s := range ss {
+		parts[i] = fmt.Sprintf("%q", s)
+	}
+	return "[]string{" + strings.Join(parts, ", ") + "}"
 }
 
 func fail(format string, args ...any) {
