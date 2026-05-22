@@ -6,9 +6,10 @@
 // hashicorp/azurerm provider + Azure Go SDK + `az redis` CLI all use.
 //
 // ARM URL shape (path-routed by the gen mux):
-//   /subscriptions/{subscriptionId}
-//     /resourceGroups/{resourceGroupName}
-//       /providers/Microsoft.Cache/redis/{name}
+//
+//	/subscriptions/{subscriptionId}
+//	  /resourceGroups/{resourceGroupName}
+//	    /providers/Microsoft.Cache/redis/{name}
 package azure_redis
 
 import (

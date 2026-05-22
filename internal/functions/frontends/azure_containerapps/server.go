@@ -5,9 +5,10 @@
 // dispatches each request.
 //
 // ARM URL shape (path-routed by the gen mux):
-//   /subscriptions/{subscriptionId}
-//     /resourceGroups/{resourceGroupName}
-//       /providers/Microsoft.App/containerApps/{containerAppName}
+//
+//	/subscriptions/{subscriptionId}
+//	  /resourceGroups/{resourceGroupName}
+//	    /providers/Microsoft.App/containerApps/{containerAppName}
 package azure_containerapps
 
 import (
