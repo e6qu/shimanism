@@ -87,6 +87,86 @@ func TestEveryVendoredSpecCarriesProvenance(t *testing.T) {
 	}
 }
 
+// TestProvenanceMatchesSOURCES walks every SOURCES.md, parses each
+// row, then asserts the matching spec file's `_provenance` block
+// has the same upstream_repo + upstream_path + pinned_at. Catches
+// the case where a contributor edits SOURCES.md (bumps the SHA,
+// say) but forgets to re-run `make inject-provenance` — the spec
+// file would silently disagree with SOURCES.md downstream.
+func TestProvenanceMatchesSOURCES(t *testing.T) {
+	repoRoot, err := findRepoRoot()
+	if err != nil {
+		t.Fatalf("locate repo root: %v", err)
+	}
+
+	var sourcesFiles []string
+	err = filepath.WalkDir(filepath.Join(repoRoot, "services"), func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			return nil
+		}
+		if filepath.Base(path) == "SOURCES.md" {
+			sourcesFiles = append(sourcesFiles, path)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("walk: %v", err)
+	}
+
+	mismatches := 0
+	for _, sourcesPath := range sourcesFiles {
+		rows, err := parseSourcesMD(sourcesPath)
+		if err != nil {
+			t.Errorf("parse %s: %v", sourcesPath, err)
+			continue
+		}
+		dir := filepath.Dir(sourcesPath)
+		for local, want := range rows {
+			specPath := filepath.Join(dir, local)
+			if _, err := os.Stat(specPath); err != nil {
+				continue // missing files reported by the other test
+			}
+			raw, err := os.ReadFile(specPath)
+			if err != nil {
+				t.Errorf("read %s: %v", specPath, err)
+				continue
+			}
+			var doc map[string]json.RawMessage
+			if err := json.Unmarshal(raw, &doc); err != nil {
+				continue
+			}
+			provRaw, ok := doc["_provenance"]
+			if !ok {
+				continue
+			}
+			var got provenance
+			if err := json.Unmarshal(provRaw, &got); err != nil {
+				t.Errorf("%s: decode _provenance: %v", specPath, err)
+				continue
+			}
+			rel, _ := filepath.Rel(repoRoot, specPath)
+			if got.UpstreamRepo != want.UpstreamRepo {
+				t.Errorf("%s: _provenance.upstream_repo = %q, SOURCES.md = %q", rel, got.UpstreamRepo, want.UpstreamRepo)
+				mismatches++
+			}
+			if got.UpstreamPath != want.UpstreamPath {
+				t.Errorf("%s: _provenance.upstream_path = %q, SOURCES.md = %q", rel, got.UpstreamPath, want.UpstreamPath)
+				mismatches++
+			}
+			if got.PinnedAt != want.PinnedAt {
+				t.Errorf("%s: _provenance.pinned_at = %q, SOURCES.md = %q", rel, got.PinnedAt, want.PinnedAt)
+				mismatches++
+			}
+		}
+	}
+	if mismatches > 0 {
+		t.Logf("Fix: run `make inject-provenance` to sync _provenance blocks with SOURCES.md.")
+	}
+}
+
 func findRepoRoot() (string, error) {
 	dir, err := os.Getwd()
 	if err != nil {
