@@ -5,6 +5,8 @@ import (
 	"strings"
 
 	"github.com/e6qu/shimanism/internal/storage/domain"
+
+	_ "github.com/e6qu/shimanism/services/storage/gen/azure" // Phase 13.A spec-drift contract; gen.ServerInterface is the canonical operation set.
 )
 
 // Server is an Azure-Blob-shaped HTTP frontend that dispatches to a

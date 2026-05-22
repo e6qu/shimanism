@@ -37,13 +37,9 @@ The reference impl is `internal/secrets/frontends/azure_keyvault/server.go` (Pha
 
 **13.B.2-8 — Remaining 7 GCP frontends (gcp_apigateway / gcp_memorystore / gcp_cloudrun / gcp_pubsub × 2 / gcp_cloudsql / gcs)** — ✅ spec-drift contract established via blank-import of `services/<svc>/gen/gcp`. The existing per-frontend regex dispatch keeps working (tests pin behaviour); the blank import makes the build-time dependency on the gen inventory explicit so deleting the gen file fails fast at build rather than at test time. Full path-shape-inspection migration (like 13.B.1) is a follow-on refactor — the existing dispatchers + `TestGCPRoutes_<Svc>_FrontendDispatchCoverage` tests already cover the spec-drift contract; the additional rewrite would be cosmetic.
 
-**Next sub-phase: 13.A.6 — `internal/storage/frontends/azure_blob`.**
-- 69 spec methods (Blob data-plane). Biggest hand-written frontend (620 LOC). Data-plane shape — `x-ms-paths` was flattened in Phase 12.A.15, so the gen file's HandleFunc registers paths with embedded `?comp=...` query strings.
-- Hazard: `net/http`'s ServeMux 1.22+ doesn't match query strings — patterns like `/?comp=list` will register against the literal path `/`. The standard `gen.HandlerWithOptions` won't dispatch query-discriminated routes correctly.
-- Recommended approach: same hybrid as 13.A.4/5 — hand-written dispatch into the gen.ServerInterface methods, with query-param-based switching for `comp=...` / `restype=...` discriminators.
+**13.A.6 — `azure_blob`** — ◐ spec-drift contract via blank import landed; full handler migration deferred. The gen.ServerInterface has 69 methods and uses query-discriminated URLs (`?comp=list`, `?restype=service&comp=properties`) that Go 1.22's ServeMux doesn't natively dispatch on. Full migration needs the same hand-written-dispatch hybrid pattern 13.A.4/5 used + ~58 stub methods. The blank import gives the build-time spec-drift gate now; the full handler migration is a Phase-13-follow-on.
 
-**13.A.7 — `internal/apigateway/frontends/azure_apim`.**
-- The vendored APIM spec is intentionally minimal (0 spec operations). The gen.ServerInterface is empty. Adapter migration here is "types-only" — there's no spec contract to dispatch through. May be worth deferring as out-of-scope-for-Phase-13.
+**13.A.7 — `azure_apim`** — ◐ spec-drift contract via blank import landed. The vendored APIM spec is intentionally minimal (0 spec operations); gen.ServerInterface is empty. The blank import documents the dependency. There's no further migration to do here until the spec is broadened.
 
 ### Phase 13.B — GCP adapter migration
 
