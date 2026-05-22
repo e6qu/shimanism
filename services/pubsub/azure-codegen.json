@@ -1,0 +1,6 @@
+{
+  "_comment": "Phase 12.A.13: Azure Service Bus data-plane spec drives the spec-driven types lane for the pubsub/azure_servicebus_topics frontend, in addition to the queue frontend. Single upstream spec → two generated files (one per service package).",
+  "spec": "services/queue/spec/azure-servicebus.json",
+  "package": "azure",
+  "out": "services/pubsub/gen/azure/azure_servicebus.gen.go"
+}
