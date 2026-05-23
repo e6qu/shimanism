@@ -1,6 +1,6 @@
 # Known Bugs
 
-**20 filed · 18 fixed · 2 open · 1 false positive. Plus 3 upstream-sockerless issues tracked separately.**
+**20 filed · 18 fixed · 2 open · 1 false positive. Plus 6 upstream-sockerless issues tracked separately (3 fidelity bugs + 3 missing-service asks).**
 
 Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLAN.md](PLAN.md) · narrative [WHAT_WE_DID.md](WHAT_WE_DID.md) · rules [AGENTS.md](AGENTS.md).
 
@@ -29,21 +29,26 @@ Sockerless fidelity gaps surfaced while wiring Phase 13.D.1's sockerless lane. E
 
 ### Sockerless coverage gaps (deferred — not bugs in sockerless, just service scope)
 
-Sockerless doesn't simulate every cloud service the shim translates. The following backends remain outside 13.D.1's sockerless lane and gate on **13.D.2 real-cloud Track A** instead:
+Sockerless doesn't simulate every cloud service the shim translates. The following backends remain outside 13.D.1's sockerless lane and gate on **13.D.2 real-cloud Track A** instead. **Filed upstream as missing-feature asks** (one roll-up per cloud, with per-service yield-per-LOC suggestions for the maintainers):
 
-| Backend | Why no sockerless coverage |
+| Cloud | Upstream ask |
 |---|---|
-| Azure Blob data plane | Sockerless's Azure sim implements Azure Files only; blob endpoint URLs are advertised in storage-account ARM responses but the data-plane handlers don't exist. |
-| GCP API Gateway | Not in sockerless's GCP sim. Blocks closing BUG-8 via this lane. |
-| GCP Pub/Sub | Not in sockerless's GCP sim. Blocks reclassifying BUG-15 via this lane. |
-| GCP Cloud SQL | Not in sockerless's GCP sim. |
-| GCP Memorystore | Not in sockerless's GCP sim. |
-| Azure Key Vault data plane | Not in sockerless's Azure sim (control-plane storage-accounts is in; vault data-plane isn't). |
-| GCP Secret Manager | Not in sockerless's GCP sim. |
-| AWS Lambda + GCP Cloud Run + Azure Container Apps (Functions) | Sims exist in sockerless but the shim's Functions backends weren't wired to them yet — tracked as a follow-on (see [DO_NEXT.md](DO_NEXT.md#follow-ons-deferred-from-13d1)). |
-| AWS SQS / SNS, GCP Pub/Sub, Azure Service Bus (Queue + Pub/Sub) | Not in sockerless. |
-| AWS RDS / Aurora, GCP Cloud SQL, Azure PostgreSQL (RDBMS) | Not in sockerless. |
-| AWS ElastiCache, GCP Memorystore, Azure Redis (Cache) | Not in sockerless. |
+| AWS | [e6qu/sockerless#176](https://github.com/e6qu/sockerless/issues/176) — SQS, SNS, API Gateway v1 + v2, RDS / Aurora, ElastiCache. |
+| GCP | [e6qu/sockerless#177](https://github.com/e6qu/sockerless/issues/177) — Pub/Sub, Secret Manager, Cloud SQL, Memorystore, API Gateway. |
+| Azure | [e6qu/sockerless#178](https://github.com/e6qu/sockerless/issues/178) — Blob data plane, Key Vault data plane, Service Bus (ARM + data), Database for PostgreSQL FlexibleServer, Cache for Redis, API Management. |
+
+| Backend | Why no sockerless coverage | Tracked upstream |
+|---|---|---|
+| Azure Blob data plane | Sockerless's Azure sim implements Azure Files only; blob endpoint URLs are advertised in storage-account ARM responses but the data-plane handlers don't exist. | [#178](https://github.com/e6qu/sockerless/issues/178) |
+| GCP API Gateway | Not in sockerless's GCP sim. Blocks closing BUG-8 via this lane. | [#177](https://github.com/e6qu/sockerless/issues/177) |
+| GCP Pub/Sub | Not in sockerless's GCP sim. Blocks reclassifying BUG-15 via this lane. | [#177](https://github.com/e6qu/sockerless/issues/177) |
+| GCP Cloud SQL | Not in sockerless's GCP sim. | [#177](https://github.com/e6qu/sockerless/issues/177) |
+| GCP Memorystore | Not in sockerless's GCP sim. | [#177](https://github.com/e6qu/sockerless/issues/177) |
+| GCP Secret Manager | Not in sockerless's GCP sim. | [#177](https://github.com/e6qu/sockerless/issues/177) |
+| Azure Key Vault data plane | Not in sockerless's Azure sim (control-plane storage-accounts is in; vault data-plane isn't). | [#178](https://github.com/e6qu/sockerless/issues/178) |
+| Azure Service Bus, Azure PostgreSQL, Azure Redis, Azure APIM | Not in sockerless's Azure sim. | [#178](https://github.com/e6qu/sockerless/issues/178) |
+| AWS SQS, SNS, API Gateway, RDS, ElastiCache | Not in sockerless's AWS sim. | [#176](https://github.com/e6qu/sockerless/issues/176) |
+| AWS Lambda + GCP Cloud Run + Azure Container Apps (Functions) | Sims exist in sockerless but the shim's Functions backends weren't wired to them yet — tracked as a follow-on (see [DO_NEXT.md](DO_NEXT.md#follow-ons-deferred-from-13d1)). | n/a (shim follow-on) |
 
 ## False positives
 

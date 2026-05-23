@@ -38,7 +38,9 @@ The script:
 4. Runs `go test -run '^TestSockerless_'` in `services/storage/conformance/` with the right env vars to point the shim's backends at the sims.
 5. Tears the sims down on exit.
 
-## Sockerless fidelity gaps tracked upstream
+## Sockerless issues filed upstream
+
+### Fidelity gaps (active bugs)
 
 | Issue | Summary |
 |---|---|
@@ -47,6 +49,16 @@ The script:
 | [#175](https://github.com/e6qu/sockerless/issues/175) | AWS Secrets Manager simulator is missing `ListSecretVersionIds`. Any SDK or shim path that maps version index → UUID hits a 400 `UnknownOperationException`. |
 
 Closing #174 unblocks PutObject / GetObject in the storage lane; closing #175 unblocks GetSecretValue + HeadSecret in the secrets lane.
+
+### Missing-service asks (per-cloud rollups)
+
+| Issue | Cloud | Services |
+|---|---|---|
+| [#176](https://github.com/e6qu/sockerless/issues/176) | AWS | SQS, SNS, API Gateway v1 + v2, RDS / Aurora, ElastiCache |
+| [#177](https://github.com/e6qu/sockerless/issues/177) | GCP | Pub/Sub, Secret Manager, Cloud SQL Admin, Memorystore, API Gateway |
+| [#178](https://github.com/e6qu/sockerless/issues/178) | Azure | Blob data plane, Key Vault data plane, Service Bus (ARM + data), Database for PostgreSQL FlexibleServer, Cache for Redis, API Management |
+
+Each rollup lists per-service yield-per-LOC ordering suggestions for sockerless maintainers. None of these block PR #20 — they're filed so consumers (and Track A's eventual real-cloud lane) have a documented upstream path.
 
 ## Extending to a new service
 

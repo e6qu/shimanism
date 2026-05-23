@@ -10,11 +10,17 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 
 **13.D.1 sockerless storage lane.** The user redirected Track A through `github.com/e6qu/sockerless` simulators before standing up real cloud accounts — same goal (catch translation defects in the AWS / GCP / Azure backend layers), no real-cloud cost.
 
-Three fidelity gaps surfaced and were filed upstream as fully self-contained issues (no shim references; sockerless maintainers can pick up the repro without reading our repo):
+Six issues filed upstream as fully self-contained reports (no shim references; sockerless maintainers can pick up the repros without reading our repo) — three fidelity bugs and three missing-service rollups:
 
 - **[e6qu/sockerless#173](https://github.com/e6qu/sockerless/issues/173) — S3 mounted under `/s3/` URL prefix.** The AWS sim registers S3 ops at `GET /s3`, `PUT /s3/{bucket}`, etc. instead of the wire-protocol root. AWS SDK / CLI / TF-provider clients with `--endpoint-url=http://localhost:4566` hit `405 Method Not Allowed` on every S3 op. Workaround: append `/s3` to the endpoint URL. The simulator's own SDK tests use this workaround (`o.BaseEndpoint = aws.String(baseURL + "/s3")`).
 - **[e6qu/sockerless#174](https://github.com/e6qu/sockerless/issues/174) — `aws-chunked` envelope stored verbatim.** When the aws-sdk-go-v2 `PutObject` is called with a non-seekable body, it uses `Transfer-Encoding: aws-chunked` framing. Real S3 unwraps that server-side. The sim writes the framed bytes (chunk-size hex line + chunk body + zero-size chunk + trailing checksum header) into its object store, so subsequent `GetObject` returns the framed envelope literally instead of the payload. Reproduces with an 11-byte string ending up as a 52-byte stored object. Blocks AWS PutObject/GetObject in the storage lane; doesn't affect bucket lifecycle.
 - **[e6qu/sockerless#175](https://github.com/e6qu/sockerless/issues/175) — AWS Secrets Manager missing `ListSecretVersionIds`.** The sim wires 10 SM operations but not the version-listing one. The shim's `GetSecretValue` + `HeadSecret` both call into the version-ID mapping path (the shim translates monotonic uint64 ↔ Secrets Manager's UUID `VersionId` per-request, since the shim is stateless), so both surface a 400 `UnknownOperationException` against the sim. `CreateSecret` + `ListSecrets` + `DeleteSecret` work — exercised in the lane.
+
+And three missing-service rollups — one per cloud, each listing the services we'd want to translate against but that aren't simulated today. Each issue lists per-service suggested yield-per-LOC ordering for the maintainers:
+
+- **[e6qu/sockerless#176](https://github.com/e6qu/sockerless/issues/176) — AWS sim:** SQS, SNS, API Gateway v1 + v2, RDS / Aurora, ElastiCache.
+- **[e6qu/sockerless#177](https://github.com/e6qu/sockerless/issues/177) — GCP sim:** Pub/Sub, Secret Manager, Cloud SQL Admin, Memorystore, API Gateway.
+- **[e6qu/sockerless#178](https://github.com/e6qu/sockerless/issues/178) — Azure sim:** Blob data plane (URL is advertised in ARM responses but no handlers exist), Key Vault data plane, Service Bus (ARM + simplified data plane), Database for PostgreSQL FlexibleServer, Cache for Redis, API Management.
 
 Two additional shim-side observations:
 
