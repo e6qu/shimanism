@@ -19,12 +19,9 @@
 #      point the shim's backends at the sims.
 #   5. Tears the sims down on exit.
 #
-# Known gaps tracked upstream:
-#   - sockerless#173 — AWS S3 routes mounted under /s3/ URL prefix; we
-#     append /s3 to the endpoint as the documented workaround.
-#   - sockerless#174 — sockerless persists the SDK's aws-chunked
-#     envelope verbatim in PutObject. Until that lands, the AWS lane
-#     covers only bucket lifecycle. The GCS lane is full round-trip.
+# Phase 14.A: sockerless#173-175 closed in upstream PR #179. The
+# /s3 URL workaround is dropped; AWS S3 PutObject/GetObject and AWS
+# Secrets Manager HeadSecret/GetSecretValue now run end-to-end.
 
 set -euo pipefail
 
@@ -91,7 +88,7 @@ GCP_PID=$!
 sleep "${SOCKERLESS_STARTUP_DELAY:-1}"
 
 echo "run: shim sockerless storage + secrets tests"
-SOCKERLESS_AWS_ENDPOINT="https://localhost:$AWS_PORT/s3" \
+SOCKERLESS_AWS_ENDPOINT="https://localhost:$AWS_PORT" \
 SOCKERLESS_GCP_ENDPOINT="localhost:$GCP_PORT" \
 SOCKERLESS_AWS_SM_ENDPOINT="https://localhost:$AWS_PORT" \
 AWS_S3_CONFORMANCE_INSECURE_TLS=1 \

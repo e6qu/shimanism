@@ -5,16 +5,14 @@
 // simulator instance so the AWS / GCP / Azure backend translation
 // layers can be exercised without standing up real cloud accounts.
 //
-// Sockerless coverage of the storage service today (May 2026):
+// Sockerless coverage of the storage service (May 2026, Phase 14.A):
 //
-//	AWS S3      — partial. Bucket lifecycle works.
-//	              PutObject / GetObject round-trip is broken upstream:
-//	              sockerless writes the SDK's aws-chunked envelope
-//	              verbatim into its object store (sockerless#174).
-//	GCS         — full bucket + object round-trip works.
-//	Azure Blob  — not implemented in sockerless (only Azure Files;
-//	              blob endpoint URLs are advertised in storage-account
-//	              ARM responses but the data-plane handlers don't exist).
+//	AWS S3      — full bucket + object round-trip. Sockerless#173 +
+//	              #174 closed; routes at canonical root and the
+//	              aws-chunked envelope decoder lands the SDK's
+//	              streaming PutObject correctly.
+//	GCS         — full bucket + object round-trip.
+//	Azure Blob  — data-plane lane added in Phase 14.B (sockerless#178).
 //
 // Each sub-test skips when its driver env var isn't set, so the
 // default `go test ./...` lane is unaffected.
@@ -41,14 +39,13 @@ import (
 	gcsbackend "github.com/e6qu/shimanism/services/storage/backends/gcs"
 )
 
-// TestSockerless_AWS_BucketLifecycle drives the shim's AWS-shaped
-// frontend → AWS S3 backend → sockerless AWS simulator with
-// CreateBucket / HeadBucket / DeleteBucket. Set
-// SOCKERLESS_AWS_ENDPOINT (e.g. https://localhost:14566/s3) to opt
-// in. The /s3 URL-prefix is sockerless's own convention
-// (sockerless#173); we honour it because that's how sockerless's
-// SDK tests target their S3 sim today.
-func TestSockerless_AWS_BucketLifecycle(t *testing.T) {
+// TestSockerless_AWS_S3RoundTrip drives the shim's AWS-shaped
+// frontend → AWS S3 backend → sockerless AWS simulator end-to-end:
+// CreateBucket, ListBuckets, PutObject, GetObject, HeadObject,
+// DeleteObject, DeleteBucket. Set SOCKERLESS_AWS_ENDPOINT (the
+// sim's HTTPS listener; no path prefix — sockerless#173 closed)
+// to opt in.
+func TestSockerless_AWS_S3RoundTrip(t *testing.T) {
 	endpoint := os.Getenv("SOCKERLESS_AWS_ENDPOINT")
 	if endpoint == "" {
 		t.Skip("SOCKERLESS_AWS_ENDPOINT not set")
@@ -80,6 +77,38 @@ func TestSockerless_AWS_BucketLifecycle(t *testing.T) {
 	}
 	if !found {
 		t.Errorf("ListBuckets did not contain %q (got %d buckets)", bucket, len(list.Buckets))
+	}
+
+	// Object round-trip. The body is a non-seekable reader —
+	// exercises the aws-chunked path the SDK uses for streaming
+	// uploads (sockerless#174 closed in upstream PR #179).
+	key := "rt/" + randomNamespace("obj") + ".bin"
+	body := []byte("phase-14.A sockerless AWS S3 round-trip")
+	t.Cleanup(func() { _ = backend.DeleteObject(ctx, bucket, key) })
+
+	if _, err := backend.PutObject(ctx, domain.PutObjectOptions{
+		Bucket: bucket, Key: key,
+		Body: bytes.NewReader(body),
+	}); err != nil {
+		t.Fatalf("PutObject: %v", err)
+	}
+
+	head, err := backend.HeadObject(ctx, bucket, key)
+	if err != nil {
+		t.Fatalf("HeadObject: %v", err)
+	}
+	if head.Size != int64(len(body)) {
+		t.Errorf("HeadObject.Size = %d, want %d (sockerless#174 may have regressed)", head.Size, len(body))
+	}
+
+	got, err := backend.GetObject(ctx, bucket, key)
+	if err != nil {
+		t.Fatalf("GetObject: %v", err)
+	}
+	defer got.Body.Close()
+	data, _ := io.ReadAll(got.Body)
+	if !bytes.Equal(data, body) {
+		t.Errorf("GetObject body = %q, want %q (sockerless#174 may have regressed)", string(data), string(body))
 	}
 }
 

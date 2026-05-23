@@ -3,8 +3,12 @@
 // shim's AWS Secrets Manager backend at a running sockerless AWS
 // simulator instance. See doc/SOCKERLESS_VALIDATION.md.
 //
-// GCP Secret Manager and Azure Key Vault are not yet simulated by
-// sockerless; those backends still gate on Track A.
+// Phase 14.A: sockerless#175 closed in upstream PR #179.
+// HeadSecret + GetSecretValue now round-trip end-to-end via the
+// shim's version-mapping (ListSecretVersionIds) path.
+//
+// GCP Secret Manager + Azure Key Vault lanes land in Phase 14.B
+// (sockerless#177 + #178 simulators).
 package conformance_test
 
 import (
@@ -86,11 +90,28 @@ func TestSockerless_AWSSecretsManager_RoundTrip(t *testing.T) {
 		t.Errorf("ListSecrets did not contain %q", name)
 	}
 
-	// HeadSecret and GetSecretValue are skipped on sockerless: the
-	// shim's AWS backend derives the monotonic version by calling
-	// ListSecretVersionIds, which sockerless doesn't implement
-	// (e6qu/sockerless#175). CreateSecret + ListSecrets +
-	// DeleteSecret round-trip is the working subset today.
+	// HeadSecret + GetSecretValue exercise the version-mapping path
+	// the shim's AWS backend uses (monotonic uint64 ↔ Secrets Manager
+	// UUID). sockerless#175 closed in upstream PR #179, so this now
+	// works.
+	desc, err := backend.HeadSecret(ctx, name)
+	if err != nil {
+		t.Fatalf("HeadSecret: %v", err)
+	}
+	if desc.Name != name {
+		t.Errorf("HeadSecret.Name = %q, want %q", desc.Name, name)
+	}
+	if desc.CurrentVersion == 0 {
+		t.Errorf("HeadSecret.CurrentVersion = 0, want >= 1 (created with InitialValue)")
+	}
+
+	got, err := backend.GetSecretValue(ctx, name, 0)
+	if err != nil {
+		t.Fatalf("GetSecretValue: %v", err)
+	}
+	if string(got.Value) != "value-v1" {
+		t.Errorf("GetSecretValue.Value = %q, want %q", string(got.Value), "value-v1")
+	}
 }
 
 func randomHex(n int) string {
