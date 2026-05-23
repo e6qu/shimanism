@@ -6,8 +6,8 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 
 ## Where we are
 
-- **Phase 13 in-flight on `phase-13` (PR #20).** All 7 Azure + 8 GCP frontends carry the spec-drift contract via blank import; 5 Azure (13.A.1-5) + 1 GCP (13.B.1) ship as full handler migrations through `gen.HandlerWithOptions` / path-shape inspection; the other 2 Azure (13.A.6 azure_blob, 13.A.7 azure_apim) + 7 GCP (13.B.2-8) carry blank-import only and defer full migration. 13.C production RS256 JWKS landed on both `gcpbearer` + `azurebearer`. 13.D.1 sockerless lane landed (storage + secrets); **six** sockerless issues filed upstream as self-contained reports — three fidelity bugs ([#173](https://github.com/e6qu/sockerless/issues/173), [#174](https://github.com/e6qu/sockerless/issues/174), [#175](https://github.com/e6qu/sockerless/issues/175)) and three missing-service rollups ([#176](https://github.com/e6qu/sockerless/issues/176), [#177](https://github.com/e6qu/sockerless/issues/177), [#178](https://github.com/e6qu/sockerless/issues/178)). 13.D.2 (real-cloud Track A — closes BUG-8 + reclassifies BUG-15) remains the next sub-phase; sockerless doesn't simulate GCP API Gateway / Pub/Sub so it can't substitute. All 18 required CI checks green on the current head.
-- **Last merged:** PR #19 (Phase 12) at `778e8e9` on `main`, 2026-05-22.
+- **Phase 14 in-flight on `phase-14`.** Branched from `main` at `3cf9e13` (PR #20 merged) on 2026-05-24. **14.A landed**: sockerless PR #179 closed all 6 round-1 issues (#173-178); shim assertions re-enabled, AWS S3 + AWS Secrets Manager + GCS round-trip end-to-end via `make sockerless-storage`. **14.D fidelity audit done**: 8 round-2 sockerless issues filed ([#181](https://github.com/e6qu/sockerless/issues/181)-[#188](https://github.com/e6qu/sockerless/issues/188)) covering Azure Redis case sensitivity, GCP Pub/Sub field drops (likely closes BUG-15), GCP Secret Manager routing leak, Azure Key Vault malformed kid URLs + placeholder modulus, AWS SQS attribute drops, GCP Cloud SQL relative selfLink, GCP Secret Manager unresolved `latest` alias. **14.B + 14.C pending**: shim-side new-service lanes (gated on round-2 fixes) + full handler migrations for the 9 blank-import frontends (independent).
+- **Last merged:** PR #20 (Phase 13) at `3cf9e13` on `main`, 2026-05-24.
 
 ## Session-start checklist
 
@@ -18,18 +18,22 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 5. **If returning from sockerless upstream work:** check which sockerless issues landed (see "Resume after sockerless work" below) and re-enable the corresponding shim tests.
 6. Otherwise: pick the next sub-phase from "Follow-ons (deferred from 13.D.1)" below in priority order.
 
-## Resume after sockerless work
+## Resume after sockerless round-2 fixes
 
-The path between this PR and 13.D.2 (real-cloud Track A) runs through six issues filed against [e6qu/sockerless](https://github.com/e6qu/sockerless). The user is shepherding those fixes in a separate conversation. When you return here, check each issue's state and re-enable the corresponding shim assertion:
+14.A is done (round-1 issues #173-178 closed by sockerless PR #179). The next set of shim work waits on the 8 round-2 issues filed during the 14.D audit. When sockerless ships fixes, run `make sockerless-storage` to confirm the existing lanes stay green, then add the per-service lane the issue unblocks:
 
 | Sockerless issue | When closed, do this in the shim |
 |---|---|
-| [#173](https://github.com/e6qu/sockerless/issues/173) — S3 `/s3/` URL prefix | Drop the `/s3` suffix from `SOCKERLESS_AWS_ENDPOINT` in `scripts/run-sockerless-storage.sh` and the comment in `services/storage/conformance/sockerless_test.go`. |
-| [#174](https://github.com/e6qu/sockerless/issues/174) — aws-chunked envelope | Extend `TestSockerless_AWS_BucketLifecycle` (or add `TestSockerless_AWS_S3_RoundTrip`) to assert `PutObject` + `GetObject` round-trip with `bytes.Equal`. |
-| [#175](https://github.com/e6qu/sockerless/issues/175) — missing `ListSecretVersionIds` | Extend `TestSockerless_AWSSecretsManager_RoundTrip` to call `HeadSecret` + `GetSecretValue` and assert metadata + value round-trip. |
-| [#176](https://github.com/e6qu/sockerless/issues/176) — AWS missing services (SQS/SNS/APIGW/RDS/ElastiCache) | Once a service lands, add a `TestSockerless_AWS_<Service>_*` in `services/<svc>/conformance/sockerless_test.go` against the shim's AWS backend. Same pattern as storage + secrets lanes. |
-| [#177](https://github.com/e6qu/sockerless/issues/177) — GCP missing services (Pub/Sub, Secrets, SQL, Memorystore, APIGW) | Same — `services/<svc>/conformance/sockerless_test.go` against the shim's GCP backend. **Closing the Pub/Sub portion would unblock reclassifying BUG-15.** **Closing the API Gateway portion would unblock closing BUG-8.** |
-| [#178](https://github.com/e6qu/sockerless/issues/178) — Azure missing services (Blob+KV data plane, Service Bus, PG, Redis, APIM) | Same — adds the Azure lane the storage suite is missing today. |
+| [#181](https://github.com/e6qu/sockerless/issues/181) — Azure Redis ARM case sensitivity | Add `TestSockerless_Azure_RedisCache_*` in `services/cache/conformance/sockerless_test.go` against shim's `azureredis` backend. |
+| [#182](https://github.com/e6qu/sockerless/issues/182) — GCP Pub/Sub field drops | Add `TestSockerless_GCP_PubSub_*` in `services/queue/` and `services/pubsub/` conformance against shim's GCP backends. **Reclassify BUG-15 once Pub/Sub field round-trip works.** |
+| [#183](https://github.com/e6qu/sockerless/issues/183) — GCP Secret Manager routing leak | Add `TestSockerless_GCP_SecretManager_*` in `services/secrets/conformance/sockerless_test.go` against shim's `gcp` backend. |
+| [#184](https://github.com/e6qu/sockerless/issues/184) — Azure Key Vault malformed `kid` | Add `TestSockerless_Azure_KeyVault_*` in `services/secrets/conformance/sockerless_test.go` against shim's `azurekv` backend. |
+| [#185](https://github.com/e6qu/sockerless/issues/185) — Azure Key Vault placeholder modulus | Add JWKS / crypto integration assertion to the Key Vault lane. |
+| [#186](https://github.com/e6qu/sockerless/issues/186) — AWS SQS attribute drops | Add `TestSockerless_AWS_SQS_*` in `services/queue/conformance/sockerless_test.go`. Assert all CreateQueue Attributes round-trip via GetQueueAttributes. |
+| [#187](https://github.com/e6qu/sockerless/issues/187) — GCP Cloud SQL relative selfLink | Add `TestSockerless_GCP_CloudSQL_*` in `services/rdbms/conformance/sockerless_test.go`. |
+| [#188](https://github.com/e6qu/sockerless/issues/188) — GCP Secret Manager `latest` alias | Strengthen `TestSockerless_GCP_SecretManager_*` (from #183) to assert `latest:access` resolves the name. |
+
+Closing **#182** is the most impactful — same drift shape as BUG-15. Closing **#177's API Gateway portion** is the path to closing BUG-8 without real-cloud Track A.
 
 Always update `doc/SOCKERLESS_VALIDATION.md` + `BUGS.md` § Sockerless when a tracked gap closes; remove the row + add the now-covered ops to the coverage table.
 

@@ -1,6 +1,6 @@
 # Sockerless validation lane
 
-> Phase 13.D.1 first cut, with Phase 14 expansion gated on upstream sockerless fixes (see [PLAN.md § Phase 14](../PLAN.md#phase-14--sockerless-verified-validation-lane--deferred-follow-ons)). Uses `github.com/e6qu/sockerless` simulators to exercise the shim's per-cloud backends without requiring real AWS / GCP / Azure accounts.
+> Phase 14.A landed (sockerless round-1 closures from sockerless PR #179) — full AWS S3 + GCS + AWS Secrets Manager round-trip. Phase 14.B + 14.C still pending; gated on the 8 round-2 sockerless issues we filed in the 14.D audit (see [PLAN.md § Phase 14](../PLAN.md#phase-14--sockerless-verified-validation-lane--deferred-follow-ons)). Uses `github.com/e6qu/sockerless` simulators to exercise the shim's per-cloud backends without requiring real AWS / GCP / Azure accounts.
 
 ## Why sockerless
 
@@ -13,16 +13,18 @@ The same property makes sockerless the right vehicle for two things Phase 14 car
 1. **Cross-cloud shim verification.** The shim's job is translate (say) an AWS-shaped call → a GCP backend. Verifying that end-to-end needs a target the destination cloud's SDK actually talks to. Sockerless gives us a deterministic in-process target for each destination cloud — no real-cloud cost, no flake, no per-PR billing.
 2. **Terraform-provider round-trips.** The matrix Phase 12 established (`TestCrossCloudApply_Roundtrip_<svc>_<cell>`) drives a cloud's Terraform provider against the shim, which forwards to the destination backend. With sockerless backends, the loop closes deterministically: `terraform apply` → shim frontend → shim backend → sockerless simulator → response chain → `terraform plan -refresh-only -detailed-exitcode = 0`.
 
-## What's wired today
+## What's wired today (Phase 14.A)
 
 | Backend | Coverage | Notes |
 |---|---|---|
-| AWS S3 (`services/storage/backends/aws`) | Bucket lifecycle | PutObject / GetObject round-trip blocked on [sockerless#174](https://github.com/e6qu/sockerless/issues/174) (sim persists the SDK's `aws-chunked` envelope verbatim). |
-| GCS (`services/storage/backends/gcs`) | Full round-trip — CreateBucket → PutObject → GetObject → DeleteObject → DeleteBucket | Uses the SDK's `STORAGE_EMULATOR_HOST` env var. |
-| Azure Blob (`services/storage/backends/azureblob`) | Not validated | Sockerless's Azure sim advertises blob endpoints in storage-account responses but only implements the Azure Files data plane. |
-| AWS Secrets Manager (`services/secrets/backends/aws`) | CreateSecret + ListSecrets + DeleteSecret | HeadSecret + GetSecretValue blocked on [sockerless#175](https://github.com/e6qu/sockerless/issues/175) (sim is missing `ListSecretVersionIds`, which the shim's backend uses for monotonic-version-number derivation). |
-
-Other shim services (rdbms, cache, functions, queue, pubsub, apigateway) are not wired yet; the sims that exist for adjacent backends (Cloud Functions v2, Cloud Run Jobs, Container Apps Environments, Container Apps Jobs, Azure Functions Sites) will land in follow-on sub-phases under Phase 13.D.
+| AWS S3 (`services/storage/backends/aws`) | **Full round-trip** — CreateBucket → PutObject → HeadObject → GetObject → DeleteObject → DeleteBucket | sockerless#173 + #174 closed. |
+| GCS (`services/storage/backends/gcs`) | Full round-trip | Uses the SDK's `STORAGE_EMULATOR_HOST` env var. |
+| AWS Secrets Manager (`services/secrets/backends/aws`) | **Full round-trip** — CreateSecret → HeadSecret → GetSecretValue → ListSecrets → DeleteSecret | sockerless#175 closed. |
+| Azure Blob (`services/storage/backends/azureblob`) | Not yet wired | Blob data plane added in sockerless PR #179. Adding the lane is a 14.B follow-on. |
+| GCP Pub/Sub, Secret Manager, Cloud SQL, Memorystore, API Gateway | Not yet wired | Sims added in sockerless PR #179. Per-service round-2 fidelity issues filed ([#182](https://github.com/e6qu/sockerless/issues/182), [#183](https://github.com/e6qu/sockerless/issues/183), [#187](https://github.com/e6qu/sockerless/issues/187), [#188](https://github.com/e6qu/sockerless/issues/188)) block clean lanes — adding the lanes is a 14.B follow-on as fixes land. |
+| Azure Key Vault, Service Bus, PG FlexibleServer, Cache Redis, APIM | Not yet wired | Sims added in sockerless PR #179. Per-service round-2 fidelity issues filed ([#181](https://github.com/e6qu/sockerless/issues/181), [#184](https://github.com/e6qu/sockerless/issues/184), [#185](https://github.com/e6qu/sockerless/issues/185)) block clean lanes — adding the lanes is a 14.B follow-on. |
+| AWS SQS, SNS, RDS, ElastiCache, API Gateway v1+v2 | Not yet wired | Sims added in sockerless PR #179. SQS-specific round-2 fidelity issue ([#186](https://github.com/e6qu/sockerless/issues/186)) blocks the SQS lane. |
+| AWS Lambda, GCP Cloud Run + Cloud Functions, Azure Container Apps + Functions Sites | Not yet wired | Sims existed pre-PR #179. Adding the functions lane is a 14.B follow-on; no known fidelity bugs blocking. |
 
 ## Running the lane locally
 

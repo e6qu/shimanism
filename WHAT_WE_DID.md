@@ -4,7 +4,32 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 
 > Reverse chronological. One section per phase. The *why*, the surprises, the root causes — not per-PR detail. For commit-level history, `git log`. For per-bug detail, [BUGS.md](BUGS.md). For pipeline + verifier architecture, [doc/CODEGEN.md](doc/CODEGEN.md) + [doc/VERIFIERS.md](doc/VERIFIERS.md).
 
-## Phase 13 — In flight (PR #20)
+## Phase 14 — In flight (`phase-14` branch)
+
+Branched from `main` at `3cf9e13` (PR #20 merged) on 2026-05-24. The branch already carries 14.A landed + 14.D fidelity audit done.
+
+**14.A — sockerless round-1 fixes landed.** While Phase 14's continuity docs landed on PR #20, the user shepherded sockerless PR #179 (their "Phase 173" umbrella) closing all six of our round-1 issues (#173 S3 prefix, #174 aws-chunked envelope, #175 missing ListSecretVersionIds, #176/#177/#178 missing AWS/GCP/Azure services). With the simulators rebuilt:
+
+- Dropped the `/s3` URL workaround from `scripts/run-sockerless-storage.sh` + the test-file comment.
+- Renamed `TestSockerless_AWS_BucketLifecycle` → `TestSockerless_AWS_S3RoundTrip` and added `PutObject` (non-seekable body, exercises aws-chunked) + `HeadObject` + `GetObject` with full body equality.
+- Re-enabled `HeadSecret` + `GetSecretValue` assertions in `TestSockerless_AWSSecretsManager_RoundTrip` (previously skipped on the missing ListSecretVersionIds path).
+
+`make sockerless-storage` now passes three lanes: AWS S3 full round-trip, GCS full round-trip, AWS Secrets Manager full round-trip.
+
+**14.D — fidelity audit done.** With sockerless's now-larger surface area, ran SDK-shaped probes across every newly added service. Eight fidelity gaps surfaced and were filed (no shim references; each issue carries its own self-contained reproduction):
+
+- **[#181](https://github.com/e6qu/sockerless/issues/181)** Azure Cache for Redis ARM route only matches capital `Redis` — lowercase (which the SDK + azurerm provider use) returns 404. Pure case-sensitivity miss; ARM is supposed to be case-insensitive.
+- **[#182](https://github.com/e6qu/sockerless/issues/182)** GCP Pub/Sub `Subscription` create + get drop 5 of 7 fields on response (`messageRetentionDuration`, `retainAckedMessages`, `expirationPolicy`, `enableMessageOrdering`, `filter`). **This is the same drift shape as BUG-15.** Closing #182 likely closes BUG-15 against sockerless without real-cloud Track A.
+- **[#183](https://github.com/e6qu/sockerless/issues/183)** GCP Secret Manager `ListSecrets` returns GCS-shaped 404. Root cause is a routing leak: any unhandled `GET /v1/{...}` request falls through to the GCS handler which interprets the path as `{bucket=v1}/{object=...}`. The same shape also breaks `/v1/operations` (noted in a comment on the issue).
+- **[#184](https://github.com/e6qu/sockerless/issues/184)** Azure Key Vault response `id` and `kid` URLs have a duplicated host segment + `http://` scheme: `http://kv.vault.kv.vault.azure.net/...`. Real Key Vault uses `https://{vault}.vault.azure.net/...`.
+- **[#185](https://github.com/e6qu/sockerless/issues/185)** Azure Key Vault key creation returns a placeholder modulus literal `"n":"sim-generated-modulus"` instead of a base64url-encoded RSA modulus. Breaks any JWKS / signature-verification integration test against the sim.
+- **[#186](https://github.com/e6qu/sockerless/issues/186)** AWS SQS `CreateQueue` accepts user-set queue attributes but `GetQueueAttributes` echoes only `VisibilityTimeout` — `MessageRetentionPeriod`, `DelaySeconds`, etc. are silently dropped. Same shape as #182, different protocol.
+- **[#187](https://github.com/e6qu/sockerless/issues/187)** GCP Cloud SQL `selfLink` is a relative URL (`/v1/projects/.../instances/...`). Real GCP returns `https://sqladmin.googleapis.com/v1/...`.
+- **[#188](https://github.com/e6qu/sockerless/issues/188)** GCP Secret Manager `versions/latest:access` echoes the literal alias `latest` in the response `name` instead of resolving to the concrete version number. Version-tracking flows break.
+
+14.B + 14.C remain pending. None of the 8 round-2 issues block a clean Phase-14 PR for what landed today — they gate which *additional* lanes can be added cleanly.
+
+## Phase 13 — closed (PR #20 merged 2026-05-24)
 
 13.A, 13.B, 13.C all landed on PR #20 and are covered in their per-track sections of [PLAN.md § Phase 13](PLAN.md#phase-13--full-adapter-migration--production-auth--real-cloud-track-a). The notes here cover what was surprising in the 13.D sockerless slice.
 

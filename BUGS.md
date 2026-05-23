@@ -1,6 +1,6 @@
 # Known Bugs
 
-**20 filed · 18 fixed · 2 open · 1 false positive. Plus 6 upstream-sockerless issues tracked separately (3 fidelity bugs + 3 missing-service asks).**
+**20 filed · 18 fixed · 2 open · 1 false positive. Plus 14 upstream-sockerless issues — 6 round-1 (closed by sockerless PR #179) + 8 round-2 fidelity bugs open.**
 
 Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLAN.md](PLAN.md) · narrative [WHAT_WE_DID.md](WHAT_WE_DID.md) · rules [AGENTS.md](AGENTS.md).
 
@@ -22,13 +22,35 @@ Sockerless doesn't simulate GCP API Gateway or GCP Pub/Sub today, so neither bug
 
 ## Upstream-tracked (sockerless validation lane)
 
-Sockerless fidelity gaps surfaced while wiring Phase 13.D.1's sockerless lane. Each is filed as a fully self-contained issue on `github.com/e6qu/sockerless` (no shim references; sockerless maintainers can pick up the repro without reading this repo). See [doc/SOCKERLESS_VALIDATION.md](doc/SOCKERLESS_VALIDATION.md) for the wider context.
+Sockerless fidelity gaps tracked on `github.com/e6qu/sockerless`. Each is filed as a fully self-contained issue (no shim references; sockerless maintainers can pick up the repro without reading this repo). See [doc/SOCKERLESS_VALIDATION.md](doc/SOCKERLESS_VALIDATION.md) for the wider context.
 
-| Upstream | Filed | Blocks (in shim's lane) | Workaround / status |
-|---|---|---|---|
-| [e6qu/sockerless#173](https://github.com/e6qu/sockerless/issues/173) — S3 mounted under `/s3/` URL prefix | 2026-05-23 | Out-of-the-box SDK / CLI / TF-provider S3 calls 405 | Append `/s3` to the endpoint URL. Lane works around it. |
-| [e6qu/sockerless#174](https://github.com/e6qu/sockerless/issues/174) — `aws-chunked` envelope stored verbatim | 2026-05-23 | AWS S3 PutObject/GetObject round-trip in our lane | No workaround. Lane covers bucket lifecycle only until fixed upstream. |
-| [e6qu/sockerless#175](https://github.com/e6qu/sockerless/issues/175) — missing `ListSecretVersionIds` | 2026-05-23 | AWS Secrets Manager HeadSecret + GetSecretValue in our lane | No workaround (the shim's version-mapping path needs it). Lane covers CreateSecret + ListSecrets + DeleteSecret until fixed upstream. |
+### Round 1 (Phase 13.D.1) — all closed via [sockerless PR #179](https://github.com/e6qu/sockerless/pull/179) on 2026-05-23
+
+| Upstream | Status |
+|---|---|
+| [e6qu/sockerless#173](https://github.com/e6qu/sockerless/issues/173) — S3 `/s3/` URL prefix | ✅ closed; PR #179 routed S3 at canonical root. |
+| [e6qu/sockerless#174](https://github.com/e6qu/sockerless/issues/174) — `aws-chunked` envelope stored verbatim | ✅ closed; PR #179 added the chunked-encoding decoder. |
+| [e6qu/sockerless#175](https://github.com/e6qu/sockerless/issues/175) — missing `ListSecretVersionIds` | ✅ closed; PR #179 added the op + version history. |
+| [e6qu/sockerless#176](https://github.com/e6qu/sockerless/issues/176) — AWS missing services | ✅ closed; PR #179 added SQS, SNS, RDS, ElastiCache, APIGW v1+v2. |
+| [e6qu/sockerless#177](https://github.com/e6qu/sockerless/issues/177) — GCP missing services | ✅ closed; PR #179 added Pub/Sub, Secret Manager, Cloud SQL, Memorystore, API Gateway. |
+| [e6qu/sockerless#178](https://github.com/e6qu/sockerless/issues/178) — Azure missing services | ✅ closed; PR #179 added Blob data plane, Key Vault data plane, Service Bus, PostgreSQL FlexibleServer, Redis Cache, APIM. |
+
+Phase 14.A re-enabled the shim assertions for #173/#174/#175 (storage + secrets lanes now round-trip AWS S3 + AWS Secrets Manager end-to-end). Phase 14.B picks up the new services from #176/#177/#178 as the round-2 fidelity bugs below close.
+
+### Round 2 (Phase 14.D audit) — open
+
+Filed during the Phase 14 fidelity audit (2026-05-24). Reproductions are fully self-contained.
+
+| Upstream | Blocks (in shim's lane) |
+|---|---|
+| [e6qu/sockerless#181](https://github.com/e6qu/sockerless/issues/181) — Azure Cache for Redis ARM route is case-sensitive (only `Redis` matches, not `redis`). | Azure Redis lane against shim's `cache/backends/azureredis`. Azure SDK + azurerm provider both use lowercase. |
+| [e6qu/sockerless#182](https://github.com/e6qu/sockerless/issues/182) — GCP Pub/Sub Subscription drops 5 of 7 fields on response (`messageRetentionDuration`, `retainAckedMessages`, `expirationPolicy`, `enableMessageOrdering`, `filter`). | **Closing this likely closes BUG-15** — same drift shape. |
+| [e6qu/sockerless#183](https://github.com/e6qu/sockerless/issues/183) — GCP Secret Manager `ListSecrets` returns GCS-shaped 404 (routing leak). Also affects `/v1/operations` per a follow-up comment. | GCP Secret Manager lane against shim's `secrets/backends/gcp`. |
+| [e6qu/sockerless#184](https://github.com/e6qu/sockerless/issues/184) — Azure Key Vault `id` / `kid` URLs malformed (duplicated host + HTTP scheme). | Azure Key Vault lane against shim's `secrets/backends/azurekv`. |
+| [e6qu/sockerless#185](https://github.com/e6qu/sockerless/issues/185) — Azure Key Vault key creation returns placeholder modulus `sim-generated-modulus`. | JWKS / crypto integration tests against shim's `secrets/backends/azurekv` keys surface. |
+| [e6qu/sockerless#186](https://github.com/e6qu/sockerless/issues/186) — AWS SQS `CreateQueue` Attributes silently dropped. | AWS SQS lane against shim's `queue/backends/aws`. |
+| [e6qu/sockerless#187](https://github.com/e6qu/sockerless/issues/187) — GCP Cloud SQL `selfLink` is a relative URL. | GCP Cloud SQL lane against shim's `rdbms/backends/gcp`. |
+| [e6qu/sockerless#188](https://github.com/e6qu/sockerless/issues/188) — GCP Secret Manager `versions/latest:access` returns unresolved `latest` alias in response `name`. | Version-tracking flows in shim's `secrets/backends/gcp`. |
 
 ### Sockerless coverage gaps (deferred to Phase 14)
 
