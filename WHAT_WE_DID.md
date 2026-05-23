@@ -4,6 +4,26 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 
 > Reverse chronological. One section per phase. The *why*, the surprises, the root causes — not per-PR detail. For commit-level history, `git log`. For per-bug detail, [BUGS.md](BUGS.md). For pipeline + verifier architecture, [doc/CODEGEN.md](doc/CODEGEN.md) + [doc/VERIFIERS.md](doc/VERIFIERS.md).
 
+## Phase 13 — In flight (PR #20)
+
+13.A, 13.B, 13.C all landed on PR #20 and are covered in their per-track sections of [PLAN.md § Phase 13](PLAN.md#phase-13--full-adapter-migration--production-auth--real-cloud-track-a). The notes here cover what was surprising in the 13.D sockerless slice.
+
+**13.D.1 sockerless storage lane.** The user redirected Track A through `github.com/e6qu/sockerless` simulators before standing up real cloud accounts — same goal (catch translation defects in the AWS / GCP / Azure backend layers), no real-cloud cost.
+
+Two fidelity gaps surfaced and were filed upstream as fully self-contained issues (no shim references; sockerless maintainers can pick up the repro without reading our repo):
+
+- **[e6qu/sockerless#173](https://github.com/e6qu/sockerless/issues/173) — S3 mounted under `/s3/` URL prefix.** The AWS sim registers S3 ops at `GET /s3`, `PUT /s3/{bucket}`, etc. instead of the wire-protocol root. AWS SDK / CLI / TF-provider clients with `--endpoint-url=http://localhost:4566` hit `405 Method Not Allowed` on every S3 op. Workaround: append `/s3` to the endpoint URL. The simulator's own SDK tests use this workaround (`o.BaseEndpoint = aws.String(baseURL + "/s3")`).
+- **[e6qu/sockerless#174](https://github.com/e6qu/sockerless/issues/174) — `aws-chunked` envelope stored verbatim.** When the aws-sdk-go-v2 `PutObject` is called with a non-seekable body, it uses `Transfer-Encoding: aws-chunked` framing. Real S3 unwraps that server-side. The sim writes the framed bytes (chunk-size hex line + chunk body + zero-size chunk + trailing checksum header) into its object store, so subsequent `GetObject` returns the framed envelope literally instead of the payload. Reproduces with an 11-byte string ending up as a 52-byte stored object. Blocks AWS PutObject/GetObject in our lane; doesn't affect bucket lifecycle.
+
+Two additional shim-side observations:
+
+- The SDK refuses streaming-signed payloads over plain HTTP. Sockerless ships HTTP-by-default with optional TLS via `SIM_TLS_CERT` / `SIM_TLS_KEY`. The `make sockerless-storage` script generates an ephemeral self-signed cert in `/tmp/sockerless-tls/` so the AWS sim runs under TLS; the shim's S3 client trusts it via `AWS_S3_CONFORMANCE_INSECURE_TLS=1` → `InsecureSkipVerify`.
+- Azure Blob is not implemented by sockerless — only Azure Files. The Azure sim advertises blob endpoint URLs in storage-account ARM responses (`https://{accountName}.blob.localhost:4568/`), but only the `file` service type has actual data-plane handlers; everything else falls through to a mock service-properties response.
+
+GCS was the clean lane — sockerless implements the full `/storage/v1/b/...` REST surface and the SDK's `STORAGE_EMULATOR_HOST` env driver does the right thing (`option.WithEndpoint` doesn't, because it doesn't reroute every API surface the SDK touches). Full CreateBucket → PutObject → GetObject → DeleteObject → DeleteBucket round-trip passes.
+
+The lane is opt-in via `make sockerless-storage`; CI's existing storage matrix stays inmem/minio. See [doc/SOCKERLESS_VALIDATION.md](doc/SOCKERLESS_VALIDATION.md) for the operational doc.
+
 ## Phase 12 — Spec-driven toolchain landing (PR #19, at exit)
 
 The toolchain phase. Phase 11 spec-drove all 8 AWS frontends + 24/24 frontends got signature verification. Phase 12 took the Azure + GCP lanes to the same place, with 82+ granular commits.

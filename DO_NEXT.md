@@ -55,7 +55,10 @@ Both `gcpbearer` and `azurebearer` accept RS256-signed JWTs in addition to test-
 
 ### Phase 13.D — Real-cloud Track A
 
-Requires AWS / GCP / Azure accounts. Closes / reclassifies BUG-8 + BUG-15 (see Open bugs below). Real-signed signature-verification conformance.
+Two slices:
+
+- **13.D.1 sockerless storage lane** — ✅ landed. `make sockerless-storage` builds the AWS + GCP simulator binaries from a local clone of `github.com/e6qu/sockerless`, starts them on test-only ports (TLS for AWS, HTTP for GCP), and runs `TestSockerless_*` in `services/storage/conformance/sockerless_test.go`. AWS S3 bucket lifecycle + GCS full round-trip pass. Two upstream gaps filed against sockerless ([#173 — S3 `/s3/` URL prefix](https://github.com/e6qu/sockerless/issues/173), [#174 — aws-chunked envelope stored verbatim](https://github.com/e6qu/sockerless/issues/174)); #174 keeps AWS PutObject/GetObject out of the lane. See [doc/SOCKERLESS_VALIDATION.md](doc/SOCKERLESS_VALIDATION.md).
+- **13.D.2 real-cloud Track A** — pending. Still requires AWS / GCP / Azure accounts. Closes / reclassifies BUG-8 + BUG-15. Real-signed signature-verification conformance. Sockerless doesn't simulate GCP API Gateway or GCP Pub/Sub, so neither bug can be closed via the sockerless lane.
 
 ### Phase 13.E — Cross-cloud Apply matrix expansion (optional)
 

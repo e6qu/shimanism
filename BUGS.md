@@ -1,6 +1,6 @@
 # Known Bugs
 
-**20 filed · 18 fixed · 2 open · 1 false positive.**
+**20 filed · 18 fixed · 2 open · 1 false positive. Plus 2 upstream-sockerless issues tracked separately.**
 
 Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLAN.md](PLAN.md) · narrative [WHAT_WE_DID.md](WHAT_WE_DID.md) · rules [AGENTS.md](AGENTS.md).
 
@@ -14,6 +14,15 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 |----|-----|------|------------|-----------|-------|
 | BUG-8 | P3 | apigateway/gcp-tf-frontend | `hashicorp/google` | API Gateway endpoint-override attribute name changed across provider major versions and the current provider's API Gateway resource lifecycle requires real OAuth-signed requests the mock httptest server can't sign. `services/apigateway/conformance/gcp_terraform_test.go` is smoke-skipped pending Track A real-cloud TF coverage. | **13.D** |
 | BUG-15 | P3 | queue/gcp-frontend | GCP Pub/Sub `subscriptions.get` | `message_retention_duration = "604800s"` declared in HCL and the shim responding "604800s" at every call, hashicorp/google records `"345600s"` in state. Plan after apply diffs `"345600s" -> "604800s"`. Shim's HTTP responses contain "604800s" (verified); something in the provider's flatten / state-write path substitutes its schema default. Honest interpretations: (a) provider bug — real GCP exhibits same drift; (b) shim's response is missing a field the provider needs to disable its default-substitution path (`expirationPolicy`, `retainAckedMessages`). Closes false-positive if (a), reopens as a real fix if (b). | **13.D** |
+
+## Upstream-tracked (sockerless validation lane)
+
+Sockerless fidelity gaps surfaced while wiring Phase 13.D's sockerless lane. Tracked on `github.com/e6qu/sockerless`; reproductions are fully self-contained (no shim references). See [doc/SOCKERLESS_VALIDATION.md](doc/SOCKERLESS_VALIDATION.md) for the wider context.
+
+| Upstream | Summary |
+|---|---|
+| [e6qu/sockerless#173](https://github.com/e6qu/sockerless/issues/173) | AWS S3 routes mounted under `/s3/` URL prefix instead of the wire-protocol root. Workaround in our lane: append `/s3` to the endpoint URL. |
+| [e6qu/sockerless#174](https://github.com/e6qu/sockerless/issues/174) | AWS S3 sim persists `aws-chunked` request envelopes verbatim; non-seekable PutObject uploads don't round-trip. Blocks the AWS S3 round-trip portion of the sockerless lane. |
 
 ## False positives
 

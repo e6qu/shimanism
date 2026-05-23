@@ -81,7 +81,7 @@ Phase 12 lands the spec-driven *toolchain*. Phase 13 turns the remaining hand-wr
 | 13.A | Azure adapter migration — every Azure frontend dispatches through `gen.ServerInterface` + `gen.HandlerWithOptions`. | Phase 11.4 + 11.7b + 12.A.14 | 5/7 full + 2/7 blank-import |
 | 13.B | GCP adapter migration — every GCP frontend dispatches via `gen.gcp.Match()` / `MatchAll()`. | Phase 11.5 + 11.7b | 1/8 full + 7/8 blank-import |
 | 13.C | Production RS256 JWKS — wire real Google + Microsoft Entra JWKS. | Phase 11 follow-on + Phase 12.C | ◻ gates on deployment target |
-| 13.D | Real-cloud Track A — close BUG-8, reclassify BUG-15 against real cloud. | BUGS.md | ◻ needs real cloud accounts |
+| 13.D | Sockerless storage lane (13.D.1, ✅) + real-cloud Track A (13.D.2, ◻ — needs real cloud accounts to close BUG-8 / reclassify BUG-15). | BUGS.md, [doc/SOCKERLESS_VALIDATION.md](doc/SOCKERLESS_VALIDATION.md) | 1/2 |
 | 13.E | Cross-cloud Apply matrix expansion — additional source/destination cells per service beyond the AWS→K8s-peer baseline already in CI. | Phase 12.1–12.8 | ◻ optional, demand-driven |
 
 ### 13.A — Azure adapter migration
@@ -152,10 +152,19 @@ Wire the real Microsoft Entra + Google JWKS paths. Touches `internal/azurebearer
 
 ### 13.D — Real-cloud Track A
 
-Live AWS / GCP / Azure accounts. Two bugs unblock:
+Two slices.
 
-- **BUG-8** (P3, apigateway/gcp-tf): `hashicorp/google` API Gateway endpoint-override + real OAuth signing. Currently smoke-skipped in `services/apigateway/conformance/gcp_terraform_test.go`.
-- **BUG-15** (P3, queue/gcp): Pub/Sub `subscriptions.get` retention drift. Provider records `345600s` instead of `604800s`. Either closes false-positive (hashicorp/google provider bug, real GCP exhibits same drift) or reopens as a real fix (response missing a field disabling the provider's default-substitution path).
+**13.D.1 — Sockerless storage lane (landed).** Opt-in `make sockerless-storage` target builds the AWS + GCP simulator binaries from a local clone of `github.com/e6qu/sockerless`, starts them under TLS (AWS) / HTTP (GCP) on test-only ports, and runs `TestSockerless_*` in `services/storage/conformance/sockerless_test.go`. AWS S3 bucket lifecycle + GCS full round-trip pass. Two fidelity gaps filed upstream:
+
+- [e6qu/sockerless#173](https://github.com/e6qu/sockerless/issues/173) — AWS S3 routes under `/s3/` URL prefix. Working around with the suffix in our endpoint.
+- [e6qu/sockerless#174](https://github.com/e6qu/sockerless/issues/174) — AWS S3 sim persists the SDK's `aws-chunked` envelope verbatim. Blocks PutObject/GetObject in this lane.
+
+Azure Blob isn't simulated by sockerless (only Azure Files), so 13.D.1 covers AWS + GCP only. See [doc/SOCKERLESS_VALIDATION.md](doc/SOCKERLESS_VALIDATION.md).
+
+**13.D.2 — Real-cloud Track A (pending).** Live AWS / GCP / Azure accounts. Closes:
+
+- **BUG-8** (P3, apigateway/gcp-tf): `hashicorp/google` API Gateway endpoint-override + real OAuth signing. Currently smoke-skipped in `services/apigateway/conformance/gcp_terraform_test.go`. Sockerless doesn't simulate GCP API Gateway.
+- **BUG-15** (P3, queue/gcp): Pub/Sub `subscriptions.get` retention drift. Provider records `345600s` instead of `604800s`. Either closes false-positive (hashicorp/google provider bug, real GCP exhibits same drift) or reopens as a real fix. Sockerless doesn't simulate GCP Pub/Sub.
 
 Also lands real-signed signature-verification conformance against real IAM / Workload Identity / Entra ID.
 
