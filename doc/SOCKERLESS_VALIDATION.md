@@ -15,8 +15,9 @@ Sockerless reimplements the public cloud HTTP wire protocols in-process. Pointin
 | AWS S3 (`services/storage/backends/aws`) | Bucket lifecycle | PutObject / GetObject round-trip blocked on [sockerless#174](https://github.com/e6qu/sockerless/issues/174) (sim persists the SDK's `aws-chunked` envelope verbatim). |
 | GCS (`services/storage/backends/gcs`) | Full round-trip — CreateBucket → PutObject → GetObject → DeleteObject → DeleteBucket | Uses the SDK's `STORAGE_EMULATOR_HOST` env var. |
 | Azure Blob (`services/storage/backends/azureblob`) | Not validated | Sockerless's Azure sim advertises blob endpoints in storage-account responses but only implements the Azure Files data plane. |
+| AWS Secrets Manager (`services/secrets/backends/aws`) | CreateSecret + ListSecrets + DeleteSecret | HeadSecret + GetSecretValue blocked on [sockerless#175](https://github.com/e6qu/sockerless/issues/175) (sim is missing `ListSecretVersionIds`, which the shim's backend uses for monotonic-version-number derivation). |
 
-Other shim services (secrets, rdbms, cache, functions, queue, pubsub, apigateway) are not wired yet; the sims that exist (Secrets Manager, Cloud Functions v2, Cloud Run Jobs, Container Apps Environments, Container Apps Jobs, Azure Functions Sites) will land in follow-on sub-phases under Phase 13.D.
+Other shim services (rdbms, cache, functions, queue, pubsub, apigateway) are not wired yet; the sims that exist for adjacent backends (Cloud Functions v2, Cloud Run Jobs, Container Apps Environments, Container Apps Jobs, Azure Functions Sites) will land in follow-on sub-phases under Phase 13.D.
 
 ## Running the lane locally
 
@@ -43,8 +44,9 @@ The script:
 |---|---|
 | [#173](https://github.com/e6qu/sockerless/issues/173) | AWS S3 routes mounted under `/s3/` URL prefix instead of `/`. Breaks SDK / CLI / Terraform-provider default config. Workaround: append `/s3` to the endpoint URL (`https://localhost:4566/s3`). |
 | [#174](https://github.com/e6qu/sockerless/issues/174) | AWS S3 simulator stores the SDK's `aws-chunked` request-body envelope verbatim. Uploads via non-seekable bodies (the common case for any streaming upload — HTTP-forwarded, encrypted, compressed) don't round-trip. |
+| [#175](https://github.com/e6qu/sockerless/issues/175) | AWS Secrets Manager simulator is missing `ListSecretVersionIds`. Any SDK or shim path that maps version index → UUID hits a 400 `UnknownOperationException`. |
 
-Closing #174 unblocks PutObject / GetObject in this lane.
+Closing #174 unblocks PutObject / GetObject in the storage lane; closing #175 unblocks GetSecretValue + HeadSecret in the secrets lane.
 
 ## Extending to a new service
 

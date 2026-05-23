@@ -1,6 +1,6 @@
 # Known Bugs
 
-**20 filed · 18 fixed · 2 open · 1 false positive. Plus 2 upstream-sockerless issues tracked separately.**
+**20 filed · 18 fixed · 2 open · 1 false positive. Plus 3 upstream-sockerless issues tracked separately.**
 
 Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLAN.md](PLAN.md) · narrative [WHAT_WE_DID.md](WHAT_WE_DID.md) · rules [AGENTS.md](AGENTS.md).
 
@@ -23,6 +23,7 @@ Sockerless fidelity gaps surfaced while wiring Phase 13.D's sockerless lane. Tra
 |---|---|
 | [e6qu/sockerless#173](https://github.com/e6qu/sockerless/issues/173) | AWS S3 routes mounted under `/s3/` URL prefix instead of the wire-protocol root. Workaround in our lane: append `/s3` to the endpoint URL. |
 | [e6qu/sockerless#174](https://github.com/e6qu/sockerless/issues/174) | AWS S3 sim persists `aws-chunked` request envelopes verbatim; non-seekable PutObject uploads don't round-trip. Blocks the AWS S3 round-trip portion of the sockerless lane. |
+| [e6qu/sockerless#175](https://github.com/e6qu/sockerless/issues/175) | AWS Secrets Manager sim is missing `ListSecretVersionIds` — the SDK + shim need it for version-to-UUID mapping. Blocks shim's `GetSecretValue` + `HeadSecret` paths against sockerless; `CreateSecret` + `ListSecrets` + `DeleteSecret` work. |
 
 ## False positives
 

@@ -154,12 +154,13 @@ Wire the real Microsoft Entra + Google JWKS paths. Touches `internal/azurebearer
 
 Two slices.
 
-**13.D.1 — Sockerless storage lane (landed).** Opt-in `make sockerless-storage` target builds the AWS + GCP simulator binaries from a local clone of `github.com/e6qu/sockerless`, starts them under TLS (AWS) / HTTP (GCP) on test-only ports, and runs `TestSockerless_*` in `services/storage/conformance/sockerless_test.go`. AWS S3 bucket lifecycle + GCS full round-trip pass. Two fidelity gaps filed upstream:
+**13.D.1 — Sockerless validation lane (landed).** Opt-in `make sockerless-storage` target builds the AWS + GCP simulator binaries from a local clone of `github.com/e6qu/sockerless`, starts them under TLS (AWS) / HTTP (GCP) on test-only ports, and runs `TestSockerless_*` in `services/storage/conformance/sockerless_test.go` + `services/secrets/conformance/sockerless_test.go`. AWS S3 bucket lifecycle + GCS full round-trip + AWS Secrets Manager CreateSecret/ListSecrets/DeleteSecret pass. Three fidelity gaps filed upstream:
 
 - [e6qu/sockerless#173](https://github.com/e6qu/sockerless/issues/173) — AWS S3 routes under `/s3/` URL prefix. Working around with the suffix in our endpoint.
-- [e6qu/sockerless#174](https://github.com/e6qu/sockerless/issues/174) — AWS S3 sim persists the SDK's `aws-chunked` envelope verbatim. Blocks PutObject/GetObject in this lane.
+- [e6qu/sockerless#174](https://github.com/e6qu/sockerless/issues/174) — AWS S3 sim persists the SDK's `aws-chunked` envelope verbatim. Blocks PutObject/GetObject in the storage lane.
+- [e6qu/sockerless#175](https://github.com/e6qu/sockerless/issues/175) — AWS Secrets Manager sim is missing `ListSecretVersionIds`. Blocks HeadSecret + GetSecretValue (both call into the version-ID mapping path) in the secrets lane.
 
-Azure Blob isn't simulated by sockerless (only Azure Files), so 13.D.1 covers AWS + GCP only. See [doc/SOCKERLESS_VALIDATION.md](doc/SOCKERLESS_VALIDATION.md).
+Azure Blob isn't simulated by sockerless (only Azure Files); 13.D.1 covers AWS S3 + GCS + AWS Secrets Manager. See [doc/SOCKERLESS_VALIDATION.md](doc/SOCKERLESS_VALIDATION.md).
 
 **13.D.2 — Real-cloud Track A (pending).** Live AWS / GCP / Azure accounts. Closes:
 
