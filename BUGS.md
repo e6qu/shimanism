@@ -8,22 +8,42 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 >
 > When a bug surfaces during a coding-agent session, file the BUG before fixing — even if the fix is a single line. The audit trail is what makes "never lie" enforceable.
 
-## Open — both absorbed into Phase 13.D
+## Open — both absorbed into Phase 13.D.2 (real-cloud Track A)
+
+Sockerless doesn't simulate GCP API Gateway or GCP Pub/Sub, so neither bug can be closed via the 13.D.1 sockerless lane — both still gate on real cloud accounts.
 
 | ID | Sev | Area | Source-API | One-liner | Phase |
 |----|-----|------|------------|-----------|-------|
-| BUG-8 | P3 | apigateway/gcp-tf-frontend | `hashicorp/google` | API Gateway endpoint-override attribute name changed across provider major versions and the current provider's API Gateway resource lifecycle requires real OAuth-signed requests the mock httptest server can't sign. `services/apigateway/conformance/gcp_terraform_test.go` is smoke-skipped pending Track A real-cloud TF coverage. | **13.D** |
-| BUG-15 | P3 | queue/gcp-frontend | GCP Pub/Sub `subscriptions.get` | `message_retention_duration = "604800s"` declared in HCL and the shim responding "604800s" at every call, hashicorp/google records `"345600s"` in state. Plan after apply diffs `"345600s" -> "604800s"`. Shim's HTTP responses contain "604800s" (verified); something in the provider's flatten / state-write path substitutes its schema default. Honest interpretations: (a) provider bug — real GCP exhibits same drift; (b) shim's response is missing a field the provider needs to disable its default-substitution path (`expirationPolicy`, `retainAckedMessages`). Closes false-positive if (a), reopens as a real fix if (b). | **13.D** |
+| BUG-8 | P3 | apigateway/gcp-tf-frontend | `hashicorp/google` | API Gateway endpoint-override attribute name changed across provider major versions and the current provider's API Gateway resource lifecycle requires real OAuth-signed requests the mock httptest server can't sign. `services/apigateway/conformance/gcp_terraform_test.go` is smoke-skipped pending Track A real-cloud TF coverage. | **13.D.2** |
+| BUG-15 | P3 | queue/gcp-frontend | GCP Pub/Sub `subscriptions.get` | `message_retention_duration = "604800s"` declared in HCL and the shim responding "604800s" at every call, hashicorp/google records `"345600s"` in state. Plan after apply diffs `"345600s" -> "604800s"`. Shim's HTTP responses contain "604800s" (verified); something in the provider's flatten / state-write path substitutes its schema default. Honest interpretations: (a) provider bug — real GCP exhibits same drift; (b) shim's response is missing a field the provider needs to disable its default-substitution path (`expirationPolicy`, `retainAckedMessages`). Closes false-positive if (a), reopens as a real fix if (b). | **13.D.2** |
 
 ## Upstream-tracked (sockerless validation lane)
 
-Sockerless fidelity gaps surfaced while wiring Phase 13.D's sockerless lane. Tracked on `github.com/e6qu/sockerless`; reproductions are fully self-contained (no shim references). See [doc/SOCKERLESS_VALIDATION.md](doc/SOCKERLESS_VALIDATION.md) for the wider context.
+Sockerless fidelity gaps surfaced while wiring Phase 13.D.1's sockerless lane. Each is filed as a fully self-contained issue on `github.com/e6qu/sockerless` (no shim references; sockerless maintainers can pick up the repro without reading this repo). See [doc/SOCKERLESS_VALIDATION.md](doc/SOCKERLESS_VALIDATION.md) for the wider context.
 
-| Upstream | Summary |
+| Upstream | Filed | Blocks (in shim's lane) | Workaround / status |
+|---|---|---|---|
+| [e6qu/sockerless#173](https://github.com/e6qu/sockerless/issues/173) — S3 mounted under `/s3/` URL prefix | 2026-05-23 | Out-of-the-box SDK / CLI / TF-provider S3 calls 405 | Append `/s3` to the endpoint URL. Lane works around it. |
+| [e6qu/sockerless#174](https://github.com/e6qu/sockerless/issues/174) — `aws-chunked` envelope stored verbatim | 2026-05-23 | AWS S3 PutObject/GetObject round-trip in our lane | No workaround. Lane covers bucket lifecycle only until fixed upstream. |
+| [e6qu/sockerless#175](https://github.com/e6qu/sockerless/issues/175) — missing `ListSecretVersionIds` | 2026-05-23 | AWS Secrets Manager HeadSecret + GetSecretValue in our lane | No workaround (the shim's version-mapping path needs it). Lane covers CreateSecret + ListSecrets + DeleteSecret until fixed upstream. |
+
+### Sockerless coverage gaps (deferred — not bugs in sockerless, just service scope)
+
+Sockerless doesn't simulate every cloud service the shim translates. The following backends remain outside 13.D.1's sockerless lane and gate on **13.D.2 real-cloud Track A** instead:
+
+| Backend | Why no sockerless coverage |
 |---|---|
-| [e6qu/sockerless#173](https://github.com/e6qu/sockerless/issues/173) | AWS S3 routes mounted under `/s3/` URL prefix instead of the wire-protocol root. Workaround in our lane: append `/s3` to the endpoint URL. |
-| [e6qu/sockerless#174](https://github.com/e6qu/sockerless/issues/174) | AWS S3 sim persists `aws-chunked` request envelopes verbatim; non-seekable PutObject uploads don't round-trip. Blocks the AWS S3 round-trip portion of the sockerless lane. |
-| [e6qu/sockerless#175](https://github.com/e6qu/sockerless/issues/175) | AWS Secrets Manager sim is missing `ListSecretVersionIds` — the SDK + shim need it for version-to-UUID mapping. Blocks shim's `GetSecretValue` + `HeadSecret` paths against sockerless; `CreateSecret` + `ListSecrets` + `DeleteSecret` work. |
+| Azure Blob data plane | Sockerless's Azure sim implements Azure Files only; blob endpoint URLs are advertised in storage-account ARM responses but the data-plane handlers don't exist. |
+| GCP API Gateway | Not in sockerless's GCP sim. Blocks closing BUG-8 via this lane. |
+| GCP Pub/Sub | Not in sockerless's GCP sim. Blocks reclassifying BUG-15 via this lane. |
+| GCP Cloud SQL | Not in sockerless's GCP sim. |
+| GCP Memorystore | Not in sockerless's GCP sim. |
+| Azure Key Vault data plane | Not in sockerless's Azure sim (control-plane storage-accounts is in; vault data-plane isn't). |
+| GCP Secret Manager | Not in sockerless's GCP sim. |
+| AWS Lambda + GCP Cloud Run + Azure Container Apps (Functions) | Sims exist in sockerless but the shim's Functions backends weren't wired to them yet — tracked as a follow-on (see [DO_NEXT.md](DO_NEXT.md#follow-ons-deferred-from-13d1)). |
+| AWS SQS / SNS, GCP Pub/Sub, Azure Service Bus (Queue + Pub/Sub) | Not in sockerless. |
+| AWS RDS / Aurora, GCP Cloud SQL, Azure PostgreSQL (RDBMS) | Not in sockerless. |
+| AWS ElastiCache, GCP Memorystore, Azure Redis (Cache) | Not in sockerless. |
 
 ## False positives
 

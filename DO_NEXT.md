@@ -6,7 +6,7 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 
 ## Where we are
 
-- **Phase 13 in-flight on `phase-13`.** 13.A.1 (`azure_redis`) migrated through `gen.HandlerWithOptions`. The rest of 13.A (6 Azure frontends), 13.B (8 GCP frontends), 13.C (RS256 JWKS), 13.D (Track A — BUG-8, BUG-15) pending. Sub-phase table in [PLAN.md § Phase 13](PLAN.md#phase-13--full-adapter-migration--production-auth--real-cloud-track-a).
+- **Phase 13 in-flight on `phase-13` (PR #20).** All 7 Azure + 8 GCP frontends carry the spec-drift contract via blank import; 5 Azure (13.A.1-5) + 1 GCP (13.B.1) ship as full handler migrations through `gen.HandlerWithOptions` / path-shape inspection; the other 2 Azure (13.A.6 azure_blob, 13.A.7 azure_apim) + 7 GCP (13.B.2-8) carry blank-import only and defer full migration. 13.C production RS256 JWKS landed on both `gcpbearer` + `azurebearer`. 13.D.1 sockerless lane landed (storage + secrets); three sockerless fidelity gaps filed upstream as self-contained issues ([#173](https://github.com/e6qu/sockerless/issues/173), [#174](https://github.com/e6qu/sockerless/issues/174), [#175](https://github.com/e6qu/sockerless/issues/175)). 13.D.2 (real-cloud Track A — closes BUG-8 + reclassifies BUG-15) remains the next sub-phase; sockerless doesn't simulate GCP API Gateway / Pub/Sub so it can't substitute. All 18 required CI checks green on the current head.
 - **Last merged:** PR #19 (Phase 12) at `778e8e9` on `main`, 2026-05-22.
 
 ## Session-start checklist
@@ -73,10 +73,24 @@ Phase 12 ships one cell per service (typically AWS → K8s peer). Expanding to o
 - Fidelity to the source cloud's API; real backends only; tests from official client surfaces.
 - Reuse-over-reinvention.
 
-## Open bugs (2) — both absorbed into Phase 13.D
+## Open bugs (2) — both absorbed into Phase 13.D.2 (real-cloud Track A)
 
-- **BUG-8** (P3) — apigateway/gcp-tf-frontend. `hashicorp/google` API Gateway endpoint-override + real OAuth signing. **Track A only.**
-- **BUG-15** (P3) — queue/gcp-frontend. GCP Pub/Sub retention plan/apply asymmetry. Partial fix landed in Phase 10.3; **Track A** real-cloud walk pending.
+Sockerless doesn't simulate GCP API Gateway or Pub/Sub, so neither can be closed via the 13.D.1 sockerless lane that landed on PR #20.
+
+- **BUG-8** (P3) — apigateway/gcp-tf-frontend. `hashicorp/google` API Gateway endpoint-override + real OAuth signing. **13.D.2 only.**
+- **BUG-15** (P3) — queue/gcp-frontend. GCP Pub/Sub retention plan/apply asymmetry. Partial fix landed in Phase 10.3; **13.D.2** real-cloud walk pending.
+
+## Follow-ons (deferred from 13.D.1)
+
+Explicit list of work this PR explored but did not finish, in priority order. Each is a candidate for the next sub-phase / PR; none block PR #20.
+
+1. **Sockerless#174 close → AWS S3 PutObject/GetObject round-trip.** Once sockerless fixes the `aws-chunked` envelope-decoding gap, re-enable the round-trip assertion in `TestSockerless_AWS_BucketLifecycle` (or replace it with a dedicated `TestSockerless_AWS_S3_RoundTrip`).
+2. **Sockerless#175 close → AWS Secrets Manager HeadSecret + GetSecretValue.** Once sockerless adds `ListSecretVersionIds`, extend `TestSockerless_AWSSecretsManager_RoundTrip` to assert metadata + value reads.
+3. **Sockerless functions lane (task #110).** AWS Lambda + GCP Cloud Run + Azure Container Apps + Azure Functions Sites are all in sockerless. Wire the shim's three functions backends to them with the same pattern this PR established for storage + secrets. Same script entry-point (`scripts/run-sockerless-storage.sh` → rename to `run-sockerless-lane.sh` when this lands).
+4. **Azure Blob full handler migration (13.A.6 deferred).** 69-method `gen.ServerInterface`; needs the Service-Bus hybrid-dispatch pattern (13.A.4/5) + ~58 stubs. Blank-import contract landed in PR #20; full migration deferred.
+5. **GCP 7 frontends full migration (13.B.2-8 deferred).** Cosmetic refactor; existing regex dispatch already pinned to `gen.gcp.Routes` by per-service `TestGCPRoutes_<Svc>_FrontendDispatchCoverage` tests. Blank-import contract landed; full migration deferred.
+6. **13.D.2 real-cloud Track A.** Requires live AWS/GCP/Azure accounts. Closes BUG-8, reclassifies BUG-15, lands real-signed signature-verification conformance. No sockerless substitute.
+7. **13.E cross-cloud Apply matrix expansion.** Optional; demand-driven. Phase 12 shipped one cell per service.
 
 ## Validation lanes to monitor
 
