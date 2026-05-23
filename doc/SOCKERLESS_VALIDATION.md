@@ -1,12 +1,17 @@
 # Sockerless validation lane
 
-> Phase 13.D first cut. Uses `github.com/e6qu/sockerless` simulators to exercise the shim's per-cloud backends without requiring real AWS / GCP / Azure accounts.
+> Phase 13.D.1 first cut, with Phase 14 expansion gated on upstream sockerless fixes (see [PLAN.md § Phase 14](../PLAN.md#phase-14--sockerless-verified-validation-lane--deferred-follow-ons)). Uses `github.com/e6qu/sockerless` simulators to exercise the shim's per-cloud backends without requiring real AWS / GCP / Azure accounts.
 
 ## Why sockerless
 
-The shim's backend translation layers (`services/<svc>/backends/{aws,gcs,azureblob,…}`) make outbound calls to the real cloud SDKs. Real-cloud Track A (Phase 13.D) closes BUG-8 + BUG-15 by exercising those backends end-to-end with real cloud credentials, but ahead of that, sockerless lets us catch translation defects in CI-friendly local runs.
+The shim's backend translation layers (`services/<svc>/backends/{aws,gcs,azureblob,…}`) make outbound calls to the real cloud SDKs. Phase 14.D real-cloud Track A closes BUG-8 + BUG-15 by exercising those backends end-to-end with real cloud credentials. Ahead of that — and for everything else — sockerless lets us catch translation defects in CI-friendly local runs.
 
 Sockerless reimplements the public cloud HTTP wire protocols in-process. Pointing the shim's backend at a sockerless port = real SDK code path, real wire bytes, no real-cloud cost or credential plumbing.
+
+The same property makes sockerless the right vehicle for two things Phase 14 cares about:
+
+1. **Cross-cloud shim verification.** The shim's job is translate (say) an AWS-shaped call → a GCP backend. Verifying that end-to-end needs a target the destination cloud's SDK actually talks to. Sockerless gives us a deterministic in-process target for each destination cloud — no real-cloud cost, no flake, no per-PR billing.
+2. **Terraform-provider round-trips.** The matrix Phase 12 established (`TestCrossCloudApply_Roundtrip_<svc>_<cell>`) drives a cloud's Terraform provider against the shim, which forwards to the destination backend. With sockerless backends, the loop closes deterministically: `terraform apply` → shim frontend → shim backend → sockerless simulator → response chain → `terraform plan -refresh-only -detailed-exitcode = 0`.
 
 ## What's wired today
 

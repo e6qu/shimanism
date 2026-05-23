@@ -31,17 +31,23 @@ GCS was the clean lane — sockerless implements the full `/storage/v1/b/...` RE
 
 The lane is opt-in via `make sockerless-storage`; CI's existing storage matrix stays inmem/minio. See [doc/SOCKERLESS_VALIDATION.md](doc/SOCKERLESS_VALIDATION.md) for the operational doc.
 
-**Explicit list of work deferred to follow-on PRs.** The boundaries of this PR are wide; what we *did not* finish should be just as visible as what we did.
+**Explicit list of work deferred to follow-on PRs — bundled into Phase 14.** What this PR did *not* finish should be just as visible as what it did. All of these have been hoisted into a new Phase 14 in [PLAN.md](PLAN.md#phase-14--sockerless-verified-validation-lane--deferred-follow-ons) with explicit upstream-sockerless-issue dependencies per item.
 
-- **13.A.6 azure_blob full migration.** Blank-import contract landed (spec-drift gate). Full handler migration needs the Service-Bus hybrid pattern from 13.A.4/5 plus ~58 stub methods; deferred.
-- **13.A.7 azure_apim full migration.** Vendored APIM spec is intentionally minimal (0 operations); blank-import documents the dependency. Full migration is moot until the spec broadens.
-- **13.B.2-8 GCP frontends full migration.** Each carries the blank import; existing regex dispatch is pinned to `gen.gcp.Routes` by per-service tests. The full rewrite would be cosmetic; deferred.
-- **Sockerless AWS S3 PutObject/GetObject round-trip.** Blocked on [e6qu/sockerless#174](https://github.com/e6qu/sockerless/issues/174); re-enable when fixed upstream.
-- **Sockerless AWS Secrets Manager HeadSecret + GetSecretValue.** Blocked on [e6qu/sockerless#175](https://github.com/e6qu/sockerless/issues/175); re-enable when fixed upstream.
-- **Sockerless Azure Blob lane.** Not implementable — sockerless's Azure sim has no blob data-plane handlers (only Azure Files). Filed as a missing-feature ask upstream alongside the other gaps in [BUGS.md § Sockerless coverage gaps](BUGS.md#sockerless-coverage-gaps-deferred--not-bugs-in-sockerless-just-service-scope).
-- **Sockerless functions / rdbms / cache / queue / pubsub / apigateway lanes.** Some are simulated in sockerless (Lambda, Cloud Run Jobs, Container Apps, Functions Sites); others aren't (RDBMS, Cache, Queue, Pubsub, APIGateway). The simulated ones are a follow-on task (#110); the unsimulated ones will be filed as missing-feature asks against sockerless and otherwise wait on 13.D.2 real-cloud.
-- **13.D.2 real-cloud Track A.** Closes BUG-8 + reclassifies BUG-15 + lands real-signed signature-verification conformance. Requires live AWS/GCP/Azure accounts; no sockerless substitute possible for the two open BUGs (sockerless has no GCP API Gateway and no GCP Pub/Sub).
-- **13.E cross-cloud Apply matrix expansion.** Optional; demand-driven.
+The Phase 14 framing matters because it makes the *consumer* of sockerless's evolution explicit: sockerless's simulator implementations are what give us cross-cloud shim verification + Terraform-provider round-trip testing at CI tempo, without real-cloud cost. Every shim translation layer becomes exercisable end-to-end against a deterministic in-process sim instead of (or in addition to) a real cloud account.
+
+| Deferred item | Lands in | Sockerless dep |
+|---|---|---|
+| Azure Blob full handler migration (13.A.6) | 14.C | — |
+| Azure APIM full handler migration (13.A.7) | 14.C | — (waits on upstream APIM spec broadening) |
+| 7 GCP frontends full migration (13.B.2-8) | 14.C | — |
+| AWS S3 PutObject/GetObject round-trip in sockerless lane | 14.A.2 | [#174](https://github.com/e6qu/sockerless/issues/174) close |
+| AWS Secrets Manager HeadSecret + GetSecretValue in sockerless lane | 14.A.3 | [#175](https://github.com/e6qu/sockerless/issues/175) close |
+| Drop the `/s3` URL workaround | 14.A.1 | [#173](https://github.com/e6qu/sockerless/issues/173) close |
+| Azure Blob sockerless lane | 14.B.3 | [#178](https://github.com/e6qu/sockerless/issues/178) close |
+| Sockerless functions / queue / pubsub / rdbms / cache / apigateway lanes | 14.B.1-3 | [#176](https://github.com/e6qu/sockerless/issues/176) / [#177](https://github.com/e6qu/sockerless/issues/177) / [#178](https://github.com/e6qu/sockerless/issues/178) close |
+| BUG-8 + BUG-15 closure / reclassification | 14.B.2 (preferred) or 14.D fallback | sockerless#177 (GCP APIGW + Pub/Sub portions) |
+| Real-signed sigv4 / Workload Identity / Entra ID conformance | 14.D | (sockerless can't fully substitute — requires real-cloud identity issuers) |
+| Cross-cloud Apply matrix expansion | 14.E | 14.B in progress |
 
 ## Phase 12 — Spec-driven toolchain landing (PR #19, at exit)
 

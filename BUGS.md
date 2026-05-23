@@ -8,14 +8,17 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 >
 > When a bug surfaces during a coding-agent session, file the BUG before fixing — even if the fix is a single line. The audit trail is what makes "never lie" enforceable.
 
-## Open — both absorbed into Phase 13.D.2 (real-cloud Track A)
+## Open — both absorbed into Phase 14
 
-Sockerless doesn't simulate GCP API Gateway or GCP Pub/Sub, so neither bug can be closed via the 13.D.1 sockerless lane — both still gate on real cloud accounts.
+Sockerless doesn't simulate GCP API Gateway or GCP Pub/Sub today, so neither bug closed via the 13.D.1 sockerless lane. Both have a closure path through Phase 14:
+
+- If [sockerless#177](https://github.com/e6qu/sockerless/issues/177) adds GCP API Gateway and Pub/Sub simulators, both bugs close via the new sockerless lanes (Phase 14.B.2).
+- Otherwise they fall back to Phase 14.D (real-cloud Track A residual) where they're closed against live GCP accounts.
 
 | ID | Sev | Area | Source-API | One-liner | Phase |
 |----|-----|------|------------|-----------|-------|
-| BUG-8 | P3 | apigateway/gcp-tf-frontend | `hashicorp/google` | API Gateway endpoint-override attribute name changed across provider major versions and the current provider's API Gateway resource lifecycle requires real OAuth-signed requests the mock httptest server can't sign. `services/apigateway/conformance/gcp_terraform_test.go` is smoke-skipped pending Track A real-cloud TF coverage. | **13.D.2** |
-| BUG-15 | P3 | queue/gcp-frontend | GCP Pub/Sub `subscriptions.get` | `message_retention_duration = "604800s"` declared in HCL and the shim responding "604800s" at every call, hashicorp/google records `"345600s"` in state. Plan after apply diffs `"345600s" -> "604800s"`. Shim's HTTP responses contain "604800s" (verified); something in the provider's flatten / state-write path substitutes its schema default. Honest interpretations: (a) provider bug — real GCP exhibits same drift; (b) shim's response is missing a field the provider needs to disable its default-substitution path (`expirationPolicy`, `retainAckedMessages`). Closes false-positive if (a), reopens as a real fix if (b). | **13.D.2** |
+| BUG-8 | P3 | apigateway/gcp-tf-frontend | `hashicorp/google` | API Gateway endpoint-override attribute name changed across provider major versions and the current provider's API Gateway resource lifecycle requires real OAuth-signed requests the mock httptest server can't sign. `services/apigateway/conformance/gcp_terraform_test.go` is smoke-skipped pending Track A real-cloud TF coverage. | **14.B.2 or 14.D** |
+| BUG-15 | P3 | queue/gcp-frontend | GCP Pub/Sub `subscriptions.get` | `message_retention_duration = "604800s"` declared in HCL and the shim responding "604800s" at every call, hashicorp/google records `"345600s"` in state. Plan after apply diffs `"345600s" -> "604800s"`. Shim's HTTP responses contain "604800s" (verified); something in the provider's flatten / state-write path substitutes its schema default. Honest interpretations: (a) provider bug — real GCP exhibits same drift; (b) shim's response is missing a field the provider needs to disable its default-substitution path (`expirationPolicy`, `retainAckedMessages`). Closes false-positive if (a), reopens as a real fix if (b). | **14.B.2 or 14.D** |
 
 ## Upstream-tracked (sockerless validation lane)
 
@@ -27,9 +30,9 @@ Sockerless fidelity gaps surfaced while wiring Phase 13.D.1's sockerless lane. E
 | [e6qu/sockerless#174](https://github.com/e6qu/sockerless/issues/174) — `aws-chunked` envelope stored verbatim | 2026-05-23 | AWS S3 PutObject/GetObject round-trip in our lane | No workaround. Lane covers bucket lifecycle only until fixed upstream. |
 | [e6qu/sockerless#175](https://github.com/e6qu/sockerless/issues/175) — missing `ListSecretVersionIds` | 2026-05-23 | AWS Secrets Manager HeadSecret + GetSecretValue in our lane | No workaround (the shim's version-mapping path needs it). Lane covers CreateSecret + ListSecrets + DeleteSecret until fixed upstream. |
 
-### Sockerless coverage gaps (deferred — not bugs in sockerless, just service scope)
+### Sockerless coverage gaps (deferred to Phase 14)
 
-Sockerless doesn't simulate every cloud service the shim translates. The following backends remain outside 13.D.1's sockerless lane and gate on **13.D.2 real-cloud Track A** instead. **Filed upstream as missing-feature asks** (one roll-up per cloud, with per-service yield-per-LOC suggestions for the maintainers):
+Sockerless doesn't simulate every cloud service the shim translates. The following backends remain outside 13.D.1's sockerless lane and pick up in **Phase 14.B** as the corresponding sockerless issue closes; Phase 14.D handles whatever sockerless doesn't end up implementing. **Filed upstream as missing-feature asks** (one roll-up per cloud, with per-service yield-per-LOC suggestions for the maintainers):
 
 | Cloud | Upstream ask |
 |---|---|

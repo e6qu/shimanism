@@ -169,16 +169,60 @@ Azure Blob isn't simulated by sockerless (only Azure Files); 13.D.1 covers AWS S
 
 Also lands real-signed signature-verification conformance against real IAM / Workload Identity / Entra ID.
 
-### 13.E — Cross-cloud Apply matrix expansion (optional)
+### 13.E — Cross-cloud Apply matrix expansion (deferred to Phase 14)
 
-Phase 12 ships `TestCrossCloudApply_Roundtrip_<svc>_<cell>` for one cell per service (typically AWS → K8s peer). Expanding to additional source/destination cells per service is mechanical; pick up only as deployment scenarios demand.
+Phase 12 ships `TestCrossCloudApply_Roundtrip_<svc>_<cell>` for one cell per service (typically AWS → K8s peer). Expanding to additional source/destination cells per service is mechanical and best paired with the sockerless lane — every new cell wants a backing simulator the cross-cloud Apply test can target without real-cloud cost. Folded into Phase 14.
 
 ### Exit criteria
 
-- Every Azure frontend dispatches through `gen.ServerInterface` + `gen.HandlerWithOptions`.
-- Every GCP frontend dispatches via `gen.gcp.Match()` / `MatchAll()`.
-- Production JWKS path documented + exercised against a mocked JWKS endpoint; real-cloud Track A lane runs at least one test.
-- BUG-8 closed or reclassified; BUG-15 closed or reclassified.
+- Every Azure frontend dispatches through `gen.ServerInterface` + `gen.HandlerWithOptions`, OR carries the blank-import spec-drift contract (full migration deferred to Phase 14 for frontends with ServeMux pattern conflicts: `azure_blob`, `azure_apim`).
+- Every GCP frontend dispatches via `gen.gcp.Match()` / `MatchAll()`, OR carries the blank-import spec-drift contract (full migration deferred to Phase 14 for the 7 frontends whose existing regex dispatch is already pinned by `TestGCPRoutes_<Svc>_FrontendDispatchCoverage` — see 13.B.2-8).
+- Production JWKS path documented + exercised against a mocked JWKS endpoint; **real-cloud Track A lane deferred to Phase 14.D**.
+- BUG-8 and BUG-15 remain open; both absorbed into Phase 14.D.
+- Sockerless validation lane landed for storage + secrets (13.D.1, ✅).
+
+## Phase 14 — Sockerless-verified validation lane + deferred follow-ons
+
+> **Premise.** The sockerless simulator project ([`github.com/e6qu/sockerless`](https://github.com/e6qu/sockerless)) provides AWS / GCP / Azure simulators that speak the same wire protocols as real cloud APIs. That makes them the right vehicle for **cross-cloud shim verification** and **Terraform-provider round-trip testing** at CI tempo: every shim translation layer can be exercised end-to-end against a deterministic sim instead of against (or in addition to) a real cloud account.
+>
+> Phase 14 cashes in the items Phase 13 deferred, on the cadence of the upstream sockerless project closing the six issues we filed in 13.D.1. Each shim-side follow-on has an explicit upstream dependency.
+>
+> **Status:** ◻ pending; gated on sockerless issue resolution. Branch + PR start when the first sockerless issue closes (or sooner if we want to land the 14.C frontend migrations independently).
+
+### Dependency on the sockerless project
+
+The 13.D.1 work surfaced six issues against sockerless ([BUGS.md § Upstream-tracked](BUGS.md#upstream-tracked-sockerless-validation-lane)). Phase 14 work unblocks as each closes:
+
+| Sockerless issue | Phase 14 work it unblocks |
+|---|---|
+| [#173](https://github.com/e6qu/sockerless/issues/173) — S3 `/s3/` URL prefix | 14.A.1 — drop the `/s3` workaround from `scripts/run-sockerless-storage.sh` + the comment in `sockerless_test.go`. |
+| [#174](https://github.com/e6qu/sockerless/issues/174) — `aws-chunked` envelope stored verbatim | 14.A.2 — re-enable AWS S3 PutObject + GetObject + HeadObject round-trip assertions in the storage lane. |
+| [#175](https://github.com/e6qu/sockerless/issues/175) — missing `ListSecretVersionIds` | 14.A.3 — re-enable AWS Secrets Manager `HeadSecret` + `GetSecretValue` in the secrets lane. |
+| [#176](https://github.com/e6qu/sockerless/issues/176) — AWS missing services (SQS / SNS / APIGW / RDS / ElastiCache) | 14.B.1 — add `TestSockerless_AWS_<Service>_*` tests in `services/<svc>/conformance/` for each shim service the sim now supports. |
+| [#177](https://github.com/e6qu/sockerless/issues/177) — GCP missing services (Pub/Sub / Secrets / SQL / Memorystore / APIGW) | 14.B.2 — same for the GCP backends. **Closing GCP Pub/Sub portion unblocks 14.D's reclassification of BUG-15**; closing the API Gateway portion unblocks **closing BUG-8 via the sockerless lane** (no real-cloud needed). |
+| [#178](https://github.com/e6qu/sockerless/issues/178) — Azure missing services (Blob+KV data plane / Service Bus / PG / Redis / APIM) | 14.B.3 — same for the Azure backends. Adds the Azure storage data-plane lane (today's gap). |
+
+### Why sockerless for cross-cloud + Terraform-provider validation
+
+- **Cross-cloud shim verification.** The shim's job is *translate AWS-shaped call → GCP backend* (or any other source × dest pair). Verifying this end-to-end needs a target the destination cloud's SDK actually talks to. Sockerless gives us a deterministic, in-process target for each of the three destination clouds — no real-cloud cost, no flake from external dependencies, no per-PR billing.
+- **Terraform-provider round-trips.** The matrix Phase 12 established (`TestCrossCloudApply_Roundtrip_<svc>_<cell>`) drives the cloud's Terraform provider against the shim, which then forwards to the destination backend. The Terraform provider doesn't know it's not talking to the real cloud; the destination doesn't know its caller is a TF apply. Sockerless backends close the loop: TF apply → shim frontend → shim backend → sockerless simulator → response back through the chain → `terraform plan -refresh-only -detailed-exitcode = 0`. Today's lane runs against in-memory backends; expanding to sockerless backends per cell lifts confidence that the wire-level translation is faithful to what real clouds actually serve.
+
+### Sub-phases
+
+| Track | What | Dependency | Status |
+|---|---|---|---|
+| 14.A | Re-enable shim assertions as sockerless fidelity bugs close. Three sub-items, one per sockerless#173/174/175. | sockerless#173-175 closing | ◻ |
+| 14.B | Add new sockerless service lanes as sockerless missing-service issues close. Three sub-items, one per sockerless#176/177/178. | sockerless#176-178 closing | ◻ |
+| 14.C | Full handler migrations for the 9 frontends that landed only as blank-import in Phase 13: `azure_blob` (69 ops; Service-Bus hybrid pattern), `azure_apim` (waits for upstream spec to broaden), 7 GCP frontends (cosmetic). | — (independent of sockerless) | ◻ |
+| 14.D | Real-cloud Track A residual — close or reclassify BUG-8 + BUG-15 for any portion not covered by 14.B (e.g. real signed-credentials conformance). | sockerless#177 closure first; what doesn't close via sockerless escalates here. | ◻ |
+| 14.E | Cross-cloud Apply matrix expansion per [13.E above](#13e--cross-cloud-apply-matrix-expansion-deferred-to-phase-14) — driven by sockerless lanes from 14.B. | 14.B in progress | ◻ optional, demand-driven |
+
+### Exit criteria
+
+- Every issue in sockerless#173-178 has been tracked to closure or to a documented re-deferral (with rationale recorded in [doc/SOCKERLESS_VALIDATION.md](doc/SOCKERLESS_VALIDATION.md)).
+- Every Phase-13-deferred handler migration (13.A.6, 13.A.7, 13.B.2-8) has either fully migrated or been documented as a permanent blank-import contract (with rationale).
+- BUG-8 and BUG-15 are closed or have a documented absorbed-into-future-phase status.
+- The sockerless validation lane covers ≥ 1 cell per shimmed service (storage, secrets, functions, queue, pubsub, rdbms, cache, apigateway) for at least one of the three clouds.
 
 ## Standing open questions (not phase-gated)
 
