@@ -49,9 +49,9 @@ Pattern: retire per-frontend regex tables, dispatch through `gen.gcp.Match()` / 
 - 32 gen routes. Overloaded `v1/{+name}` means `MatchAll` + a small `pickByName(parent string)` helper in the frontend.
 - Validation: existing `services/secrets/conformance/*` stays green; the `TestGCPRoutes_Secrets_FrontendDispatchCoverage` test in conformance already pins the dispatch shape.
 
-### Phase 13.C — Production RS256 JWKS
+### Phase 13.C — Production RS256 JWKS ✅ landed
 
-Wire real Microsoft Entra + Google JWKS in `internal/azurebearer/` + `internal/gcpbearer/`. Test mode HS256 stays default. See [doc/VERIFIERS.md § Production deployment path](doc/VERIFIERS.md#production-deployment-path-phase-13c). Add `TestAzureBearer_RealJWKS_*` / `TestGCPBearer_RealJWKS_*` against a mocked JWKS endpoint.
+Both `gcpbearer` and `azurebearer` accept RS256-signed JWTs in addition to test-mode HS256. Config via `Options.JWKSURL` (URL-fetched + cached + kid-rotation re-fetch) or `Options.JWKS` (in-process). Unit tests at `internal/{gcpbearer,azurebearer}/rs256_test.go`. See [doc/VERIFIERS.md § Production deployment path](doc/VERIFIERS.md#production-deployment-path-phase-13c--landed). Deployment-time choice between modes is config-only; no architectural change.
 
 ### Phase 13.D — Real-cloud Track A
 

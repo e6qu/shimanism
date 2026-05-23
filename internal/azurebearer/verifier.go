@@ -22,7 +22,9 @@
 package azurebearer
 
 import (
+	"crypto"
 	"crypto/hmac"
+	"crypto/rsa"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
@@ -53,17 +55,29 @@ type Options struct {
 	// resource URI (e.g. "https://vault.azure.net" for Key Vault).
 	Audience string
 	// TestKey is the symmetric HMAC-SHA256 key the shim trusts in
-	// test mode. When non-empty, the verifier accepts JWTs signed
-	// with this key (HS256 alg). Production deployments leave this
-	// empty and the verifier rejects non-Entra tokens.
+	// test mode. When non-empty, the verifier accepts HS256-signed
+	// JWTs whose signature matches this key.
 	TestKey []byte
+	// JWKS is an in-process JSON Web Key Set the verifier accepts
+	// RS256-signed JWTs against.
+	JWKS *JWKS
+	// JWKSURL is the URL to fetch the JWKS from. For Microsoft
+	// Entra production deployments, set this to
+	// "https://login.microsoftonline.com/common/discovery/v2.0/keys"
+	// (or the tenant-scoped equivalent). The verifier caches the
+	// fetched JWKS for JWKSCacheTTL and re-fetches on an unknown
+	// `kid`.
+	JWKSURL string
+	// JWKSCacheTTL bounds remote JWKS cache lifetime. Default 1 hour.
+	JWKSCacheTTL time.Duration
 	// MaxClockSkew bounds the iat / exp tolerance. Default 5 min.
 	MaxClockSkew time.Duration
 }
 
 // Verifier verifies incoming Bearer tokens.
 type Verifier struct {
-	opts Options
+	opts   Options
+	remote *remoteJWKS // non-nil when JWKSURL is set.
 }
 
 // New constructs a verifier.
@@ -71,7 +85,11 @@ func New(opts Options) *Verifier {
 	if opts.MaxClockSkew == 0 {
 		opts.MaxClockSkew = 5 * time.Minute
 	}
-	return &Verifier{opts: opts}
+	v := &Verifier{opts: opts}
+	if opts.JWKSURL != "" {
+		v.remote = newRemoteJWKS(opts.JWKSURL, opts.JWKSCacheTTL)
+	}
+	return v
 }
 
 // Verify checks the request's Authorization header. Returns nil on
@@ -105,20 +123,37 @@ func (v *Verifier) Verify(r *http.Request) error {
 	if err := json.Unmarshal(headerJSON, &header); err != nil {
 		return &Error{HTTPStatus: http.StatusUnauthorized, Code: "InvalidAuthenticationToken", Message: "JWT header parse: " + err.Error()}
 	}
-	if header.Alg != "HS256" {
-		return &Error{HTTPStatus: http.StatusUnauthorized, Code: "InvalidAuthenticationToken", Message: fmt.Sprintf("unsupported JWT alg %q (test mode requires HS256; Entra RS256 verification is a follow-on)", header.Alg)}
-	}
-
-	if len(v.opts.TestKey) == 0 {
-		return &Error{HTTPStatus: http.StatusUnauthorized, Code: "InvalidAuthenticationToken", Message: "no trusted key configured for verification"}
-	}
-
 	signingInput := parts[0] + "." + parts[1]
-	mac := hmac.New(sha256.New, v.opts.TestKey)
-	mac.Write([]byte(signingInput))
-	expectedSig := base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
-	if !hmac.Equal([]byte(expectedSig), []byte(parts[2])) {
-		return &Error{HTTPStatus: http.StatusUnauthorized, Code: "InvalidAuthenticationToken", Message: "JWT signature verification failed"}
+	switch header.Alg {
+	case "HS256":
+		if len(v.opts.TestKey) == 0 {
+			return &Error{HTTPStatus: http.StatusUnauthorized, Code: "InvalidAuthenticationToken", Message: "no HS256 test key configured for verification"}
+		}
+		mac := hmac.New(sha256.New, v.opts.TestKey)
+		mac.Write([]byte(signingInput))
+		expectedSig := base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
+		if !hmac.Equal([]byte(expectedSig), []byte(parts[2])) {
+			return &Error{HTTPStatus: http.StatusUnauthorized, Code: "InvalidAuthenticationToken", Message: "JWT signature verification failed"}
+		}
+	case "RS256":
+		jwk, err := v.lookupRSAKey(header.Kid)
+		if err != nil {
+			return &Error{HTTPStatus: http.StatusUnauthorized, Code: "InvalidAuthenticationToken", Message: "JWKS lookup: " + err.Error()}
+		}
+		pub, err := jwk.RSAPublicKey()
+		if err != nil {
+			return &Error{HTTPStatus: http.StatusUnauthorized, Code: "InvalidAuthenticationToken", Message: "JWK is not a usable RSA public key: " + err.Error()}
+		}
+		sig, err := base64.RawURLEncoding.DecodeString(parts[2])
+		if err != nil {
+			return &Error{HTTPStatus: http.StatusUnauthorized, Code: "InvalidAuthenticationToken", Message: "RS256 signature decode: " + err.Error()}
+		}
+		hashed := sha256.Sum256([]byte(signingInput))
+		if err := rsa.VerifyPKCS1v15(pub, crypto.SHA256, hashed[:], sig); err != nil {
+			return &Error{HTTPStatus: http.StatusUnauthorized, Code: "InvalidAuthenticationToken", Message: "RS256 signature verification failed"}
+		}
+	default:
+		return &Error{HTTPStatus: http.StatusUnauthorized, Code: "InvalidAuthenticationToken", Message: fmt.Sprintf("unsupported JWT alg %q (HS256 or RS256 only)", header.Alg)}
 	}
 
 	claimsJSON, err := base64.RawURLEncoding.DecodeString(parts[1])
@@ -149,4 +184,21 @@ func (v *Verifier) Verify(r *http.Request) error {
 		return &Error{HTTPStatus: http.StatusUnauthorized, Code: "InvalidAuthenticationToken", Message: "JWT not yet valid (nbf in the future)"}
 	}
 	return nil
+}
+
+// lookupRSAKey resolves a JWK by kid, preferring the in-process
+// JWKS if configured, else the remote URL-fetched JWKS.
+func (v *Verifier) lookupRSAKey(kid string) (*JWK, error) {
+	if v.opts.JWKS != nil {
+		for i := range v.opts.JWKS.Keys {
+			if v.opts.JWKS.Keys[i].Kid == kid {
+				return &v.opts.JWKS.Keys[i], nil
+			}
+		}
+		return nil, fmt.Errorf("no JWK matching kid %q in in-process JWKS", kid)
+	}
+	if v.remote != nil {
+		return v.remote.lookup(kid)
+	}
+	return nil, fmt.Errorf("no JWKS configured (set Options.JWKS or Options.JWKSURL)")
 }

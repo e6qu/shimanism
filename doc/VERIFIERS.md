@@ -64,6 +64,16 @@ REST is canonical for the shim today. `google.golang.org/api/<svc>/v1` is the co
 
 Where a gRPC-only operation matters cross-cloud (e.g. Pub/Sub streaming pull), the shim returns the source cloud's own `Unimplemented` envelope on the gRPC path; the REST path remains the conformance contract.
 
-## Production deployment path (Phase 13.C)
+## Production deployment path (Phase 13.C — landed)
 
-Wire the real Microsoft JWKS + `google.golang.org/api/idtoken.Validate` paths when a deployment target requires real-cloud auth. The verifier comments document the exact call sites; no architectural change is required, just config + key-rollover plumbing.
+Both `gcpbearer` and `azurebearer` accept RS256-signed JWTs in addition to test-mode HS256. The verifier branches on the JWT header's `alg`:
+
+- `HS256` — existing path, validates against `Options.TestKey`.
+- `RS256` — looks up the JWT's `kid` in the configured JWKS, reconstructs the RSA public key from `n` / `e`, runs `crypto/rsa.VerifyPKCS1v15`.
+
+Configure production via `Options.JWKSURL` (URL-fetched + cached, re-fetches on unknown `kid` for transparent signer-key rotation) or `Options.JWKS` (in-process literal).
+
+- **GCP production:** `Options.JWKSURL = "https://www.googleapis.com/oauth2/v3/certs"` for Google ID tokens. Opaque OAuth2 access tokens from `gcloud auth print-access-token` still require a network round-trip to `tokeninfo` — that path is the documented gap; the shim accepts them by presence/format check only when `SHIMANISM_GCP_ACCEPT_OPAQUE_BEARERS=1` is set.
+- **Azure production:** `Options.JWKSURL = "https://login.microsoftonline.com/common/discovery/v2.0/keys"` (or the tenant-scoped equivalent) for Microsoft Entra-issued tokens.
+
+Test mode HS256 stays the default. Switching to production is config-only — no architectural change. RS256 unit tests live in `internal/{gcpbearer,azurebearer}/rs256_test.go`; they exercise both the in-process JWKS path and a httptest-mocked remote JWKS endpoint (including the kid-rotation re-fetch).
