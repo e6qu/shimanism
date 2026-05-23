@@ -12,10 +12,26 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 ## Session-start checklist
 
 1. `git fetch origin && git checkout phase-13 && git pull` — sync.
-2. `gh pr list --state open` — verify the Phase 13 PR (or create one when the first sub-phase is ready for review).
+2. `gh pr list --state open` — verify PR #20 is still the in-flight one (or that PR #20 merged and you're on a fresh branch).
 3. Read this file + [STATUS.md](STATUS.md) snapshot.
-4. Skim open BUGs (2 entries below; both absorbed into 13.D).
-5. Pick the next sub-phase from "Next concrete actions" — `13.A.2 azure_containerapps` is up after the current 13.A.1.
+4. Skim open BUGs (2 entries below; both absorbed into 13.D.2 — real-cloud Track A).
+5. **If returning from sockerless upstream work:** check which sockerless issues landed (see "Resume after sockerless work" below) and re-enable the corresponding shim tests.
+6. Otherwise: pick the next sub-phase from "Follow-ons (deferred from 13.D.1)" below in priority order.
+
+## Resume after sockerless work
+
+The path between this PR and 13.D.2 (real-cloud Track A) runs through six issues filed against [e6qu/sockerless](https://github.com/e6qu/sockerless). The user is shepherding those fixes in a separate conversation. When you return here, check each issue's state and re-enable the corresponding shim assertion:
+
+| Sockerless issue | When closed, do this in the shim |
+|---|---|
+| [#173](https://github.com/e6qu/sockerless/issues/173) — S3 `/s3/` URL prefix | Drop the `/s3` suffix from `SOCKERLESS_AWS_ENDPOINT` in `scripts/run-sockerless-storage.sh` and the comment in `services/storage/conformance/sockerless_test.go`. |
+| [#174](https://github.com/e6qu/sockerless/issues/174) — aws-chunked envelope | Extend `TestSockerless_AWS_BucketLifecycle` (or add `TestSockerless_AWS_S3_RoundTrip`) to assert `PutObject` + `GetObject` round-trip with `bytes.Equal`. |
+| [#175](https://github.com/e6qu/sockerless/issues/175) — missing `ListSecretVersionIds` | Extend `TestSockerless_AWSSecretsManager_RoundTrip` to call `HeadSecret` + `GetSecretValue` and assert metadata + value round-trip. |
+| [#176](https://github.com/e6qu/sockerless/issues/176) — AWS missing services (SQS/SNS/APIGW/RDS/ElastiCache) | Once a service lands, add a `TestSockerless_AWS_<Service>_*` in `services/<svc>/conformance/sockerless_test.go` against the shim's AWS backend. Same pattern as storage + secrets lanes. |
+| [#177](https://github.com/e6qu/sockerless/issues/177) — GCP missing services (Pub/Sub, Secrets, SQL, Memorystore, APIGW) | Same — `services/<svc>/conformance/sockerless_test.go` against the shim's GCP backend. **Closing the Pub/Sub portion would unblock reclassifying BUG-15.** **Closing the API Gateway portion would unblock closing BUG-8.** |
+| [#178](https://github.com/e6qu/sockerless/issues/178) — Azure missing services (Blob+KV data plane, Service Bus, PG, Redis, APIM) | Same — adds the Azure lane the storage suite is missing today. |
+
+Always update `doc/SOCKERLESS_VALIDATION.md` + `BUGS.md` § Sockerless when a tracked gap closes; remove the row + add the now-covered ops to the coverage table.
 
 ## Next concrete actions (in priority order)
 
