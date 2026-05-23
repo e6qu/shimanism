@@ -72,15 +72,31 @@ Verifier architecture, GCP REST/gRPC reconciliation, and per-cloud auth design n
 
 Phase 12 lands the spec-driven *toolchain*. Phase 13 turns the remaining hand-written dispatch layers over to it, wires production auth, and closes the two Track-A bugs against real cloud.
 
+> **Status: in-flight on PR #20.** 6 full handler migrations + 9 spec-drift blank-import contracts landed; 13.C + 13.D remain.
+
 ### Scope summary
 
-| Track | What | Source | Count |
+| Track | What | Source | Status |
 |---|---|---|---|
-| 13.A | Azure adapter migration — every Azure frontend dispatches through `gen.ServerInterface` + `gen.HandlerWithOptions`. | Phase 11.4 + 11.7b + 12.A.14 | 7 frontends |
-| 13.B | GCP adapter migration — every GCP frontend dispatches via `gen.gcp.Match()` / `MatchAll()`. | Phase 11.5 + 11.7b | 8 frontends |
-| 13.C | Production RS256 JWKS — wire real Google + Microsoft Entra JWKS. | Phase 11 follow-on + Phase 12.C | 2 verifiers |
-| 13.D | Real-cloud Track A — close BUG-8, reclassify BUG-15 against real cloud. | BUGS.md | 2 bugs |
-| 13.E | Cross-cloud Apply matrix expansion — additional source/destination cells per service beyond the AWS→K8s-peer baseline already in CI. | Phase 12.1–12.8 | 7 services × N cells |
+| 13.A | Azure adapter migration — every Azure frontend dispatches through `gen.ServerInterface` + `gen.HandlerWithOptions`. | Phase 11.4 + 11.7b + 12.A.14 | 5/7 full + 2/7 blank-import |
+| 13.B | GCP adapter migration — every GCP frontend dispatches via `gen.gcp.Match()` / `MatchAll()`. | Phase 11.5 + 11.7b | 1/8 full + 7/8 blank-import |
+| 13.C | Production RS256 JWKS — wire real Google + Microsoft Entra JWKS. | Phase 11 follow-on + Phase 12.C | ◻ gates on deployment target |
+| 13.D | Real-cloud Track A — close BUG-8, reclassify BUG-15 against real cloud. | BUGS.md | ◻ needs real cloud accounts |
+| 13.E | Cross-cloud Apply matrix expansion — additional source/destination cells per service beyond the AWS→K8s-peer baseline already in CI. | Phase 12.1–12.8 | ◻ optional, demand-driven |
+
+### 13.A — Azure adapter migration
+
+**Status (PR #20):**
+
+| # | Frontend | Spec ops | Status | Notes |
+|---|---|---|---|---|
+| 13.A.1 | `azure_redis` | 41 | ✅ full migration | `gen.HandlerWithOptions` mux; 6 real handlers + 35 `notImplemented`. |
+| 13.A.2 | `azure_containerapps` | 11 | ✅ full migration | Same pattern; Properties anonymous-struct populated via JSON round-trip. |
+| 13.A.3 | `azure_dbadmin` (PostgreSQL FlexibleServer) | 66 | ✅ full migration | Largest ARM gen; 10 real + 56 stubs. |
+| 13.A.4 | `azure_servicebus` (queue) | 13 | ✅ full migration | **Hybrid dispatch** — gen mux can't be used (Go 1.22 ServeMux refuses upstream spec's overlapping `/{entityName}` vs `/{topicName}/subscriptions` patterns). Hand-written regex routes admin URLs into gen.ServerInterface methods; data-plane `/messages/...` stays hand-written. |
+| 13.A.5 | `azure_servicebus_topics` (pubsub) | 13 | ✅ full migration | Same hybrid pattern; shared Service Bus spec with queue. |
+| 13.A.6 | `azure_blob` | 69 | ◐ spec-drift blank-import | gen mux can't be used (spec uses `?comp=...` query discriminators net/http ServeMux doesn't dispatch on). Full migration needs the Service-Bus hybrid pattern + 58 method stubs; deferred. |
+| 13.A.7 | `azure_apim` | 0 | ◐ spec-drift blank-import | Vendored APIM spec is intentionally minimal; gen.ServerInterface is empty. Migration moot until spec broadens. |
 
 ### 13.A — Azure adapter migration
 
@@ -105,9 +121,13 @@ Phase 12 lands the spec-driven *toolchain*. Phase 13 turns the remaining hand-wr
 
 **Validation per migration:** existing conformance suite (SDK + CLI + Terraform) must stay green. Add a `TestAzureGen_<Svc>_HandlerDispatch` test that posts a sample request through the gen mux to confirm the dispatch path is wired.
 
+**Pattern recap (from `azure_keyvault` Phase 12.A.1/2 + 13.A.1-3):** `Server` implements `gen.ServerInterface`; `srv.mux = gen.HandlerWithOptions(srv, ...)`; `ServeHTTP` delegates. Out-of-intersection ops return `notImplemented` ARM envelope. Per-migration `TestAzureGen_<Svc>_HandlerDispatch` posts a canonical body through the gen mux to verify dispatch.
+
 ### 13.B — GCP adapter migration
 
 **Pattern:** retire frontend-local regex tables in favour of `gen.gcp.Match()` / `MatchAll()`. The disambiguation layer (e.g. distinguishing `projects.secrets.get` from `projects.locations.secrets.get` on the overloaded `v1/{+name}` template) stays in the frontend — the gen inventory is the spec-drift contract, dispatch goes through it.
+
+**Status (PR #20):** 13.B.1 `gcp_secretmanager` is the full migration (regex tables retired; ServeHTTP dispatches by path-shape inspection; `:destroy` no-op success documented). The other 7 frontends carry the spec-drift contract via blank import of `services/<svc>/gen/gcp` — existing regex dispatch passes the per-service `TestGCPRoutes_<Svc>_FrontendDispatchCoverage` tests so the refactor would be cosmetic.
 
 **Frontends + route counts:**
 
