@@ -6,10 +6,15 @@
 package conformance_test
 
 import (
+	"bytes"
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"reflect"
 	"testing"
 
+	"github.com/e6qu/shimanism/internal/cache/frontends/azure_redis"
+	"github.com/e6qu/shimanism/services/cache/backends/inmem"
 	azuregen "github.com/e6qu/shimanism/services/cache/gen/azure"
 )
 
@@ -92,5 +97,44 @@ func TestAzureGen_Cache_RedisResourceRoundTrips(t *testing.T) {
 	}
 	if first.Properties.Sku.Name != second.Properties.Sku.Name {
 		t.Errorf("Sku.Name lost: %q → %q", first.Properties.Sku.Name, second.Properties.Sku.Name)
+	}
+}
+
+// TestAzureGen_Cache_HandlerDispatch is the Phase 13.A.1 acceptance:
+// the azure_redis frontend now dispatches through gen.HandlerWithOptions
+// instead of the prior hand-written regex. A canonical ARM Create
+// request reaches RedisCreate on the Server, the in-memory backend
+// stores the instance, and the response decodes through gen.RedisResource
+// (post-BUG-20 struct shape — Location + Properties survive).
+func TestAzureGen_Cache_HandlerDispatch(t *testing.T) {
+	backend := inmem.New()
+	srv := azure_redis.New(backend)
+
+	body := []byte(`{
+		"location": "eastus",
+		"properties": {
+			"redisVersion": "7.1",
+			"sku": {"name": "Premium", "family": "P", "capacity": 1}
+		}
+	}`)
+	req := httptest.NewRequest(http.MethodPut,
+		"/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg/providers/Microsoft.Cache/redis/shim-cache?api-version=2024-11-01",
+		bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	srv.ServeHTTP(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Fatalf("RedisCreate status = %d; want 201. body=%s", w.Code, w.Body.String())
+	}
+	var got azuregen.RedisResource
+	if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil {
+		t.Fatalf("decode response: %v\nbody=%s", err, w.Body.String())
+	}
+	if got.Name == nil || *got.Name != "shim-cache" {
+		t.Errorf("response.Name = %v; want shim-cache", got.Name)
+	}
+	if got.Properties.Sku.Name != "Premium" {
+		t.Errorf("response.Properties.Sku.Name = %q; want Premium", got.Properties.Sku.Name)
 	}
 }

@@ -6,6 +6,8 @@ import (
 	"strings"
 
 	"github.com/e6qu/shimanism/internal/storage/domain"
+
+	_ "github.com/e6qu/shimanism/services/storage/gen/gcp" // Phase 13.B spec-drift contract; gen.gcp.Routes is the canonical route inventory.
 )
 
 var _ = strings.HasPrefix

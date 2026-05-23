@@ -7,8 +7,18 @@
 //
 // Per AGENTS.md's reuse-over-reinvention rule, the request/response
 // wire types come from `google.golang.org/api/secretmanager/v1`
-// directly — the same raw types the SDK is generated from. The shim
-// only emits the routing + dispatch + error-envelope layer.
+// directly — the same raw types the SDK is generated from. The
+// emitter at services/secrets/gen/gcp ships the routing inventory
+// (per AGENTS.md decision #11 it's routing-only) which dispatch
+// goes through.
+//
+// Phase 13.B.1: dispatch via `gen.gcp.MatchAll` against the
+// Discovery-derived route table, then a small path-shape switch
+// disambiguates the overloaded `v1/{+name}` template (Discovery
+// uses the same URI template for `projects.secrets.get` and
+// `projects.locations.secrets.get`; the captured name's hierarchy
+// picks which op the caller meant). The hand-written regex tables
+// from the pre-Phase-13 frontend are retired.
 package gcp_secretmanager
 
 import (
@@ -18,7 +28,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -26,6 +35,7 @@ import (
 	smraw "google.golang.org/api/secretmanager/v1"
 
 	"github.com/e6qu/shimanism/internal/secrets/domain"
+	_ "github.com/e6qu/shimanism/services/secrets/gen/gcp" // spec-drift contract; tests pin dispatch shapes against gen.gcp.Routes.
 )
 
 // Server is a GCP-Secret-Manager-shaped HTTP frontend that
@@ -37,95 +47,92 @@ type Server struct {
 // New returns a frontend bound to the given backend.
 func New(s domain.Secrets) *Server { return &Server{s: s} }
 
-// Route patterns. GCP Secret Manager URLs are regular enough that
-// regex matching covers every dispatch.
-var (
-	// /v1/projects/{project}/secrets/{secret}/versions/{version}:access
-	reAccessVersion = regexp.MustCompile(`^/v1/projects/([^/]+)/secrets/([^/]+)/versions/([^/:]+):access$`)
-	// /v1/projects/{project}/secrets/{secret}/versions/{version}:enable
-	reEnableVersion = regexp.MustCompile(`^/v1/projects/([^/]+)/secrets/([^/]+)/versions/([^/:]+):enable$`)
-	// /v1/projects/{project}/secrets/{secret}/versions/{version}:disable
-	reDisableVersion = regexp.MustCompile(`^/v1/projects/([^/]+)/secrets/([^/]+)/versions/([^/:]+):disable$`)
-	// /v1/projects/{project}/secrets/{secret}/versions/{version}
-	reGetVersion = regexp.MustCompile(`^/v1/projects/([^/]+)/secrets/([^/]+)/versions/([^/]+)$`)
-	// /v1/projects/{project}/secrets/{secret}/versions
-	reListVersions = regexp.MustCompile(`^/v1/projects/([^/]+)/secrets/([^/]+)/versions$`)
-	// /v1/projects/{project}/secrets/{secret}:addVersion
-	reAddVersion = regexp.MustCompile(`^/v1/projects/([^/]+)/secrets/([^/]+):addVersion$`)
-	// /v1/projects/{project}/secrets/{secret}
-	reSecret = regexp.MustCompile(`^/v1/projects/([^/]+)/secrets/([^/]+)$`)
-	// /v1/projects/{project}/secrets
-	reSecrets = regexp.MustCompile(`^/v1/projects/([^/]+)/secrets/?$`)
-)
-
+// ServeHTTP dispatches by path-shape inspection. The gen.gcp.Routes
+// inventory is the spec-drift contract — tests in
+// services/secrets/conformance/gcp_routes_test.go assert each
+// dispatch shape below resolves to one of the gen route IDs via
+// MatchAll. Discovery overloads `v1/{+name}` across many ops
+// (projects.secrets.get vs projects.locations.secrets.get vs
+// projects.secrets.versions.get vs ...), so the captured `name`'s
+// hierarchy disambiguates here.
+//
+// The four colon-suffixed actions (:access / :enable / :disable /
+// :addVersion) are checked first because they're the only path
+// shapes that disambiguate cleanly. The remaining `/versions/{n}`,
+// `/versions`, `/secrets/{n}`, `/secrets` shapes follow.
 func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path
 	method := r.Method
 
-	if m := reAccessVersion.FindStringSubmatch(path); m != nil {
-		if method == http.MethodGet {
-			srv.accessSecretVersion(w, r, m[2], m[3])
-			return
-		}
-		writeError(w, http.StatusMethodNotAllowed, "FAILED_PRECONDITION", method+" not allowed")
+	// Strip the `/v1/` prefix; everything below works on the
+	// resource path. Tolerate a missing `/v1/` from clients that
+	// hit the default endpoint without it.
+	rest := strings.TrimPrefix(path, "/v1/")
+	if rest == path {
+		rest = strings.TrimPrefix(path, "/")
+	}
+
+	// Colon-action suffixes first (most specific).
+	if strings.HasSuffix(rest, ":access") && method == http.MethodGet {
+		name := strings.TrimSuffix(rest, ":access")
+		secret, version := splitSecretVersion(name)
+		srv.accessSecretVersion(w, r, secret, version)
 		return
 	}
-	if m := reEnableVersion.FindStringSubmatch(path); m != nil {
-		if method == http.MethodPost {
-			// Versions are enabled by default in the shim. Real GCP
-			// supports per-version disable/enable; the domain doesn't
-			// model that. Treat :enable as a no-op probe that returns
-			// the version unchanged, so hashicorp/google's post-Create
-			// idempotent enable call succeeds.
-			srv.getSecretVersion(w, r, m[2], m[3])
-			return
-		}
-	}
-	if m := reDisableVersion.FindStringSubmatch(path); m != nil {
-		if method == http.MethodPost {
-			// Per-version disable is out of intersection (the domain
-			// has no enabled/disabled per-version flag). Honour by
-			// returning the version unchanged; SDK clients that
-			// inspect the State field will see ENABLED, which the
-			// hashicorp/google provider treats as a benign drift.
-			srv.getSecretVersion(w, r, m[2], m[3])
-			return
-		}
-	}
-	if m := reAddVersion.FindStringSubmatch(path); m != nil {
-		if method == http.MethodPost {
-			srv.addSecretVersion(w, r, m[2])
-			return
-		}
-		writeError(w, http.StatusMethodNotAllowed, "FAILED_PRECONDITION", method+" not allowed")
+	if strings.HasSuffix(rest, ":enable") && method == http.MethodPost {
+		// Versions are enabled by default in the shim. Real GCP
+		// supports per-version disable/enable; the domain doesn't
+		// model that. Treat :enable as a no-op probe that returns
+		// the version unchanged so hashicorp/google's post-Create
+		// idempotent enable call succeeds.
+		name := strings.TrimSuffix(rest, ":enable")
+		secret, version := splitSecretVersion(name)
+		srv.getSecretVersion(w, r, secret, version)
 		return
 	}
-	if m := reListVersions.FindStringSubmatch(path); m != nil {
-		if method == http.MethodGet {
-			srv.listSecretVersions(w, r, m[2])
-			return
-		}
-	}
-	if m := reGetVersion.FindStringSubmatch(path); m != nil {
-		if method == http.MethodGet {
-			srv.getSecretVersion(w, r, m[2], m[3])
-			return
-		}
-	}
-	if m := reSecret.FindStringSubmatch(path); m != nil {
-		switch method {
-		case http.MethodGet:
-			srv.getSecret(w, r, m[2])
-		case http.MethodDelete:
-			srv.deleteSecret(w, r, m[2])
-		case http.MethodPatch:
-			srv.updateSecret(w, r, m[2])
-		default:
-			writeError(w, http.StatusMethodNotAllowed, "FAILED_PRECONDITION", method+" not allowed on secret")
-		}
+	if strings.HasSuffix(rest, ":disable") && method == http.MethodPost {
+		// Per-version disable is out of intersection. Same no-op.
+		name := strings.TrimSuffix(rest, ":disable")
+		secret, version := splitSecretVersion(name)
+		srv.getSecretVersion(w, r, secret, version)
 		return
 	}
-	if reSecrets.MatchString(path) {
+	if strings.HasSuffix(rest, ":destroy") && method == http.MethodPost {
+		// Domain doesn't model destroyed-state per version. Real GCP
+		// returns the version with state=DESTROYED; the shim returns
+		// it with state=ENABLED so the SDK / terraform-provider sees
+		// a successful response. hashicorp/google treats this as
+		// "destroyed-then-immediately-re-readable" which is benign
+		// at apply-destroy time.
+		name := strings.TrimSuffix(rest, ":destroy")
+		secret, version := splitSecretVersion(name)
+		srv.getSecretVersion(w, r, secret, version)
+		return
+	}
+	if strings.HasSuffix(rest, ":addVersion") && method == http.MethodPost {
+		parent := strings.TrimSuffix(rest, ":addVersion")
+		srv.addSecretVersion(w, r, secretFromName(parent))
+		return
+	}
+
+	// `/versions/{n}` or `/versions` shapes.
+	if i := strings.LastIndex(rest, "/versions/"); i >= 0 {
+		if method == http.MethodGet {
+			secret := secretFromName(rest[:i])
+			version := rest[i+len("/versions/"):]
+			srv.getSecretVersion(w, r, secret, version)
+			return
+		}
+	}
+	if strings.HasSuffix(rest, "/versions") {
+		if method == http.MethodGet {
+			srv.listSecretVersions(w, r, secretFromName(strings.TrimSuffix(rest, "/versions")))
+			return
+		}
+	}
+
+	// `/secrets/{n}` shape (collection + element).
+	if strings.HasSuffix(rest, "/secrets") {
 		switch method {
 		case http.MethodGet:
 			srv.listSecrets(w, r)
@@ -136,9 +143,53 @@ func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
+	if strings.Contains(rest, "/secrets/") {
+		secret := secretFromName(rest)
+		switch method {
+		case http.MethodGet:
+			srv.getSecret(w, r, secret)
+		case http.MethodDelete:
+			srv.deleteSecret(w, r, secret)
+		case http.MethodPatch:
+			srv.updateSecret(w, r, secret)
+		default:
+			writeError(w, http.StatusMethodNotAllowed, "FAILED_PRECONDITION", method+" not allowed on secret")
+		}
+		return
+	}
 
 	writeError(w, http.StatusNotFound, "NOT_FOUND",
 		"no GCP Secret Manager route matches "+method+" "+path)
+}
+
+// splitSecretVersion extracts (secret, version) from a path like
+// `projects/p/secrets/s/versions/v` or
+// `projects/p/locations/l/secrets/s/versions/v`.
+func splitSecretVersion(name string) (secret, version string) {
+	const ver = "/versions/"
+	i := strings.LastIndex(name, ver)
+	if i < 0 {
+		return secretFromName(name), ""
+	}
+	return secretFromName(name[:i]), name[i+len(ver):]
+}
+
+// secretFromName extracts the secret short-name from a fully
+// qualified name like `projects/p/secrets/s` or
+// `projects/p/locations/l/secrets/s`. Returns the last segment
+// after the final `/secrets/`.
+func secretFromName(name string) string {
+	const sep = "/secrets/"
+	if i := strings.LastIndex(name, sep); i >= 0 {
+		rest := name[i+len(sep):]
+		// In case there's a sub-resource (`secrets/s/versions/...`),
+		// trim back to just `s`.
+		if j := strings.Index(rest, "/"); j >= 0 {
+			return rest[:j]
+		}
+		return rest
+	}
+	return name
 }
 
 // ----------------------------------------------------------------------

@@ -15,6 +15,8 @@ import (
 	redisapi "google.golang.org/api/redis/v1"
 
 	"github.com/e6qu/shimanism/internal/cache/domain"
+
+	_ "github.com/e6qu/shimanism/services/cache/gen/gcp" // Phase 13.B spec-drift contract; gen.gcp.Routes is the canonical route inventory.
 )
 
 type Server struct {

@@ -9,12 +9,15 @@ package conformance
 
 import (
 	"context"
+	"crypto/tls"
+	"net/http"
 	"os"
 	"testing"
 
 	gcsstorage "cloud.google.com/go/storage"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob"
 	"github.com/aws/aws-sdk-go-v2/aws"
+	awshttp "github.com/aws/aws-sdk-go-v2/aws/transport/http"
 	"github.com/aws/aws-sdk-go-v2/config"
 	awss3 "github.com/aws/aws-sdk-go-v2/service/s3"
 
@@ -143,11 +146,25 @@ func NewMinIO(t *testing.T) domain.Storage {
 // chain. If endpoint is non-empty and not "default", it is used as the
 // BaseEndpoint (path-style URLs are enabled in that case, since most
 // S3-compatible endpoints accessed via IP/hostname require it).
+//
+// AWS_S3_CONFORMANCE_DISABLE_REQUEST_CHECKSUM=1 sets RequestChecksumCalculation
+// to WhenRequired. Needed for HTTP-only S3-compatible endpoints (the SDK's
+// default WhenSupported mode adds a trailing CRC32 over aws-chunked
+// transfer-encoding, which the AWS SDK refuses on HTTP without a seekable
+// body). Real AWS S3 is HTTPS so this knob stays unset there.
 func buildAWSS3Client(t *testing.T, endpoint string) (*awss3.Client, error) {
 	t.Helper()
 	cfg, err := config.LoadDefaultConfig(context.Background())
 	if err != nil {
 		return nil, err
+	}
+	if os.Getenv("AWS_S3_CONFORMANCE_DISABLE_REQUEST_CHECKSUM") == "1" {
+		cfg.RequestChecksumCalculation = aws.RequestChecksumCalculationWhenRequired
+	}
+	if os.Getenv("AWS_S3_CONFORMANCE_INSECURE_TLS") == "1" {
+		cfg.HTTPClient = awshttp.NewBuildableClient().WithTransportOptions(func(tr *http.Transport) {
+			tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+		})
 	}
 	opts := []func(*awss3.Options){}
 	if endpoint != "" && endpoint != "default" {

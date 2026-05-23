@@ -11,6 +11,8 @@ import (
 	"strings"
 
 	"github.com/e6qu/shimanism/internal/apigateway/domain"
+
+	_ "github.com/e6qu/shimanism/services/apigateway/gen/azure" // Phase 13.A spec-drift contract; gen.ServerInterface is the canonical operation set.
 )
 
 type Server struct {

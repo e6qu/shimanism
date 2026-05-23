@@ -6,10 +6,15 @@
 package conformance_test
 
 import (
+	"bytes"
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"reflect"
 	"testing"
 
+	"github.com/e6qu/shimanism/internal/rdbms/frontends/azure_dbadmin"
+	"github.com/e6qu/shimanism/services/rdbms/backends/inmem"
 	azuregen "github.com/e6qu/shimanism/services/rdbms/gen/azure"
 )
 
@@ -101,5 +106,50 @@ func TestAzureGen_Rdbms_ServerRoundTrips(t *testing.T) {
 	if first.Properties.AdministratorLogin == nil || second.Properties.AdministratorLogin == nil ||
 		*first.Properties.AdministratorLogin != *second.Properties.AdministratorLogin {
 		t.Error("Properties.AdministratorLogin lost in round-trip")
+	}
+}
+
+// TestAzureGen_Rdbms_HandlerDispatch is the Phase 13.A.3 acceptance:
+// the azure_dbadmin frontend dispatches through gen.HandlerWithOptions
+// (this is the largest ARM gen interface in the project — 66 methods).
+// A canonical PostgreSQL FlexibleServer Create request reaches
+// ServersCreateOrUpdate on the Server, the in-memory backend stores
+// the instance, and the response decodes through gen.Server.
+func TestAzureGen_Rdbms_HandlerDispatch(t *testing.T) {
+	backend := inmem.New()
+	srv := azure_dbadmin.New(backend)
+
+	body := []byte(`{
+		"location": "eastus",
+		"sku": {"name": "Standard_D2s_v3", "tier": "GeneralPurpose"},
+		"properties": {
+			"administratorLogin": "shimadmin",
+			"administratorLoginPassword": "redacted",
+			"version": "16",
+			"storage": {"storageSizeGB": 32}
+		}
+	}`)
+	req := httptest.NewRequest(http.MethodPut,
+		"/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg/providers/Microsoft.DBforPostgreSQL/flexibleServers/shim-pg?api-version=2024-08-01",
+		bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	srv.ServeHTTP(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Fatalf("ServersCreateOrUpdate status = %d; want 201. body=%s", w.Code, w.Body.String())
+	}
+	var got azuregen.Server
+	if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil {
+		t.Fatalf("decode response: %v\nbody=%s", err, w.Body.String())
+	}
+	if got.Name == nil || *got.Name != "shim-pg" {
+		t.Errorf("response.Name = %v; want shim-pg", got.Name)
+	}
+	if got.Sku == nil || got.Sku.Name != "Standard_D2s_v3" {
+		t.Errorf("response.Sku.Name lost: %+v", got.Sku)
+	}
+	if got.Properties == nil || got.Properties.Version == nil || *got.Properties.Version != "16" {
+		t.Errorf("response.Properties.Version = %v; want 16", got.Properties)
 	}
 }

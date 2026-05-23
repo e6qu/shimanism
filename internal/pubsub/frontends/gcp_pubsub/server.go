@@ -21,6 +21,8 @@ import (
 	pubsubraw "google.golang.org/api/pubsub/v1"
 
 	"github.com/e6qu/shimanism/internal/pubsub/domain"
+
+	_ "github.com/e6qu/shimanism/services/pubsub/gen/gcp" // Phase 13.B spec-drift contract; gen.gcp.Routes is the canonical route inventory.
 )
 
 type Server struct {

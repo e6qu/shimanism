@@ -31,6 +31,8 @@ import (
 	pubsubraw "google.golang.org/api/pubsub/v1"
 
 	"github.com/e6qu/shimanism/internal/queue/domain"
+
+	_ "github.com/e6qu/shimanism/services/queue/gen/gcp" // Phase 13.B spec-drift contract; gen.gcp.Routes is the canonical route inventory.
 )
 
 // Server is a GCP-Pub/Sub-shaped HTTP frontend.

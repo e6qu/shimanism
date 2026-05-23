@@ -44,7 +44,9 @@
 package gcpbearer
 
 import (
+	"crypto"
 	"crypto/hmac"
+	"crypto/rsa"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
@@ -75,18 +77,33 @@ type Options struct {
 	// "https://secretmanager.googleapis.com/").
 	Audience string
 	// TestKey is the symmetric HMAC-SHA256 key the shim trusts in
-	// test mode. When non-empty, the verifier accepts JWTs signed
-	// with this key (HS256 alg). Production deployments leave this
-	// empty and the verifier falls through to Google ID token
-	// validation.
+	// test mode. When non-empty, the verifier accepts HS256-signed
+	// JWTs whose signature matches this key.
 	TestKey []byte
+	// JWKS is an in-process JSON Web Key Set the verifier accepts
+	// RS256-signed JWTs against. Use this when the deployment ships
+	// a fixed set of trusted signing keys (e.g. a sidecar identity
+	// service).
+	JWKS *JWKS
+	// JWKSURL is the URL to fetch the JWKS from. For Google ID
+	// tokens, set this to "https://www.googleapis.com/oauth2/v3/certs".
+	// The verifier caches the fetched JWKS for JWKSCacheTTL and
+	// re-fetches on an unknown `kid` (handles signer-key rotation
+	// transparently at the cost of one extra round-trip per new
+	// kid). Exactly one of JWKS / JWKSURL should be set for the
+	// production RS256 path.
+	JWKSURL string
+	// JWKSCacheTTL bounds how long the remote JWKS is cached.
+	// Default 1 hour.
+	JWKSCacheTTL time.Duration
 	// MaxClockSkew bounds the iat / exp tolerance. Default 5 min.
 	MaxClockSkew time.Duration
 }
 
 // Verifier verifies incoming Bearer tokens.
 type Verifier struct {
-	opts Options
+	opts   Options
+	remote *remoteJWKS // non-nil when JWKSURL is set.
 }
 
 // New constructs a verifier.
@@ -94,7 +111,11 @@ func New(opts Options) *Verifier {
 	if opts.MaxClockSkew == 0 {
 		opts.MaxClockSkew = 5 * time.Minute
 	}
-	return &Verifier{opts: opts}
+	v := &Verifier{opts: opts}
+	if opts.JWKSURL != "" {
+		v.remote = newRemoteJWKS(opts.JWKSURL, opts.JWKSCacheTTL)
+	}
+	return v
 }
 
 // Verify checks the request's Authorization header. Returns nil on
@@ -131,21 +152,37 @@ func (v *Verifier) Verify(r *http.Request) error {
 	if err := json.Unmarshal(headerJSON, &header); err != nil {
 		return &Error{HTTPStatus: http.StatusUnauthorized, Status: "UNAUTHENTICATED", Message: "JWT header parse: " + err.Error()}
 	}
-	if header.Alg != "HS256" {
-		return &Error{HTTPStatus: http.StatusUnauthorized, Status: "UNAUTHENTICATED", Message: fmt.Sprintf("unsupported JWT alg %q (test mode requires HS256)", header.Alg)}
-	}
-
-	if len(v.opts.TestKey) == 0 {
-		return &Error{HTTPStatus: http.StatusUnauthorized, Status: "UNAUTHENTICATED", Message: "no trusted key configured for verification"}
-	}
-
-	// Verify HMAC-SHA256 signature.
 	signingInput := parts[0] + "." + parts[1]
-	mac := hmac.New(sha256.New, v.opts.TestKey)
-	mac.Write([]byte(signingInput))
-	expectedSig := base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
-	if !hmac.Equal([]byte(expectedSig), []byte(parts[2])) {
-		return &Error{HTTPStatus: http.StatusUnauthorized, Status: "UNAUTHENTICATED", Message: "JWT signature verification failed"}
+	switch header.Alg {
+	case "HS256":
+		if len(v.opts.TestKey) == 0 {
+			return &Error{HTTPStatus: http.StatusUnauthorized, Status: "UNAUTHENTICATED", Message: "no HS256 test key configured for verification"}
+		}
+		mac := hmac.New(sha256.New, v.opts.TestKey)
+		mac.Write([]byte(signingInput))
+		expectedSig := base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
+		if !hmac.Equal([]byte(expectedSig), []byte(parts[2])) {
+			return &Error{HTTPStatus: http.StatusUnauthorized, Status: "UNAUTHENTICATED", Message: "JWT signature verification failed"}
+		}
+	case "RS256":
+		jwk, err := v.lookupRSAKey(header.Kid)
+		if err != nil {
+			return &Error{HTTPStatus: http.StatusUnauthorized, Status: "UNAUTHENTICATED", Message: "JWKS lookup: " + err.Error()}
+		}
+		pub, err := jwk.RSAPublicKey()
+		if err != nil {
+			return &Error{HTTPStatus: http.StatusUnauthorized, Status: "UNAUTHENTICATED", Message: "JWK is not a usable RSA public key: " + err.Error()}
+		}
+		sig, err := base64.RawURLEncoding.DecodeString(parts[2])
+		if err != nil {
+			return &Error{HTTPStatus: http.StatusUnauthorized, Status: "UNAUTHENTICATED", Message: "RS256 signature decode: " + err.Error()}
+		}
+		hashed := sha256.Sum256([]byte(signingInput))
+		if err := rsa.VerifyPKCS1v15(pub, crypto.SHA256, hashed[:], sig); err != nil {
+			return &Error{HTTPStatus: http.StatusUnauthorized, Status: "UNAUTHENTICATED", Message: "RS256 signature verification failed"}
+		}
+	default:
+		return &Error{HTTPStatus: http.StatusUnauthorized, Status: "UNAUTHENTICATED", Message: fmt.Sprintf("unsupported JWT alg %q (HS256 or RS256 only)", header.Alg)}
 	}
 
 	// Decode + validate claims.
@@ -176,4 +213,21 @@ func (v *Verifier) Verify(r *http.Request) error {
 		return &Error{HTTPStatus: http.StatusUnauthorized, Status: "UNAUTHENTICATED", Message: "JWT iat is in the future"}
 	}
 	return nil
+}
+
+// lookupRSAKey resolves a JWK by kid, preferring an in-process JWKS
+// if configured, else the remote (URL-fetched + cached) JWKS.
+func (v *Verifier) lookupRSAKey(kid string) (*JWK, error) {
+	if v.opts.JWKS != nil {
+		for i := range v.opts.JWKS.Keys {
+			if v.opts.JWKS.Keys[i].Kid == kid {
+				return &v.opts.JWKS.Keys[i], nil
+			}
+		}
+		return nil, fmt.Errorf("no JWK matching kid %q in in-process JWKS", kid)
+	}
+	if v.remote != nil {
+		return v.remote.lookup(kid)
+	}
+	return nil, fmt.Errorf("no JWKS configured (set Options.JWKS or Options.JWKSURL)")
 }

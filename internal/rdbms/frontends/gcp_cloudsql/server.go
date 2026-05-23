@@ -24,6 +24,8 @@ import (
 	sqladmin "google.golang.org/api/sqladmin/v1"
 
 	"github.com/e6qu/shimanism/internal/rdbms/domain"
+
+	_ "github.com/e6qu/shimanism/services/rdbms/gen/gcp" // Phase 13.B spec-drift contract; gen.gcp.Routes is the canonical route inventory.
 )
 
 type Server struct {

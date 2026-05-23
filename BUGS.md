@@ -1,6 +1,6 @@
 # Known Bugs
 
-**20 filed · 18 fixed · 2 open · 1 false positive.**
+**20 filed · 18 fixed · 2 open · 1 false positive. Plus 6 upstream-sockerless issues tracked separately (3 fidelity bugs + 3 missing-service asks).**
 
 Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLAN.md](PLAN.md) · narrative [WHAT_WE_DID.md](WHAT_WE_DID.md) · rules [AGENTS.md](AGENTS.md).
 
@@ -8,12 +8,50 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 >
 > When a bug surfaces during a coding-agent session, file the BUG before fixing — even if the fix is a single line. The audit trail is what makes "never lie" enforceable.
 
-## Open — both absorbed into Phase 13.D
+## Open — both absorbed into Phase 14
+
+Sockerless doesn't simulate GCP API Gateway or GCP Pub/Sub today, so neither bug closed via the 13.D.1 sockerless lane. Both have a closure path through Phase 14:
+
+- If [sockerless#177](https://github.com/e6qu/sockerless/issues/177) adds GCP API Gateway and Pub/Sub simulators, both bugs close via the new sockerless lanes (Phase 14.B.2).
+- Otherwise they fall back to Phase 14.D (real-cloud Track A residual) where they're closed against live GCP accounts.
 
 | ID | Sev | Area | Source-API | One-liner | Phase |
 |----|-----|------|------------|-----------|-------|
-| BUG-8 | P3 | apigateway/gcp-tf-frontend | `hashicorp/google` | API Gateway endpoint-override attribute name changed across provider major versions and the current provider's API Gateway resource lifecycle requires real OAuth-signed requests the mock httptest server can't sign. `services/apigateway/conformance/gcp_terraform_test.go` is smoke-skipped pending Track A real-cloud TF coverage. | **13.D** |
-| BUG-15 | P3 | queue/gcp-frontend | GCP Pub/Sub `subscriptions.get` | `message_retention_duration = "604800s"` declared in HCL and the shim responding "604800s" at every call, hashicorp/google records `"345600s"` in state. Plan after apply diffs `"345600s" -> "604800s"`. Shim's HTTP responses contain "604800s" (verified); something in the provider's flatten / state-write path substitutes its schema default. Honest interpretations: (a) provider bug — real GCP exhibits same drift; (b) shim's response is missing a field the provider needs to disable its default-substitution path (`expirationPolicy`, `retainAckedMessages`). Closes false-positive if (a), reopens as a real fix if (b). | **13.D** |
+| BUG-8 | P3 | apigateway/gcp-tf-frontend | `hashicorp/google` | API Gateway endpoint-override attribute name changed across provider major versions and the current provider's API Gateway resource lifecycle requires real OAuth-signed requests the mock httptest server can't sign. `services/apigateway/conformance/gcp_terraform_test.go` is smoke-skipped pending Track A real-cloud TF coverage. | **14.B.2 or 14.D** |
+| BUG-15 | P3 | queue/gcp-frontend | GCP Pub/Sub `subscriptions.get` | `message_retention_duration = "604800s"` declared in HCL and the shim responding "604800s" at every call, hashicorp/google records `"345600s"` in state. Plan after apply diffs `"345600s" -> "604800s"`. Shim's HTTP responses contain "604800s" (verified); something in the provider's flatten / state-write path substitutes its schema default. Honest interpretations: (a) provider bug — real GCP exhibits same drift; (b) shim's response is missing a field the provider needs to disable its default-substitution path (`expirationPolicy`, `retainAckedMessages`). Closes false-positive if (a), reopens as a real fix if (b). | **14.B.2 or 14.D** |
+
+## Upstream-tracked (sockerless validation lane)
+
+Sockerless fidelity gaps surfaced while wiring Phase 13.D.1's sockerless lane. Each is filed as a fully self-contained issue on `github.com/e6qu/sockerless` (no shim references; sockerless maintainers can pick up the repro without reading this repo). See [doc/SOCKERLESS_VALIDATION.md](doc/SOCKERLESS_VALIDATION.md) for the wider context.
+
+| Upstream | Filed | Blocks (in shim's lane) | Workaround / status |
+|---|---|---|---|
+| [e6qu/sockerless#173](https://github.com/e6qu/sockerless/issues/173) — S3 mounted under `/s3/` URL prefix | 2026-05-23 | Out-of-the-box SDK / CLI / TF-provider S3 calls 405 | Append `/s3` to the endpoint URL. Lane works around it. |
+| [e6qu/sockerless#174](https://github.com/e6qu/sockerless/issues/174) — `aws-chunked` envelope stored verbatim | 2026-05-23 | AWS S3 PutObject/GetObject round-trip in our lane | No workaround. Lane covers bucket lifecycle only until fixed upstream. |
+| [e6qu/sockerless#175](https://github.com/e6qu/sockerless/issues/175) — missing `ListSecretVersionIds` | 2026-05-23 | AWS Secrets Manager HeadSecret + GetSecretValue in our lane | No workaround (the shim's version-mapping path needs it). Lane covers CreateSecret + ListSecrets + DeleteSecret until fixed upstream. |
+
+### Sockerless coverage gaps (deferred to Phase 14)
+
+Sockerless doesn't simulate every cloud service the shim translates. The following backends remain outside 13.D.1's sockerless lane and pick up in **Phase 14.B** as the corresponding sockerless issue closes; Phase 14.D handles whatever sockerless doesn't end up implementing. **Filed upstream as missing-feature asks** (one roll-up per cloud, with per-service yield-per-LOC suggestions for the maintainers):
+
+| Cloud | Upstream ask |
+|---|---|
+| AWS | [e6qu/sockerless#176](https://github.com/e6qu/sockerless/issues/176) — SQS, SNS, API Gateway v1 + v2, RDS / Aurora, ElastiCache. |
+| GCP | [e6qu/sockerless#177](https://github.com/e6qu/sockerless/issues/177) — Pub/Sub, Secret Manager, Cloud SQL, Memorystore, API Gateway. |
+| Azure | [e6qu/sockerless#178](https://github.com/e6qu/sockerless/issues/178) — Blob data plane, Key Vault data plane, Service Bus (ARM + data), Database for PostgreSQL FlexibleServer, Cache for Redis, API Management. |
+
+| Backend | Why no sockerless coverage | Tracked upstream |
+|---|---|---|
+| Azure Blob data plane | Sockerless's Azure sim implements Azure Files only; blob endpoint URLs are advertised in storage-account ARM responses but the data-plane handlers don't exist. | [#178](https://github.com/e6qu/sockerless/issues/178) |
+| GCP API Gateway | Not in sockerless's GCP sim. Blocks closing BUG-8 via this lane. | [#177](https://github.com/e6qu/sockerless/issues/177) |
+| GCP Pub/Sub | Not in sockerless's GCP sim. Blocks reclassifying BUG-15 via this lane. | [#177](https://github.com/e6qu/sockerless/issues/177) |
+| GCP Cloud SQL | Not in sockerless's GCP sim. | [#177](https://github.com/e6qu/sockerless/issues/177) |
+| GCP Memorystore | Not in sockerless's GCP sim. | [#177](https://github.com/e6qu/sockerless/issues/177) |
+| GCP Secret Manager | Not in sockerless's GCP sim. | [#177](https://github.com/e6qu/sockerless/issues/177) |
+| Azure Key Vault data plane | Not in sockerless's Azure sim (control-plane storage-accounts is in; vault data-plane isn't). | [#178](https://github.com/e6qu/sockerless/issues/178) |
+| Azure Service Bus, Azure PostgreSQL, Azure Redis, Azure APIM | Not in sockerless's Azure sim. | [#178](https://github.com/e6qu/sockerless/issues/178) |
+| AWS SQS, SNS, API Gateway, RDS, ElastiCache | Not in sockerless's AWS sim. | [#176](https://github.com/e6qu/sockerless/issues/176) |
+| AWS Lambda + GCP Cloud Run + Azure Container Apps (Functions) | Sims exist in sockerless but the shim's Functions backends weren't wired to them yet — tracked as a follow-on (see [DO_NEXT.md](DO_NEXT.md#follow-ons-deferred-from-13d1)). | n/a (shim follow-on) |
 
 ## False positives
 

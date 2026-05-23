@@ -6,17 +6,32 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 
 ## Where we are
 
-- **Phase 12 PR #19 is at exit.** All three exit criteria met. Waiting on user merge.
-- **Next phase: Phase 13** — full adapter migration (Azure + GCP), production RS256 JWKS, real-cloud Track A (closes BUG-8 + BUG-15). Detailed sub-phase table in [PLAN.md § Phase 13](PLAN.md#phase-13--full-adapter-migration--production-auth--real-cloud-track-a).
+- **Phase 13 in-flight on `phase-13` (PR #20).** All 7 Azure + 8 GCP frontends carry the spec-drift contract via blank import; 5 Azure (13.A.1-5) + 1 GCP (13.B.1) ship as full handler migrations through `gen.HandlerWithOptions` / path-shape inspection; the other 2 Azure (13.A.6 azure_blob, 13.A.7 azure_apim) + 7 GCP (13.B.2-8) carry blank-import only and defer full migration. 13.C production RS256 JWKS landed on both `gcpbearer` + `azurebearer`. 13.D.1 sockerless lane landed (storage + secrets); **six** sockerless issues filed upstream as self-contained reports — three fidelity bugs ([#173](https://github.com/e6qu/sockerless/issues/173), [#174](https://github.com/e6qu/sockerless/issues/174), [#175](https://github.com/e6qu/sockerless/issues/175)) and three missing-service rollups ([#176](https://github.com/e6qu/sockerless/issues/176), [#177](https://github.com/e6qu/sockerless/issues/177), [#178](https://github.com/e6qu/sockerless/issues/178)). 13.D.2 (real-cloud Track A — closes BUG-8 + reclassifies BUG-15) remains the next sub-phase; sockerless doesn't simulate GCP API Gateway / Pub/Sub so it can't substitute. All 18 required CI checks green on the current head.
+- **Last merged:** PR #19 (Phase 12) at `778e8e9` on `main`, 2026-05-22.
 
 ## Session-start checklist
 
-1. `git fetch origin && git checkout main && git pull` — sync (PR #19 should be merged).
-2. `gh pr list --state open` — verify no in-flight phase-12 PR; if `phase-13` PR exists, check it out instead of creating.
-3. `git checkout -b phase-13` (or `git checkout phase-13` if it exists).
-4. Read this file + [STATUS.md](STATUS.md) snapshot.
-5. Skim open BUGs (2 entries below).
-6. Pick the first concrete action from "Next concrete actions" below.
+1. `git fetch origin && git checkout phase-13 && git pull` — sync.
+2. `gh pr list --state open` — verify PR #20 is still the in-flight one (or that PR #20 merged and you're on a fresh branch).
+3. Read this file + [STATUS.md](STATUS.md) snapshot.
+4. Skim open BUGs (2 entries below; both absorbed into 13.D.2 — real-cloud Track A).
+5. **If returning from sockerless upstream work:** check which sockerless issues landed (see "Resume after sockerless work" below) and re-enable the corresponding shim tests.
+6. Otherwise: pick the next sub-phase from "Follow-ons (deferred from 13.D.1)" below in priority order.
+
+## Resume after sockerless work
+
+The path between this PR and 13.D.2 (real-cloud Track A) runs through six issues filed against [e6qu/sockerless](https://github.com/e6qu/sockerless). The user is shepherding those fixes in a separate conversation. When you return here, check each issue's state and re-enable the corresponding shim assertion:
+
+| Sockerless issue | When closed, do this in the shim |
+|---|---|
+| [#173](https://github.com/e6qu/sockerless/issues/173) — S3 `/s3/` URL prefix | Drop the `/s3` suffix from `SOCKERLESS_AWS_ENDPOINT` in `scripts/run-sockerless-storage.sh` and the comment in `services/storage/conformance/sockerless_test.go`. |
+| [#174](https://github.com/e6qu/sockerless/issues/174) — aws-chunked envelope | Extend `TestSockerless_AWS_BucketLifecycle` (or add `TestSockerless_AWS_S3_RoundTrip`) to assert `PutObject` + `GetObject` round-trip with `bytes.Equal`. |
+| [#175](https://github.com/e6qu/sockerless/issues/175) — missing `ListSecretVersionIds` | Extend `TestSockerless_AWSSecretsManager_RoundTrip` to call `HeadSecret` + `GetSecretValue` and assert metadata + value round-trip. |
+| [#176](https://github.com/e6qu/sockerless/issues/176) — AWS missing services (SQS/SNS/APIGW/RDS/ElastiCache) | Once a service lands, add a `TestSockerless_AWS_<Service>_*` in `services/<svc>/conformance/sockerless_test.go` against the shim's AWS backend. Same pattern as storage + secrets lanes. |
+| [#177](https://github.com/e6qu/sockerless/issues/177) — GCP missing services (Pub/Sub, Secrets, SQL, Memorystore, APIGW) | Same — `services/<svc>/conformance/sockerless_test.go` against the shim's GCP backend. **Closing the Pub/Sub portion would unblock reclassifying BUG-15.** **Closing the API Gateway portion would unblock closing BUG-8.** |
+| [#178](https://github.com/e6qu/sockerless/issues/178) — Azure missing services (Blob+KV data plane, Service Bus, PG, Redis, APIM) | Same — adds the Azure lane the storage suite is missing today. |
+
+Always update `doc/SOCKERLESS_VALIDATION.md` + `BUGS.md` § Sockerless when a tracked gap closes; remove the row + add the now-covered ops to the coverage table.
 
 ## Next concrete actions (in priority order)
 
@@ -24,11 +39,23 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 
 The reference impl is `internal/secrets/frontends/azure_keyvault/server.go` (Phase 12.A.1/2). Pattern: `Server` implements `gen.ServerInterface`, `srv.mux = gen.HandlerWithOptions(srv, gen.StdHTTPServerOptions{})`, out-of-intersection ops return `notImplemented(w, "OpName")` with the Azure error envelope. See [PLAN.md § 13.A](PLAN.md#13a--azure-adapter-migration) for the per-frontend ordering.
 
-**First sub-phase: 13.A.1 — `internal/cache/frontends/azure_redis`.**
-- Smallest hand-written (272 LOC). gen interface has 41 methods; ~6 in cross-cloud intersection (Create / Get / Delete / Update / ListByResourceGroup / ForceReboot). The other ~35 return `notImplemented`.
-- Wire types: `gen.RedisResource` is a proper struct after the BUG-20 flatten (12.A.24).
-- Validation: existing `services/cache/conformance/*` stays green. Add `TestAzureGen_Cache_HandlerDispatch` posting a sample Create body through the gen mux.
-- ARM URL shape: `/subscriptions/{s}/resourceGroups/{rg}/providers/Microsoft.Cache/redis/{name}` — preserved by `gen.HandlerWithOptions`'s path-template dispatcher.
+**13.A.1 — `azure_redis`** — ✅ landed. 6 intersection ops wired through `gen.ServerInterface`; 35 out-of-intersection return Azure error envelope via `notImplemented`. `TestAzureGen_Cache_HandlerDispatch` posts a sample Create through the gen mux.
+
+**13.A.2 — `azure_containerapps`** — ✅ landed. 5 intersection ops + 6 stubs.
+
+**13.A.3 — `azure_dbadmin`** — ✅ landed. 10 intersection ops + 56 stubs (largest ARM gen).
+
+**13.A.4 — `azure_servicebus` (queue)** — ✅ landed. Hybrid dispatch: hand-written regex for messaging data plane (`/messages/...`), hand-written regex into `gen.ServerInterface` methods for admin (Entity*, ListEntities). The gen mux can't be used: Go 1.22's ServeMux refuses the upstream spec's overlapping patterns (`/{entityName}` vs `/{topicName}/subscriptions` both match `GET /x/subscriptions`).
+
+**13.A.5 — `azure_servicebus_topics` (pubsub)** — ✅ landed. Same hybrid pattern as 13.A.4. Wires topics + subscriptions admin URLs into gen.EntityPut/Get/Delete/ListEntities + gen.SubscriptionPut/Get/Delete/ListSubscriptions; data-plane Publish/Peek/Ack/Renew stay hand-written.
+
+**13.B.1 — `gcp_secretmanager`** — ✅ full migration. Hand-written regex tables retired. ServeHTTP dispatches by path-shape inspection. `:destroy` surprise documented (no-op success matches the provider's existing tolerance pattern).
+
+**13.B.2-8 — Remaining 7 GCP frontends (gcp_apigateway / gcp_memorystore / gcp_cloudrun / gcp_pubsub × 2 / gcp_cloudsql / gcs)** — ✅ spec-drift contract established via blank-import of `services/<svc>/gen/gcp`. The existing per-frontend regex dispatch keeps working (tests pin behaviour); the blank import makes the build-time dependency on the gen inventory explicit so deleting the gen file fails fast at build rather than at test time. Full path-shape-inspection migration (like 13.B.1) is a follow-on refactor — the existing dispatchers + `TestGCPRoutes_<Svc>_FrontendDispatchCoverage` tests already cover the spec-drift contract; the additional rewrite would be cosmetic.
+
+**13.A.6 — `azure_blob`** — ◐ spec-drift contract via blank import landed; full handler migration deferred. The gen.ServerInterface has 69 methods and uses query-discriminated URLs (`?comp=list`, `?restype=service&comp=properties`) that Go 1.22's ServeMux doesn't natively dispatch on. Full migration needs the same hand-written-dispatch hybrid pattern 13.A.4/5 used + ~58 stub methods. The blank import gives the build-time spec-drift gate now; the full handler migration is a Phase-13-follow-on.
+
+**13.A.7 — `azure_apim`** — ◐ spec-drift contract via blank import landed. The vendored APIM spec is intentionally minimal (0 spec operations); gen.ServerInterface is empty. The blank import documents the dependency. There's no further migration to do here until the spec is broadened.
 
 ### Phase 13.B — GCP adapter migration
 
@@ -38,13 +65,16 @@ Pattern: retire per-frontend regex tables, dispatch through `gen.gcp.Match()` / 
 - 32 gen routes. Overloaded `v1/{+name}` means `MatchAll` + a small `pickByName(parent string)` helper in the frontend.
 - Validation: existing `services/secrets/conformance/*` stays green; the `TestGCPRoutes_Secrets_FrontendDispatchCoverage` test in conformance already pins the dispatch shape.
 
-### Phase 13.C — Production RS256 JWKS
+### Phase 13.C — Production RS256 JWKS ✅ landed
 
-Wire real Microsoft Entra + Google JWKS in `internal/azurebearer/` + `internal/gcpbearer/`. Test mode HS256 stays default. See [doc/VERIFIERS.md § Production deployment path](doc/VERIFIERS.md#production-deployment-path-phase-13c). Add `TestAzureBearer_RealJWKS_*` / `TestGCPBearer_RealJWKS_*` against a mocked JWKS endpoint.
+Both `gcpbearer` and `azurebearer` accept RS256-signed JWTs in addition to test-mode HS256. Config via `Options.JWKSURL` (URL-fetched + cached + kid-rotation re-fetch) or `Options.JWKS` (in-process). Unit tests at `internal/{gcpbearer,azurebearer}/rs256_test.go`. See [doc/VERIFIERS.md § Production deployment path](doc/VERIFIERS.md#production-deployment-path-phase-13c--landed). Deployment-time choice between modes is config-only; no architectural change.
 
 ### Phase 13.D — Real-cloud Track A
 
-Requires AWS / GCP / Azure accounts. Closes / reclassifies BUG-8 + BUG-15 (see Open bugs below). Real-signed signature-verification conformance.
+Two slices:
+
+- **13.D.1 sockerless validation lane** — ✅ landed. `make sockerless-storage` builds the AWS + GCP simulator binaries from a local clone of `github.com/e6qu/sockerless`, starts them on test-only ports (TLS for AWS, HTTP for GCP), and runs `TestSockerless_*` in `services/storage/conformance/sockerless_test.go` + `services/secrets/conformance/sockerless_test.go`. AWS S3 bucket lifecycle + GCS full round-trip + AWS Secrets Manager CreateSecret/ListSecrets/DeleteSecret pass. Three upstream gaps filed against sockerless ([#173 — S3 `/s3/` URL prefix](https://github.com/e6qu/sockerless/issues/173), [#174 — aws-chunked envelope stored verbatim](https://github.com/e6qu/sockerless/issues/174), [#175 — missing ListSecretVersionIds](https://github.com/e6qu/sockerless/issues/175)); #174 keeps AWS PutObject/GetObject out of the storage lane and #175 keeps HeadSecret/GetSecretValue out of the secrets lane. See [doc/SOCKERLESS_VALIDATION.md](doc/SOCKERLESS_VALIDATION.md).
+- **13.D.2 real-cloud Track A** — pending. Still requires AWS / GCP / Azure accounts. Closes / reclassifies BUG-8 + BUG-15. Real-signed signature-verification conformance. Sockerless doesn't simulate GCP API Gateway or GCP Pub/Sub, so neither bug can be closed via the sockerless lane.
 
 ### Phase 13.E — Cross-cloud Apply matrix expansion (optional)
 
@@ -59,10 +89,28 @@ Phase 12 ships one cell per service (typically AWS → K8s peer). Expanding to o
 - Fidelity to the source cloud's API; real backends only; tests from official client surfaces.
 - Reuse-over-reinvention.
 
-## Open bugs (2) — both absorbed into Phase 13.D
+## Open bugs (2) — absorbed into Phase 14.D (real-cloud Track A residual)
 
-- **BUG-8** (P3) — apigateway/gcp-tf-frontend. `hashicorp/google` API Gateway endpoint-override + real OAuth signing. **Track A only.**
-- **BUG-15** (P3) — queue/gcp-frontend. GCP Pub/Sub retention plan/apply asymmetry. Partial fix landed in Phase 10.3; **Track A** real-cloud walk pending.
+Sockerless doesn't simulate GCP API Gateway or Pub/Sub today, so neither can be closed via the 13.D.1 sockerless lane that landed on PR #20. Closure paths:
+
+- **BUG-8** (P3) — apigateway/gcp-tf-frontend. `hashicorp/google` API Gateway endpoint-override + real OAuth signing. Closes via **14.B.2** if sockerless#177 adds API Gateway; otherwise via **14.D** real-cloud walk.
+- **BUG-15** (P3) — queue/gcp-frontend. GCP Pub/Sub retention plan/apply asymmetry. Partial fix landed in Phase 10.3. Reclassifies via **14.B.2** if sockerless#177 adds Pub/Sub; otherwise via **14.D** real-cloud walk.
+
+## Follow-ons — all rolled into Phase 14
+
+Everything this PR explored but did not finish has been bundled into **Phase 14** ([PLAN.md § Phase 14](PLAN.md#phase-14--sockerless-verified-validation-lane--deferred-follow-ons)). The premise: sockerless simulators are the right vehicle for cross-cloud shim verification + Terraform-provider round-trip testing at CI tempo, so Phase 14 unlocks as the upstream sockerless issues we filed close. Real-cloud Track A becomes a residual for whatever sockerless can't cover.
+
+Priority order (per [PLAN.md § Phase 14 sub-phases](PLAN.md#sub-phases)):
+
+| Track | Work | Sockerless dependency |
+|---|---|---|
+| 14.A | Re-enable shim assertions blocked by 3 sockerless fidelity bugs (drop `/s3` workaround; S3 round-trip; SM HeadSecret + GetSecretValue). | [#173](https://github.com/e6qu/sockerless/issues/173) / [#174](https://github.com/e6qu/sockerless/issues/174) / [#175](https://github.com/e6qu/sockerless/issues/175) closing. |
+| 14.B | Add new sockerless service lanes (AWS SQS/SNS/APIGW/RDS/EC; GCP Pub/Sub/Secrets/SQL/Memorystore/APIGW; Azure Blob+KV data plane / Service Bus / PG / Redis / APIM). | [#176](https://github.com/e6qu/sockerless/issues/176) / [#177](https://github.com/e6qu/sockerless/issues/177) / [#178](https://github.com/e6qu/sockerless/issues/178) closing. |
+| 14.C | Full handler migrations for the 9 Phase-13 blank-import frontends (`azure_blob` + 7 GCP + `azure_apim`-on-spec-broadening). | — (independent of sockerless). |
+| 14.D | Real-cloud Track A residual — close/reclassify BUG-8 + BUG-15 for any portion 14.B doesn't cover. | sockerless#177 result. |
+| 14.E | Cross-cloud Apply matrix expansion, driven by 14.B lanes. | 14.B in progress. |
+
+None of these block PR #20.
 
 ## Validation lanes to monitor
 
