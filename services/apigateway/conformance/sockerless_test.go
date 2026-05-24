@@ -1,8 +1,4 @@
 // Sockerless lane for the apigateway service. See doc/SOCKERLESS_VALIDATION.md.
-//
-// Phase 14.B: sockerless#177 added GCP API Gateway. Closing this
-// lane is the path to closing BUG-8 without real-cloud Track A
-// (the alternative was a real GCP project + Workload Identity setup).
 package conformance_test
 
 import (
@@ -20,8 +16,12 @@ import (
 )
 
 // TestSockerless_GCP_APIGateway_CRUD drives the shim's GCP API
-// Gateway backend's CreateGateway → DescribeGateway → ListGateways
-// → DeleteGateway end-to-end against a running sockerless GCP sim.
+// Gateway backend's full lifecycle against a running sockerless
+// GCP sim: CreateGateway (with routes — triggers DeployGateway →
+// Api + ApiConfig + Gateway resources) → DescribeGateway →
+// ListGateways → DeleteGateway.
+//
+// Set SOCKERLESS_GCP_ENDPOINT (e.g. localhost:14567) to opt in.
 func TestSockerless_GCP_APIGateway_CRUD(t *testing.T) {
 	endpoint := os.Getenv("SOCKERLESS_GCP_ENDPOINT")
 	if endpoint == "" {
@@ -45,9 +45,6 @@ func TestSockerless_GCP_APIGateway_CRUD(t *testing.T) {
 	})
 
 	name := "shim-sk-gw-" + sockHex8apigw()
-	// Shim's GCP CreateGateway creates the Api only; the Gateway
-	// resource itself materializes once DeployGateway runs (which
-	// also creates the ApiConfig).
 	if _, err := backend.CreateGateway(ctx, name, domain.CreateGatewayOptions{
 		Routes: []domain.Route{
 			{Path: "/v1/hello", Method: "GET", Backend: "http://example.invalid/hello"},

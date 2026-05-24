@@ -1,14 +1,4 @@
-// Sockerless lane for the secrets service. Mirror of
-// services/storage/conformance/sockerless_test.go — points the
-// shim's AWS Secrets Manager backend at a running sockerless AWS
-// simulator instance. See doc/SOCKERLESS_VALIDATION.md.
-//
-// Phase 14.A: sockerless#175 closed in upstream PR #179.
-// HeadSecret + GetSecretValue now round-trip end-to-end via the
-// shim's version-mapping (ListSecretVersionIds) path.
-//
-// GCP Secret Manager + Azure Key Vault lanes land in Phase 14.B
-// (sockerless#177 + #178 simulators).
+// Sockerless lane for the secrets service. See doc/SOCKERLESS_VALIDATION.md.
 package conformance_test
 
 import (
@@ -16,10 +6,15 @@ import (
 	"crypto/rand"
 	"crypto/tls"
 	"encoding/hex"
+	"net"
 	"net/http"
 	"os"
 	"testing"
+	"time"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
+	"github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/azsecrets"
 	awsapi "github.com/aws/aws-sdk-go-v2/aws"
 	awshttp "github.com/aws/aws-sdk-go-v2/aws/transport/http"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -27,17 +22,16 @@ import (
 
 	"github.com/e6qu/shimanism/internal/secrets/domain"
 	awsbackend "github.com/e6qu/shimanism/services/secrets/backends/aws"
+	azurebackend "github.com/e6qu/shimanism/services/secrets/backends/azure"
 )
 
-// TestSockerless_AWSSecretsManager_RoundTrip drives the shim's AWS
-// Secrets Manager backend → sockerless AWS sim. The Secrets Manager
-// wire protocol is awsJson1.1 (POST / dispatched by X-Amz-Target);
-// it doesn't have the path-prefix issue tracked at
-// e6qu/sockerless#173 (which only affects S3).
+// TestSockerless_AWSSecretsManager_RoundTrip exercises the shim's
+// AWS Secrets Manager backend's full lifecycle against a running
+// sockerless AWS sim: CreateSecret + HeadSecret + GetSecretValue +
+// ListSecrets + DeleteSecret.
 //
-// Set SOCKERLESS_AWS_SM_ENDPOINT (e.g. http://localhost:14566) to
-// opt in. HTTP works fine here — secretsmanager doesn't use the
-// streaming-signed-payload code path that forced TLS on the S3 lane.
+// Set SOCKERLESS_AWS_SM_ENDPOINT (e.g. https://localhost:14566)
+// to opt in.
 func TestSockerless_AWSSecretsManager_RoundTrip(t *testing.T) {
 	endpoint := os.Getenv("SOCKERLESS_AWS_SM_ENDPOINT")
 	if endpoint == "" {
@@ -90,10 +84,6 @@ func TestSockerless_AWSSecretsManager_RoundTrip(t *testing.T) {
 		t.Errorf("ListSecrets did not contain %q", name)
 	}
 
-	// HeadSecret + GetSecretValue exercise the version-mapping path
-	// the shim's AWS backend uses (monotonic uint64 ↔ Secrets Manager
-	// UUID). sockerless#175 closed in upstream PR #179, so this now
-	// works.
 	desc, err := backend.HeadSecret(ctx, name)
 	if err != nil {
 		t.Fatalf("HeadSecret: %v", err)
@@ -118,4 +108,84 @@ func randomHex(n int) string {
 	b := make([]byte, n/2)
 	_, _ = rand.Read(b)
 	return hex.EncodeToString(b)
+}
+
+// noOpCredential satisfies azcore.TokenCredential for sims that
+// don't validate the token. Production code paths use real WIF /
+// Entra credentials through the harness's verifier layer.
+type noOpCredential struct{}
+
+// farFuture is a fixed expiry well past any realistic test runtime.
+// Avoids time.Now() so the test is deterministic and not subject to
+// day / month / year boundary effects.
+var farFuture = time.Date(2099, time.December, 31, 23, 59, 59, 0, time.UTC)
+
+func (noOpCredential) GetToken(_ context.Context, _ policy.TokenRequestOptions) (azcore.AccessToken, error) {
+	return azcore.AccessToken{Token: "sockerless-test", ExpiresOn: farFuture}, nil
+}
+
+// TestSockerless_Azure_KeyVault_SecretRoundTrip exercises the
+// shim's Azure Key Vault secrets backend: CreateSecret +
+// GetSecretValue + DeleteSecret round-trip.
+//
+// Set SOCKERLESS_AZURE_KV_URL (e.g. `https://testvault.vault.azure.net`)
+// to opt in. The sim must be running under TLS (SIM_TLS_CERT +
+// SIM_TLS_KEY) so the Azure SDK accepts the https endpoint; set
+// SOCKERLESS_AZURE_TLS_PORT to the sim's port.
+func TestSockerless_Azure_KeyVault_SecretRoundTrip(t *testing.T) {
+	vaultURL := os.Getenv("SOCKERLESS_AZURE_KV_URL")
+	if vaultURL == "" {
+		t.Skip("SOCKERLESS_AZURE_KV_URL not set")
+	}
+	port := os.Getenv("SOCKERLESS_AZURE_TLS_PORT")
+	if port == "" {
+		t.Skip("SOCKERLESS_AZURE_TLS_PORT not set")
+	}
+	httpClient := &http.Client{Transport: localhostDialTransport(port)}
+
+	c, err := azsecrets.NewClient(vaultURL, noOpCredential{}, &azsecrets.ClientOptions{
+		ClientOptions: azcore.ClientOptions{Transport: httpClient},
+	})
+	if err != nil {
+		t.Fatalf("kv secrets client: %v", err)
+	}
+	backend := azurebackend.New(c)
+	ctx := context.Background()
+
+	name := "shim-sk-sec-" + randomHex(8)
+	if _, err := backend.CreateSecret(ctx, name, domain.CreateSecretOptions{
+		InitialValue: []byte("kv-v1"),
+	}); err != nil {
+		t.Fatalf("CreateSecret: %v", err)
+	}
+	t.Cleanup(func() { _ = backend.DeleteSecret(ctx, name, true) })
+
+	got, err := backend.GetSecretValue(ctx, name, 0)
+	if err != nil {
+		t.Fatalf("GetSecretValue: %v", err)
+	}
+	if string(got.Value) != "kv-v1" {
+		t.Errorf("GetSecretValue.Value = %q, want %q", string(got.Value), "kv-v1")
+	}
+}
+
+// localhostDialTransport returns an *http.Transport that routes every
+// outbound TCP connection to 127.0.0.1:port, regardless of the
+// requested host. The HTTP request still carries the original Host
+// header (the SDK derives it from the vault URL), which sockerless
+// dispatches on. This avoids any DNS plumbing for *.localhost or
+// *.vault.azure.net hostnames. InsecureSkipVerify is used because
+// the sim's TLS cert is self-signed.
+func localhostDialTransport(port string) *http.Transport {
+	dialer := &net.Dialer{}
+	return &http.Transport{
+		DialContext: func(ctx context.Context, network, _ string) (net.Conn, error) {
+			return dialer.DialContext(ctx, network, "127.0.0.1:"+port)
+		},
+		TLSClientConfig: &tls.Config{
+			// ServerName empty → uses host from the URL → SNI matches
+			// the sim's self-signed cert's CN=localhost.
+			InsecureSkipVerify: true,
+		},
+	}
 }

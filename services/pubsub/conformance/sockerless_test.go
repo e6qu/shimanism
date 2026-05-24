@@ -1,10 +1,4 @@
 // Sockerless lane for the pubsub service. See doc/SOCKERLESS_VALIDATION.md.
-//
-// Phase 14.B: sockerless#177 added GCP Pub/Sub + sockerless#182
-// fixed the subscription field-preservation gap. The shim's GCP
-// pubsub backend now round-trips its full configuration against
-// the sim, including messageRetentionDuration — the field that
-// drives the shim's open BUG-15.
 package conformance_test
 
 import (
@@ -22,10 +16,10 @@ import (
 )
 
 // TestSockerless_GCP_Pubsub_RoundTrip drives the shim's GCP Pub/Sub
-// pubsub backend end-to-end against a running sockerless GCP sim.
-// Topic + subscription + publish + receive + ack + delete.
+// pubsub backend end-to-end against a running sockerless GCP sim:
+// Topic + Subscription + Publish + Receive + Ack + cleanup.
 //
-// Set SOCKERLESS_GCP_ENDPOINT (e.g. http://localhost:14567) to opt in.
+// Set SOCKERLESS_GCP_ENDPOINT (e.g. localhost:14567) to opt in.
 func TestSockerless_GCP_Pubsub_RoundTrip(t *testing.T) {
 	endpoint := os.Getenv("SOCKERLESS_GCP_ENDPOINT")
 	if endpoint == "" {

@@ -1,6 +1,6 @@
 # Known Bugs
 
-**20 filed · 18 fixed · 2 open · 1 false positive. Plus 17 upstream-sockerless issues — 6 round-1 (closed by sockerless PR #179) + 8 round-2 (closed by sockerless PR #180) + 3 round-3 open.**
+**20 filed · 18 fixed · 2 open · 1 false positive. Plus 18 upstream-sockerless issues — 14 closed (sockerless PRs #179 + #180) + 2 open + 1 reopened (still affecting the shim lane).**
 
 Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLAN.md](PLAN.md) · narrative [WHAT_WE_DID.md](WHAT_WE_DID.md) · rules [AGENTS.md](AGENTS.md).
 
@@ -50,19 +50,27 @@ Phase 14.A re-enabled the shim assertions for #173/#174/#175 (storage + secrets 
 | [e6qu/sockerless#187](https://github.com/e6qu/sockerless/issues/187) — GCP Cloud SQL relative selfLink | ✅ closed; fully-qualified selfLink. |
 | [e6qu/sockerless#188](https://github.com/e6qu/sockerless/issues/188) — GCP Secret Manager `latest` alias | ✅ closed; concrete version number resolved. |
 
-### Round 3 (Phase 14.B per-service audit) — open
+### Round 3 (per-service audit, sockerless PR #180 follow-ups)
 
-Filed while wiring per-service shim lanes against the now-richer sockerless surface (2026-05-24). Reproductions are fully self-contained.
-
-| Upstream | Blocks (in shim's lane) |
+| Upstream | Status |
 |---|---|
-| [e6qu/sockerless#189](https://github.com/e6qu/sockerless/issues/189) — GCP Pub/Sub `projects.subscriptions.patch` returns 404 (only PUT is wired). | Shim's `queue/backends/gcp` `SetQueueAttributes` (and any TF-provider update on `google_pubsub_subscription`). **Blocks BUG-15 closure path** since the retention round-trip needs PATCH. |
-| [e6qu/sockerless#190](https://github.com/e6qu/sockerless/issues/190) — Azure Blob data plane only supports host-based dispatch; Azurite-compatible path-style URLs return 404. | Shim's `storage/backends/azureblob` lane against sockerless (the Azure Go SDK + azurerm provider default to path-style). |
-| [e6qu/sockerless#191](https://github.com/e6qu/sockerless/issues/191) — Azure KV secret `id` uses request scheme; partial #184 regression. | Real Azure KV always uses `https`; partial fix means secrets emit `http` URLs when sim runs on HTTP. |
+| [e6qu/sockerless#189](https://github.com/e6qu/sockerless/issues/189) — GCP Pub/Sub `projects.subscriptions.patch` returns 404 | ✅ closed in sockerless PR #192. |
+| [e6qu/sockerless#190](https://github.com/e6qu/sockerless/issues/190) — Azure Blob path-style URLs return 404 | ◐ reopened — PR #192 didn't address path-style dispatch. |
+| [e6qu/sockerless#191](https://github.com/e6qu/sockerless/issues/191) — Azure KV secret `id` uses request scheme | ✅ closed in sockerless PR #192. |
+
+### Round 4 (sockerless PR #192 follow-up audit) — currently blocking the shim lane
+
+| Upstream | Status / what it blocks |
+|---|---|
+| [e6qu/sockerless#190](https://github.com/e6qu/sockerless/issues/190) (reopened) | Azure Blob path-style dispatch (`PUT /{account}/{container}?restype=container`) still returns 404. The shim's current Azure Blob lane works via a localhost-redirect transport that preserves the SDK's `{account}.blob.localhost` Host header, so the lane passes — but any Azurite-compatible `BlobEndpoint=http://localhost:port/{account}` consumer still hits 404. |
+| [e6qu/sockerless#193](https://github.com/e6qu/sockerless/issues/193) | Azure Key Vault data plane doesn't issue `WWW-Authenticate: Bearer` 401 on the SDK's unauthenticated probe. **Blocks `TestSockerless_Azure_KeyVault_SecretRoundTrip`** — the Azure SDK's challenge-discovery flow sends an unauthenticated probe first and parses the 401 + `WWW-Authenticate` header for issuer / resource; without the challenge, the sim returns 400 on the empty-body probe and the SDK can't recover. |
 
 ### Sockerless coverage history
 
-All round-1 missing-service rollups ([#176](https://github.com/e6qu/sockerless/issues/176), [#177](https://github.com/e6qu/sockerless/issues/177), [#178](https://github.com/e6qu/sockerless/issues/178)) closed in sockerless PR #179 — every service the shim needs is now simulated. Round-2 fidelity bugs (#181-188) closed in sockerless PR #180. Phase 14.B wires the corresponding shim lanes; per-lane status lives in [doc/SOCKERLESS_VALIDATION.md](doc/SOCKERLESS_VALIDATION.md). Outstanding round-3 fidelity gaps surfaced during the wiring (#189-191) listed above.
+- **Round 1** ([#173-178](https://github.com/e6qu/sockerless/issues/173)) — all closed by sockerless PR #179. Initial fidelity gaps (S3 `/s3/` URL prefix, `aws-chunked` envelope, missing `ListSecretVersionIds`) + missing-service rollups (AWS / GCP / Azure).
+- **Round 2** ([#181-188](https://github.com/e6qu/sockerless/issues/181)) — all closed by sockerless PR #180. Per-service fidelity drift across SQS / Pub/Sub / Secret Manager / Cloud SQL / KV / Redis ARM.
+- **Round 3** ([#189-191](https://github.com/e6qu/sockerless/issues/189)) — #189 + #191 closed by sockerless PR #192; #190 reopened.
+- **Round 4** ([#193](https://github.com/e6qu/sockerless/issues/193)) — KV challenge flow; open.
 
 ## False positives
 
