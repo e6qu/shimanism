@@ -1,6 +1,6 @@
 # Known Bugs
 
-**20 filed · 18 fixed · 2 open · 1 false positive. Plus 14 upstream-sockerless issues — 6 round-1 (closed by sockerless PR #179) + 8 round-2 fidelity bugs open.**
+**20 filed · 18 fixed · 2 open · 1 false positive. Plus 17 upstream-sockerless issues — 6 round-1 (closed by sockerless PR #179) + 8 round-2 (closed by sockerless PR #180) + 3 round-3 open.**
 
 Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLAN.md](PLAN.md) · narrative [WHAT_WE_DID.md](WHAT_WE_DID.md) · rules [AGENTS.md](AGENTS.md).
 
@@ -37,43 +37,32 @@ Sockerless fidelity gaps tracked on `github.com/e6qu/sockerless`. Each is filed 
 
 Phase 14.A re-enabled the shim assertions for #173/#174/#175 (storage + secrets lanes now round-trip AWS S3 + AWS Secrets Manager end-to-end). Phase 14.B picks up the new services from #176/#177/#178 as the round-2 fidelity bugs below close.
 
-### Round 2 (Phase 14.D audit) — open
+### Round 2 (Phase 14.D audit) — all closed via [sockerless PR #180](https://github.com/e6qu/sockerless/pull/180) on 2026-05-24
 
-Filed during the Phase 14 fidelity audit (2026-05-24). Reproductions are fully self-contained.
+| Upstream | Status |
+|---|---|
+| [e6qu/sockerless#181](https://github.com/e6qu/sockerless/issues/181) — Azure Cache for Redis ARM case sensitivity | ✅ closed; ARM path-normalization middleware. |
+| [e6qu/sockerless#182](https://github.com/e6qu/sockerless/issues/182) — GCP Pub/Sub subscription field drops | ✅ closed; full 7-field round-trip. |
+| [e6qu/sockerless#183](https://github.com/e6qu/sockerless/issues/183) — GCP Secret Manager routing leak | ✅ closed; ListSecrets registered explicitly. |
+| [e6qu/sockerless#184](https://github.com/e6qu/sockerless/issues/184) — Azure KV malformed kid URLs | ✅ closed for keys (kid emits https); **partial regression for secrets — see #191 below**. |
+| [e6qu/sockerless#185](https://github.com/e6qu/sockerless/issues/185) — Azure KV placeholder modulus | ✅ closed; real RSA modulus emitted. |
+| [e6qu/sockerless#186](https://github.com/e6qu/sockerless/issues/186) — AWS SQS attribute drops | ✅ closed; full attribute persistence. |
+| [e6qu/sockerless#187](https://github.com/e6qu/sockerless/issues/187) — GCP Cloud SQL relative selfLink | ✅ closed; fully-qualified selfLink. |
+| [e6qu/sockerless#188](https://github.com/e6qu/sockerless/issues/188) — GCP Secret Manager `latest` alias | ✅ closed; concrete version number resolved. |
+
+### Round 3 (Phase 14.B per-service audit) — open
+
+Filed while wiring per-service shim lanes against the now-richer sockerless surface (2026-05-24). Reproductions are fully self-contained.
 
 | Upstream | Blocks (in shim's lane) |
 |---|---|
-| [e6qu/sockerless#181](https://github.com/e6qu/sockerless/issues/181) — Azure Cache for Redis ARM route is case-sensitive (only `Redis` matches, not `redis`). | Azure Redis lane against shim's `cache/backends/azureredis`. Azure SDK + azurerm provider both use lowercase. |
-| [e6qu/sockerless#182](https://github.com/e6qu/sockerless/issues/182) — GCP Pub/Sub Subscription drops 5 of 7 fields on response (`messageRetentionDuration`, `retainAckedMessages`, `expirationPolicy`, `enableMessageOrdering`, `filter`). | **Closing this likely closes BUG-15** — same drift shape. |
-| [e6qu/sockerless#183](https://github.com/e6qu/sockerless/issues/183) — GCP Secret Manager `ListSecrets` returns GCS-shaped 404 (routing leak). Also affects `/v1/operations` per a follow-up comment. | GCP Secret Manager lane against shim's `secrets/backends/gcp`. |
-| [e6qu/sockerless#184](https://github.com/e6qu/sockerless/issues/184) — Azure Key Vault `id` / `kid` URLs malformed (duplicated host + HTTP scheme). | Azure Key Vault lane against shim's `secrets/backends/azurekv`. |
-| [e6qu/sockerless#185](https://github.com/e6qu/sockerless/issues/185) — Azure Key Vault key creation returns placeholder modulus `sim-generated-modulus`. | JWKS / crypto integration tests against shim's `secrets/backends/azurekv` keys surface. |
-| [e6qu/sockerless#186](https://github.com/e6qu/sockerless/issues/186) — AWS SQS `CreateQueue` Attributes silently dropped. | AWS SQS lane against shim's `queue/backends/aws`. |
-| [e6qu/sockerless#187](https://github.com/e6qu/sockerless/issues/187) — GCP Cloud SQL `selfLink` is a relative URL. | GCP Cloud SQL lane against shim's `rdbms/backends/gcp`. |
-| [e6qu/sockerless#188](https://github.com/e6qu/sockerless/issues/188) — GCP Secret Manager `versions/latest:access` returns unresolved `latest` alias in response `name`. | Version-tracking flows in shim's `secrets/backends/gcp`. |
+| [e6qu/sockerless#189](https://github.com/e6qu/sockerless/issues/189) — GCP Pub/Sub `projects.subscriptions.patch` returns 404 (only PUT is wired). | Shim's `queue/backends/gcp` `SetQueueAttributes` (and any TF-provider update on `google_pubsub_subscription`). **Blocks BUG-15 closure path** since the retention round-trip needs PATCH. |
+| [e6qu/sockerless#190](https://github.com/e6qu/sockerless/issues/190) — Azure Blob data plane only supports host-based dispatch; Azurite-compatible path-style URLs return 404. | Shim's `storage/backends/azureblob` lane against sockerless (the Azure Go SDK + azurerm provider default to path-style). |
+| [e6qu/sockerless#191](https://github.com/e6qu/sockerless/issues/191) — Azure KV secret `id` uses request scheme; partial #184 regression. | Real Azure KV always uses `https`; partial fix means secrets emit `http` URLs when sim runs on HTTP. |
 
-### Sockerless coverage gaps (deferred to Phase 14)
+### Sockerless coverage history
 
-Sockerless doesn't simulate every cloud service the shim translates. The following backends remain outside 13.D.1's sockerless lane and pick up in **Phase 14.B** as the corresponding sockerless issue closes; Phase 14.D handles whatever sockerless doesn't end up implementing. **Filed upstream as missing-feature asks** (one roll-up per cloud, with per-service yield-per-LOC suggestions for the maintainers):
-
-| Cloud | Upstream ask |
-|---|---|
-| AWS | [e6qu/sockerless#176](https://github.com/e6qu/sockerless/issues/176) — SQS, SNS, API Gateway v1 + v2, RDS / Aurora, ElastiCache. |
-| GCP | [e6qu/sockerless#177](https://github.com/e6qu/sockerless/issues/177) — Pub/Sub, Secret Manager, Cloud SQL, Memorystore, API Gateway. |
-| Azure | [e6qu/sockerless#178](https://github.com/e6qu/sockerless/issues/178) — Blob data plane, Key Vault data plane, Service Bus (ARM + data), Database for PostgreSQL FlexibleServer, Cache for Redis, API Management. |
-
-| Backend | Why no sockerless coverage | Tracked upstream |
-|---|---|---|
-| Azure Blob data plane | Sockerless's Azure sim implements Azure Files only; blob endpoint URLs are advertised in storage-account ARM responses but the data-plane handlers don't exist. | [#178](https://github.com/e6qu/sockerless/issues/178) |
-| GCP API Gateway | Not in sockerless's GCP sim. Blocks closing BUG-8 via this lane. | [#177](https://github.com/e6qu/sockerless/issues/177) |
-| GCP Pub/Sub | Not in sockerless's GCP sim. Blocks reclassifying BUG-15 via this lane. | [#177](https://github.com/e6qu/sockerless/issues/177) |
-| GCP Cloud SQL | Not in sockerless's GCP sim. | [#177](https://github.com/e6qu/sockerless/issues/177) |
-| GCP Memorystore | Not in sockerless's GCP sim. | [#177](https://github.com/e6qu/sockerless/issues/177) |
-| GCP Secret Manager | Not in sockerless's GCP sim. | [#177](https://github.com/e6qu/sockerless/issues/177) |
-| Azure Key Vault data plane | Not in sockerless's Azure sim (control-plane storage-accounts is in; vault data-plane isn't). | [#178](https://github.com/e6qu/sockerless/issues/178) |
-| Azure Service Bus, Azure PostgreSQL, Azure Redis, Azure APIM | Not in sockerless's Azure sim. | [#178](https://github.com/e6qu/sockerless/issues/178) |
-| AWS SQS, SNS, API Gateway, RDS, ElastiCache | Not in sockerless's AWS sim. | [#176](https://github.com/e6qu/sockerless/issues/176) |
-| AWS Lambda + GCP Cloud Run + Azure Container Apps (Functions) | Sims exist in sockerless but the shim's Functions backends weren't wired to them yet — tracked as a follow-on (see [DO_NEXT.md](DO_NEXT.md#follow-ons-deferred-from-13d1)). | n/a (shim follow-on) |
+All round-1 missing-service rollups ([#176](https://github.com/e6qu/sockerless/issues/176), [#177](https://github.com/e6qu/sockerless/issues/177), [#178](https://github.com/e6qu/sockerless/issues/178)) closed in sockerless PR #179 — every service the shim needs is now simulated. Round-2 fidelity bugs (#181-188) closed in sockerless PR #180. Phase 14.B wires the corresponding shim lanes; per-lane status lives in [doc/SOCKERLESS_VALIDATION.md](doc/SOCKERLESS_VALIDATION.md). Outstanding round-3 fidelity gaps surfaced during the wiring (#189-191) listed above.
 
 ## False positives
 

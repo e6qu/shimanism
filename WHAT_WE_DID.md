@@ -29,6 +29,21 @@ Branched from `main` at `3cf9e13` (PR #20 merged) on 2026-05-24. The branch alre
 
 14.B + 14.C remain pending. None of the 8 round-2 issues block a clean Phase-14 PR for what landed today — they gate which *additional* lanes can be added cleanly.
 
+**14.B in flight (post sockerless PR #180).** With the round-2 fidelity gaps closed in sockerless PR #180, 4 new shim lanes land on top of the round-1 set:
+
+- **GCP Pub/Sub pubsub** — `services/pubsub/conformance/sockerless_test.go::TestSockerless_GCP_Pubsub_RoundTrip`. Topic + Subscription + Publish + Receive + Ack against the shim's `pubsub/backends/gcp`.
+- **GCP Pub/Sub queue** — `services/queue/conformance/sockerless_test.go::TestSockerless_GCP_Queue_CRUD`. CRUD only; the retention round-trip (which would close BUG-15) needs `subscriptions.patch` which sockerless doesn't wire yet ([#189](https://github.com/e6qu/sockerless/issues/189)).
+- **AWS SQS queue** — same file `::TestSockerless_AWS_Queue_AttributeRoundTrip`. Asserts `VisibilityTimeout` + `MessageRetentionPeriod` round-trip via `CreateQueue` Attributes → `HeadQueue`.
+- **GCP API Gateway** — `services/apigateway/conformance/sockerless_test.go::TestSockerless_GCP_APIGateway_CRUD`. Exercises `CreateGateway` (with routes → triggers `DeployGateway` → Api + ApiConfig + Gateway materialize) → `DescribeGateway` → `ListGateways` → `DeleteGateway`. **The SDK leg of BUG-8 is now cleared** — the TF-provider angle remains Phase 14.D residual.
+
+**Round-3 audit, 3 more sockerless issues filed**:
+
+- **[e6qu/sockerless#189](https://github.com/e6qu/sockerless/issues/189)** — GCP Pub/Sub `projects.subscriptions.patch` returns 404 (only PUT is wired). Blocks shim's `SetQueueAttributes` and the BUG-15 retention round-trip.
+- **[e6qu/sockerless#190](https://github.com/e6qu/sockerless/issues/190)** — Azure Blob data plane only supports host-based dispatch; Azurite-compatible path-style URLs (the Azure SDK + azurerm provider default) return 404. Blocks the Azure Blob lane.
+- **[e6qu/sockerless#191](https://github.com/e6qu/sockerless/issues/191)** — Azure Key Vault secret `id` uses request scheme; partial #184 regression. Real Azure KV always uses `https://`. Lane works under TLS sim but not HTTP.
+
+7 lanes total pass via `make sockerless-storage` today; 3 lanes wait on round-3 fixes.
+
 ## Phase 13 — closed (PR #20 merged 2026-05-24)
 
 13.A, 13.B, 13.C all landed on PR #20 and are covered in their per-track sections of [PLAN.md § Phase 13](PLAN.md#phase-13--full-adapter-migration--production-auth--real-cloud-track-a). The notes here cover what was surprising in the 13.D sockerless slice.

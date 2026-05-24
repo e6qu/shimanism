@@ -87,11 +87,14 @@ GCP_PID=$!
 # is plenty on local; CI can override via SOCKERLESS_STARTUP_DELAY.
 sleep "${SOCKERLESS_STARTUP_DELAY:-1}"
 
-echo "run: shim sockerless storage + secrets tests"
+echo "run: shim sockerless lane (storage + secrets + queue + pubsub + apigateway)"
 SOCKERLESS_AWS_ENDPOINT="https://localhost:$AWS_PORT" \
 SOCKERLESS_GCP_ENDPOINT="localhost:$GCP_PORT" \
 SOCKERLESS_AWS_SM_ENDPOINT="https://localhost:$AWS_PORT" \
 AWS_S3_CONFORMANCE_INSECURE_TLS=1 \
 go test -run '^TestSockerless_' -count=1 -v \
     ./services/storage/conformance/... \
-    ./services/secrets/conformance/...
+    ./services/secrets/conformance/... \
+    ./services/queue/conformance/... \
+    ./services/pubsub/conformance/... \
+    ./services/apigateway/conformance/...

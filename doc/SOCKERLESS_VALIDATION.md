@@ -13,18 +13,23 @@ The same property makes sockerless the right vehicle for two things Phase 14 car
 1. **Cross-cloud shim verification.** The shim's job is translate (say) an AWS-shaped call → a GCP backend. Verifying that end-to-end needs a target the destination cloud's SDK actually talks to. Sockerless gives us a deterministic in-process target for each destination cloud — no real-cloud cost, no flake, no per-PR billing.
 2. **Terraform-provider round-trips.** The matrix Phase 12 established (`TestCrossCloudApply_Roundtrip_<svc>_<cell>`) drives a cloud's Terraform provider against the shim, which forwards to the destination backend. With sockerless backends, the loop closes deterministically: `terraform apply` → shim frontend → shim backend → sockerless simulator → response chain → `terraform plan -refresh-only -detailed-exitcode = 0`.
 
-## What's wired today (Phase 14.A)
+## What's wired today (Phase 14.A + 14.B)
 
 | Backend | Coverage | Notes |
 |---|---|---|
-| AWS S3 (`services/storage/backends/aws`) | **Full round-trip** — CreateBucket → PutObject → HeadObject → GetObject → DeleteObject → DeleteBucket | sockerless#173 + #174 closed. |
+| AWS S3 (`services/storage/backends/aws`) | Full round-trip | sockerless#173 + #174 closed in PR #179. |
 | GCS (`services/storage/backends/gcs`) | Full round-trip | Uses the SDK's `STORAGE_EMULATOR_HOST` env var. |
-| AWS Secrets Manager (`services/secrets/backends/aws`) | **Full round-trip** — CreateSecret → HeadSecret → GetSecretValue → ListSecrets → DeleteSecret | sockerless#175 closed. |
-| Azure Blob (`services/storage/backends/azureblob`) | Not yet wired | Blob data plane added in sockerless PR #179. Adding the lane is a 14.B follow-on. |
-| GCP Pub/Sub, Secret Manager, Cloud SQL, Memorystore, API Gateway | Not yet wired | Sims added in sockerless PR #179. Per-service round-2 fidelity issues filed ([#182](https://github.com/e6qu/sockerless/issues/182), [#183](https://github.com/e6qu/sockerless/issues/183), [#187](https://github.com/e6qu/sockerless/issues/187), [#188](https://github.com/e6qu/sockerless/issues/188)) block clean lanes — adding the lanes is a 14.B follow-on as fixes land. |
-| Azure Key Vault, Service Bus, PG FlexibleServer, Cache Redis, APIM | Not yet wired | Sims added in sockerless PR #179. Per-service round-2 fidelity issues filed ([#181](https://github.com/e6qu/sockerless/issues/181), [#184](https://github.com/e6qu/sockerless/issues/184), [#185](https://github.com/e6qu/sockerless/issues/185)) block clean lanes — adding the lanes is a 14.B follow-on. |
-| AWS SQS, SNS, RDS, ElastiCache, API Gateway v1+v2 | Not yet wired | Sims added in sockerless PR #179. SQS-specific round-2 fidelity issue ([#186](https://github.com/e6qu/sockerless/issues/186)) blocks the SQS lane. |
-| AWS Lambda, GCP Cloud Run + Cloud Functions, Azure Container Apps + Functions Sites | Not yet wired | Sims existed pre-PR #179. Adding the functions lane is a 14.B follow-on; no known fidelity bugs blocking. |
+| AWS Secrets Manager (`services/secrets/backends/aws`) | Full round-trip | sockerless#175 closed in PR #179. |
+| AWS SQS (`services/queue/backends/aws`) | CreateQueue with Attributes → HeadQueue assertion (VisibilityTimeout + MessageRetentionPeriod) | sockerless#186 closed in PR #180. |
+| GCP Pub/Sub queue (`services/queue/backends/gcp`) | CRUD only (Create + Head + Delete). | Retention round-trip (the BUG-15 closure shape) gated on [sockerless#189](https://github.com/e6qu/sockerless/issues/189) — Pub/Sub PATCH not yet wired. |
+| GCP Pub/Sub pubsub (`services/pubsub/backends/gcp`) | Full round-trip — Topic + Subscription + Publish + Receive + Ack | sockerless#182 closed in PR #180 (subscription field preservation). |
+| GCP API Gateway (`services/apigateway/backends/gcp`) | Full LRO-style CRUD — CreateGateway (with routes) → DescribeGateway → ListGateways → DeleteGateway | sockerless#177 + #181-188 closed; **SDK leg of BUG-8 cleared**. |
+| Azure Blob (`services/storage/backends/azureblob`) | Not yet wired | Blob data plane exists in sockerless but only supports host-based dispatch; [sockerless#190](https://github.com/e6qu/sockerless/issues/190) tracks adding path-style (Azure SDK + azurerm provider default). |
+| Azure Key Vault (`services/secrets/backends/azurekv`) | Not yet wired | KV data plane exists; [sockerless#191](https://github.com/e6qu/sockerless/issues/191) tracks the secret URL scheme regression. Lane will work under TLS-mode sim today; HTTP-mode breaks. |
+| GCP Secret Manager, Cloud SQL, Memorystore | Sims work; lanes not yet added | 14.B follow-on. |
+| Azure Service Bus, PG FlexibleServer, Cache Redis, APIM | Sims work; lanes not yet added | 14.B follow-on. |
+| AWS SNS, RDS, ElastiCache, API Gateway v1+v2 | Sims work; lanes not yet added | 14.B follow-on. |
+| AWS Lambda, GCP Cloud Run + Cloud Functions, Azure Container Apps + Functions Sites | Sims work; lanes not yet added | 14.B follow-on. |
 
 ## Running the lane locally
 
@@ -57,15 +62,21 @@ The script:
 
 Closing #174 unblocks PutObject / GetObject in the storage lane; closing #175 unblocks GetSecretValue + HeadSecret in the secrets lane.
 
-### Missing-service asks (per-cloud rollups)
+### Missing-service asks (round-1, all closed in sockerless PR #179)
 
-| Issue | Cloud | Services |
+| Issue | Cloud | Status |
 |---|---|---|
-| [#176](https://github.com/e6qu/sockerless/issues/176) | AWS | SQS, SNS, API Gateway v1 + v2, RDS / Aurora, ElastiCache |
-| [#177](https://github.com/e6qu/sockerless/issues/177) | GCP | Pub/Sub, Secret Manager, Cloud SQL Admin, Memorystore, API Gateway |
-| [#178](https://github.com/e6qu/sockerless/issues/178) | Azure | Blob data plane, Key Vault data plane, Service Bus (ARM + data), Database for PostgreSQL FlexibleServer, Cache for Redis, API Management |
+| [#176](https://github.com/e6qu/sockerless/issues/176) | AWS — SQS / SNS / APIGW v1+v2 / RDS / ElastiCache | ✅ closed |
+| [#177](https://github.com/e6qu/sockerless/issues/177) | GCP — Pub/Sub / Secret Manager / Cloud SQL / Memorystore / API Gateway | ✅ closed |
+| [#178](https://github.com/e6qu/sockerless/issues/178) | Azure — Blob+KV data plane / Service Bus / PG / Redis / APIM | ✅ closed |
 
-Each rollup lists per-service yield-per-LOC ordering suggestions for sockerless maintainers. None of these block PR #20 — they're filed so consumers (and Track A's eventual real-cloud lane) have a documented upstream path.
+### Round-3 fidelity bugs (still open, Phase 14.B per-lane audit)
+
+| Issue | Summary |
+|---|---|
+| [#189](https://github.com/e6qu/sockerless/issues/189) | GCP Pub/Sub `projects.subscriptions.patch` returns 404 — blocks shim's `SetQueueAttributes` and TF-provider `google_pubsub_subscription` updates. **Blocks BUG-15 closure**. |
+| [#190](https://github.com/e6qu/sockerless/issues/190) | Azure Blob data plane only supports host-based dispatch; Azure SDK + azurerm provider default to path-style URLs (Azurite-compatible) and 404 against the sim. |
+| [#191](https://github.com/e6qu/sockerless/issues/191) | Azure KV secret `id` uses request scheme — partial #184 regression where the keys path hard-codes `https` but the secrets path doesn't. |
 
 ## Extending to a new service
 

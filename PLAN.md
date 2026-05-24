@@ -187,7 +187,7 @@ Phase 12 ships `TestCrossCloudApply_Roundtrip_<svc>_<cell>` for one cell per ser
 >
 > Phase 14 cashes in the items Phase 13 deferred, on the cadence of the upstream sockerless project closing the six issues we filed in 13.D.1. Each shim-side follow-on has an explicit upstream dependency.
 >
-> **Status: in-flight on `phase-14`.** 14.A landed (sockerless PR #179 closed all 6 round-1 issues; shim assertions re-enabled). 14.D fidelity audit done (8 round-2 sockerless issues filed). 14.B + 14.C pending.
+> **Status: in-flight on `phase-14`.** 14.A landed (sockerless PR #179 closed all 6 round-1 issues; shim assertions re-enabled). 14.D round-2 audit done (8 issues filed; all closed in sockerless PR #180). 14.B in flight — 7 lanes pass today (storage AWS/GCS, secrets AWS, queue AWS/GCP, pubsub GCP, apigateway GCP). 3 round-3 issues open (#189-191) blocking 3 specific lanes (BUG-15 retention round-trip, Azure Blob path-style, Azure KV secret HTTPS). 14.C still independent + pending.
 
 ### Dependency on the sockerless project
 
@@ -225,9 +225,9 @@ Phase 12 ships `TestCrossCloudApply_Roundtrip_<svc>_<cell>` for one cell per ser
 | Track | What | Dependency | Status |
 |---|---|---|---|
 | 14.A | Re-enable shim assertions as sockerless fidelity bugs close. Three sub-items, one per sockerless#173/174/175. | sockerless#173-175 closing | ✅ landed (sockerless PR #179) |
-| 14.B | Add new sockerless service lanes as sockerless missing-service issues close. Three sub-items, one per sockerless#176/177/178. | sockerless#176-178 closing (round 1 done) + round-2 fidelity fixes per the table above | ◻ — partial; service lanes can land per-service as the corresponding round-2 issue closes |
+| 14.B | Add new sockerless service lanes as sockerless missing-service + fidelity issues close. | sockerless#176-188 closing (rounds 1+2 done) + round-3 fidelity fixes (#189-191 open) | ◐ — 7 lanes pass; 3 lanes blocked on round-3 issues |
 | 14.C | Full handler migrations for the 9 frontends that landed only as blank-import in Phase 13: `azure_blob` (69 ops; Service-Bus hybrid pattern), `azure_apim` (waits for upstream spec to broaden), 7 GCP frontends (cosmetic). | — (independent of sockerless) | ◻ |
-| 14.D | Fidelity audit against sockerless's new services + file per-bug issues. Real-cloud Track A residual for whatever sockerless can't cover (e.g. real signed-credentials conformance). | — | ✅ audit done (8 issues filed); real-cloud residual ◻ |
+| 14.D | Fidelity audit against sockerless's new services + file per-bug issues. Real-cloud Track A residual for whatever sockerless can't cover (e.g. real signed-credentials conformance). | — | ✅ rounds 2 + 3 audits done; real-cloud residual ◻ |
 | 14.E | Cross-cloud Apply matrix expansion per [13.E above](#13e--cross-cloud-apply-matrix-expansion-deferred-to-phase-14) — driven by sockerless lanes from 14.B. | 14.B in progress | ◻ optional, demand-driven |
 
 ### Exit criteria
