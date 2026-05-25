@@ -97,6 +97,7 @@ The same bytes are now accessible via S3, GCS, and Azure Blob SDKs against three
 ## Next
 
 - **[Architecture](architecture.md)** — the front / domain / back layers, statelessness, intersection-only scope.
+- **[End-to-end examples](end-to-end-examples.md)** — real backend, optional simulator, SDK, CLI, Terraform, and import-state examples.
 - **[Service catalog](services.md)** — the other shimmed services and what each covers (per-service detail under [`docs/services/`](services/)).
 - **[Cross-cloud routing](../doc/CROSS_CLOUD_ROUTING.md)** — the migration story: how user A's AWS Terraform points at the shim and the bytes land on cloud B.
 - **[FAQ](faq.md)** — "but doesn't this break X?" — answered.

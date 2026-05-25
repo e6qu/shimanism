@@ -64,19 +64,13 @@ func runTerraformQueue(t *testing.T, dir, bin string, args ...string) ([]byte, [
 		"TF_IN_AUTOMATION=1",
 		"TF_INPUT=0",
 		"CHECKPOINT_DISABLE=1",
-		"TF_PLUGIN_CACHE_DIR="+terraformQueuePluginCacheDir(),
+		"TF_PLUGIN_CACHE_DIR="+terraformPluginCacheDirForWorkdir(dir),
 	)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	err := cmd.Run()
 	return stdout.Bytes(), stderr.Bytes(), err
-}
-
-func terraformQueuePluginCacheDir() string {
-	d := filepath.Join(os.TempDir(), "shim-queue-tf-plugin-cache")
-	_ = os.MkdirAll(d, 0o755)
-	return d
 }
 
 func TestTerraform_AWSQueue_ResourceLifecycle(t *testing.T) {

@@ -69,19 +69,13 @@ func runTerraform(t *testing.T, dir, bin string, args ...string) ([]byte, []byte
 		"TF_IN_AUTOMATION=1",
 		"TF_INPUT=0",
 		"CHECKPOINT_DISABLE=1",
-		"TF_PLUGIN_CACHE_DIR="+terraformPubsubPluginCacheDir(),
+		"TF_PLUGIN_CACHE_DIR="+terraformPluginCacheDirForWorkdir(dir),
 	)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	err := cmd.Run()
 	return stdout.Bytes(), stderr.Bytes(), err
-}
-
-func terraformPubsubPluginCacheDir() string {
-	d := filepath.Join(os.TempDir(), "shim-pubsub-tf-plugin-cache")
-	_ = os.MkdirAll(d, 0o755)
-	return d
 }
 
 func TestTerraform_GCPPubsub_ResourceLifecycle(t *testing.T) {

@@ -85,7 +85,7 @@ func TestTerraform_AWSElastiCache_Import(t *testing.T) {
 			"TF_IN_AUTOMATION=1",
 			"TF_INPUT=0",
 			"CHECKPOINT_DISABLE=1",
-			"TF_PLUGIN_CACHE_DIR="+terraformPluginCacheDirCache(),
+			"TF_PLUGIN_CACHE_DIR="+terraformPluginCacheDirForWorkdir(dir),
 		)
 		var stdout, stderr bytes.Buffer
 		cmd.Stdout = &stdout
@@ -123,10 +123,4 @@ func TestTerraform_AWSElastiCache_Import(t *testing.T) {
 		return
 	}
 	t.Fatalf("terraform plan:\nstdout: %s\nstderr: %s\nerr: %v", stdout, stderr, err)
-}
-
-func terraformPluginCacheDirCache() string {
-	d := filepath.Join(os.TempDir(), "shim-cache-tf-plugin-cache")
-	_ = os.MkdirAll(d, 0o755)
-	return d
 }

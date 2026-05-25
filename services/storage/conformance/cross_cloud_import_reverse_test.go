@@ -120,7 +120,7 @@ func TestCrossCloudImport_Roundtrip_StorageGCStoAWS(t *testing.T) {
 			"TF_IN_AUTOMATION=1",
 			"TF_INPUT=0",
 			"CHECKPOINT_DISABLE=1",
-			"TF_PLUGIN_CACHE_DIR="+terraformPluginCacheDirReverseCC(),
+			"TF_PLUGIN_CACHE_DIR="+terraformPluginCacheDirForWorkdir(dir),
 			"GOOGLE_OAUTH_ACCESS_TOKEN=stub",
 		)
 		var stdout, stderr bytes.Buffer
@@ -159,10 +159,4 @@ func TestCrossCloudImport_Roundtrip_StorageGCStoAWS(t *testing.T) {
 		return
 	}
 	t.Fatalf("terraform plan:\nstdout: %s\nstderr: %s\nerr: %v", stdout, stderr, err)
-}
-
-func terraformPluginCacheDirReverseCC() string {
-	d := filepath.Join(os.TempDir(), "shim-reverse-cc-tf-plugin-cache")
-	_ = os.MkdirAll(d, 0o755)
-	return d
 }

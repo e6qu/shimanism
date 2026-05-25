@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Drives the storage service's sockerless validation lane.
+# Drives the sockerless validation lane.
 #
 # Prerequisites:
 #   - A local clone of github.com/e6qu/sockerless. Default location
@@ -15,8 +15,8 @@
 #      refuses streaming-signed payloads over plain HTTP.)
 #   3. Starts the sims on test-only ports (:14566 AWS over TLS,
 #      :14567 GCP).
-#   4. Runs the storage sockerless-tagged Go tests with env vars that
-#      point the shim's backends at the sims.
+#   4. Runs the sockerless-tagged Go tests with env vars that point
+#      the shim's frontends and backends at the sims.
 #   5. Tears the sims down on exit.
 #
 # The AWS sim runs under TLS so the SDK's streaming-signed payload
