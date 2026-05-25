@@ -58,4 +58,4 @@ common-types file can cross-version `$ref` a sibling (e.g.
 `Azure/azure-rest-api-specs` is MIT-licensed; vendored files retain their
 upstream license. Generated code derived from these specs is permitted under
 MIT's derivative-work clause and is licensed AGPL-3.0 alongside the rest of
-shimanism (see [`../../doc/COMPATIBLE_LICENSES.md`](../../doc/COMPATIBLE_LICENSES.md)).
+shimanism (see [`../../docs/compatible-licenses.md`](../../docs/compatible-licenses.md)).

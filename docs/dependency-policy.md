@@ -1,8 +1,8 @@
 # Dependency Policy
 
-Rules that govern *which* dependencies we accept and *how* we adopt them, beyond the AGPL-compatibility allowlist in [`COMPATIBLE_LICENSES.md`](COMPATIBLE_LICENSES.md).
+Rules that govern *which* dependencies we accept and *how* we adopt them, beyond the AGPL-compatibility allowlist in [`compatible-licenses.md`](compatible-licenses.md).
 
-> Read this alongside [`COMPATIBLE_LICENSES.md`](COMPATIBLE_LICENSES.md). The license doc decides whether a dep is *legally* compatible. This doc decides whether it is *safe and operationally appropriate*.
+> Read this alongside [`compatible-licenses.md`](compatible-licenses.md). The license doc decides whether a dep is *legally* compatible. This doc decides whether it is *safe and operationally appropriate*.
 
 ## Supply-chain hardening
 

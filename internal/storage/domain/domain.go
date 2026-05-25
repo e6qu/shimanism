@@ -5,7 +5,7 @@
 // frontend translates its wire types into this domain, each backend
 // translates this domain into its cloud's native API.
 //
-// See doc/CROSS_CLOUD_ROUTING.md for the architecture and rationale.
+// See docs/cross-cloud-routing.md for the architecture and rationale.
 package domain
 
 import (

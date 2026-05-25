@@ -71,7 +71,7 @@ Refresh with the matching \`scripts/fetch-*.sh\` and commit the diff.
 \`Azure/azure-rest-api-specs\` is MIT-licensed; vendored files retain
 their upstream license. Generated code derived from these specs is
 licensed AGPL-3.0 alongside the rest of shimanism (see
-[\`doc/COMPATIBLE_LICENSES.md\`](../../../doc/COMPATIBLE_LICENSES.md)).
+[\`docs/compatible-licenses.md\`](../../../docs/compatible-licenses.md)).
 EOF
   echo "Wrote ${sources_md} (new)"
 else

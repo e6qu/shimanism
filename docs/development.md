@@ -59,7 +59,7 @@ Prints a copy-paste-ready block for `aws-sdk-go-v2`, `boto3`, the `aws` CLI, and
 |---|---|
 | `make test` | `go test ./...` |
 | `make lint` | `golangci-lint run` |
-| `make license-check` | Verify every linked dependency has an AGPL-compatible license per [`doc/COMPATIBLE_LICENSES.md`](../doc/COMPATIBLE_LICENSES.md). |
+| `make license-check` | Verify every linked dependency has an AGPL-compatible license per [`docs/compatible-licenses.md`](../docs/compatible-licenses.md). |
 | `make codegen` | Regenerate server stubs from `services/<svc>/codegen.json`. |
 | `make conformance-matrix` | Run the canonical (frontend × backend × driver) matrix test. |
 

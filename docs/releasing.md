@@ -56,7 +56,7 @@ Before tagging:
 
 1. `make test` — all green locally.
 2. `make lint` — 0 issues.
-3. `make license-check` — every linked dependency is on the allowlist in [`doc/COMPATIBLE_LICENSES.md`](../doc/COMPATIBLE_LICENSES.md).
+3. `make license-check` — every linked dependency is on the allowlist in [`docs/compatible-licenses.md`](../docs/compatible-licenses.md).
 4. `make conformance-matrix` — the canonical cross-backend matrix.
 5. **Skim [BUGS.md](../BUGS.md) § Open.** Any P0 or P1 bug should be either fixed for this release or explicitly deferred with a note in WHAT_WE_DID.md.
 

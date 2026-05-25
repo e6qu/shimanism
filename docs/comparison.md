@@ -172,5 +172,5 @@ If you've moved off Terraform to OpenTofu, your `endpoints { ... }` blocks conti
 - [README.md](../README.md) — project overview + service catalog.
 - [PHILOSOPHY.md](../PHILOSOPHY.md) — the *why* of intersection-only + never-lie.
 - [docs/architecture.md](architecture.md) — how the layering enables the wire-protocol shim approach.
-- [doc/CROSS_CLOUD_ROUTING.md](../doc/CROSS_CLOUD_ROUTING.md) — the migration story end-to-end.
+- [docs/cross-cloud-routing.md](../docs/cross-cloud-routing.md) — the migration story end-to-end.
 - [docs/services.md](services.md) — per-service detail.

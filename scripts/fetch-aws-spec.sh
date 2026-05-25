@@ -80,7 +80,7 @@ Each vendored spec retains the license of its upstream. AWS Smithy models from
 \`aws/aws-sdk-go-v2\` are Apache 2.0; the upstream \`LICENSE\` file applies.
 Generated code derived from these specs is permitted under Apache 2.0's
 derivative-work clause and is licensed AGPL-3.0 alongside the rest of
-shimanism (see [\`doc/COMPATIBLE_LICENSES.md\`](../../../doc/COMPATIBLE_LICENSES.md)
+shimanism (see [\`docs/compatible-licenses.md\`](../../../docs/compatible-licenses.md)
 for the overall policy).
 EOF
 

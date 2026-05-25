@@ -11,7 +11,7 @@ The repository [README.md](../README.md) is intentionally light — what the pro
 - **[Migration story](migration.md)** — rerouting cloud services one at a time, end-to-end walkthrough.
 - **[Comparison with other projects](comparison.md)** — LocalStack, MinIO, Crossplane, Dapr, gocloud.dev, Pulumi/Terraform, OpenStack/Ceph S3 compat — where shimanism fits relative to each.
 - **[Service catalog](services.md)** — each shimmed service: its per-cloud frontends, its backends, and pointers to the per-service `OPERATIONS.md` + `INTERSECTION.md` + `APPLY_INTERSECTION.md`. Detailed per-service docs live under [`docs/services/`](services/).
-- **[Cross-cloud routing](../doc/CROSS_CLOUD_ROUTING.md)** — the wire-level walkthrough of how user A's AWS Terraform points at the shim and the bytes land on cloud B.
+- **[Cross-cloud routing](../docs/cross-cloud-routing.md)** — the wire-level walkthrough of how user A's AWS Terraform points at the shim and the bytes land on cloud B.
 - **[FAQ](faq.md)** — common questions: "Is this an emulator? Does it lie? What happens when a feature has no peer?"
 
 ## For contributors
@@ -34,8 +34,8 @@ The repository [README.md](../README.md) is intentionally light — what the pro
 - **[Do next](../DO_NEXT.md)** — the resume-from-cold file for the next session.
 - **[What we did](../WHAT_WE_DID.md)** — reverse-chronological narrative (why + surprises + root causes).
 - **[Bugs](../BUGS.md)** — every bug filed, fixed, or reclassified.
-- **[Dependency policy](../doc/DEPENDENCY_POLICY.md)** — minimum release age, pinning, pure-Go preference, npm/pnpm posture.
-- **[License compatibility](../doc/COMPATIBLE_LICENSES.md)** — the allowlist for linked dependencies.
+- **[Dependency policy](../docs/dependency-policy.md)** — minimum release age, pinning, pure-Go preference, npm/pnpm posture.
+- **[License compatibility](../docs/compatible-licenses.md)** — the allowlist for linked dependencies.
 
 ## Reading order
 

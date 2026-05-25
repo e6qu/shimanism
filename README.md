@@ -2,6 +2,25 @@
 
 # shimanism
 
+[![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
+[![Go](https://img.shields.io/badge/Go-36.3k_lines-00ADD8?logo=go&logoColor=white)](#code-architecture-and-how-the-build-works)
+[![Generated](https://img.shields.io/badge/Generated-61.4k_lines-blue)](docs/codegen.md)
+[![Tests](https://img.shields.io/badge/Tests-19k_lines-brightgreen)](docs/testing.md)
+[![Modules](https://img.shields.io/badge/Go_Modules-2-informational)](#code-architecture-and-how-the-build-works)
+
+<!-- per-major-component (numbers auto-updated by scripts/update-readme-badges.sh) -->
+![storage](https://img.shields.io/badge/storage-33.8k-00ADD8)
+![secrets](https://img.shields.io/badge/secrets-4k-00ADD8)
+![queue](https://img.shields.io/badge/queue-4.4k-00ADD8)
+![pubsub](https://img.shields.io/badge/pubsub-4.3k-00ADD8)
+![rdbms](https://img.shields.io/badge/rdbms-13.5k-00ADD8)
+![cache](https://img.shields.io/badge/cache-7.6k-00ADD8)
+![functions](https://img.shields.io/badge/functions-5.5k-00ADD8)
+![apigateway](https://img.shields.io/badge/apigateway-2.7k-00ADD8)
+![internal](https://img.shields.io/badge/internal-18.1k-5BC0DE)
+![cmd](https://img.shields.io/badge/cmd-3.3k-5BC0DE)
+![peers](https://img.shields.io/badge/peers-109-A0D8EF)
+
 **Reroute cloud services, one at a time.**
 
 shimanism is a translation proxy that speaks the cloud's own published API on the front and forwards each call to a real, comparable service somewhere else — another cloud, a Kubernetes operator, or a self-hosted server.
@@ -123,7 +142,7 @@ The closest comparison points and how shimanism differs from each:
 
 The mental model: shimanism is to **rerouting cloud services one at a time** what cross-compilation is to portable binaries. The application doesn't know the target changed; the platform layer below it absorbed the difference, honestly.
 
-For deeper reading: [PHILOSOPHY.md](PHILOSOPHY.md) on the "intersection-only, never lie" stance; [docs/architecture.md](docs/architecture.md) on the frontend/domain/backend layering; [doc/CROSS_CLOUD_ROUTING.md](doc/CROSS_CLOUD_ROUTING.md) on the migration story end-to-end.
+For deeper reading: [PHILOSOPHY.md](PHILOSOPHY.md) on the "intersection-only, never lie" stance; [docs/architecture.md](docs/architecture.md) on the frontend/domain/backend layering; [docs/cross-cloud-routing.md](docs/cross-cloud-routing.md) on the migration story end-to-end.
 
 ## Non-goals
 
@@ -151,6 +170,43 @@ shimanism is pre-1.0 and pre-production. The honest state per surface:
 | Codegen pipeline | Smithy-only (`cmd/codegen`); only storage has generated stubs today. Other services compose their wire layer by hand using the cloud SDKs' wire-type packages. See [docs/codegen.md](docs/codegen.md). |
 
 The full bug ledger lives in [BUGS.md](BUGS.md).
+
+## Code architecture and how the build works
+
+If you just cloned the repo, here is the orientation in 60 seconds.
+
+**Layout.** One Go module, three structural buckets:
+
+- `cmd/` — entry points. `cmd/shim` is the actual server you run. `cmd/codegen`, `cmd/azure-codegen`, `cmd/gcp-codegen` are spec→code generators that produce the files under `services/<svc>/gen/`. `cmd/inject-provenance` stamps every vendored spec with a `_provenance` key so CI can detect spec drift.
+- `internal/<svc>/` — the **frontend** (wire decode/encode + per-cloud quirks) and the **domain** interface for each shimmed service. The frontends call the domain; the domain has no knowledge of any backend.
+- `services/<svc>/` — the **spec** vendored from upstream (`spec/`), the **generated** server stubs and types (`gen/`), the **backends** that translate domain calls into the destination cloud's SDK (`backends/aws`, `backends/gcs`, `backends/azureblob`, `backends/inmem`, plus the K8s peer where applicable), and the **conformance** tests that drive every (frontend × driver × backend) cell.
+
+The K8s peer framework lives at `peers/shimakit/` (its own Go module). Cross-shim machinery — auth verifiers, AWS protocol routers (`awsjson`, `awsquery`, `restxml`), client-config helpers — lives under `internal/`.
+
+**Minimal common footprint.** Every shimmed service reduces to one tiny Go interface — the cross-cloud intersection of what AWS, GCP, Azure, and the K8s peer all support. The whole catalog adds up to **75 methods total** across 8 services:
+
+| Service | Domain interface | Methods |
+|---|---|---|
+| storage | `domain.Storage` | 16 |
+| queue | `domain.Queues` | 12 |
+| pubsub | `domain.Pubsub` | 12 |
+| rdbms | `domain.RDBMS` | 11 |
+| secrets | `domain.Secrets` | 8 |
+| cache | `domain.Cache` | 6 |
+| functions | `domain.Functions` | 5 |
+| apigateway | `domain.APIGateway` | 5 |
+
+Frontends collectively implement *hundreds* of cloud-specific wire operations (`ListObjectsV2`, `GetBucketLifecycleConfiguration`, …); backends implement at most these handfuls. That asymmetry is the whole point — the per-cloud surface area is huge, the cross-cloud intersection is small, and everything that doesn't fit the intersection fails loud in the source cloud's own error vocabulary.
+
+**Spec → code (the unusual bit).** shimanism does not hand-write the wire layer for each cloud. Three codegen lanes, all wired through `make codegen`, walk vendored specs and emit Go:
+
+- **AWS Smithy → custom emitter** (`cmd/codegen`). Smithy has no official server-side Go generator, so the emitter is in-house; it handles all four AWS protocols (REST-XML, awsJson1.0/1.1, awsQuery, restJson1). Generated stubs land in `services/<svc>/gen/`.
+- **Azure OpenAPI v2 → 8-stage preprocessor + `oapi-codegen`** (`cmd/azure-codegen`). The preprocessor flattens ARM idioms (`x-ms-paths`, `x-ms-enum`, external `$ref`, `allOf`) into something `oapi-codegen` can consume.
+- **GCP Discovery → routing-only emitter** (`cmd/gcp-codegen`). Wire types are *reused* from `google.golang.org/api/<svc>/v1` — Discovery → Go structs is already solved upstream. Our emitter only produces the dispatch layer.
+
+What's hand-written is the per-backend `translate.go` files (one per operation) that map the generated request shapes into the destination cloud's SDK call, and a per-frontend `adapter.go` that glues the generated server stubs to the domain interface. That keeps the spec the source of truth: when upstream changes the spec, `make codegen` produces a diff and only the translation table needs human eyes. `make codegen-check` (also run by CI) enforces that committed gen output matches what the spec produces today.
+
+Start at [docs/architecture.md](docs/architecture.md) for the layer diagram and the full code-layout map, then [docs/codegen.md](docs/codegen.md) for the spec-to-running-handler walkthrough.
 
 ## Documentation
 

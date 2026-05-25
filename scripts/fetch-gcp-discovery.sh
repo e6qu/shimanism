@@ -75,7 +75,7 @@ with the matching \`scripts/fetch-*.sh\` and commit the resulting diff.
 
 Google API Discovery documents are Apache-2.0. Generated code derived
 from these documents is licensed AGPL-3.0 alongside the rest of
-shimanism (see [\`doc/COMPATIBLE_LICENSES.md\`](../../../doc/COMPATIBLE_LICENSES.md)).
+shimanism (see [\`docs/compatible-licenses.md\`](../../../docs/compatible-licenses.md)).
 EOF
   echo "Wrote ${sources_md} (new)"
 else

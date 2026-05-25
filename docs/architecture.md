@@ -46,6 +46,88 @@ shimanism is three layers:
 
 The frontends and backends are independent. Any frontend can compose with any backend — that's the whole product. One running shim instance = one frontend + one backend; running multiple instances in parallel gets you a many-to-many matrix. AWS-shape Terraform → GCS bucket data. Azure SDK → AWS S3 bucket data. AWS Secrets Manager SDK → HashiCorp Vault. Etc.
 
+## Repo layout (where to look for what)
+
+```
+shimanism/
+├── cmd/                          ← entry points
+│   ├── shim/                       the actual server you run (subcommands: storage, secrets, queue, pubsub, …)
+│   ├── codegen/                    AWS Smithy → Go server stubs
+│   ├── azure-codegen/              Azure OpenAPI v2 → Go server stubs (8-stage preprocessor + oapi-codegen)
+│   ├── gcp-codegen/                GCP Discovery → Go routing layer (reuses google.golang.org/api wire types)
+│   ├── inject-provenance/          stamps _provenance keys into vendored specs
+│   └── shimctl/                    operational CLI
+│
+├── internal/                     ← frontends + domain interfaces
+│   ├── <svc>/                      one per shimmed service
+│   │   ├── domain/                   the neutral interface every backend implements
+│   │   └── frontends/                one per source cloud (aws_s3, gcs, azure_blob, …)
+│   │       └── <cloud>/adapter.go    glues generated server stubs to domain calls
+│   ├── awsjson/                    AWS awsJson1.0/1.1 protocol harness
+│   ├── awsquery/                   AWS Query protocol harness
+│   ├── restxml/                    AWS REST-XML protocol harness
+│   ├── sigv4verifier/              SigV4 verifier (server-side)
+│   ├── gcpbearer/                  GCP OAuth2/ID-token verifier
+│   ├── azurebearer/                Azure Entra-ID JWT verifier
+│   ├── azuresharedkey/             Azure SharedKey verifier (Storage-only)
+│   ├── clientconfig/               per-cloud client-config helpers used by tests
+│   ├── codegen/                    emitter library imported by cmd/{codegen,azure-codegen,gcp-codegen}
+│   └── harness/                    test harnesses
+│
+├── services/                     ← spec, generated stubs, backends, conformance
+│   └── <svc>/
+│       ├── spec/                     vendored upstream specs (Smithy / OpenAPI / Discovery)
+│       │   └── SOURCES.md            provenance: upstream repo + commit SHA per file
+│       ├── gen/                      `make codegen` output (regenerable, committed)
+│       │   ├── <cloud>_<svc>.gen.go    types, server interface, route table
+│       │   └── …
+│       ├── backends/                 hand-written; one per destination
+│       │   ├── aws/      translate.go + adapter
+│       │   ├── gcs/      translate.go + adapter
+│       │   ├── azureblob/ translate.go + adapter
+│       │   ├── inmem/    in-process backend (tests/dev only)
+│       │   └── minio/    or vault/, nats/, … — the K8s peer where applicable
+│       ├── conformance/              SDK + CLI + Terraform tests, one dir per (frontend, driver)
+│       ├── codegen.json              tells the AWS Smithy emitter which operations to generate
+│       ├── azure-codegen.json        same for Azure
+│       ├── gcp-codegen.json          same for GCP
+│       ├── INTERSECTION.md           per-operation in/out-of-intersection audit
+│       ├── APPLY_INTERSECTION.md     Terraform-apply-time audit for cross-cloud routes
+│       └── OPERATIONS.md             operation index
+│
+├── peers/                        ← in-tree Kubernetes peers (separate Go modules)
+│   └── shimakit/                   framework providing common-denominator primitives
+│
+├── scripts/                      ← fetch-{aws,azure,gcp}-*.sh + the sockerless E2E driver
+├── docs/                         ← all contributor + deep-dive documentation (this file lives here)
+└── PHILOSOPHY.md AGENTS.md PLAN.md STATUS.md DO_NEXT.md WHAT_WE_DID.md BUGS.md
+```
+
+A few details worth knowing on first read:
+
+- **All docs live under `docs/`.** Contributor-facing overviews (`architecture.md`, `codegen.md`, `testing.md`, `getting-started.md`, per-service pages under `services/`) sit alongside the deep-dive references (`codegen-pipelines.md`, `verifiers.md`, `cross-cloud-routing.md`, `compatible-licenses.md`, `dependency-policy.md`, `sockerless-validation.md`). Start at [docs/README.md](README.md).
+- **`gen/` is committed.** The generated code is in version control so that (a) CI can `make codegen-check` and fail merges on undetected drift, (b) `go build` works without invoking codegen, and (c) PR diffs show the impact of spec changes alongside translation-layer edits.
+- **`spec/` is vendored, not forked.** Files are downloaded by the `scripts/fetch-*.sh` helpers; their provenance is recorded in `SOURCES.md` and stamped into each spec's `_provenance` top-level key by `cmd/inject-provenance`. Renovate's custom manager watches the SHAs.
+- **`internal/<svc>/frontends/<cloud>/adapter.go`** is where the generated server interface meets the hand-written domain layer. It is the smallest interesting file for understanding how a request flows end-to-end — read one to orient.
+- **`services/<svc>/backends/<cloud>/translate.go`** is the *only* file you hand-write per operation in production code. Generated stubs above; SDK calls below; translation in between.
+
+## Minimal common footprint
+
+The cross-cloud intersection of every shimmed service collapses to one short Go interface. The whole catalog is 75 methods:
+
+| Service | Domain interface | Methods | File |
+|---|---|---|---|
+| storage | `domain.Storage` | 16 | [`internal/storage/domain/domain.go`](../internal/storage/domain/domain.go) |
+| queue | `domain.Queues` | 12 | [`internal/queue/domain/domain.go`](../internal/queue/domain/domain.go) |
+| pubsub | `domain.Pubsub` | 12 | [`internal/pubsub/domain/domain.go`](../internal/pubsub/domain/domain.go) |
+| rdbms | `domain.RDBMS` | 11 | [`internal/rdbms/domain/domain.go`](../internal/rdbms/domain/domain.go) |
+| secrets | `domain.Secrets` | 8 | [`internal/secrets/domain/domain.go`](../internal/secrets/domain/domain.go) |
+| cache | `domain.Cache` | 6 | [`internal/cache/domain/domain.go`](../internal/cache/domain/domain.go) |
+| functions | `domain.Functions` | 5 | [`internal/functions/domain/domain.go`](../internal/functions/domain/domain.go) |
+| apigateway | `domain.APIGateway` | 5 | [`internal/apigateway/domain/domain.go`](../internal/apigateway/domain/domain.go) |
+
+Compared to the generated frontend surface (`services/storage/gen/aws_s3.gen.go` alone is ~31 000 lines covering every documented S3 operation), the domain is intentionally tiny. Anything that does not fit the intersection is not in the domain, and the frontend returns the source cloud's own *operation-not-supported* envelope. See [PHILOSOPHY.md § The Intersection](../PHILOSOPHY.md#the-circle) for the principle and the per-service `INTERSECTION.md` files for the per-operation audit that classifies every wire operation as in-intersection, naturally-unset, or out-of-intersection.
+
 ## What lives in each layer
 
 | Layer | Contains | Allowed to do |
@@ -100,7 +182,7 @@ The shim's front door speaks the cloud's published API exactly:
 - Async-operation semantics match (Operations.Get endpoints, ETag headers, long-poll behavior).
 - Path templates, query-parameter names, header names — match.
 
-**Current state:** the codegen pipeline runs three lanes — AWS Smithy via `cmd/codegen`, Azure OpenAPI v2 via `cmd/azure-codegen` (with an 8-stage preprocessor), and GCP Discovery via `cmd/gcp-codegen` (routing-only; wire types reuse `google.golang.org/api/<svc>/v1` per reuse-over-reinvention). `make codegen` regenerates every spec-driven file across all 8 services × 3 lanes. AWS frontends ship fully migrated through their generated stubs; Azure has `azure_keyvault` migrated as the reference impl with the remaining 7 + all 8 GCP frontends using hand-written dispatch on top of the generated gen inventory (the inventory acts as the spec-drift contract for those). Per-operation `translate.go` files map source-API requests to backend domain operations. See [docs/codegen.md](codegen.md) for the overview and [`doc/CODEGEN.md`](../doc/CODEGEN.md) for full pipeline detail.
+**Current state:** the codegen pipeline runs three lanes — AWS Smithy via `cmd/codegen`, Azure OpenAPI v2 via `cmd/azure-codegen` (with an 8-stage preprocessor), and GCP Discovery via `cmd/gcp-codegen` (routing-only; wire types reuse `google.golang.org/api/<svc>/v1` per reuse-over-reinvention). `make codegen` regenerates every spec-driven file across all 8 services × 3 lanes. AWS frontends ship fully migrated through their generated stubs; Azure has `azure_keyvault` migrated as the reference impl with the remaining 7 + all 8 GCP frontends using hand-written dispatch on top of the generated gen inventory (the inventory acts as the spec-drift contract for those). Per-operation `translate.go` files map source-API requests to backend domain operations. See [docs/codegen.md](codegen.md) for the overview and [`docs/codegen-pipelines.md`](../docs/codegen-pipelines.md) for full pipeline detail.
 
 ## Cross-cloud routing in practice
 

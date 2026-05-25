@@ -181,7 +181,7 @@ When Renovate proposes a new transitive dep, the `licenses` CI job verifies it's
 
 ## Dependency licenses must be AGPL-compatible
 
-shimanism is AGPL-3.0-only. Every Go module we *link* (anything in `go.mod` / `go.sum`) must carry a license on the allowlist in [`doc/COMPATIBLE_LICENSES.md`](doc/COMPATIBLE_LICENSES.md). CI enforces this; `make license-check` runs the same check locally.
+shimanism is AGPL-3.0-only. Every Go module we *link* (anything in `go.mod` / `go.sum`) must carry a license on the allowlist in [`docs/compatible-licenses.md`](docs/compatible-licenses.md). CI enforces this; `make license-check` runs the same check locally.
 
 Services we *connect to over the wire* (Vault, MinIO, Postgres, Terraform CLI, etc.) carry no copyleft obligation and may use any license, including BUSL or proprietary. See the doc for the linked-vs-connected distinction.
 
@@ -189,7 +189,7 @@ When in doubt about a new dependency, **check first, add second.** A failed `lic
 
 ## Dependency policy (beyond licenses)
 
-[`doc/DEPENDENCY_POLICY.md`](doc/DEPENDENCY_POLICY.md) covers what we accept beyond legal compatibility:
+[`docs/dependency-policy.md`](docs/dependency-policy.md) covers what we accept beyond legal compatibility:
 
 - **Minimum release age: 48 hours.** Renovate enforces; manual additions should too. Mitigates supply-chain attacks where malicious releases get yanked within ~1 day.
 - **Pin GitHub Actions to immutable SHAs.** Tags are mutable; SHAs are not. Renovate keeps both fresh.

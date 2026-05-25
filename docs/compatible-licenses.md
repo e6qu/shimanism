@@ -2,7 +2,7 @@
 
 shimanism is licensed **AGPL-3.0-only**. Every dependency that gets *linked into* a shimanism binary must use a license compatible with AGPL-3.0. CI enforces this; this document is the source of truth for the allowlist.
 
-> License compatibility is one dimension; broader dependency hygiene (minimum release age, cgo preference, npm via pnpm, no pre-install scripts) is in [`DEPENDENCY_POLICY.md`](DEPENDENCY_POLICY.md). Both must be satisfied before adding a dep.
+> License compatibility is one dimension; broader dependency hygiene (minimum release age, cgo preference, npm via pnpm, no pre-install scripts) is in [`dependency-policy.md`](dependency-policy.md). Both must be satisfied before adding a dep.
 
 > The constraint is on *linked* dependencies — Go modules listed in `go.mod` / `go.sum`. Services we *connect to* over the wire (Vault, MinIO, Postgres, Terraform CLI, the cloud providers themselves) carry no copyleft obligation. Their licenses do not affect shimanism's license. See *Linked vs connected* below.
 

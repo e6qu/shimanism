@@ -22,7 +22,7 @@ Sockerless now simulates the relevant GCP API Gateway and Pub/Sub backend surfac
 
 ## Upstream-tracked (sockerless validation lane)
 
-Sockerless fidelity gaps tracked on `github.com/e6qu/sockerless`. Each is filed as a fully self-contained issue (no shim references; sockerless maintainers can pick up the repro without reading this repo). See [doc/SOCKERLESS_VALIDATION.md](doc/SOCKERLESS_VALIDATION.md) for the wider context.
+Sockerless fidelity gaps tracked on `github.com/e6qu/sockerless`. Each is filed as a fully self-contained issue (no shim references; sockerless maintainers can pick up the repro without reading this repo). See [docs/sockerless-validation.md](docs/sockerless-validation.md) for the wider context.
 
 ### Round 1 (Phase 13.D.1) — all closed via [sockerless PR #179](https://github.com/e6qu/sockerless/pull/179) on 2026-05-23
 
@@ -109,7 +109,7 @@ When a new bug fits one of these, tag it with the rule.
 - **Spec drift.** When the upstream cloud spec changes shape, the codegen pipeline must regenerate and the translation table must be updated in the same PR. Stale generated code is a bug.
 - **Cross-backend sweep on every find.** When a translation gap appears in one (source, backend) pair, the same code paths in the other backend pairs get checked in the same commit.
 - **Recorded-interaction drift.** When a cassette / VCR recording silently masks a real-cloud behavior change, the test is a bug.
-- **Incompatible-license dependency.** Adding a Go module whose license is not on the [`doc/COMPATIBLE_LICENSES.md`](doc/COMPATIBLE_LICENSES.md) allowlist is a bug — CI's `licenses` job blocks it.
+- **Incompatible-license dependency.** Adding a Go module whose license is not on the [`docs/compatible-licenses.md`](docs/compatible-licenses.md) allowlist is a bug — CI's `licenses` job blocks it.
 
 ## Resolved history (compressed; commit-log + linked PR have detail)
 
@@ -124,7 +124,7 @@ When a new bug fits one of these, tag it with the rule.
 | 22 | P3 | storage/conformance | Phase 14 | `services/storage/conformance/sockerless_test.go` was not gofmt-clean under the CI pre-commit hook after the GCS import landed. Fixed by running gofmt. |
 | 21 | P2 | CI / kind conformance jobs | Phase 14 | `helm/kind-action@v1` fetched the kind release binary without following GitHub release redirects, so the checksum step validated the redirect body and failed before tests ran. Fixed by preinstalling kind/kubectl into the action cache with redirect-following, checksum-verified downloads. |
 | 20 | P2 | azure-codegen / ARM | Phase 12.A.24 (PR #19) | `flattenARMAllOf` preprocessor inlines `{ allOf: [TrackedResource], properties: {own} }` so oapi-codegen emits a struct, not a type alias. ContainerApp / RedisResource / Server (PostgreSQL FlexibleServer) emit as proper Go structs. Phase 12.A.31 caught + fixed a chained-inheritance bug in the same stage. |
-| 18 | P3 | all frontends (sig verification) | Phase 11.14 (PR #18) | 4 verifier packages wrap all 24 frontends; bypass dropped; every conformance test signs end-to-end. AWS-CLI compatibility via manual SigV4 in `canonical.go` accepting both Go-SDK and boto3 signing shapes. See [doc/VERIFIERS.md](doc/VERIFIERS.md). |
+| 18 | P3 | all frontends (sig verification) | Phase 11.14 (PR #18) | 4 verifier packages wrap all 24 frontends; bypass dropped; every conformance test signs end-to-end. AWS-CLI compatibility via manual SigV4 in `canonical.go` accepting both Go-SDK and boto3 signing shapes. See [docs/verifiers.md](docs/verifiers.md). |
 | 17 | P2 | secrets/domain + frontends | Phase 10.3 (PR #17) | `UpdateSecret` / `TagResource` / `UntagResource` wired through domain + all backends. |
 | 16 | P2 | rdbms/gcp-frontend | Phase 10.3 (PR #17) | Route regexes match both `/v1/projects/...` (Go SDK + gcloud) and `/sql/v1beta4/projects/...` (hashicorp/google). Added users + databases canonical envelopes. |
 | 13 | P3 | functions / domain + frontends | Phase 10.3 (PR #17) | `domain.Function` gained `Role` + `Publish`; AWS frontend parses + emits; non-AWS backends reject non-empty Role + Publish=true honestly. |
