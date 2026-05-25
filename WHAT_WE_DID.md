@@ -26,6 +26,8 @@ The extra sockerless issues surfaced after the original round-3 commit were: #19
 
 Filed [e6qu/sockerless#218](https://github.com/e6qu/sockerless/issues/218) with curl reproduction and expected REST contracts before adding any shim test. After the user merged sockerless PR #219, rebuilt the GCP sim and added `TestSockerless_GCPSecretManager_RoundTrip`, covering CreateSecret, PutSecretValue, HeadSecret, GetSecretValue(latest + explicit version), ListVersions, ListSecrets, UpdateSecret, and DeleteSecret. No local simulator patch or shim workaround is carried.
 
+**BUG-21 — kind CI installer failure fixed.** After pushing the GCP Secret Manager lane, PR #21's `conformance envoy` job failed before tests ran: `helm/kind-action@v1` downloaded the kind release URL without following GitHub's release redirect, then checksum validation compared the redirect body. Filed BUG-21 and added a checksum-verified `scripts/ci-preinstall-kind.sh` step before every kind-backed conformance job so the action finds the pinned kind/kubectl binaries in its expected tool-cache layout.
+
 **14.A — sockerless round-1 fixes landed.** While Phase 14's continuity docs landed on PR #20, the user shepherded sockerless PR #179 (their "Phase 173" umbrella) closing all six of our round-1 issues (#173 S3 prefix, #174 aws-chunked envelope, #175 missing ListSecretVersionIds, #176/#177/#178 missing AWS/GCP/Azure services). With the simulators rebuilt:
 
 - Dropped the `/s3` URL workaround from `scripts/run-sockerless-storage.sh` + the test-file comment.
