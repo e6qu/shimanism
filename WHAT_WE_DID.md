@@ -4,9 +4,9 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 
 > Reverse chronological. One section per phase. The *why*, the surprises, the root causes — not per-PR detail. For commit-level history, `git log`. For per-bug detail, [BUGS.md](BUGS.md). For pipeline + verifier architecture, [doc/CODEGEN.md](doc/CODEGEN.md) + [doc/VERIFIERS.md](doc/VERIFIERS.md).
 
-## Phase 14 — In flight (`phase-14` branch)
+## Phase 14 — In flight
 
-Branched from `main` at `3cf9e13` (PR #20 merged) on 2026-05-24. The branch already carries 14.A landed + 14.D fidelity audit done.
+PR #21 merged on 2026-05-25 at `45985e7`, landing 14.A, the 14.D simulator audit, and the current 14.B sockerless lane. Phase 14 remains open for additional service lanes, 14.C handler migrations, and real-cloud Track A residuals.
 
 **14.B/14.D current state after sockerless PR #219.** The upstream simulator audit loop is clear. After the first Phase 14 commits, the user merged additional sockerless fix PRs (#200, #202, #211, #216, #219). Each time, the lane was rebuilt locally and re-probed; gaps were reopened or filed with full reproductions when fixes were partial. The current state on 2026-05-25:
 
