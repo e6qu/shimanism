@@ -8,6 +8,16 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 
 Branched from `main` at `3cf9e13` (PR #20 merged) on 2026-05-24. The branch already carries 14.A landed + 14.D fidelity audit done.
 
+**14.B/14.D current state after sockerless PR #216.** The upstream simulator audit loop is clear. After the first Phase 14 commits, the user merged additional sockerless fix PRs (#200, #202, #211, #216). Each time, the lane was rebuilt locally and re-probed; gaps were reopened or filed with full reproductions when fixes were partial. The final state on 2026-05-25:
+
+- `/tmp/sockerless` is at `9620a53` (sockerless PR #216, merged 2026-05-25).
+- `gh issue list --repo e6qu/sockerless --state open` returned no open issues.
+- `make sockerless-storage` passes all 9 current shim lanes: storage AWS S3 / GCS / Azure Blob; secrets AWS Secrets Manager / Azure Key Vault; queue AWS SQS / GCP Pub/Sub queue; pubsub GCP Pub/Sub; apigateway GCP API Gateway.
+- BUG-8 is narrowed to the hashicorp/google API Gateway Terraform leg; the GCP APIGW backend/SDK leg is green.
+- BUG-15 is narrowed to the hashicorp/google Terraform state-drift question; the GCP queue backend retention PATCH/read round-trip is green.
+
+The extra sockerless issues surfaced after the original round-3 commit were: #193-199, #201, #203-210, and #213-215. The important lesson was the same as the earlier audit: a green simulator PR still needs post-merge probes because several fixes were partial on first landing (#190, #193, #196, #209, #210). The final PR #216 closed the last five open items (#209, #210, #213, #214, #215).
+
 **14.A — sockerless round-1 fixes landed.** While Phase 14's continuity docs landed on PR #20, the user shepherded sockerless PR #179 (their "Phase 173" umbrella) closing all six of our round-1 issues (#173 S3 prefix, #174 aws-chunked envelope, #175 missing ListSecretVersionIds, #176/#177/#178 missing AWS/GCP/Azure services). With the simulators rebuilt:
 
 - Dropped the `/s3` URL workaround from `scripts/run-sockerless-storage.sh` + the test-file comment.
@@ -27,22 +37,22 @@ Branched from `main` at `3cf9e13` (PR #20 merged) on 2026-05-24. The branch alre
 - **[#187](https://github.com/e6qu/sockerless/issues/187)** GCP Cloud SQL `selfLink` is a relative URL (`/v1/projects/.../instances/...`). Real GCP returns `https://sqladmin.googleapis.com/v1/...`.
 - **[#188](https://github.com/e6qu/sockerless/issues/188)** GCP Secret Manager `versions/latest:access` echoes the literal alias `latest` in the response `name` instead of resolving to the concrete version number. Version-tracking flows break.
 
-14.B + 14.C remain pending. None of the 8 round-2 issues block a clean Phase-14 PR for what landed today — they gate which *additional* lanes can be added cleanly.
+14.B's current validation lane is green after the later sockerless fixes. 14.C remains pending; additional 14.B service lanes are optional follow-on work.
 
-**14.B in flight (post sockerless PR #180).** With the round-2 fidelity gaps closed in sockerless PR #180, 4 new shim lanes land on top of the round-1 set:
+**14.B initial lane expansion (post sockerless PR #180).** With the round-2 fidelity gaps closed in sockerless PR #180, 4 new shim lanes landed on top of the round-1 set:
 
 - **GCP Pub/Sub pubsub** — `services/pubsub/conformance/sockerless_test.go::TestSockerless_GCP_Pubsub_RoundTrip`. Topic + Subscription + Publish + Receive + Ack against the shim's `pubsub/backends/gcp`.
-- **GCP Pub/Sub queue** — `services/queue/conformance/sockerless_test.go::TestSockerless_GCP_Queue_CRUD`. CRUD only; the retention round-trip (which would close BUG-15) needs `subscriptions.patch` which sockerless doesn't wire yet ([#189](https://github.com/e6qu/sockerless/issues/189)).
+- **GCP Pub/Sub queue** — now `services/queue/conformance/sockerless_test.go::TestSockerless_GCP_Queue_RetentionRoundTrip`. The final form includes CreateQueue → SetQueueAttributes → HeadQueue and asserts `MessageRetentionSeconds = 604800`.
 - **AWS SQS queue** — same file `::TestSockerless_AWS_Queue_AttributeRoundTrip`. Asserts `VisibilityTimeout` + `MessageRetentionPeriod` round-trip via `CreateQueue` Attributes → `HeadQueue`.
 - **GCP API Gateway** — `services/apigateway/conformance/sockerless_test.go::TestSockerless_GCP_APIGateway_CRUD`. Exercises `CreateGateway` (with routes → triggers `DeployGateway` → Api + ApiConfig + Gateway materialize) → `DescribeGateway` → `ListGateways` → `DeleteGateway`. **The SDK leg of BUG-8 is now cleared** — the TF-provider angle remains Phase 14.D residual.
 
-**Round-3 audit, 3 more sockerless issues filed**:
+**Round-3 audit, 3 more sockerless issues filed** (all closed later):
 
 - **[e6qu/sockerless#189](https://github.com/e6qu/sockerless/issues/189)** — GCP Pub/Sub `projects.subscriptions.patch` returns 404 (only PUT is wired). Blocks shim's `SetQueueAttributes` and the BUG-15 retention round-trip.
 - **[e6qu/sockerless#190](https://github.com/e6qu/sockerless/issues/190)** — Azure Blob data plane only supports host-based dispatch; Azurite-compatible path-style URLs (the Azure SDK + azurerm provider default) return 404. Blocks the Azure Blob lane.
 - **[e6qu/sockerless#191](https://github.com/e6qu/sockerless/issues/191)** — Azure Key Vault secret `id` uses request scheme; partial #184 regression. Real Azure KV always uses `https://`. Lane works under TLS sim but not HTTP.
 
-7 lanes total pass via `make sockerless-storage` today; 3 lanes wait on round-3 fixes.
+The later audit rounds closed those blockers and added the Azure Blob + Azure KV lanes, bringing `make sockerless-storage` to 9 passing tests.
 
 ## Phase 13 — closed (PR #20 merged 2026-05-24)
 

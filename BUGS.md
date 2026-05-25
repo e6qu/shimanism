@@ -1,6 +1,6 @@
 # Known Bugs
 
-**20 filed · 18 fixed · 2 open · 1 false positive. Plus 18 upstream-sockerless issues — 14 closed (sockerless PRs #179 + #180) + 2 open + 1 reopened (still affecting the shim lane).**
+**20 filed · 18 fixed · 2 open · 1 false positive. Upstream sockerless audit issues through #215 are closed as of sockerless PR #216; no upstream sockerless issue currently blocks the shim lane.**
 
 Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLAN.md](PLAN.md) · narrative [WHAT_WE_DID.md](WHAT_WE_DID.md) · rules [AGENTS.md](AGENTS.md).
 
@@ -10,15 +10,15 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 
 ## Open — both absorbed into Phase 14
 
-Sockerless doesn't simulate GCP API Gateway or GCP Pub/Sub today, so neither bug closed via the 13.D.1 sockerless lane. Both have a closure path through Phase 14:
+Sockerless now simulates the relevant GCP API Gateway and Pub/Sub backend surfaces. The current backend/SDK legs are green:
 
-- If [sockerless#177](https://github.com/e6qu/sockerless/issues/177) adds GCP API Gateway and Pub/Sub simulators, both bugs close via the new sockerless lanes (Phase 14.B.2).
-- Otherwise they fall back to Phase 14.D (real-cloud Track A residual) where they're closed against live GCP accounts.
+- BUG-8: `TestSockerless_GCP_APIGateway_CRUD` clears the shim backend ↔ GCP API Gateway SDK-shaped leg. The remaining bug is specifically the hashicorp/google Terraform endpoint/OAuth leg.
+- BUG-15: `TestSockerless_GCP_Queue_RetentionRoundTrip` clears the shim backend retention PATCH/read leg. The remaining bug is specifically the hashicorp/google Terraform state-drift question for `message_retention_duration`.
 
 | ID | Sev | Area | Source-API | One-liner | Phase |
 |----|-----|------|------------|-----------|-------|
-| BUG-8 | P3 | apigateway/gcp-tf-frontend | `hashicorp/google` | API Gateway endpoint-override attribute name changed across provider major versions and the current provider's API Gateway resource lifecycle requires real OAuth-signed requests the mock httptest server can't sign. `services/apigateway/conformance/gcp_terraform_test.go` is smoke-skipped pending Track A real-cloud TF coverage. | **14.B.2 or 14.D** |
-| BUG-15 | P3 | queue/gcp-frontend | GCP Pub/Sub `subscriptions.get` | `message_retention_duration = "604800s"` declared in HCL and the shim responding "604800s" at every call, hashicorp/google records `"345600s"` in state. Plan after apply diffs `"345600s" -> "604800s"`. Shim's HTTP responses contain "604800s" (verified); something in the provider's flatten / state-write path substitutes its schema default. Honest interpretations: (a) provider bug — real GCP exhibits same drift; (b) shim's response is missing a field the provider needs to disable its default-substitution path (`expirationPolicy`, `retainAckedMessages`). Closes false-positive if (a), reopens as a real fix if (b). | **14.B.2 or 14.D** |
+| BUG-8 | P3 | apigateway/gcp-tf-frontend | `hashicorp/google` | API Gateway endpoint-override attribute name changed across provider major versions and the current provider's API Gateway resource lifecycle requires real OAuth-signed requests the mock httptest server can't sign. `services/apigateway/conformance/gcp_terraform_test.go` is smoke-skipped pending Track A real-cloud TF coverage. The sockerless GCP APIGW backend lane passes; this is now only the Terraform-provider leg. | **14.D** |
+| BUG-15 | P3 | queue/gcp-frontend | GCP Pub/Sub `subscriptions.get` | `message_retention_duration = "604800s"` declared in HCL and the shim responding "604800s" at every call, hashicorp/google records `"345600s"` in state. Plan after apply diffs `"345600s" -> "604800s"`. Shim's backend retention PATCH/read path now passes against sockerless; the open question is whether the provider shows the same state drift against real GCP or the shim frontend still misses a provider-needed field. | **14.D** |
 
 ## Upstream-tracked (sockerless validation lane)
 
@@ -44,33 +44,50 @@ Phase 14.A re-enabled the shim assertions for #173/#174/#175 (storage + secrets 
 | [e6qu/sockerless#181](https://github.com/e6qu/sockerless/issues/181) — Azure Cache for Redis ARM case sensitivity | ✅ closed; ARM path-normalization middleware. |
 | [e6qu/sockerless#182](https://github.com/e6qu/sockerless/issues/182) — GCP Pub/Sub subscription field drops | ✅ closed; full 7-field round-trip. |
 | [e6qu/sockerless#183](https://github.com/e6qu/sockerless/issues/183) — GCP Secret Manager routing leak | ✅ closed; ListSecrets registered explicitly. |
-| [e6qu/sockerless#184](https://github.com/e6qu/sockerless/issues/184) — Azure KV malformed kid URLs | ✅ closed for keys (kid emits https); **partial regression for secrets — see #191 below**. |
+| [e6qu/sockerless#184](https://github.com/e6qu/sockerless/issues/184) — Azure KV malformed kid URLs | ✅ closed; later secret URL regression tracked separately in #191 and also closed. |
 | [e6qu/sockerless#185](https://github.com/e6qu/sockerless/issues/185) — Azure KV placeholder modulus | ✅ closed; real RSA modulus emitted. |
 | [e6qu/sockerless#186](https://github.com/e6qu/sockerless/issues/186) — AWS SQS attribute drops | ✅ closed; full attribute persistence. |
 | [e6qu/sockerless#187](https://github.com/e6qu/sockerless/issues/187) — GCP Cloud SQL relative selfLink | ✅ closed; fully-qualified selfLink. |
 | [e6qu/sockerless#188](https://github.com/e6qu/sockerless/issues/188) — GCP Secret Manager `latest` alias | ✅ closed; concrete version number resolved. |
 
-### Round 3 (per-service audit, sockerless PR #180 follow-ups)
+### Round 3 (per-service audit, sockerless PR #180 follow-ups) — all closed
 
 | Upstream | Status |
 |---|---|
 | [e6qu/sockerless#189](https://github.com/e6qu/sockerless/issues/189) — GCP Pub/Sub `projects.subscriptions.patch` returns 404 | ✅ closed in sockerless PR #192. |
-| [e6qu/sockerless#190](https://github.com/e6qu/sockerless/issues/190) — Azure Blob path-style URLs return 404 | ◐ reopened — PR #192 didn't address path-style dispatch. |
+| [e6qu/sockerless#190](https://github.com/e6qu/sockerless/issues/190) — Azure Blob path-style URLs return 404 | ✅ closed after reopen; path-style and host-based Blob dispatch verified. |
 | [e6qu/sockerless#191](https://github.com/e6qu/sockerless/issues/191) — Azure KV secret `id` uses request scheme | ✅ closed in sockerless PR #192. |
 
-### Round 4 (sockerless PR #192 follow-up audit) — currently blocking the shim lane
+### Later audit rounds — all closed as of sockerless PR #216
 
-| Upstream | Status / what it blocks |
+| Upstream | Status |
 |---|---|
-| [e6qu/sockerless#190](https://github.com/e6qu/sockerless/issues/190) (reopened) | Azure Blob path-style dispatch (`PUT /{account}/{container}?restype=container`) still returns 404. The shim's current Azure Blob lane works via a localhost-redirect transport that preserves the SDK's `{account}.blob.localhost` Host header, so the lane passes — but any Azurite-compatible `BlobEndpoint=http://localhost:port/{account}` consumer still hits 404. |
-| [e6qu/sockerless#193](https://github.com/e6qu/sockerless/issues/193) | Azure Key Vault data plane doesn't issue `WWW-Authenticate: Bearer` 401 on the SDK's unauthenticated probe. **Blocks `TestSockerless_Azure_KeyVault_SecretRoundTrip`** — the Azure SDK's challenge-discovery flow sends an unauthenticated probe first and parses the 401 + `WWW-Authenticate` header for issuer / resource; without the challenge, the sim returns 400 on the empty-body probe and the SDK can't recover. |
+| [e6qu/sockerless#193](https://github.com/e6qu/sockerless/issues/193) | ✅ closed by PR #202 after a reopen; KV challenge now satisfies Azure SDK tenant parsing. |
+| [e6qu/sockerless#194](https://github.com/e6qu/sockerless/issues/194) | ✅ closed by PR #200; AWS RDS / ElastiCache default `EngineVersion` now emits real-shape values instead of empty strings. |
+| [e6qu/sockerless#195](https://github.com/e6qu/sockerless/issues/195) | ✅ closed by PR #200; Azure Service Bus REST send/receive status/body semantics fixed. |
+| [e6qu/sockerless#196](https://github.com/e6qu/sockerless/issues/196) | ✅ closed by PR #211 after a reopen; S3 multipart/subresource family verified. |
+| [e6qu/sockerless#197](https://github.com/e6qu/sockerless/issues/197) | ✅ closed by PR #200; GCP `/v1/operations` no longer falls through to GCS-shaped 404. |
+| [e6qu/sockerless#198](https://github.com/e6qu/sockerless/issues/198) | ✅ closed by PR #200; GCS compose/upload gaps and URL scheme drift fixed. |
+| [e6qu/sockerless#199](https://github.com/e6qu/sockerless/issues/199) | ✅ closed by PR #200; Lambda versions/aliases/permissions/function URL handlers added. |
+| [e6qu/sockerless#201](https://github.com/e6qu/sockerless/issues/201) | ✅ closed by PR #202; S3 bucket-level PUT subresources no longer route to CreateBucket. |
+| [e6qu/sockerless#203](https://github.com/e6qu/sockerless/issues/203) | ✅ closed by PR #211; KV secret versions return the paged list shape and versioned values. |
+| [e6qu/sockerless#204](https://github.com/e6qu/sockerless/issues/204) | ✅ verified not a bug after re-probe; APIGW v2 deployment response shape matched AWS. |
+| [e6qu/sockerless#205](https://github.com/e6qu/sockerless/issues/205) | ✅ closed by PR #211; KV PATCH and deleted-secret surfaces added. |
+| [e6qu/sockerless#206](https://github.com/e6qu/sockerless/issues/206) | ✅ closed by PR #211; Azure Functions/App Service config routes added. |
+| [e6qu/sockerless#207](https://github.com/e6qu/sockerless/issues/207) | ✅ closed by PR #211; AWS RDS/SNS/SQS per-service missing actions added. |
+| [e6qu/sockerless#208](https://github.com/e6qu/sockerless/issues/208) | ✅ closed by PR #211; awsQuery tag action router collision fixed. |
+| [e6qu/sockerless#209](https://github.com/e6qu/sockerless/issues/209) | ✅ closed by PR #216 after a reopen; GCP Cloud SQL / Memorystore / Pub/Sub IAM gaps fixed. |
+| [e6qu/sockerless#210](https://github.com/e6qu/sockerless/issues/210) | ✅ closed by PR #216 after a reopen; Azure PG / APIM / Redis remaining gaps fixed. |
+| [e6qu/sockerless#213](https://github.com/e6qu/sockerless/issues/213) | ✅ closed by PR #216; Azure Resources Tags API added. |
+| [e6qu/sockerless#214](https://github.com/e6qu/sockerless/issues/214) | ✅ closed by PR #216; Service Bus authorizationRules/listKeys/regenerateKeys added. |
+| [e6qu/sockerless#215](https://github.com/e6qu/sockerless/issues/215) | ✅ closed by PR #216; AWS IAM managed-policy/instance-profile and APIGW v1 response handlers added. |
 
 ### Sockerless coverage history
 
 - **Round 1** ([#173-178](https://github.com/e6qu/sockerless/issues/173)) — all closed by sockerless PR #179. Initial fidelity gaps (S3 `/s3/` URL prefix, `aws-chunked` envelope, missing `ListSecretVersionIds`) + missing-service rollups (AWS / GCP / Azure).
 - **Round 2** ([#181-188](https://github.com/e6qu/sockerless/issues/181)) — all closed by sockerless PR #180. Per-service fidelity drift across SQS / Pub/Sub / Secret Manager / Cloud SQL / KV / Redis ARM.
-- **Round 3** ([#189-191](https://github.com/e6qu/sockerless/issues/189)) — #189 + #191 closed by sockerless PR #192; #190 reopened.
-- **Round 4** ([#193](https://github.com/e6qu/sockerless/issues/193)) — KV challenge flow; open.
+- **Round 3** ([#189-191](https://github.com/e6qu/sockerless/issues/189)) — closed by sockerless PR #192 plus the later #190 reopen closure.
+- **Later rounds** ([#193-215](https://github.com/e6qu/sockerless/issues/193), excluding unused issue numbers) — closed by sockerless PRs #200, #202, #211, and #216. Current shim lane is green; no upstream sockerless issue is open.
 
 ## False positives
 
