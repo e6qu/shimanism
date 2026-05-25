@@ -27,10 +27,12 @@ The same property makes sockerless the right vehicle for two things Phase 14 car
 | Azure Blob (`services/storage/backends/azureblob`) | Full round-trip — CreateBucket → PutObject → HeadObject → GetObject → DeleteObject → DeleteBucket | Uses host-based dispatch plus localhost DialContext rewrite; path-style support was fixed upstream too. |
 | Azure Key Vault (`services/secrets/backends/azurekv`) | Full secret round-trip — CreateSecret → GetSecretValue → DeleteSecret | KV challenge flow + version listing fixed upstream by PRs #202/#211. |
 | GCP Secret Manager (`services/secrets/backends/gcp`) | Full lifecycle/versioning round-trip — CreateSecret → PutSecretValue → HeadSecret → GetSecretValue(latest + explicit version) → ListVersions → ListSecrets → UpdateSecret → DeleteSecret | [sockerless#218](https://github.com/e6qu/sockerless/issues/218) closed by PR #219; no shim workaround carried. |
-| GCP Cloud SQL, Memorystore | Sims work; lanes not yet added | 14.B follow-on. |
+| GCP Cloud SQL (`services/rdbms/backends/gcp`) | Through-shim AWS RDS frontend CRUD — CreateDBInstance → DescribeDBInstances → ModifyDBInstance → DeleteDBInstance | Uses the Cloud SQL Admin REST SDK pointed at sockerless GCP. |
+| GCP Memorystore (`services/cache/backends/gcp`) | Through-shim AWS ElastiCache frontend CRUD — CreateCacheCluster → DescribeCacheClusters → ModifyCacheCluster → DeleteCacheCluster | Uses the Memorystore REST SDK pointed at sockerless GCP. |
+| AWS Lambda (`services/functions/backends/aws`) | Through-shim AWS Lambda frontend CRUD — CreateFunction → GetFunction → UpdateFunctionConfiguration → ListFunctions → DeleteFunction | Functions use AWS → AWS because Lambda's required `Role` has no honest GCP/Azure analogue; non-AWS backends reject it loudly. |
 | Azure Service Bus, PG FlexibleServer, Cache Redis, APIM | Sims work; lanes not yet added | 14.B follow-on. |
-| AWS SNS, RDS, ElastiCache, API Gateway v1+v2 | Sims work; lanes not yet added | 14.B follow-on. |
-| AWS Lambda, GCP Cloud Run + Cloud Functions, Azure Container Apps + Functions Sites | Sims work; lanes not yet added | 14.B follow-on. |
+| AWS SNS and API Gateway v2 source frontends | Through-shim AWS source SDK cells now cover pubsub and apigateway against sockerless GCP backends | See the table below. |
+| GCP Cloud Run + Cloud Functions, Azure Container Apps + Functions Sites | Sims work; through-shim functions lane currently uses AWS destination for the source-shape reason above | No silent source-field dropping. |
 
 ## Through-shim cross-cloud E2E cells
 
@@ -40,7 +42,7 @@ The backend rows above prove that shimanism's destination-cloud backend adapters
 source-cloud SDK -> shimanism frontend -> shimanism backend -> sockerless destination-cloud simulator
 ```
 
-Storage currently has one green cell per requested migration direction:
+Storage has one green cell per requested migration direction:
 
 | Test | Route |
 |---|---|
@@ -48,7 +50,17 @@ Storage currently has one green cell per requested migration direction:
 | `TestSockerless_E2E_GCSFrontendToAzureBlobBackend` | GCS SDK -> GCS frontend -> Azure Blob backend -> sockerless Azure |
 | `TestSockerless_E2E_AzureBlobFrontendToAWSBackend` | Azure Blob SDK -> Azure Blob frontend -> AWS S3 backend -> sockerless AWS |
 
-[GitHub #24](https://github.com/e6qu/shimanism/issues/24) tracks expanding this same route shape to secrets, queue, pubsub, rdbms, cache, functions, and apigateway.
+The same through-shim route is now covered for every service family:
+
+| Test | Route |
+|---|---|
+| `TestSockerless_AWSSecretsFrontendToGCPBackend_RoundTrip` | AWS Secrets Manager SDK -> Secrets Manager frontend -> GCP Secret Manager backend -> sockerless GCP |
+| `TestSockerless_AWSSQSFrontendToGCPBackend_MessageRoundTrip` | AWS SQS SDK -> SQS frontend -> GCP Pub/Sub queue backend -> sockerless GCP |
+| `TestSockerless_AWSSNSFrontendToGCPBackend_Fanout` | AWS SNS/SQS SDKs -> SNS/SQS frontends -> GCP Pub/Sub backend -> sockerless GCP |
+| `TestSockerless_AWSRDSFrontendToGCPBackend_CRUD` | AWS RDS SDK -> RDS frontend -> GCP Cloud SQL backend -> sockerless GCP |
+| `TestSockerless_AWSElastiCacheFrontendToGCPBackend_CRUD` | AWS ElastiCache SDK -> ElastiCache frontend -> GCP Memorystore backend -> sockerless GCP |
+| `TestSockerless_AWSLambdaFrontendToAWSBackend_CRUD` | AWS Lambda SDK -> Lambda frontend -> AWS Lambda backend -> sockerless AWS |
+| `TestSockerless_AWSAPIGatewayFrontendToGCPBackend_CRUD` | AWS API Gateway v2 SDK -> API Gateway frontend -> GCP API Gateway backend -> sockerless GCP |
 
 ## Running the lane locally
 
@@ -65,8 +77,8 @@ The script:
 
 1. Builds the AWS + GCP + Azure simulator binaries with `-tags noui` (no UI dist required).
 2. Generates a self-signed RSA-2048 cert in `/tmp/sockerless-tls/`. The aws-sdk-go-v2 SDK refuses to send streaming-signed payloads over plain HTTP, so the AWS sim runs under TLS.
-3. Starts the sims on test-only ports (`:14566` AWS, `:14567` GCP, `:14568` Azure).
-4. Runs `go test -run '^TestSockerless_'` in the storage, secrets, queue, pubsub, and apigateway conformance packages with the right env vars to point the shim's backends at the sims.
+3. Starts the sims on test-only ports (`:14566` AWS, `:14567` GCP, `:14569` Azure).
+4. Runs `go test -run '^TestSockerless_'` in the storage, secrets, queue, pubsub, rdbms, cache, functions, and apigateway conformance packages with the right env vars to point the shim's backends at the sims.
 5. Tears the sims down on exit.
 
 ## Sockerless issues filed upstream
@@ -99,7 +111,7 @@ The script:
 | [#213-215](https://github.com/e6qu/sockerless/issues/213) | ✅ closed by PR #216 — Azure Tags API, Service Bus authorizationRules, AWS IAM/API Gateway v1 gaps. |
 | [#218](https://github.com/e6qu/sockerless/issues/218) | ✅ closed by PR #219 — GCP Secret Manager ListSecretVersions, UpdateSecret, and DeleteSecret handlers. |
 
-As of the `phase-181-e2e-docs-and-shims` verification run, `make sockerless` passed all current shim lanes, including the full GCP Secret Manager lifecycle/versioning lane that had been blocked by [#218](https://github.com/e6qu/sockerless/issues/218) and the three storage through-shim cross-cloud E2E cells.
+As of the `phase-183-sockerless-all-services` verification run, `make sockerless` passed all current shim lanes, including the full GCP Secret Manager lifecycle/versioning lane that had been blocked by [#218](https://github.com/e6qu/sockerless/issues/218), the three storage through-shim cross-cloud E2E cells, and the new all-service-family through-shim cells tracked by [shimanism#24](https://github.com/e6qu/shimanism/issues/24).
 
 ## Extending to a new service
 

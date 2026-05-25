@@ -1,6 +1,6 @@
 # Known Bugs
 
-**29 filed · 25 fixed · 3 open · 1 false positive. Upstream sockerless audit issues through #218 are closed as of sockerless PR #219. No upstream sockerless blocker is open at this checkpoint.**
+**29 filed · 26 fixed · 2 open · 1 false positive. Upstream sockerless audit issues through #218 are closed as of sockerless PR #219. No upstream sockerless blocker is open at this checkpoint.**
 
 Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLAN.md](PLAN.md) · narrative [WHAT_WE_DID.md](WHAT_WE_DID.md) · rules [AGENTS.md](AGENTS.md).
 
@@ -19,7 +19,6 @@ Sockerless now simulates the relevant GCP API Gateway and Pub/Sub backend surfac
 |----|-----|------|------------|-----------|-------|
 | BUG-8 | P3 | apigateway/gcp-tf-frontend | `hashicorp/google` | API Gateway endpoint-override attribute name changed across provider major versions and the current provider's API Gateway resource lifecycle requires real OAuth-signed requests the mock httptest server can't sign. `services/apigateway/conformance/gcp_terraform_test.go` is smoke-skipped pending Track A real-cloud TF coverage. The sockerless GCP APIGW backend lane passes; this is now only the Terraform-provider leg. | **14.D** |
 | BUG-15 | P3 | queue/gcp-frontend | GCP Pub/Sub `subscriptions.get` | `message_retention_duration = "604800s"` declared in HCL and the shim responding "604800s" at every call, hashicorp/google records `"345600s"` in state. Plan after apply diffs `"345600s" -> "604800s"`. Shim's backend retention PATCH/read path now passes against sockerless; the open question is whether the provider shows the same state drift against real GCP or the shim frontend still misses a provider-needed field. | **14.D** |
-| BUG-24 | P2 | sockerless/conformance | Multi-service E2E | [GitHub #24](https://github.com/e6qu/shimanism/issues/24): after storage gets through-shim sockerless E2E cells, the same source-client → shim frontend → shim backend → sockerless pattern still needs expansion across secrets, queue, pubsub, rdbms, cache, functions, and apigateway. | **14.B** |
 
 ## Upstream-tracked (sockerless validation lane)
 
@@ -116,6 +115,7 @@ When a new bug fits one of these, tag it with the rule.
 
 | ID | Sev | Area | Closed in | One-liner |
 |---|---|---|---|---|
+| 24 | P2 | sockerless/conformance | Phase 14 | [GitHub #24](https://github.com/e6qu/shimanism/issues/24): the sockerless lane now covers every service family with source SDK → shim frontend → shim backend → sockerless simulator E2E cells, and CI runs the expanded lane. |
 | 29 | P2 | storage/gcs-frontend | Phase 14 | [GitHub #29](https://github.com/e6qu/shimanism/issues/29): GCS frontend now serves the JSON API `managedFolders.list` route with an empty `storage#managedFolders` collection, so `gcloud storage rm --recursive gs://bucket` can finish cleanup instead of failing on a route miss. |
 | 28 | P2 | storage/aws-backend | Phase 14 | [GitHub #28](https://github.com/e6qu/shimanism/issues/28): AWS S3 backend now spools frontend upload streams into seekable temporary bodies before `PutObject` / `UploadPart`, so the official AWS SDK can perform HTTP endpoint payload signing/checksum/retry behavior without rejecting non-seekable request bodies. |
 | 27 | P2 | storage/gcs-frontend | Phase 14 | [GitHub #27](https://github.com/e6qu/shimanism/issues/27): GCS object metadata now includes concrete JSON API `mediaLink` / `selfLink` values and the frontend serves `/download/storage/v1/b/{bucket}/o/{object}`, so `gcloud storage cp` object download no longer crashes while building the apitools transfer URL. |

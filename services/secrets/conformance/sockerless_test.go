@@ -22,6 +22,7 @@ import (
 	awssm "github.com/aws/aws-sdk-go-v2/service/secretsmanager"
 	"google.golang.org/api/option"
 
+	"github.com/e6qu/shimanism/internal/harness"
 	"github.com/e6qu/shimanism/internal/secrets/domain"
 	awsbackend "github.com/e6qu/shimanism/services/secrets/backends/aws"
 	azurebackend "github.com/e6qu/shimanism/services/secrets/backends/azure"
@@ -235,6 +236,80 @@ func TestSockerless_GCPSecretManager_RoundTrip(t *testing.T) {
 	}
 	if !found {
 		t.Errorf("ListSecrets did not contain %q", name)
+	}
+}
+
+// TestSockerless_AWSSecretsFrontendToGCPBackend_RoundTrip drives the
+// full through-shim E2E path for secrets:
+// aws-sdk-go-v2 Secrets Manager client → AWS-shaped shim frontend →
+// GCP Secret Manager backend → sockerless GCP simulator.
+func TestSockerless_AWSSecretsFrontendToGCPBackend_RoundTrip(t *testing.T) {
+	endpoint := os.Getenv("SOCKERLESS_GCP_ENDPOINT")
+	if endpoint == "" {
+		t.Skip("SOCKERLESS_GCP_ENDPOINT not set")
+	}
+	ctx := context.Background()
+	c, err := gcpsm.NewRESTClient(ctx,
+		option.WithEndpoint("http://"+endpoint+"/"),
+		option.WithoutAuthentication(),
+	)
+	if err != nil {
+		t.Fatalf("gcp secretmanager client: %v", err)
+	}
+	t.Cleanup(func() { _ = c.Close() })
+
+	project := os.Getenv("SOCKERLESS_GCP_PROJECT")
+	if project == "" {
+		project = "shim-sockerless"
+	}
+	backend := gcpbackend.New(c, gcpbackend.Config{ProjectID: project})
+	srv := harness.StartSecretsServerAWS(t, backend)
+	cli := newAWSSecretsManagerClient(t, srv.URL)
+
+	name := "shim-sk-xsec-" + randomHex(8)
+	create, err := cli.CreateSecret(ctx, &awssm.CreateSecretInput{
+		Name:         awsapi.String(name),
+		SecretString: awsapi.String("through-shim-v1"),
+		Description:  awsapi.String("through-shim sockerless secret"),
+	})
+	if err != nil {
+		t.Fatalf("CreateSecret through shim: %v", err)
+	}
+	if awsapi.ToString(create.Name) != name {
+		t.Errorf("CreateSecret.Name = %q, want %q", awsapi.ToString(create.Name), name)
+	}
+	t.Cleanup(func() {
+		_, _ = cli.DeleteSecret(ctx, &awssm.DeleteSecretInput{
+			SecretId:                   awsapi.String(name),
+			ForceDeleteWithoutRecovery: awsapi.Bool(true),
+		})
+	})
+
+	if _, err := cli.PutSecretValue(ctx, &awssm.PutSecretValueInput{
+		SecretId:     awsapi.String(name),
+		SecretString: awsapi.String("through-shim-v2"),
+	}); err != nil {
+		t.Fatalf("PutSecretValue through shim: %v", err)
+	}
+
+	got, err := cli.GetSecretValue(ctx, &awssm.GetSecretValueInput{
+		SecretId: awsapi.String(name),
+	})
+	if err != nil {
+		t.Fatalf("GetSecretValue through shim: %v", err)
+	}
+	if awsapi.ToString(got.SecretString) != "through-shim-v2" {
+		t.Errorf("SecretString = %q, want through-shim-v2", awsapi.ToString(got.SecretString))
+	}
+
+	desc, err := cli.DescribeSecret(ctx, &awssm.DescribeSecretInput{
+		SecretId: awsapi.String(name),
+	})
+	if err != nil {
+		t.Fatalf("DescribeSecret through shim: %v", err)
+	}
+	if awsapi.ToString(desc.Name) != name {
+		t.Errorf("DescribeSecret.Name = %q, want %q", awsapi.ToString(desc.Name), name)
 	}
 }
 

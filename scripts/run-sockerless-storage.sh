@@ -14,7 +14,7 @@
 #      (Sockerless serves HTTP by default; the aws-sdk-go-v2 SDK
 #      refuses streaming-signed payloads over plain HTTP.)
 #   3. Starts the sims on test-only ports (:14566 AWS over TLS,
-#      :14567 GCP).
+#      :14567 GCP, :14569 Azure over TLS).
 #   4. Runs the sockerless-tagged Go tests with env vars that point
 #      the shim's frontends and backends at the sims.
 #   5. Tears the sims down on exit.
@@ -115,7 +115,7 @@ AZURE_PID=$!
 # is plenty on local; CI can override via SOCKERLESS_STARTUP_DELAY.
 sleep "${SOCKERLESS_STARTUP_DELAY:-1}"
 
-echo "run: shim sockerless lane (storage + secrets + queue + pubsub + apigateway)"
+echo "run: shim sockerless lane (storage + secrets + queue + pubsub + rdbms + cache + functions + apigateway)"
 SOCKERLESS_AWS_ENDPOINT="https://localhost:$AWS_PORT" \
 SOCKERLESS_GCP_ENDPOINT="localhost:$GCP_PORT" \
 SOCKERLESS_AWS_SM_ENDPOINT="https://localhost:$AWS_PORT" \
@@ -128,4 +128,7 @@ go test -run '^TestSockerless_' -count=1 -v \
     ./services/secrets/conformance/... \
     ./services/queue/conformance/... \
     ./services/pubsub/conformance/... \
+    ./services/rdbms/conformance/... \
+    ./services/cache/conformance/... \
+    ./services/functions/conformance/... \
     ./services/apigateway/conformance/...
