@@ -26,7 +26,8 @@ The same property makes sockerless the right vehicle for two things Phase 14 car
 | GCP API Gateway (`services/apigateway/backends/gcp`) | Full LRO-style CRUD — CreateGateway (with routes) → DescribeGateway → ListGateways → DeleteGateway | sockerless#177 + #181-188 closed; **SDK leg of BUG-8 cleared**. |
 | Azure Blob (`services/storage/backends/azureblob`) | Full round-trip — CreateBucket → PutObject → HeadObject → GetObject → DeleteObject → DeleteBucket | Uses host-based dispatch plus localhost DialContext rewrite; path-style support was fixed upstream too. |
 | Azure Key Vault (`services/secrets/backends/azurekv`) | Full secret round-trip — CreateSecret → GetSecretValue → DeleteSecret | KV challenge flow + version listing fixed upstream by PRs #202/#211. |
-| GCP Secret Manager, Cloud SQL, Memorystore | Sims work; lanes not yet added | 14.B follow-on. |
+| GCP Secret Manager | Blocked | [sockerless#218](https://github.com/e6qu/sockerless/issues/218): missing `ListSecretVersions`, `UpdateSecret`, and `DeleteSecret`; add only after upstream fix. |
+| GCP Cloud SQL, Memorystore | Sims work; lanes not yet added | 14.B follow-on. |
 | Azure Service Bus, PG FlexibleServer, Cache Redis, APIM | Sims work; lanes not yet added | 14.B follow-on. |
 | AWS SNS, RDS, ElastiCache, API Gateway v1+v2 | Sims work; lanes not yet added | 14.B follow-on. |
 | AWS Lambda, GCP Cloud Run + Cloud Functions, Azure Container Apps + Functions Sites | Sims work; lanes not yet added | 14.B follow-on. |
@@ -79,7 +80,7 @@ The script:
 | [#203-210](https://github.com/e6qu/sockerless/issues/203) | ✅ closed by PR #211 plus PR #216 follow-ups after reopens — KV versions, APIGW routing, Azure Functions config, AWS/GCP/Azure deeper Terraform-provider surfaces. |
 | [#213-215](https://github.com/e6qu/sockerless/issues/213) | ✅ closed by PR #216 — Azure Tags API, Service Bus authorizationRules, AWS IAM/API Gateway v1 gaps. |
 
-As of the PR #216 verification run, `gh issue list --repo e6qu/sockerless --state open` returned no open issues and `make sockerless-storage` passed all current shim lanes.
+As of the PR #216 verification run, `make sockerless-storage` passed all current shim lanes. The next attempted lane filed [#218](https://github.com/e6qu/sockerless/issues/218); it is not worked around in the shim.
 
 ## Extending to a new service
 

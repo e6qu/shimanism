@@ -215,7 +215,9 @@ Phase 12 ships `TestCrossCloudApply_Roundtrip_<svc>_<cell>` for one cell per ser
 | [#187](https://github.com/e6qu/sockerless/issues/187) — GCP Cloud SQL relative `selfLink` | TF state with unfollowable selfLink. |
 | [#188](https://github.com/e6qu/sockerless/issues/188) — GCP Secret Manager `versions/latest` not resolved | Version-tracking flows. |
 
-**Later audit rounds — closed by sockerless PRs #192, #200, #202, #211, and #216.** Follow-up probes filed #189-191, #193-199, #201, #203-210, and #213-215. The final open set (#209, #210, #213, #214, #215) closed in PR #216. As of 2026-05-25, no sockerless issue is open and the current shim lane passes against sockerless `9620a53`.
+**Later audit rounds — closed by sockerless PRs #192, #200, #202, #211, and #216.** Follow-up probes filed #189-191, #193-199, #201, #203-210, and #213-215. The final open set (#209, #210, #213, #214, #215) closed in PR #216. As of 2026-05-25, the current shim lane passes against sockerless `9620a53`.
+
+**Next-lane blocker.** Attempting the GCP Secret Manager backend lane found [sockerless#218](https://github.com/e6qu/sockerless/issues/218): the simulator lacks `ListSecretVersions`, `UpdateSecret`, and `DeleteSecret`. The shim does not carry a workaround; the full lane waits for the upstream fix.
 
 ### Why sockerless for cross-cloud + Terraform-provider validation
 
@@ -227,7 +229,7 @@ Phase 12 ships `TestCrossCloudApply_Roundtrip_<svc>_<cell>` for one cell per ser
 | Track | What | Dependency | Status |
 |---|---|---|---|
 | 14.A | Re-enable shim assertions as sockerless fidelity bugs close. Three sub-items, one per sockerless#173/174/175. | sockerless#173-175 closing | ✅ landed (sockerless PR #179) |
-| 14.B | Add new sockerless service lanes as sockerless missing-service + fidelity issues close. | sockerless#176-215 audit chain closed through PR #216 | ◐ — current 9-test lane green; additional service lanes optional follow-on |
+| 14.B | Add new sockerless service lanes as sockerless missing-service + fidelity issues close. | sockerless#176-215 audit chain closed through PR #216; GCP Secret Manager waits on #218 | ◐ — current 9-test lane green; next attempted lane blocked upstream |
 | 14.C | Full handler migrations for the 9 frontends that landed only as blank-import in Phase 13: `azure_blob` (69 ops; Service-Bus hybrid pattern), `azure_apim` (waits for upstream spec to broaden), 7 GCP frontends (cosmetic). | — (independent of sockerless) | ◻ |
 | 14.D | Fidelity audit against sockerless's new services + file per-bug issues. Real-cloud Track A residual for whatever sockerless can't cover (e.g. real signed-credentials conformance and the remaining Terraform-provider legs of BUG-8/BUG-15). | — | ✅ simulator audit done through PR #216; real-cloud residual ◻ |
 | 14.E | Cross-cloud Apply matrix expansion per [13.E above](#13e--cross-cloud-apply-matrix-expansion-deferred-to-phase-14) — driven by sockerless lanes from 14.B. | 14.B in progress | ◻ optional, demand-driven |

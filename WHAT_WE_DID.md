@@ -18,6 +18,14 @@ Branched from `main` at `3cf9e13` (PR #20 merged) on 2026-05-24. The branch alre
 
 The extra sockerless issues surfaced after the original round-3 commit were: #193-199, #201, #203-210, and #213-215. The important lesson was the same as the earlier audit: a green simulator PR still needs post-merge probes because several fixes were partial on first landing (#190, #193, #196, #209, #210). The final PR #216 closed the last five open items (#209, #210, #213, #214, #215).
 
+**Next-lane probe: GCP Secret Manager blocked upstream.** The next planned 14.B lane was `services/secrets/backends/gcp` against sockerless using the official `cloud.google.com/go/secretmanager/apiv1` REST client. The full domain lifecycle must include CreateSecret, PutSecretValue, HeadSecret, GetSecretValue(latest + explicit version), ListVersions, ListSecrets, UpdateSecret, and DeleteSecret. The probe found sockerless supports create/add/access but misses:
+
+- `GET /v1/projects/{project}/secrets/{secret}/versions` (`ListSecretVersions`) — backend `ListVersions` returns `NoSuchSecret`.
+- `PATCH /v1/projects/{project}/secrets/{secret}?updateMask=labels` (`UpdateSecret`).
+- `DELETE /v1/projects/{project}/secrets/{secret}` (`DeleteSecret`).
+
+Filed [e6qu/sockerless#218](https://github.com/e6qu/sockerless/issues/218) with curl reproduction and expected REST contracts. No local simulator patch or shim workaround is carried; add the real lane only after upstream closes #218.
+
 **14.A — sockerless round-1 fixes landed.** While Phase 14's continuity docs landed on PR #20, the user shepherded sockerless PR #179 (their "Phase 173" umbrella) closing all six of our round-1 issues (#173 S3 prefix, #174 aws-chunked envelope, #175 missing ListSecretVersionIds, #176/#177/#178 missing AWS/GCP/Azure services). With the simulators rebuilt:
 
 - Dropped the `/s3` URL workaround from `scripts/run-sockerless-storage.sh` + the test-file comment.

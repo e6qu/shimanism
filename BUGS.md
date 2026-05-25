@@ -1,6 +1,6 @@
 # Known Bugs
 
-**20 filed · 18 fixed · 2 open · 1 false positive. Upstream sockerless audit issues through #215 are closed as of sockerless PR #216; no upstream sockerless issue currently blocks the shim lane.**
+**20 filed · 18 fixed · 2 open · 1 false positive. Upstream sockerless audit issues through #215 are closed as of sockerless PR #216. New upstream blocker for the next lane: sockerless#218.**
 
 Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLAN.md](PLAN.md) · narrative [WHAT_WE_DID.md](WHAT_WE_DID.md) · rules [AGENTS.md](AGENTS.md).
 
@@ -87,7 +87,8 @@ Phase 14.A re-enabled the shim assertions for #173/#174/#175 (storage + secrets 
 - **Round 1** ([#173-178](https://github.com/e6qu/sockerless/issues/173)) — all closed by sockerless PR #179. Initial fidelity gaps (S3 `/s3/` URL prefix, `aws-chunked` envelope, missing `ListSecretVersionIds`) + missing-service rollups (AWS / GCP / Azure).
 - **Round 2** ([#181-188](https://github.com/e6qu/sockerless/issues/181)) — all closed by sockerless PR #180. Per-service fidelity drift across SQS / Pub/Sub / Secret Manager / Cloud SQL / KV / Redis ARM.
 - **Round 3** ([#189-191](https://github.com/e6qu/sockerless/issues/189)) — closed by sockerless PR #192 plus the later #190 reopen closure.
-- **Later rounds** ([#193-215](https://github.com/e6qu/sockerless/issues/193), excluding unused issue numbers) — closed by sockerless PRs #200, #202, #211, and #216. Current shim lane is green; no upstream sockerless issue is open.
+- **Later rounds** ([#193-215](https://github.com/e6qu/sockerless/issues/193), excluding unused issue numbers) — closed by sockerless PRs #200, #202, #211, and #216. Current shim lane is green.
+- **Next-lane blocker**: [#218](https://github.com/e6qu/sockerless/issues/218) — GCP Secret Manager missing `ListSecretVersions`, `UpdateSecret`, and `DeleteSecret` handlers. Blocks adding the full `services/secrets/backends/gcp` sockerless lane; no shim workaround.
 
 ## False positives
 
