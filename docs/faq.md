@@ -96,7 +96,7 @@ There's no Helm chart yet — that's planned.
 
 ## Is shimanism open source?
 
-AGPL-3.0. See [doc/COMPATIBLE_LICENSES.md](../doc/COMPATIBLE_LICENSES.md) for the dependency policy.
+AGPL-3.0. See [docs/compatible-licenses.md](../docs/compatible-licenses.md) for the dependency policy.
 
 ## Where do I report bugs?
 

@@ -1,4 +1,4 @@
-// Sockerless lane for the cache service. See doc/SOCKERLESS_VALIDATION.md.
+// Sockerless lane for the cache service. See docs/sockerless-validation.md.
 package conformance_test
 
 import (

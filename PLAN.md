@@ -24,7 +24,7 @@ State [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md
 |---|----------|-------|
 | 1 | Implementation language | **Go** |
 | 2 | Spec sources | Pull upstream, never fork: AWS Smithy from `aws/aws-sdk-go-v2`; GCP Discovery JSON live + protobuf from `googleapis/googleapis`; Azure OpenAPI v2/v3 from `Azure/azure-rest-api-specs`. |
-| 3 | Codegen | Three lanes: `cmd/codegen` (AWS Smithy), `cmd/azure-codegen` (Azure OpenAPI v2 via 8-stage preprocessor + `kin-openapi`/`oapi-codegen`), `cmd/gcp-codegen` (Discovery routing-only). Hand-written code restricted to per-operation `translate.go` files + per-frontend adapters. See [doc/CODEGEN.md](doc/CODEGEN.md). |
+| 3 | Codegen | Three lanes: `cmd/codegen` (AWS Smithy), `cmd/azure-codegen` (Azure OpenAPI v2 via 8-stage preprocessor + `kin-openapi`/`oapi-codegen`), `cmd/gcp-codegen` (Discovery routing-only). Hand-written code restricted to per-operation `translate.go` files + per-frontend adapters. See [docs/codegen-pipelines.md](docs/codegen-pipelines.md). |
 | 4 | Backend abstraction | Per-service `Backend` interface in domain terms. No premature cross-service generalization. |
 | 5 | Test fidelity rings | Per-PR: recorded + unit. Nightly: live cloud accounts (Track A). |
 | 6 | Deployment | Single Go binary + Helm chart. SaaS deferred. |
@@ -35,8 +35,8 @@ State [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md
 | 11 | **Reuse-over-reinvention** | Lean on cloud's official spec + Go SDK whenever they fit. Each frontend's wire layer is generated from the cloud's canonical spec; auth verification uses the cloud's own building blocks. See [AGENTS.md § Reuse over reinvention](AGENTS.md#reuse-over-reinvention). |
 | 12 | **Stateless shim** | No sidecar database, no shim-managed key/value namespace, no in-process cache treated as authoritative. Cross-cloud mappings derive at request time. See [AGENTS.md § The shim is stateless](AGENTS.md#the-shim-is-stateless). |
 | 13 | **In-tree K8s peer when OSS doesn't fit** | Third-party OSS first; otherwise [`peers/shimakit/`](peers/shimakit/) → concrete `shima<service>` peers. Each is its own Go module. |
-| 14 | **Vendored-spec provenance** | Every spec under `services/*/spec/` + `services/common-types/` carries a `_provenance` top-level key derived from SOURCES.md. `cmd/inject-provenance` + CI guards enforce. See [doc/CODEGEN.md § Vendored-spec provenance](doc/CODEGEN.md#vendored-spec-provenance). |
-| 15 | **Signature verification at decode boundary** | Per-cloud verifiers under `internal/{sigv4verifier,gcpbearer,azurebearer,azuresharedkey}/`. Test mode uses HS256 with a project-owned key; production uses real-cloud JWKS (Phase 13.C). See [doc/VERIFIERS.md](doc/VERIFIERS.md). |
+| 14 | **Vendored-spec provenance** | Every spec under `services/*/spec/` + `services/common-types/` carries a `_provenance` top-level key derived from SOURCES.md. `cmd/inject-provenance` + CI guards enforce. See [docs/codegen-pipelines.md § Vendored-spec provenance](docs/codegen-pipelines.md#vendored-spec-provenance). |
+| 15 | **Signature verification at decode boundary** | Per-cloud verifiers under `internal/{sigv4verifier,gcpbearer,azurebearer,azuresharedkey}/`. Test mode uses HS256 with a project-owned key; production uses real-cloud JWKS (Phase 13.C). See [docs/verifiers.md](docs/verifiers.md). |
 
 ## Service phases 1–8 (all closed)
 
@@ -64,7 +64,7 @@ Per-service detail in `services/<svc>/` (`INTERSECTION.md`, `APPLY_INTERSECTION.
 | 11 | **Tighten the wire boundary.** Spec-driven codegen + BUG-18 signature verification at every decode boundary. 24/24 frontends verifier-wrapped. All 8 AWS frontends spec-driven (Smithy → REST-XML / awsJson1_0 / awsJson1_1 / awsQuery / restJson1). Azure oapi-codegen pilot (KeyVault). Three deferrals → Phase 12. | ✅ PR #18 |
 | 12 | **Spec-driven toolchain landing.** 8/8 Azure specs codegen + 8/8 GCP route inventories with `Match()`/`MatchAll()`. 8-stage Azure preprocessor (incl. `flattenARMAllOf` closing BUG-20). Vendored-spec `_provenance` + spec-freshness lane. Per-service Terraform walkthroughs. `azure_keyvault` is the reference adapter; the other 7 Azure + 8 GCP frontends keep hand-written dispatch on top of the gen inventory (drift contract). | ✅ PR #19 |
 
-Verifier architecture, GCP REST/gRPC reconciliation, and per-cloud auth design notes are in [doc/VERIFIERS.md](doc/VERIFIERS.md). Codegen pipeline architecture is in [doc/CODEGEN.md](doc/CODEGEN.md).
+Verifier architecture, GCP REST/gRPC reconciliation, and per-cloud auth design notes are in [docs/verifiers.md](docs/verifiers.md). Codegen pipeline architecture is in [docs/codegen-pipelines.md](docs/codegen-pipelines.md).
 
 ## Phase 13 — Full adapter migration + production auth + real-cloud Track A
 
@@ -81,7 +81,7 @@ Phase 12 lands the spec-driven *toolchain*. Phase 13 turns the remaining hand-wr
 | 13.A | Azure adapter migration — every Azure frontend dispatches through `gen.ServerInterface` + `gen.HandlerWithOptions`. | Phase 11.4 + 11.7b + 12.A.14 | 5/7 full + 2/7 blank-import |
 | 13.B | GCP adapter migration — every GCP frontend dispatches via `gen.gcp.Match()` / `MatchAll()`. | Phase 11.5 + 11.7b | 1/8 full + 7/8 blank-import |
 | 13.C | Production RS256 JWKS — wire real Google + Microsoft Entra JWKS. | Phase 11 follow-on + Phase 12.C | ✅ landed |
-| 13.D | Sockerless storage lane (13.D.1) + real-cloud Track A residual (13.D.2). | BUGS.md, [doc/SOCKERLESS_VALIDATION.md](doc/SOCKERLESS_VALIDATION.md) | 13.D.1 ✅; residual moved to Phase 14.D |
+| 13.D | Sockerless storage lane (13.D.1) + real-cloud Track A residual (13.D.2). | BUGS.md, [docs/sockerless-validation.md](docs/sockerless-validation.md) | 13.D.1 ✅; residual moved to Phase 14.D |
 | 13.E | Cross-cloud Apply matrix expansion — additional source/destination cells per service beyond the AWS→K8s-peer baseline already in CI. | Phase 12.1–12.8 | moved to Phase 14.E |
 
 ### 13.A — Azure adapter migration
@@ -146,7 +146,7 @@ Phase 12 lands the spec-driven *toolchain*. Phase 13 turns the remaining hand-wr
 
 ### 13.C — Production RS256 JWKS
 
-Wire the real Microsoft Entra + Google JWKS paths. Touches `internal/azurebearer/` + `internal/gcpbearer/`. Test-mode HS256 stays the default; deployment-time config selects which path is active. See [doc/VERIFIERS.md § Production deployment path](doc/VERIFIERS.md#production-deployment-path-phase-13c).
+Wire the real Microsoft Entra + Google JWKS paths. Touches `internal/azurebearer/` + `internal/gcpbearer/`. Test-mode HS256 stays the default; deployment-time config selects which path is active. See [docs/verifiers.md § Production deployment path](docs/verifiers.md#production-deployment-path-phase-13c).
 
 **Validation:** add `TestAzureBearer_RealJWKS_*` / `TestGCPBearer_RealJWKS_*` that mock the JWKS endpoint (the real production paths can't be exercised without a real Entra tenant / Google project — those are Track A).
 
@@ -160,7 +160,7 @@ Two slices.
 - [e6qu/sockerless#174](https://github.com/e6qu/sockerless/issues/174) — AWS S3 sim persists the SDK's `aws-chunked` envelope verbatim. Blocks PutObject/GetObject in the storage lane.
 - [e6qu/sockerless#175](https://github.com/e6qu/sockerless/issues/175) — AWS Secrets Manager sim is missing `ListSecretVersionIds`. Blocks HeadSecret + GetSecretValue (both call into the version-ID mapping path) in the secrets lane.
 
-Azure Blob isn't simulated by sockerless (only Azure Files); 13.D.1 covers AWS S3 + GCS + AWS Secrets Manager. See [doc/SOCKERLESS_VALIDATION.md](doc/SOCKERLESS_VALIDATION.md).
+Azure Blob isn't simulated by sockerless (only Azure Files); 13.D.1 covers AWS S3 + GCS + AWS Secrets Manager. See [docs/sockerless-validation.md](docs/sockerless-validation.md).
 
 **13.D.2 — Real-cloud Track A (pending).** Live AWS / GCP / Azure accounts. Closes:
 
@@ -236,7 +236,7 @@ Phase 12 ships `TestCrossCloudApply_Roundtrip_<svc>_<cell>` for one cell per ser
 
 ### Exit criteria
 
-- Every issue in sockerless#173-178 has been tracked to closure or to a documented re-deferral (with rationale recorded in [doc/SOCKERLESS_VALIDATION.md](doc/SOCKERLESS_VALIDATION.md)).
+- Every issue in sockerless#173-178 has been tracked to closure or to a documented re-deferral (with rationale recorded in [docs/sockerless-validation.md](docs/sockerless-validation.md)).
 - Every Phase-13-deferred handler migration (13.A.6, 13.A.7, 13.B.2-8) has either fully migrated or been documented as a permanent blank-import contract (with rationale).
 - BUG-8 and BUG-15 are closed or have a documented absorbed-into-future-phase status.
 - The sockerless validation lane covers ≥ 1 cell per shimmed service (storage, secrets, functions, queue, pubsub, rdbms, cache, apigateway) for at least one of the three clouds.

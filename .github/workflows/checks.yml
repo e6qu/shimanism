@@ -516,7 +516,7 @@ jobs:
       - name: Install go-licenses
         run: go install github.com/google/go-licenses@latest
       - name: Verify every dependency carries an allowlisted license
-        # Allowlist mirrors doc/COMPATIBLE_LICENSES.md and Makefile's
+        # Allowlist mirrors docs/compatible-licenses.md and Makefile's
         # LICENSE_ALLOWLIST. Update all three together.
         run: |
           go-licenses check --include_tests \

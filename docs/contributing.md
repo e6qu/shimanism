@@ -101,7 +101,7 @@ The repo follows an explicit "ask the user" preference over silent deferral. Ope
 
 ## License
 
-shimanism is AGPL-3.0-only. Every dependency we link must carry a license on the allowlist in [`doc/COMPATIBLE_LICENSES.md`](../doc/COMPATIBLE_LICENSES.md). When in doubt, **check first, add second.** See [`doc/DEPENDENCY_POLICY.md`](../doc/DEPENDENCY_POLICY.md) for the policy beyond legal compatibility.
+shimanism is AGPL-3.0-only. Every dependency we link must carry a license on the allowlist in [`docs/compatible-licenses.md`](../docs/compatible-licenses.md). When in doubt, **check first, add second.** See [`docs/dependency-policy.md`](../docs/dependency-policy.md) for the policy beyond legal compatibility.
 
 ## Cross-link
 

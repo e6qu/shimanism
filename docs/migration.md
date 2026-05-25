@@ -185,5 +185,5 @@ See [docs/comparison.md](comparison.md) for the longer-form comparison.
 - [docs/architecture.md](architecture.md) — the layered model that makes this approach work.
 - [docs/comparison.md](comparison.md) — how shimanism differs from related projects.
 - [docs/services.md](services.md) — per-service detail.
-- [doc/CROSS_CLOUD_ROUTING.md](../doc/CROSS_CLOUD_ROUTING.md) — wire-level walkthrough.
+- [docs/cross-cloud-routing.md](../docs/cross-cloud-routing.md) — wire-level walkthrough.
 - [PLAN.md](../PLAN.md) — roadmap and current-phase plan.

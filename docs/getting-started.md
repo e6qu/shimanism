@@ -100,5 +100,5 @@ The same bytes are now accessible via S3, GCS, and Azure Blob SDKs against three
 - **[End-to-end examples](end-to-end-examples.md)** — real backend, optional simulator, SDK, CLI, Terraform, and import-state examples.
 - **[Standalone sockerless examples](end-to-end-examples.md#optional-local-simulator-testing-with-sockerless)** — local AWS -> GCP, GCP -> Azure, and Azure -> AWS storage routes without real cloud accounts.
 - **[Service catalog](services.md)** — the other shimmed services and what each covers (per-service detail under [`docs/services/`](services/)).
-- **[Cross-cloud routing](../doc/CROSS_CLOUD_ROUTING.md)** — the migration story: how user A's AWS Terraform points at the shim and the bytes land on cloud B.
+- **[Cross-cloud routing](../docs/cross-cloud-routing.md)** — the migration story: how user A's AWS Terraform points at the shim and the bytes land on cloud B.
 - **[FAQ](faq.md)** — "but doesn't this break X?" — answered.

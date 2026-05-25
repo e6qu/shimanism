@@ -2,7 +2,7 @@
 
 Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BUGS.md) · philosophy [PHILOSOPHY.md](PHILOSOPHY.md).
 
-> Reverse chronological. One section per phase. The *why*, the surprises, the root causes — not per-PR detail. For commit-level history, `git log`. For per-bug detail, [BUGS.md](BUGS.md). For pipeline + verifier architecture, [doc/CODEGEN.md](doc/CODEGEN.md) + [doc/VERIFIERS.md](doc/VERIFIERS.md).
+> Reverse chronological. One section per phase. The *why*, the surprises, the root causes — not per-PR detail. For commit-level history, `git log`. For per-bug detail, [BUGS.md](BUGS.md). For pipeline + verifier architecture, [docs/codegen-pipelines.md](docs/codegen-pipelines.md) + [docs/verifiers.md](docs/verifiers.md).
 
 ## Phase 14 — In flight
 
@@ -100,7 +100,7 @@ Two additional shim-side observations:
 
 GCS was the clean lane — sockerless implements the full `/storage/v1/b/...` REST surface and the SDK's `STORAGE_EMULATOR_HOST` env driver does the right thing (`option.WithEndpoint` doesn't, because it doesn't reroute every API surface the SDK touches). Full CreateBucket → PutObject → GetObject → DeleteObject → DeleteBucket round-trip passes.
 
-The lane is opt-in via `make sockerless-storage`; CI's existing storage matrix stays inmem/minio. See [doc/SOCKERLESS_VALIDATION.md](doc/SOCKERLESS_VALIDATION.md) for the operational doc.
+The lane is opt-in via `make sockerless-storage`; CI's existing storage matrix stays inmem/minio. See [docs/sockerless-validation.md](docs/sockerless-validation.md) for the operational doc.
 
 **Explicit list of work deferred to follow-on PRs — bundled into Phase 14.** What this PR did *not* finish should be just as visible as what it did. All of these have been hoisted into a new Phase 14 in [PLAN.md](PLAN.md#phase-14--sockerless-verified-validation-lane--deferred-follow-ons) with explicit upstream-sockerless-issue dependencies per item.
 
@@ -124,7 +124,7 @@ The Phase 14 framing matters because it makes the *consumer* of sockerless's evo
 
 The toolchain phase. Phase 11 spec-drove all 8 AWS frontends + 24/24 frontends got signature verification. Phase 12 took the Azure + GCP lanes to the same place, with 82+ granular commits.
 
-**Track 2.A — Azure (8/8 specs codegen end-to-end).** `cmd/azure-codegen` runs an 8-stage preprocessor before `kin-openapi/openapi2conv.ToV3` + `oapi-codegen` (see [doc/CODEGEN.md](doc/CODEGEN.md) for the stage-by-stage table). Each preprocessor stage was driven by a real spec quirk:
+**Track 2.A — Azure (8/8 specs codegen end-to-end).** `cmd/azure-codegen` runs an 8-stage preprocessor before `kin-openapi/openapi2conv.ToV3` + `oapi-codegen` (see [docs/codegen-pipelines.md](docs/codegen-pipelines.md) for the stage-by-stage table). Each preprocessor stage was driven by a real spec quirk:
 
 - **Common-types inliner** (12.A.7/8/9/10) — Azure ARM specs `$ref` shared definitions in `common-types/resource-management/v<N>/<file>.json` by relative path; `kin-openapi`'s loader refuses external refs. The inliner merges every reachable common-types file's `definitions`/`parameters` into the main spec at the v2 layer. Vendored v1–v6 common-types, taught the inliner three relative-ref forms (full path, same-version sibling, cross-version sibling), the multi-file sibling case (`./<file>.json` resolving against the spec's own dir), and the `./examples/<file>` skip.
 - **`promoteXMsEnumName`** (12.A.12) — Azure spec authors use `x-ms-enum.name` to say "this inline enum IS the top-level enum of the same name." oapi-codegen ignores the extension; the inline schema gets a Go name from the property path which collides with the standalone definition. The preprocessor rewrites the inline to a `$ref` to the top-level.
@@ -157,7 +157,7 @@ Replace hand-written wire layers with spec-driven generated stubs across every A
 
 **8/8 AWS frontends migrated.** 3,853 LOC of hand-written wire deleted. Each migration follows the same pattern: per-service adapter implementing the generated `<Service>Backend` interface, translating each generated request type into the existing domain layer.
 
-**Signature verification — BUG-18 closed end-to-end.** Four verifier packages wrap all 24 frontends; per-cloud detail in [doc/VERIFIERS.md](doc/VERIFIERS.md). Each cloud needed a specific fix to make end-to-end signed conformance work: manual SigV4 in `canonical.go` accepting both Go-SDK and boto3 signing shapes (the SDK auto-includes `Content-Length` in `SignedHeaders`, boto3 doesn't — divergence broke verification); test JWT helpers per cloud emitting well-formed HS256 tokens the verifiers accept; `azuresharedkey` uses `EscapedPath()` to match azblob SDK canonicalisation. Also surfaced + fixed during the closer: awsQuery map-shape XML marshalling (`MarshalXML` per Smithy map type emitting `<entry><key>...</key><value>...</value></entry>`); SNS GetTopicAttributes empty Policy field rejected by hashicorp/aws's IAM-policy parser (now emits canonical default policy); SNS SetTopicAttributes unconditionally called for feedback-rate/role-ARN attributes terraform-provider-aws sets on every apply (now no-ops AWS-only attributes via explicit allowlist).
+**Signature verification — BUG-18 closed end-to-end.** Four verifier packages wrap all 24 frontends; per-cloud detail in [docs/verifiers.md](docs/verifiers.md). Each cloud needed a specific fix to make end-to-end signed conformance work: manual SigV4 in `canonical.go` accepting both Go-SDK and boto3 signing shapes (the SDK auto-includes `Content-Length` in `SignedHeaders`, boto3 doesn't — divergence broke verification); test JWT helpers per cloud emitting well-formed HS256 tokens the verifiers accept; `azuresharedkey` uses `EscapedPath()` to match azblob SDK canonicalisation. Also surfaced + fixed during the closer: awsQuery map-shape XML marshalling (`MarshalXML` per Smithy map type emitting `<entry><key>...</key><value>...</value></entry>`); SNS GetTopicAttributes empty Policy field rejected by hashicorp/aws's IAM-policy parser (now emits canonical default policy); SNS SetTopicAttributes unconditionally called for feedback-rate/role-ARN attributes terraform-provider-aws sets on every apply (now no-ops AWS-only attributes via explicit allowlist).
 
 **Azure oapi-codegen pilot (11.4).** Toolchain proof — vendor Azure Swagger 2.0, convert v2→v3 via `kin-openapi/openapi2conv`, run `oapi-codegen` as a library. `azure_keyvault`'s `SetSecret` decodes via `gen.SecretSetParameters`. Two upstream-tooling defects worked around inside the driver: `kin-openapi` attaches empty `AllOf: []` to scalar enum schemas (`normalizeAllOf` walks + nils); host-template `$ref` preservation (documented; not a blocker).
 

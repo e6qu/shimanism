@@ -49,5 +49,5 @@ Headline tests:
 ## Cross-link
 
 - Architecture: [docs/architecture.md](../architecture.md)
-- Cross-cloud migration: [doc/CROSS_CLOUD_ROUTING.md](../../doc/CROSS_CLOUD_ROUTING.md)
+- Cross-cloud migration: [docs/cross-cloud-routing.md](../../docs/cross-cloud-routing.md)
 - Per-service migration recipes: [services/storage/MIGRATION.md](../../services/storage/MIGRATION.md)

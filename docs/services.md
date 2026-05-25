@@ -33,7 +33,7 @@ The frontends and backends are independent. The shim binary instantiates one fro
 AWS-shape Terraform → shim (AWS S3 frontend + GCS backend) → real GCS
 ```
 
-See [docs/architecture.md](architecture.md) for the layered model and [doc/CROSS_CLOUD_ROUTING.md](../doc/CROSS_CLOUD_ROUTING.md) for the migration story.
+See [docs/architecture.md](architecture.md) for the layered model and [docs/cross-cloud-routing.md](../docs/cross-cloud-routing.md) for the migration story.
 
 ## Per-service file conventions
 

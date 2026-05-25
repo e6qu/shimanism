@@ -202,10 +202,10 @@ spec-freshness:
 	@bash scripts/check-spec-freshness.sh
 
 # Verify every linked Go dependency carries a license on the allowlist in
-# doc/COMPATIBLE_LICENSES.md. Uses Google's go-licenses tool. Installed on
+# docs/compatible-licenses.md. Uses Google's go-licenses tool. Installed on
 # demand if not present.
 #
-# Allowlist must stay in sync with doc/COMPATIBLE_LICENSES.md by hand —
+# Allowlist must stay in sync with docs/compatible-licenses.md by hand —
 # this list is what tooling reads; the doc is what humans read.
 LICENSE_ALLOWLIST := Apache-2.0,BSD-2-Clause,BSD-3-Clause,0BSD,ISC,MIT,MIT-0,MPL-2.0,LGPL-2.1-or-later,LGPL-3.0-or-later,GPL-2.0-or-later,GPL-3.0-or-later,GPL-3.0-only,GPL-3.0,AGPL-3.0-only,AGPL-3.0-or-later,AGPL-3.0,LGPL-2.1,LGPL-3.0,Unlicense,CC0-1.0,Zlib
 
@@ -228,7 +228,7 @@ license-check:
 
 # Sockerless validation lane. Opt-in; requires a local clone of
 # github.com/e6qu/sockerless (set SOCKERLESS_DIR to override the
-# default /tmp/sockerless). See doc/SOCKERLESS_VALIDATION.md and
+# default /tmp/sockerless). See docs/sockerless-validation.md and
 # scripts/run-sockerless-storage.sh for details.
 sockerless: sockerless-storage
 
