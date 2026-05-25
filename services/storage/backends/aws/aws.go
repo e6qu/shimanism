@@ -11,6 +11,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"os"
 	"strings"
 	"time"
 
@@ -202,10 +203,16 @@ func (b *Backend) GetObject(ctx context.Context, bucket, key string) (domain.Obj
 }
 
 func (b *Backend) PutObject(ctx context.Context, opt domain.PutObjectOptions) (domain.PutObjectResult, error) {
+	body, cleanup, err := seekableUploadBody(opt.Body)
+	if err != nil {
+		return domain.PutObjectResult{}, err
+	}
+	defer cleanup()
+
 	in := &awss3.PutObjectInput{
 		Bucket:   aws.String(opt.Bucket),
 		Key:      aws.String(opt.Key),
-		Body:     opt.Body,
+		Body:     body,
 		Metadata: opt.Metadata,
 	}
 	if opt.ContentType != "" {
@@ -291,12 +298,18 @@ func (b *Backend) CreateMultipartUpload(ctx context.Context, bucket, key, conten
 }
 
 func (b *Backend) UploadPart(ctx context.Context, bucket, key, uploadID string, partNumber int32, body io.Reader) (string, error) {
+	uploadBody, cleanup, err := seekableUploadBody(body)
+	if err != nil {
+		return "", err
+	}
+	defer cleanup()
+
 	out, err := b.c.UploadPart(ctx, &awss3.UploadPartInput{
 		Bucket:     aws.String(bucket),
 		Key:        aws.String(key),
 		UploadId:   aws.String(uploadID),
 		PartNumber: &partNumber,
-		Body:       body,
+		Body:       uploadBody,
 	})
 	if err != nil {
 		return "", translateErr(err)
@@ -373,7 +386,27 @@ func (b *Backend) ListParts(ctx context.Context, bucket, key, uploadID string) (
 	return res, nil
 }
 
-// silence unused import warnings until the strings helper is used
-// for richer error mapping (currently translateErr ignores resource
-// names since the AWS SDK error type doesn't carry them).
-var _ = strings.HasPrefix
+func seekableUploadBody(body io.Reader) (io.Reader, func(), error) {
+	if body == nil {
+		return strings.NewReader(""), func() {}, nil
+	}
+
+	f, err := os.CreateTemp("", "shimanism-aws-upload-*")
+	if err != nil {
+		return nil, nil, err
+	}
+	cleanup := func() {
+		name := f.Name()
+		_ = f.Close()
+		_ = os.Remove(name)
+	}
+	if _, err := io.Copy(f, body); err != nil {
+		cleanup()
+		return nil, nil, err
+	}
+	if _, err := f.Seek(0, io.SeekStart); err != nil {
+		cleanup()
+		return nil, nil, err
+	}
+	return f, cleanup, nil
+}

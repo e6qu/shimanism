@@ -4,6 +4,8 @@ shimanism's primary purpose: **reroute cloud services, one at a time**. Move one
 
 This document walks through what that looks like in practice.
 
+For copy-pasteable commands against real backends and local simulators, see the [complete end-to-end examples](end-to-end-examples.md). The [standalone sockerless section](end-to-end-examples.md#optional-local-simulator-testing-with-sockerless) shows AWS -> GCP, GCP -> Azure, and Azure -> AWS storage routes without using real cloud accounts.
+
 ## The classical migration problem
 
 You're on AWS. Your stack uses:

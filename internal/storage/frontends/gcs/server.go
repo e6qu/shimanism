@@ -28,6 +28,8 @@ func New(s domain.Storage) *Server { return &Server{s: s} }
 // endpoint override is set, but the bare `gcloud storage` CLI hits
 // the full `/storage/v1/...` path. Both shapes route the same way.
 var (
+	// .../download/storage/v1/b/{bucket}/o/{object}
+	reDownloadObject = regexp.MustCompile(`^/download(?:/storage/v1)?/b/([^/]+)/o/(.+)$`)
 	// .../b/{bucket}/o/{src}/rewriteTo/b/{dst}/o/{dstObj}
 	reRewriteTo = regexp.MustCompile(`^(?:/storage/v1)?/b/([^/]+)/o/(.+?)/rewriteTo/b/([^/]+)/o/(.+)$`)
 	// .../b/{bucket}/o/{src}/copyTo/b/{dst}/o/{dstObj}
@@ -38,6 +40,8 @@ var (
 	reBucketObjects = regexp.MustCompile(`^(?:/storage/v1)?/b/([^/]+)/o/?$`)
 	// .../b/{bucket}/storageLayout
 	reBucketStorageLayout = regexp.MustCompile(`^(?:/storage/v1)?/b/([^/]+)/storageLayout/?$`)
+	// .../b/{bucket}/managedFolders
+	reBucketManagedFolders = regexp.MustCompile(`^(?:/storage/v1)?/b/([^/]+)/managedFolders/?$`)
 	// .../b/{bucket}
 	reBucket = regexp.MustCompile(`^(?:/storage/v1)?/b/([^/]+)/?$`)
 	// .../b
@@ -61,6 +65,15 @@ func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			srv.uploadObject(w, r, m[1])
 			return
 		}
+	}
+
+	if m := reDownloadObject.FindStringSubmatch(path); m != nil {
+		if method == http.MethodGet {
+			srv.getObjectMedia(w, r, m[1], decodeObject(m[2]))
+			return
+		}
+		writeError(w, http.StatusMethodNotAllowed, "methodNotAllowed", method+" not allowed on media download")
+		return
 	}
 
 	if m := reRewriteTo.FindStringSubmatch(path); m != nil {
@@ -103,6 +116,14 @@ func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		writeError(w, http.StatusMethodNotAllowed, "methodNotAllowed", method+" not allowed on storageLayout")
+		return
+	}
+	if m := reBucketManagedFolders.FindStringSubmatch(path); m != nil {
+		if method == http.MethodGet {
+			srv.listManagedFolders(w, r, m[1])
+			return
+		}
+		writeError(w, http.StatusMethodNotAllowed, "methodNotAllowed", method+" not allowed on managedFolders")
 		return
 	}
 	if m := reBucket.FindStringSubmatch(path); m != nil {

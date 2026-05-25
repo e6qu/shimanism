@@ -45,20 +45,208 @@ The bucket is created in GCS. The client only used S3.
 
 shimanism is the system under test here: source-cloud clients call a shimanism frontend, and shimanism translates those calls to a destination backend. In production, that destination is usually a real cloud service or a real compatible backend such as MinIO, Vault, NATS, or a Kubernetes operator.
 
-For local testing, you can also run shimanism against [sockerless](https://github.com/e6qu/sockerless). Sockerless is a separate project that provides local AWS-, GCP-, and Azure-shaped simulator processes. Those simulators stand in for cloud control planes so the shimanism tests can exercise real SDK/CLI/Terraform client paths and real shimanism translation code without requiring cloud accounts or incurring cloud cost. It is a test target, not an application dependency.
+For local testing, you can also run shimanism against [sockerless](https://github.com/e6qu/sockerless). Sockerless is a separate project that provides local AWS-, GCP-, and Azure-shaped simulator processes. Those simulators stand in for cloud control planes so you can exercise real CLI, SDK, and Terraform client paths without requiring cloud accounts or incurring cloud cost. It is a test target, not an application dependency.
+
+The commands below are standalone examples. They start the simulator processes, start shimanism, and then drive shimanism with source-cloud CLIs. They do not rely on the Go unit-test harness.
+
+Prerequisites:
+
+- Go, `aws`, `gcloud`, and `az` installed.
+- A running container runtime for sockerless: Docker or Podman.
+- Free local ports `14566`, `14567`, `14569`, `19001`, `19002`, and `19003`.
+
+First, build shimanism and the three sockerless simulators:
 
 ```sh
+git clone https://github.com/e6qu/shimanism
+cd shimanism
+go build -o bin/shim ./cmd/shim
+
 git clone --depth=1 https://github.com/e6qu/sockerless.git /tmp/sockerless
-make sockerless
+
+SOCKERLESS_DIR=/tmp/sockerless
+(cd "$SOCKERLESS_DIR/simulators/aws" && GOWORK=off CGO_ENABLED=0 go build -tags noui -o simulator-aws .)
+(cd "$SOCKERLESS_DIR/simulators/gcp" && GOWORK=off CGO_ENABLED=0 go build -tags noui -o simulator-gcp .)
+(cd "$SOCKERLESS_DIR/simulators/azure" && GOWORK=off CGO_ENABLED=0 go build -tags noui -o simulator-azure .)
 ```
 
-The lane builds the AWS, GCP, and Azure sockerless simulator binaries, starts them on local ports, and runs every `TestSockerless_*` test. The storage package now includes through-shim cross-cloud cells:
+Start the simulators in one terminal:
 
-| Test | Route |
-|---|---|
-| `TestSockerless_E2E_AWSFrontendToGCSBackend` | AWS S3 SDK -> S3 frontend -> GCS backend -> sockerless GCP |
-| `TestSockerless_E2E_GCSFrontendToAzureBlobBackend` | GCS SDK -> GCS frontend -> Azure Blob backend -> sockerless Azure |
-| `TestSockerless_E2E_AzureBlobFrontendToAWSBackend` | Azure Blob SDK -> Azure Blob frontend -> AWS S3 backend -> sockerless AWS |
+```sh
+SOCKERLESS_DIR=/tmp/sockerless
+
+SIM_LISTEN_ADDR=:14566 "$SOCKERLESS_DIR/simulators/aws/simulator-aws" >/tmp/sockerless-aws.log 2>&1 &
+AWS_SIM_PID=$!
+
+SIM_LISTEN_ADDR=:14567 "$SOCKERLESS_DIR/simulators/gcp/simulator-gcp" >/tmp/sockerless-gcp.log 2>&1 &
+GCP_SIM_PID=$!
+
+SIM_LISTEN_ADDR=:14569 "$SOCKERLESS_DIR/simulators/azure/simulator-azure" >/tmp/sockerless-azure.log 2>&1 &
+AZURE_SIM_PID=$!
+
+trap 'kill "$AWS_SIM_PID" "$GCP_SIM_PID" "$AZURE_SIM_PID" 2>/dev/null || true' EXIT
+sleep 1
+```
+
+### AWS client -> GCS backend
+
+This route is:
+
+```text
+aws CLI -> shimanism S3 frontend -> shimanism GCS backend -> sockerless GCP
+```
+
+Start shimanism in a second terminal:
+
+```sh
+cd shimanism
+
+STORAGE_EMULATOR_HOST=localhost:14567 \
+  bin/shim storage \
+    -frontend=aws_s3 \
+    -backend=gcs \
+    -gcs-project=shim-sockerless \
+    -addr=:19001
+```
+
+Drive it from the AWS CLI in a third terminal:
+
+```sh
+cd shimanism
+
+export AWS_ACCESS_KEY_ID=test
+export AWS_SECRET_ACCESS_KEY=test
+export AWS_REGION=us-east-1
+
+printf 'hello from AWS-shaped S3 into sockerless GCP\n' >/tmp/shimanism-sockerless.txt
+
+aws --endpoint-url=http://localhost:19001 s3 mb s3://e2e-aws-gcp-demo
+aws --endpoint-url=http://localhost:19001 s3 cp /tmp/shimanism-sockerless.txt s3://e2e-aws-gcp-demo/hello.txt
+aws --endpoint-url=http://localhost:19001 s3 cp s3://e2e-aws-gcp-demo/hello.txt -
+aws --endpoint-url=http://localhost:19001 s3 rm s3://e2e-aws-gcp-demo/hello.txt
+aws --endpoint-url=http://localhost:19001 s3 rb s3://e2e-aws-gcp-demo
+```
+
+### GCP client -> Azure Blob backend
+
+This route is:
+
+```text
+gcloud storage -> shimanism GCS frontend -> shimanism Azure Blob backend -> sockerless Azure
+```
+
+Start shimanism:
+
+```sh
+cd shimanism
+
+AZURE_ACCOUNT_KEY='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s='
+AZURE_STORAGE_CONNECTION_STRING="DefaultEndpointsProtocol=http;AccountName=testacct;AccountKey=$AZURE_ACCOUNT_KEY;BlobEndpoint=http://localhost:14569/testacct/;"
+
+bin/shim storage \
+  -frontend=gcs \
+  -backend=azureblob \
+  -azure-connection-string="$AZURE_STORAGE_CONNECTION_STRING" \
+  -azure-region=eastus \
+  -addr=:19002
+```
+
+Drive it from `gcloud storage`:
+
+```sh
+cd shimanism
+
+export CLOUDSDK_AUTH_DISABLE_CREDENTIALS=true
+export CLOUDSDK_CORE_PROJECT=shim-sockerless
+export CLOUDSDK_API_ENDPOINT_OVERRIDES_STORAGE=http://localhost:19002/
+
+printf 'hello from GCS-shaped storage into sockerless Azure\n' >/tmp/shimanism-sockerless.txt
+
+gcloud storage buckets create gs://e2e-gcp-azure-demo --location=US
+gcloud storage cp /tmp/shimanism-sockerless.txt gs://e2e-gcp-azure-demo/hello.txt
+gcloud storage cat gs://e2e-gcp-azure-demo/hello.txt
+gcloud storage rm gs://e2e-gcp-azure-demo/hello.txt
+gcloud storage rm --recursive gs://e2e-gcp-azure-demo
+```
+
+### Azure Blob client -> AWS S3 backend
+
+This route is:
+
+```text
+az storage -> shimanism Azure Blob frontend -> shimanism AWS S3 backend -> sockerless AWS
+```
+
+Start shimanism:
+
+```sh
+cd shimanism
+
+export AWS_ACCESS_KEY_ID=test
+export AWS_SECRET_ACCESS_KEY=test
+export AWS_REGION=us-east-1
+export AWS_REQUEST_CHECKSUM_CALCULATION=when_required
+
+bin/shim storage \
+  -frontend=azure_blob \
+  -backend=aws \
+  -aws-endpoint=http://localhost:14566 \
+  -addr=:19003
+```
+
+Drive it from the Azure CLI:
+
+```sh
+cd shimanism
+
+AZURE_ACCOUNT_KEY='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s='
+printf 'hello from Azure-shaped Blob into sockerless AWS\n' >/tmp/shimanism-sockerless.txt
+
+az storage container create \
+  --auth-mode key \
+  --account-name testacct \
+  --account-key "$AZURE_ACCOUNT_KEY" \
+  --blob-endpoint http://localhost:19003/testacct/ \
+  --name e2e-azure-aws-demo
+
+az storage blob upload \
+  --auth-mode key \
+  --account-name testacct \
+  --account-key "$AZURE_ACCOUNT_KEY" \
+  --blob-endpoint http://localhost:19003/testacct/ \
+  --container-name e2e-azure-aws-demo \
+  --name hello.txt \
+  --file /tmp/shimanism-sockerless.txt \
+  --overwrite
+
+az storage blob download \
+  --auth-mode key \
+  --account-name testacct \
+  --account-key "$AZURE_ACCOUNT_KEY" \
+  --blob-endpoint http://localhost:19003/testacct/ \
+  --container-name e2e-azure-aws-demo \
+  --name hello.txt \
+  --file -
+
+az storage blob delete \
+  --auth-mode key \
+  --account-name testacct \
+  --account-key "$AZURE_ACCOUNT_KEY" \
+  --blob-endpoint http://localhost:19003/testacct/ \
+  --container-name e2e-azure-aws-demo \
+  --name hello.txt
+
+az storage container delete \
+  --auth-mode key \
+  --account-name testacct \
+  --account-key "$AZURE_ACCOUNT_KEY" \
+  --blob-endpoint http://localhost:19003/testacct/ \
+  --name e2e-azure-aws-demo
+```
+
+`AWS_REQUEST_CHECKSUM_CALCULATION=when_required` is set on the shimanism process for this local HTTP-only AWS destination. Real AWS S3 uses HTTPS; the setting is only needed for this standalone simulator route.
+
+The repository also has `make sockerless`, which builds these simulators and runs the maintained `TestSockerless_*` validation lane. Use that for contributor verification; use the commands above when you want to run shimanism manually.
 
 Issue [#24](https://github.com/e6qu/shimanism/issues/24) tracks extending this same through-shim sockerless shape across the remaining service families.
 
@@ -257,7 +445,7 @@ Read the per-service `INTERSECTION.md` and `APPLY_INTERSECTION.md` files before 
 
 ## Validation checklist
 
-1. Start the destination backend with real credentials, or run `make sockerless` for the local simulator lane.
+1. Start the destination backend with real credentials, or start the sockerless simulator processes from the standalone local examples above.
 2. Start one shim per service being moved, with the source frontend and destination backend selected explicitly.
 3. Point exactly one source-cloud client surface at the shim endpoint: CLI, SDK, or Terraform provider.
 4. Create, read, update if supported, and delete a small resource.
