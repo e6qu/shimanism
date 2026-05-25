@@ -185,6 +185,20 @@ jobs:
       - name: Run standalone sockerless examples
         run: scripts/check-standalone-sockerless-examples.sh
 
+  sockerless-e2e:
+    name: sockerless through-shim e2e
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.26'
+          cache: true
+      - name: Clone sockerless
+        run: git clone --depth=1 https://github.com/e6qu/sockerless.git /tmp/sockerless
+      - name: Run through-shim sockerless E2E lane
+        run: SOCKERLESS_DIR=/tmp/sockerless scripts/run-sockerless-storage.sh
+
   # Conformance lanes per backend. Each starts the matching docker
   # container in a step (services: doesn't take a command override,
   # which most of these images need), exports the env var the backend
