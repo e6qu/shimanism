@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	gcpsm "cloud.google.com/go/secretmanager/apiv1"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
 	"github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/azsecrets"
@@ -19,10 +20,12 @@ import (
 	awshttp "github.com/aws/aws-sdk-go-v2/aws/transport/http"
 	"github.com/aws/aws-sdk-go-v2/config"
 	awssm "github.com/aws/aws-sdk-go-v2/service/secretsmanager"
+	"google.golang.org/api/option"
 
 	"github.com/e6qu/shimanism/internal/secrets/domain"
 	awsbackend "github.com/e6qu/shimanism/services/secrets/backends/aws"
 	azurebackend "github.com/e6qu/shimanism/services/secrets/backends/azure"
+	gcpbackend "github.com/e6qu/shimanism/services/secrets/backends/gcp"
 )
 
 // TestSockerless_AWSSecretsManager_RoundTrip exercises the shim's
@@ -108,6 +111,131 @@ func randomHex(n int) string {
 	b := make([]byte, n/2)
 	_, _ = rand.Read(b)
 	return hex.EncodeToString(b)
+}
+
+// TestSockerless_GCPSecretManager_RoundTrip exercises the shim's
+// GCP Secret Manager backend against the sockerless GCP sim using
+// the official REST transport: CreateSecret + PutSecretValue +
+// HeadSecret + GetSecretValue(latest and explicit version) +
+// ListSecrets + ListVersions + UpdateSecret + DeleteSecret.
+//
+// Set SOCKERLESS_GCP_ENDPOINT (host:port, e.g. localhost:14567) to
+// opt in.
+func TestSockerless_GCPSecretManager_RoundTrip(t *testing.T) {
+	endpoint := os.Getenv("SOCKERLESS_GCP_ENDPOINT")
+	if endpoint == "" {
+		t.Skip("SOCKERLESS_GCP_ENDPOINT not set")
+	}
+	ctx := context.Background()
+	c, err := gcpsm.NewRESTClient(ctx,
+		option.WithEndpoint("http://"+endpoint+"/"),
+		option.WithoutAuthentication(),
+	)
+	if err != nil {
+		t.Fatalf("gcp secretmanager client: %v", err)
+	}
+	t.Cleanup(func() { _ = c.Close() })
+
+	project := os.Getenv("SOCKERLESS_GCP_PROJECT")
+	if project == "" {
+		project = "shim-sockerless"
+	}
+	backend := gcpbackend.New(c, gcpbackend.Config{ProjectID: project})
+
+	name := "shim-sk-gcp-sec-" + randomHex(8)
+	if res, err := backend.CreateSecret(ctx, name, domain.CreateSecretOptions{
+		Description:  "gcp sockerless secret",
+		Tags:         map[string]string{"env": "test"},
+		InitialValue: []byte("gcp-v1"),
+	}); err != nil {
+		t.Fatalf("CreateSecret: %v", err)
+	} else if res.Version != 1 {
+		t.Fatalf("CreateSecret.Version = %d, want 1", res.Version)
+	}
+	t.Cleanup(func() { _ = backend.DeleteSecret(ctx, name, true) })
+
+	if res, err := backend.PutSecretValue(ctx, name, []byte("gcp-v2")); err != nil {
+		t.Fatalf("PutSecretValue: %v", err)
+	} else if res.Version != 2 {
+		t.Fatalf("PutSecretValue.Version = %d, want 2", res.Version)
+	}
+
+	head, err := backend.HeadSecret(ctx, name)
+	if err != nil {
+		t.Fatalf("HeadSecret: %v", err)
+	}
+	if head.Name != name {
+		t.Errorf("HeadSecret.Name = %q, want %q", head.Name, name)
+	}
+	if head.Description != "gcp sockerless secret" {
+		t.Errorf("HeadSecret.Description = %q, want %q", head.Description, "gcp sockerless secret")
+	}
+	if got := head.Tags["env"]; got != "test" {
+		t.Errorf("HeadSecret.Tags[env] = %q, want test", got)
+	}
+	if head.CurrentVersion != 2 {
+		t.Errorf("HeadSecret.CurrentVersion = %d, want 2", head.CurrentVersion)
+	}
+
+	updatedDescription := "gcp sockerless secret updated"
+	if err := backend.UpdateSecret(ctx, name, domain.UpdateSecretOptions{
+		Description: &updatedDescription,
+		Tags:        map[string]string{"team": "shim"},
+	}); err != nil {
+		t.Fatalf("UpdateSecret: %v", err)
+	}
+	updatedHead, err := backend.HeadSecret(ctx, name)
+	if err != nil {
+		t.Fatalf("HeadSecret after update: %v", err)
+	}
+	if updatedHead.Description != updatedDescription {
+		t.Errorf("updated HeadSecret.Description = %q, want %q", updatedHead.Description, updatedDescription)
+	}
+	if got := updatedHead.Tags["team"]; got != "shim" {
+		t.Errorf("updated HeadSecret.Tags[team] = %q, want shim", got)
+	}
+
+	latest, err := backend.GetSecretValue(ctx, name, 0)
+	if err != nil {
+		t.Fatalf("GetSecretValue latest: %v", err)
+	}
+	if latest.Version != 2 || string(latest.Value) != "gcp-v2" {
+		t.Errorf("latest = version %d value %q, want version 2 value gcp-v2", latest.Version, string(latest.Value))
+	}
+
+	first, err := backend.GetSecretValue(ctx, name, 1)
+	if err != nil {
+		t.Fatalf("GetSecretValue v1: %v", err)
+	}
+	if first.Version != 1 || string(first.Value) != "gcp-v1" {
+		t.Errorf("v1 = version %d value %q, want version 1 value gcp-v1", first.Version, string(first.Value))
+	}
+
+	versions, err := backend.ListVersions(ctx, name)
+	if err != nil {
+		t.Fatalf("ListVersions: %v", err)
+	}
+	if len(versions) != 2 {
+		t.Fatalf("ListVersions count = %d, want 2", len(versions))
+	}
+	if versions[0].Number != 1 || versions[1].Number != 2 {
+		t.Errorf("ListVersions = %+v, want [1 2]", versions)
+	}
+
+	list, err := backend.ListSecrets(ctx, domain.ListSecretsOptions{Prefix: name})
+	if err != nil {
+		t.Fatalf("ListSecrets: %v", err)
+	}
+	found := false
+	for _, s := range list.Secrets {
+		if s.Name == name {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("ListSecrets did not contain %q", name)
+	}
 }
 
 // noOpCredential satisfies azcore.TokenCredential for sims that

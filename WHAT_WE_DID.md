@@ -8,23 +8,23 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 
 Branched from `main` at `3cf9e13` (PR #20 merged) on 2026-05-24. The branch already carries 14.A landed + 14.D fidelity audit done.
 
-**14.B/14.D current state after sockerless PR #216.** The upstream simulator audit loop is clear. After the first Phase 14 commits, the user merged additional sockerless fix PRs (#200, #202, #211, #216). Each time, the lane was rebuilt locally and re-probed; gaps were reopened or filed with full reproductions when fixes were partial. The final state on 2026-05-25:
+**14.B/14.D current state after sockerless PR #219.** The upstream simulator audit loop is clear. After the first Phase 14 commits, the user merged additional sockerless fix PRs (#200, #202, #211, #216, #219). Each time, the lane was rebuilt locally and re-probed; gaps were reopened or filed with full reproductions when fixes were partial. The current state on 2026-05-25:
 
-- `/tmp/sockerless` is at `9620a53` (sockerless PR #216, merged 2026-05-25).
-- `gh issue list --repo e6qu/sockerless --state open` returned no open issues.
-- `make sockerless-storage` passes all 9 current shim lanes: storage AWS S3 / GCS / Azure Blob; secrets AWS Secrets Manager / Azure Key Vault; queue AWS SQS / GCP Pub/Sub queue; pubsub GCP Pub/Sub; apigateway GCP API Gateway.
+- `/tmp/sockerless` is at `06ee3a5` (sockerless PR #219, merged 2026-05-25).
+- [sockerless#218](https://github.com/e6qu/sockerless/issues/218) is closed; no upstream sockerless blocker is open at this checkpoint.
+- `make sockerless-storage` passes all 10 current shim lanes: storage AWS S3 / GCS / Azure Blob; secrets AWS Secrets Manager / GCP Secret Manager / Azure Key Vault; queue AWS SQS / GCP Pub/Sub queue; pubsub GCP Pub/Sub; apigateway GCP API Gateway.
 - BUG-8 is narrowed to the hashicorp/google API Gateway Terraform leg; the GCP APIGW backend/SDK leg is green.
 - BUG-15 is narrowed to the hashicorp/google Terraform state-drift question; the GCP queue backend retention PATCH/read round-trip is green.
 
-The extra sockerless issues surfaced after the original round-3 commit were: #193-199, #201, #203-210, and #213-215. The important lesson was the same as the earlier audit: a green simulator PR still needs post-merge probes because several fixes were partial on first landing (#190, #193, #196, #209, #210). The final PR #216 closed the last five open items (#209, #210, #213, #214, #215).
+The extra sockerless issues surfaced after the original round-3 commit were: #193-199, #201, #203-210, #213-215, and #218. The important lesson was the same as the earlier audit: a green simulator PR still needs post-merge probes because several fixes were partial on first landing (#190, #193, #196, #209, #210). PR #216 closed the last five audit items (#209, #210, #213, #214, #215); PR #219 closed the GCP Secret Manager lifecycle gap (#218).
 
-**Next-lane probe: GCP Secret Manager blocked upstream.** The next planned 14.B lane was `services/secrets/backends/gcp` against sockerless using the official `cloud.google.com/go/secretmanager/apiv1` REST client. The full domain lifecycle must include CreateSecret, PutSecretValue, HeadSecret, GetSecretValue(latest + explicit version), ListVersions, ListSecrets, UpdateSecret, and DeleteSecret. The probe found sockerless supports create/add/access but misses:
+**GCP Secret Manager lane added after upstream fix.** The next planned 14.B lane was `services/secrets/backends/gcp` against sockerless using the official `cloud.google.com/go/secretmanager/apiv1` REST client. The first probe found sockerless supports create/add/access but missed:
 
 - `GET /v1/projects/{project}/secrets/{secret}/versions` (`ListSecretVersions`) — backend `ListVersions` returns `NoSuchSecret`.
 - `PATCH /v1/projects/{project}/secrets/{secret}?updateMask=labels` (`UpdateSecret`).
 - `DELETE /v1/projects/{project}/secrets/{secret}` (`DeleteSecret`).
 
-Filed [e6qu/sockerless#218](https://github.com/e6qu/sockerless/issues/218) with curl reproduction and expected REST contracts. No local simulator patch or shim workaround is carried; add the real lane only after upstream closes #218.
+Filed [e6qu/sockerless#218](https://github.com/e6qu/sockerless/issues/218) with curl reproduction and expected REST contracts before adding any shim test. After the user merged sockerless PR #219, rebuilt the GCP sim and added `TestSockerless_GCPSecretManager_RoundTrip`, covering CreateSecret, PutSecretValue, HeadSecret, GetSecretValue(latest + explicit version), ListVersions, ListSecrets, UpdateSecret, and DeleteSecret. No local simulator patch or shim workaround is carried.
 
 **14.A — sockerless round-1 fixes landed.** While Phase 14's continuity docs landed on PR #20, the user shepherded sockerless PR #179 (their "Phase 173" umbrella) closing all six of our round-1 issues (#173 S3 prefix, #174 aws-chunked envelope, #175 missing ListSecretVersionIds, #176/#177/#178 missing AWS/GCP/Azure services). With the simulators rebuilt:
 

@@ -7,9 +7,9 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 ## Where we are
 
 - **Phase 14 in-flight on `phase-14`.** Branched from `main` at `3cf9e13` (PR #20 merged) on 2026-05-24. PR #21 is the phase branch already pushed at `6bb1afc`.
-- **Sockerless lane is green as of 2026-05-25.** The user merged sockerless PR #216 (`9620a53` in `/tmp/sockerless`), closing the last open simulator issues from the shim audit (#209, #210, #213, #214, #215). `make sockerless-storage` passed all 9 current shim tests.
-- **Next expansion is blocked on sockerless#218.** A real GCP Secret Manager backend lane was attempted using the official `cloud.google.com/go/secretmanager/apiv1` REST client. Create/add/access works, but `ListVersions` fails because sockerless lacks `GET /v1/projects/{p}/secrets/{s}/versions`; direct probes also showed missing `PATCH /v1/projects/{p}/secrets/{s}` and `DELETE /v1/projects/{p}/secrets/{s}`. Filed [e6qu/sockerless#218](https://github.com/e6qu/sockerless/issues/218). Do not add workarounds or partial tests; wait for the upstream fix, then add the full lifecycle/versioning lane.
-- **Current sockerless coverage:** storage AWS S3 + GCS + Azure Blob; secrets AWS Secrets Manager + Azure Key Vault; queue AWS SQS + GCP Pub/Sub queue; pubsub GCP Pub/Sub; apigateway GCP API Gateway.
+- **Sockerless lane is green as of 2026-05-25.** The user merged sockerless PR #219 (`06ee3a5` in `/tmp/sockerless`), closing [sockerless#218](https://github.com/e6qu/sockerless/issues/218). `make sockerless-storage` passed all 10 current shim tests.
+- **GCP Secret Manager is now wired.** The real backend lane uses the official `cloud.google.com/go/secretmanager/apiv1` REST client against sockerless and covers CreateSecret, PutSecretValue, HeadSecret, GetSecretValue(latest + explicit version), ListVersions, ListSecrets, UpdateSecret, and DeleteSecret. No workaround, fake, mock, or partial test is carried.
+- **Current sockerless coverage:** storage AWS S3 + GCS + Azure Blob; secrets AWS Secrets Manager + GCP Secret Manager + Azure Key Vault; queue AWS SQS + GCP Pub/Sub queue; pubsub GCP Pub/Sub; apigateway GCP API Gateway.
 - **Still local/open:** BUG-8 and BUG-15 are not upstream-sockerless blockers anymore. BUG-8 is the hashicorp/google API Gateway Terraform endpoint/OAuth leg. BUG-15 is the hashicorp/google `message_retention_duration` state-drift question; the shim's GCP queue backend retention PATCH/read path is green.
 - **Last merged:** PR #20 (Phase 13) at `3cf9e13` on `main`, 2026-05-24.
 
@@ -19,11 +19,11 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 2. `gh pr list --state open --repo e6qu/shimanism` — verify PR #21 state.
 3. If sockerless changed again, `git -C /tmp/sockerless pull --ff-only`, rebuild the three sims, and rerun `make sockerless-storage`.
 4. Read [STATUS.md](STATUS.md) + this file. Skim the two open local bugs below.
-5. Pick the next Phase 14 item: either wait for #218 and then add the full GCP Secret Manager lane, choose a different remaining sockerless lane, finish 14.C handler migrations, or prepare PR #21 for merge.
+5. Pick the next Phase 14 item: choose a different remaining sockerless lane, finish 14.C handler migrations, prepare PR #21 for merge, or continue real-cloud Track A residuals.
 
 ## Resume after sockerless work
 
-14.A done (round-1 closed in sockerless PR #179). 14.D audit rounds through PR #216 are done; there are no open upstream sockerless issues at the time of this update. 14.B's current shim lane is green.
+14.A done (round-1 closed in sockerless PR #179). 14.D audit rounds through PR #216 are done, and #218 closed in PR #219 after the GCP Secret Manager lifecycle gap was filed. There are no open upstream sockerless issues at the time of this update. 14.B's current shim lane is green.
 
 If sockerless lands more changes, re-run:
 
@@ -38,7 +38,6 @@ make sockerless-storage
 Other lanes worth adding (gated on no upstream blocker today):
 
 - AWS Lambda functions via shim's `functions/backends/aws`.
-- GCP Secret Manager via shim's `secrets/backends/gcp` — blocked on [sockerless#218](https://github.com/e6qu/sockerless/issues/218); add only after upstream implements list-versions, patch, and delete.
 - GCP Cloud SQL via shim's `rdbms/backends/gcp`.
 - Azure PostgreSQL FlexibleServer via shim's `rdbms/backends/azurepg`.
 - Azure Cache for Redis via shim's `cache/backends/azureredis`.
@@ -54,8 +53,8 @@ Always update `doc/SOCKERLESS_VALIDATION.md` + `BUGS.md` § Sockerless when a tr
 ## Next concrete actions (in priority order)
 
 1. Verify PR #21 state and CI. Do not merge; user merges PRs.
-2. If keeping PR #21 scoped to the current 9-test sockerless lane, prepare/push these continuity updates.
-3. If continuing implementation on the same branch, choose between expanding 14.B to additional service lanes (GCP Secret Manager / Cloud SQL / Memorystore; Azure Service Bus / PG / Redis / APIM; AWS Lambda / SNS / RDS / ElastiCache / APIGW) or starting 14.C handler migrations.
+2. If keeping PR #21 scoped to the current 10-test sockerless lane, prepare/push these continuity updates.
+3. If continuing implementation on the same branch, choose between expanding 14.B to additional service lanes (GCP Cloud SQL / Memorystore; Azure Service Bus / PG / Redis / APIM; AWS Lambda / SNS / RDS / ElastiCache / APIGW) or starting 14.C handler migrations.
 4. Real-cloud Track A remains separate: BUG-8 / BUG-15 Terraform-provider legs plus real-signed verifier conformance.
 
 ## Historical migration context
@@ -130,7 +129,7 @@ Priority order (per [PLAN.md § Phase 14 sub-phases](PLAN.md#sub-phases)):
 | Track | Work | Sockerless dependency |
 |---|---|---|
 | 14.A | Re-enable shim assertions blocked by 3 sockerless fidelity bugs (drop `/s3` workaround; S3 round-trip; SM HeadSecret + GetSecretValue). | ✅ landed after [#173](https://github.com/e6qu/sockerless/issues/173) / [#174](https://github.com/e6qu/sockerless/issues/174) / [#175](https://github.com/e6qu/sockerless/issues/175). |
-| 14.B | Add new sockerless service lanes (AWS SQS/SNS/APIGW/RDS/EC; GCP Pub/Sub/Secrets/SQL/Memorystore/APIGW; Azure Blob+KV data plane / Service Bus / PG / Redis / APIM). | ◐ current 9-test lane green after sockerless PR #216; additional lanes optional follow-on. |
+| 14.B | Add new sockerless service lanes (AWS SQS/SNS/APIGW/RDS/EC; GCP Pub/Sub/Secrets/SQL/Memorystore/APIGW; Azure Blob+KV data plane / Service Bus / PG / Redis / APIM). | ◐ current 10-test lane green after sockerless PR #219; additional lanes optional follow-on. |
 | 14.C | Full handler migrations for the 9 Phase-13 blank-import frontends (`azure_blob` + 7 GCP + `azure_apim`-on-spec-broadening). | — (independent of sockerless). |
 | 14.D | Real-cloud Track A residual — close/reclassify BUG-8 + BUG-15 Terraform-provider legs and real-signed verifier conformance. | No sockerless blocker remains. |
 | 14.E | Cross-cloud Apply matrix expansion, driven by 14.B lanes. | 14.B in progress. |

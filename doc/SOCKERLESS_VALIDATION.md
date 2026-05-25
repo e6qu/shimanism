@@ -1,6 +1,6 @@
 # Sockerless validation lane
 
-> Phase 14.A landed (sockerless round-1 closures from sockerless PR #179) and Phase 14.B's current sockerless-backed shim lane is green after sockerless PR #216. Uses `github.com/e6qu/sockerless` simulators to exercise the shim's per-cloud backends without requiring real AWS / GCP / Azure accounts.
+> Phase 14.A landed (sockerless round-1 closures from sockerless PR #179) and Phase 14.B's current sockerless-backed shim lane is green after sockerless PR #219. Uses `github.com/e6qu/sockerless` simulators to exercise the shim's per-cloud backends without requiring real AWS / GCP / Azure accounts.
 
 ## Why sockerless
 
@@ -26,7 +26,7 @@ The same property makes sockerless the right vehicle for two things Phase 14 car
 | GCP API Gateway (`services/apigateway/backends/gcp`) | Full LRO-style CRUD — CreateGateway (with routes) → DescribeGateway → ListGateways → DeleteGateway | sockerless#177 + #181-188 closed; **SDK leg of BUG-8 cleared**. |
 | Azure Blob (`services/storage/backends/azureblob`) | Full round-trip — CreateBucket → PutObject → HeadObject → GetObject → DeleteObject → DeleteBucket | Uses host-based dispatch plus localhost DialContext rewrite; path-style support was fixed upstream too. |
 | Azure Key Vault (`services/secrets/backends/azurekv`) | Full secret round-trip — CreateSecret → GetSecretValue → DeleteSecret | KV challenge flow + version listing fixed upstream by PRs #202/#211. |
-| GCP Secret Manager | Blocked | [sockerless#218](https://github.com/e6qu/sockerless/issues/218): missing `ListSecretVersions`, `UpdateSecret`, and `DeleteSecret`; add only after upstream fix. |
+| GCP Secret Manager (`services/secrets/backends/gcp`) | Full lifecycle/versioning round-trip — CreateSecret → PutSecretValue → HeadSecret → GetSecretValue(latest + explicit version) → ListVersions → ListSecrets → UpdateSecret → DeleteSecret | [sockerless#218](https://github.com/e6qu/sockerless/issues/218) closed by PR #219; no shim workaround carried. |
 | GCP Cloud SQL, Memorystore | Sims work; lanes not yet added | 14.B follow-on. |
 | Azure Service Bus, PG FlexibleServer, Cache Redis, APIM | Sims work; lanes not yet added | 14.B follow-on. |
 | AWS SNS, RDS, ElastiCache, API Gateway v1+v2 | Sims work; lanes not yet added | 14.B follow-on. |
@@ -45,9 +45,9 @@ Set `SOCKERLESS_DIR` to override the default `/tmp/sockerless` location.
 
 The script:
 
-1. Builds the AWS + GCP simulator binaries with `-tags noui` (no UI dist required).
+1. Builds the AWS + GCP + Azure simulator binaries with `-tags noui` (no UI dist required).
 2. Generates a self-signed RSA-2048 cert in `/tmp/sockerless-tls/`. The aws-sdk-go-v2 SDK refuses to send streaming-signed payloads over plain HTTP, so the AWS sim runs under TLS.
-3. Starts both sims on test-only ports (`:14566` AWS, `:14567` GCP).
+3. Starts the sims on test-only ports (`:14566` AWS, `:14567` GCP, `:14568` Azure).
 4. Runs `go test -run '^TestSockerless_'` in the storage, secrets, queue, pubsub, and apigateway conformance packages with the right env vars to point the shim's backends at the sims.
 5. Tears the sims down on exit.
 
@@ -69,7 +69,7 @@ The script:
 | [#177](https://github.com/e6qu/sockerless/issues/177) | GCP — Pub/Sub / Secret Manager / Cloud SQL / Memorystore / API Gateway | ✅ closed |
 | [#178](https://github.com/e6qu/sockerless/issues/178) | Azure — Blob+KV data plane / Service Bus / PG / Redis / APIM | ✅ closed |
 
-### Later fidelity bugs (all closed as of sockerless PR #216)
+### Later fidelity bugs (all closed as of sockerless PR #219)
 
 | Issue | Summary |
 |---|---|
@@ -79,8 +79,9 @@ The script:
 | [#201](https://github.com/e6qu/sockerless/issues/201) | ✅ closed by PR #202 — S3 bucket-level PUT subresources. |
 | [#203-210](https://github.com/e6qu/sockerless/issues/203) | ✅ closed by PR #211 plus PR #216 follow-ups after reopens — KV versions, APIGW routing, Azure Functions config, AWS/GCP/Azure deeper Terraform-provider surfaces. |
 | [#213-215](https://github.com/e6qu/sockerless/issues/213) | ✅ closed by PR #216 — Azure Tags API, Service Bus authorizationRules, AWS IAM/API Gateway v1 gaps. |
+| [#218](https://github.com/e6qu/sockerless/issues/218) | ✅ closed by PR #219 — GCP Secret Manager ListSecretVersions, UpdateSecret, and DeleteSecret handlers. |
 
-As of the PR #216 verification run, `make sockerless-storage` passed all current shim lanes. The next attempted lane filed [#218](https://github.com/e6qu/sockerless/issues/218); it is not worked around in the shim.
+As of the PR #219 verification run, `make sockerless-storage` passed all current shim lanes, including the full GCP Secret Manager lifecycle/versioning lane that had been blocked by [#218](https://github.com/e6qu/sockerless/issues/218).
 
 ## Extending to a new service
 
