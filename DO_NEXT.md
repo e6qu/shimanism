@@ -6,20 +6,20 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 
 ## Where we are
 
-- **Phase 14 in-flight on `phase-14`.** Branched from `main` at `3cf9e13` (PR #20 merged) on 2026-05-24. PR #21 is the phase branch already pushed at `6bb1afc`.
+- **Phase 14 remains in-flight, with PR #21 merged.** Local `main` is synced to `45985e7` (PR #21 merged 2026-05-25). Start a new branch from `main` for the next Phase 14 sub-phase.
 - **Sockerless lane is green as of 2026-05-25.** The user merged sockerless PR #219 (`06ee3a5` in `/tmp/sockerless`), closing [sockerless#218](https://github.com/e6qu/sockerless/issues/218). `make sockerless-storage` passed all 10 current shim tests.
 - **GCP Secret Manager is now wired.** The real backend lane uses the official `cloud.google.com/go/secretmanager/apiv1` REST client against sockerless and covers CreateSecret, PutSecretValue, HeadSecret, GetSecretValue(latest + explicit version), ListVersions, ListSecrets, UpdateSecret, and DeleteSecret. No workaround, fake, mock, or partial test is carried.
 - **Current sockerless coverage:** storage AWS S3 + GCS + Azure Blob; secrets AWS Secrets Manager + GCP Secret Manager + Azure Key Vault; queue AWS SQS + GCP Pub/Sub queue; pubsub GCP Pub/Sub; apigateway GCP API Gateway.
 - **Still local/open:** BUG-8 and BUG-15 are not upstream-sockerless blockers anymore. BUG-8 is the hashicorp/google API Gateway Terraform endpoint/OAuth leg. BUG-15 is the hashicorp/google `message_retention_duration` state-drift question; the shim's GCP queue backend retention PATCH/read path is green.
-- **Last merged:** PR #20 (Phase 13) at `3cf9e13` on `main`, 2026-05-24.
+- **Last merged:** PR #21 (Phase 14 sockerless validation lane) at `45985e7` on `main`, 2026-05-25.
 
 ## Session-start checklist
 
-1. `git fetch origin && git checkout phase-14 && git pull --ff-only` — sync the phase branch.
-2. `gh pr list --state open --repo e6qu/shimanism` — verify PR #21 state.
+1. `git fetch origin && git checkout main && git pull --ff-only origin main` — sync `main`.
+2. Create a new branch from `main` for the next Phase 14 sub-phase before editing.
 3. If sockerless changed again, `git -C /tmp/sockerless pull --ff-only`, rebuild the three sims, and rerun `make sockerless-storage`.
 4. Read [STATUS.md](STATUS.md) + this file. Skim the two open local bugs below.
-5. Pick the next Phase 14 item: choose a different remaining sockerless lane, finish 14.C handler migrations, prepare PR #21 for merge, or continue real-cloud Track A residuals.
+5. Pick the next Phase 14 item: choose a different remaining sockerless lane, finish 14.C handler migrations, or continue real-cloud Track A residuals.
 
 ## Resume after sockerless work
 
@@ -52,10 +52,9 @@ Always update `doc/SOCKERLESS_VALIDATION.md` + `BUGS.md` § Sockerless when a tr
 
 ## Next concrete actions (in priority order)
 
-1. Verify PR #21 state and CI. Do not merge; user merges PRs.
-2. If keeping PR #21 scoped to the current 10-test sockerless lane, prepare/push these continuity updates.
-3. If continuing implementation on the same branch, choose between expanding 14.B to additional service lanes (GCP Cloud SQL / Memorystore; Azure Service Bus / PG / Redis / APIM; AWS Lambda / SNS / RDS / ElastiCache / APIGW) or starting 14.C handler migrations.
-4. Real-cloud Track A remains separate: BUG-8 / BUG-15 Terraform-provider legs plus real-signed verifier conformance.
+1. Create the next branch from `main` for whichever Phase 14 sub-phase is selected.
+2. Choose between expanding 14.B to additional service lanes (GCP Cloud SQL / Memorystore; Azure Service Bus / PG / Redis / APIM; AWS Lambda / SNS / RDS / ElastiCache / APIGW), starting 14.C handler migrations, or continuing real-cloud Track A residuals.
+3. Real-cloud Track A remains separate: BUG-8 / BUG-15 Terraform-provider legs plus real-signed verifier conformance.
 
 ## Historical migration context
 
@@ -107,7 +106,7 @@ Phase 12 ships one cell per service (typically AWS → K8s peer). Expanding to o
 ## Invariants snapshot
 
 - Never auto-merge; user merges every PR.
-- One PR per phase — all Phase 14 work lands on `phase-14`.
+- One branch/PR per phase or sub-phase. PR #21 is merged; start a new branch from `main` for the next Phase 14 chunk.
 - File BUGs in [BUGS.md](BUGS.md) *before* fixing.
 - Update STATUS / WHAT_WE_DID / DO_NEXT every significant chunk.
 - Fidelity to the source cloud's API; real backends only; tests from official client surfaces.

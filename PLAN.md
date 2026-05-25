@@ -187,7 +187,7 @@ Phase 12 ships `TestCrossCloudApply_Roundtrip_<svc>_<cell>` for one cell per ser
 >
 > Phase 14 cashes in the items Phase 13 deferred, on the cadence of the upstream sockerless project closing the six issues we filed in 13.D.1. Each shim-side follow-on has an explicit upstream dependency.
 >
-> **Status: in-flight on `phase-14`.** 14.A landed (sockerless PR #179 closed all 6 round-1 issues; shim assertions re-enabled). 14.D audit rounds through sockerless PR #216 are done; all upstream issues filed from the shim audit are closed, and #218 closed in PR #219. 14.B's current validation lane is green — 10 tests pass today (storage AWS/GCS/Azure Blob, secrets AWS/GCP/Azure KV, queue AWS/GCP, pubsub GCP, apigateway GCP). 14.C still independent + pending.
+> **Status: in-flight after PR #21 merged.** 14.A landed (sockerless PR #179 closed all 6 round-1 issues; shim assertions re-enabled). 14.D audit rounds through sockerless PR #216 are done; all upstream issues filed from the shim audit are closed, and #218 closed in PR #219. 14.B's current validation lane is green — 10 tests pass today (storage AWS/GCS/Azure Blob, secrets AWS/GCP/Azure KV, queue AWS/GCP, pubsub GCP, apigateway GCP). 14.C still independent + pending.
 
 ### Dependency on the sockerless project
 

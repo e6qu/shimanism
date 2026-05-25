@@ -8,9 +8,9 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 
 | | |
 |---|---|
-| Active branch | `phase-14` (created from `main` 2026-05-24 after PR #20 merged at `3cf9e13`). |
+| Active branch | `main` at `45985e7` after PR #21 merged on 2026-05-25. Start a new branch from `main` for the next Phase 14 sub-phase. |
 | In-flight | **Phase 14 — Sockerless-verified validation lane + deferred follow-ons.** **14.A done** (2026-05-24): sockerless PR #179 closed all 6 round-1 issues (#173-178); shim assertions re-enabled. **14.D audit done through PR #216** (2026-05-25): all previously filed sockerless audit issues closed. **14.B current lane is green** against sockerless `06ee3a5` / PR #219: `make sockerless-storage` passes 10 tests across storage AWS/GCS/Azure Blob, secrets AWS/GCP/Azure KV, queue AWS/GCP, pubsub GCP, and apigateway GCP. GCP Secret Manager now covers CreateSecret, PutSecretValue, HeadSecret, GetSecretValue, ListVersions, ListSecrets, UpdateSecret, and DeleteSecret after [sockerless#218](https://github.com/e6qu/sockerless/issues/218) closed. 14.C (full handler migrations for 9 blank-import frontends) still independent + pending. |
-| Last merged | PR #20 — Phase 13 at `3cf9e13` on `main`, 2026-05-24. |
+| Last merged | PR #21 — Phase 14 sockerless validation lane at `45985e7` on `main`, 2026-05-25. |
 | Phases 1–12 | All closed. PR index in [PLAN.md § Closed phases](PLAN.md#closed-phases-pr-index). |
 | Bugs | 22 filed · 20 fixed · 2 open · 1 false positive. BUG-8 remains the GCP Terraform-provider endpoint/OAuth leg; the GCP APIGW backend lane is green against sockerless. BUG-15 remains the hashicorp/google Terraform state-drift question; the shim's GCP queue backend retention PATCH/read round-trip is green against sockerless. BUG-21 fixed the kind-backed CI installer failure; BUG-22 fixed the storage sockerless gofmt drift surfaced by pre-commit. No upstream sockerless blocker is open at this checkpoint. |
 | CI | 18 required checks. Real-cloud lanes wait on Track A. |
