@@ -1,6 +1,6 @@
 # Known Bugs
 
-**25 filed · 22 fixed · 3 open · 1 false positive. Upstream sockerless audit issues through #218 are closed as of sockerless PR #219. No upstream sockerless blocker is open at this checkpoint.**
+**29 filed · 25 fixed · 3 open · 1 false positive. Upstream sockerless audit issues through #218 are closed as of sockerless PR #219. No upstream sockerless blocker is open at this checkpoint.**
 
 Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLAN.md](PLAN.md) · narrative [WHAT_WE_DID.md](WHAT_WE_DID.md) · rules [AGENTS.md](AGENTS.md).
 
@@ -8,7 +8,7 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 >
 > When a bug surfaces during a coding-agent session, file the BUG before fixing — even if the fix is a single line. The audit trail is what makes "never lie" enforceable.
 
-## Open — both absorbed into Phase 14
+## Open — absorbed into Phase 14 / standalone examples
 
 Sockerless now simulates the relevant GCP API Gateway and Pub/Sub backend surfaces. The current backend/SDK legs are green:
 
@@ -116,6 +116,9 @@ When a new bug fits one of these, tag it with the rule.
 
 | ID | Sev | Area | Closed in | One-liner |
 |---|---|---|---|---|
+| 29 | P2 | storage/gcs-frontend | Phase 14 | [GitHub #29](https://github.com/e6qu/shimanism/issues/29): GCS frontend now serves the JSON API `managedFolders.list` route with an empty `storage#managedFolders` collection, so `gcloud storage rm --recursive gs://bucket` can finish cleanup instead of failing on a route miss. |
+| 28 | P2 | storage/aws-backend | Phase 14 | [GitHub #28](https://github.com/e6qu/shimanism/issues/28): AWS S3 backend now spools frontend upload streams into seekable temporary bodies before `PutObject` / `UploadPart`, so the official AWS SDK can perform HTTP endpoint payload signing/checksum/retry behavior without rejecting non-seekable request bodies. |
+| 27 | P2 | storage/gcs-frontend | Phase 14 | [GitHub #27](https://github.com/e6qu/shimanism/issues/27): GCS object metadata now includes concrete JSON API `mediaLink` / `selfLink` values and the frontend serves `/download/storage/v1/b/{bucket}/o/{object}`, so `gcloud storage cp` object download no longer crashes while building the apitools transfer URL. |
 | 25 | P2 | terraform/conformance | Phase 14 | Per-test Terraform working directories now use local `.terraform-plugin-cache` directories instead of shared package-level `TF_PLUGIN_CACHE_DIR` paths, removing parallel `terraform init` provider-cache races. |
 | 23 | P2 | sockerless/conformance | Phase 14 | Storage now has through-shim sockerless E2E cells for AWS -> GCP, GCP -> Azure, and Azure -> AWS: source SDK -> shimanism frontend -> shimanism backend -> sockerless destination simulator. |
 | 22 | P3 | storage/conformance | Phase 14 | `services/storage/conformance/sockerless_test.go` was not gofmt-clean under the CI pre-commit hook after the GCS import landed. Fixed by running gofmt. |

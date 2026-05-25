@@ -11,6 +11,7 @@ import (
 	"mime"
 	"mime/multipart"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -129,6 +130,16 @@ func (srv *Server) getBucketStorageLayout(w http.ResponseWriter, r *http.Request
 	writeJSON(w, http.StatusOK, &resp)
 }
 
+func (srv *Server) listManagedFolders(w http.ResponseWriter, r *http.Request, bucket string) {
+	if _, err := srv.s.HeadBucket(r.Context(), bucket); err != nil {
+		mapDomainError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, &raw.ManagedFolders{
+		Kind: "storage#managedFolders",
+	})
+}
+
 // ----------------------------------------------------------------------
 // Objects
 // ----------------------------------------------------------------------
@@ -181,7 +192,7 @@ func (srv *Server) getObject(w http.ResponseWriter, r *http.Request, bucket, obj
 		mapDomainError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, objectMetadataResponse(bucket, object, obj))
+	writeJSON(w, http.StatusOK, objectMetadataResponse(r, bucket, object, obj))
 }
 
 func (srv *Server) getObjectMedia(w http.ResponseWriter, r *http.Request, bucket, object string) {
@@ -429,8 +440,8 @@ func quote(s string) string {
 	return "\"" + s + "\""
 }
 
-func objectMetadataResponse(bucket, object string, obj domain.Object) *raw.Object {
-	r := &raw.Object{
+func objectMetadataResponse(req *http.Request, bucket, object string, obj domain.Object) *raw.Object {
+	resp := &raw.Object{
 		Kind:           "storage#object",
 		Bucket:         bucket,
 		Name:           object,
@@ -442,21 +453,43 @@ func objectMetadataResponse(bucket, object string, obj domain.Object) *raw.Objec
 		Metageneration: 1,
 		StorageClass:   "STANDARD",
 	}
-	if r.ContentType == "" {
-		r.ContentType = "application/octet-stream"
+	resp.MediaLink = objectMediaLink(req, bucket, object)
+	resp.SelfLink = objectSelfLink(req, bucket, object)
+	resp.Id = bucket + "/" + object + "/1"
+	if resp.ContentType == "" {
+		resp.ContentType = "application/octet-stream"
 	}
 	// If the ETag is a hex-encoded MD5 (16 bytes after hex-decoding),
 	// expose it as md5Hash too — the GCS SDK + gcloud verify this
 	// against the bytes they downloaded.
 	if md5Bytes, err := hex.DecodeString(strings.Trim(obj.ETag, "\"")); err == nil && len(md5Bytes) == 16 {
-		r.Md5Hash = base64.StdEncoding.EncodeToString(md5Bytes)
+		resp.Md5Hash = base64.StdEncoding.EncodeToString(md5Bytes)
 	}
 	if !obj.LastModified.IsZero() {
-		r.Updated = obj.LastModified.UTC().Format(time.RFC3339)
-		r.TimeCreated = r.Updated
-		r.TimeStorageClassUpdated = r.Updated
+		resp.Updated = obj.LastModified.UTC().Format(time.RFC3339)
+		resp.TimeCreated = resp.Updated
+		resp.TimeStorageClassUpdated = resp.Updated
 	}
-	return r
+	return resp
+}
+
+func objectMediaLink(r *http.Request, bucket, object string) string {
+	return requestBaseURL(r) + "/download/storage/v1/b/" + url.PathEscape(bucket) + "/o/" + url.PathEscape(object) + "?alt=media"
+}
+
+func objectSelfLink(r *http.Request, bucket, object string) string {
+	return requestBaseURL(r) + "/storage/v1/b/" + url.PathEscape(bucket) + "/o/" + url.PathEscape(object)
+}
+
+func requestBaseURL(r *http.Request) string {
+	scheme := "http"
+	if r.TLS != nil {
+		scheme = "https"
+	}
+	if forwarded := r.Header.Get("X-Forwarded-Proto"); forwarded != "" {
+		scheme = forwarded
+	}
+	return scheme + "://" + r.Host
 }
 
 // parseMultipartContentType parses a multipart Content-Type header

@@ -1,6 +1,6 @@
 # Architecture
 
-shimanism's primary purpose: **reroute cloud services, one at a time** (see [docs/migration.md](migration.md) for the end-to-end story). The architecture below is what makes that possible: a wire-protocol translation layer that lets your existing AWS / GCP / Azure code talk to a different cloud without rewriting anything.
+shimanism's primary purpose: **reroute cloud services, one at a time** (see [docs/migration.md](migration.md) for the end-to-end story). The architecture below is what makes that possible: a wire-protocol translation layer that lets your existing AWS / GCP / Azure code talk to a different cloud without rewriting anything. For runnable commands, see the [complete end-to-end examples](end-to-end-examples.md), including [standalone sockerless simulator examples](end-to-end-examples.md#optional-local-simulator-testing-with-sockerless).
 
 shimanism is three layers:
 

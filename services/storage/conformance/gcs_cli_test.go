@@ -86,15 +86,6 @@ func TestGCS_CLI_BucketLifecycle(t *testing.T) {
 }
 
 func TestGCS_CLI_ObjectRoundTrip(t *testing.T) {
-	// `gcloud storage cp` (>= 566) hits a Python `TypeError:
-	// endswith first arg must be bytes or a tuple of bytes, not str`
-	// while processing the JSON metadata response for the source
-	// object — *before* it issues the download request. The GCS Go
-	// SDK round-trip test against the same shim passes (see
-	// TestGCS_SDK_ObjectRoundTrip), so this is a gcloud-internal
-	// validation bug, not a shim defect. Re-enable when gcloud is
-	// fixed upstream or pinned to a version that doesn't trip it.
-	t.Skip("blocked by gcloud TypeError in metadata-response parsing; SDK path covers this round-trip in TestGCS_SDK_ObjectRoundTrip")
 	gcloud := requireGcloud(t)
 	srv := harness.StartStorageServerGCS(t, inmem.New())
 
@@ -128,4 +119,5 @@ func TestGCS_CLI_ObjectRoundTrip(t *testing.T) {
 	if !bytes.Equal(got, body) {
 		t.Errorf("cli round-trip body = %q, want %q", got, body)
 	}
+	mustRun("storage", "rm", "--recursive", "gs://data")
 }

@@ -2,6 +2,8 @@
 
 The canonical service list lives in [README.md](../README.md#shimmed-services). This page is the cross-link hub: for each shimmed service, the per-service docs (frontends, backends, intersection contracts, conformance tests, and the open BUGs that gate any cell).
 
+For runnable cross-cloud commands, start with the [complete end-to-end examples](end-to-end-examples.md). The [standalone sockerless examples](end-to-end-examples.md#optional-local-simulator-testing-with-sockerless) demonstrate the storage service across AWS -> GCP, GCP -> Azure, and Azure -> AWS without real cloud accounts.
+
 ## Per-service detail
 
 | Service | Detailed docs | In-tree |

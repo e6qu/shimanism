@@ -2,6 +2,8 @@
 
 The conformance contract is enforced. If a shimmed operation lacks tests, the operation doesn't exist for shimanism's purposes.
 
+For manual end-to-end runs outside the Go test harness, use the [complete end-to-end examples](end-to-end-examples.md). The [standalone sockerless examples](end-to-end-examples.md#optional-local-simulator-testing-with-sockerless) show how to run shimanism against local AWS-, GCP-, and Azure-shaped simulator processes.
+
 ## The conformance contract
 
 Every shimmed operation must be exercisable via the **matching cloud's official client surfaces — for every frontend × every backend in scope**:
