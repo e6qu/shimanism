@@ -286,10 +286,14 @@ jobs:
         with:
           go-version: '1.26'
           cache: true
+      - name: Preinstall kind toolchain
+        run: scripts/ci-preinstall-kind.sh v0.31.0 v1.35.0
       - name: Create kind cluster
         uses: helm/kind-action@v1
         with:
           cluster_name: shim-cnpg
+          version: v0.31.0
+          kubectl_version: v1.35.0
       - name: Install CloudNativePG operator
         run: |
           # Install the operator + CRDs. The release manifest is
@@ -313,10 +317,14 @@ jobs:
         with:
           go-version: '1.26'
           cache: true
+      - name: Preinstall kind toolchain
+        run: scripts/ci-preinstall-kind.sh v0.31.0 v1.35.0
       - name: Create kind cluster
         uses: helm/kind-action@v1
         with:
           cluster_name: shim-redisop
+          version: v0.31.0
+          kubectl_version: v1.35.0
       - name: Install Redis Operator
         run: |
           # OT-CONTAINER-KIT Redis Operator + CRDs. Pin to a known
@@ -350,10 +358,14 @@ jobs:
         with:
           go-version: '1.26'
           cache: true
+      - name: Preinstall kind toolchain
+        run: scripts/ci-preinstall-kind.sh v0.31.0 v1.35.0
       - name: Create kind cluster
         uses: helm/kind-action@v1
         with:
           cluster_name: shim-knative
+          version: v0.31.0
+          kubectl_version: v1.35.0
       - name: Install Knative Serving
         run: |
           # Direct install (skip the operator). Pinning to Knative
@@ -397,10 +409,14 @@ jobs:
         with:
           go-version: '1.26'
           cache: true
+      - name: Preinstall kind toolchain
+        run: scripts/ci-preinstall-kind.sh v0.31.0 v1.35.0
       - name: Create kind cluster
         uses: helm/kind-action@v1
         with:
           cluster_name: shim-envoy
+          version: v0.31.0
+          kubectl_version: v1.35.0
       - name: Install Envoy Gateway
         run: |
           # Pin to Envoy Gateway v1.2.4. The shim's envoy backend

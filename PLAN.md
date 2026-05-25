@@ -68,11 +68,11 @@ Verifier architecture, GCP REST/gRPC reconciliation, and per-cloud auth design n
 
 ## Phase 13 — Full adapter migration + production auth + real-cloud Track A
 
-> **Status: next-up.** Absorbs every deferred item from Phases 11 + 12 plus the two open BUGs. Branch: `phase-13` (created from `main` after PR #19 merges).
+> **Status: closed in PR #20.** Phase 13 absorbed the deferred adapter/auth work from Phases 11 + 12; real-cloud Track A residuals moved into Phase 14.D.
 
 Phase 12 lands the spec-driven *toolchain*. Phase 13 turns the remaining hand-written dispatch layers over to it, wires production auth, and closes the two Track-A bugs against real cloud.
 
-> **Status: in-flight on PR #20.** 6 full handler migrations + 9 spec-drift blank-import contracts landed; 13.C + 13.D remain.
+> **Closed shape:** 6 full handler migrations + 9 spec-drift blank-import contracts landed; 13.C production RS256 JWKS landed; 13.D.1 sockerless lane landed. Real-cloud Track A residuals moved to Phase 14.
 
 ### Scope summary
 
@@ -80,9 +80,9 @@ Phase 12 lands the spec-driven *toolchain*. Phase 13 turns the remaining hand-wr
 |---|---|---|---|
 | 13.A | Azure adapter migration — every Azure frontend dispatches through `gen.ServerInterface` + `gen.HandlerWithOptions`. | Phase 11.4 + 11.7b + 12.A.14 | 5/7 full + 2/7 blank-import |
 | 13.B | GCP adapter migration — every GCP frontend dispatches via `gen.gcp.Match()` / `MatchAll()`. | Phase 11.5 + 11.7b | 1/8 full + 7/8 blank-import |
-| 13.C | Production RS256 JWKS — wire real Google + Microsoft Entra JWKS. | Phase 11 follow-on + Phase 12.C | ◻ gates on deployment target |
-| 13.D | Sockerless storage lane (13.D.1, ✅) + real-cloud Track A (13.D.2, ◻ — needs real cloud accounts to close BUG-8 / reclassify BUG-15). | BUGS.md, [doc/SOCKERLESS_VALIDATION.md](doc/SOCKERLESS_VALIDATION.md) | 1/2 |
-| 13.E | Cross-cloud Apply matrix expansion — additional source/destination cells per service beyond the AWS→K8s-peer baseline already in CI. | Phase 12.1–12.8 | ◻ optional, demand-driven |
+| 13.C | Production RS256 JWKS — wire real Google + Microsoft Entra JWKS. | Phase 11 follow-on + Phase 12.C | ✅ landed |
+| 13.D | Sockerless storage lane (13.D.1) + real-cloud Track A residual (13.D.2). | BUGS.md, [doc/SOCKERLESS_VALIDATION.md](doc/SOCKERLESS_VALIDATION.md) | 13.D.1 ✅; residual moved to Phase 14.D |
+| 13.E | Cross-cloud Apply matrix expansion — additional source/destination cells per service beyond the AWS→K8s-peer baseline already in CI. | Phase 12.1–12.8 | moved to Phase 14.E |
 
 ### 13.A — Azure adapter migration
 
@@ -164,8 +164,8 @@ Azure Blob isn't simulated by sockerless (only Azure Files); 13.D.1 covers AWS S
 
 **13.D.2 — Real-cloud Track A (pending).** Live AWS / GCP / Azure accounts. Closes:
 
-- **BUG-8** (P3, apigateway/gcp-tf): `hashicorp/google` API Gateway endpoint-override + real OAuth signing. Currently smoke-skipped in `services/apigateway/conformance/gcp_terraform_test.go`. Sockerless doesn't simulate GCP API Gateway.
-- **BUG-15** (P3, queue/gcp): Pub/Sub `subscriptions.get` retention drift. Provider records `345600s` instead of `604800s`. Either closes false-positive (hashicorp/google provider bug, real GCP exhibits same drift) or reopens as a real fix. Sockerless doesn't simulate GCP Pub/Sub.
+- **BUG-8** (P3, apigateway/gcp-tf): `hashicorp/google` API Gateway endpoint-override + real OAuth signing. Currently smoke-skipped in `services/apigateway/conformance/gcp_terraform_test.go`. The sockerless GCP APIGW backend lane passes; this is now the Terraform-provider leg.
+- **BUG-15** (P3, queue/gcp): Pub/Sub `subscriptions.get` retention drift. Provider records `345600s` instead of `604800s`. The sockerless GCP queue backend retention PATCH/read lane passes; real-cloud Track A decides whether the remaining drift is a hashicorp/google provider bug or a shim frontend response gap.
 
 Also lands real-signed signature-verification conformance against real IAM / Workload Identity / Entra ID.
 
@@ -187,20 +187,37 @@ Phase 12 ships `TestCrossCloudApply_Roundtrip_<svc>_<cell>` for one cell per ser
 >
 > Phase 14 cashes in the items Phase 13 deferred, on the cadence of the upstream sockerless project closing the six issues we filed in 13.D.1. Each shim-side follow-on has an explicit upstream dependency.
 >
-> **Status:** ◻ pending; gated on sockerless issue resolution. Branch + PR start when the first sockerless issue closes (or sooner if we want to land the 14.C frontend migrations independently).
+> **Status: in-flight on `phase-14`.** 14.A landed (sockerless PR #179 closed all 6 round-1 issues; shim assertions re-enabled). 14.D audit rounds through sockerless PR #216 are done; all upstream issues filed from the shim audit are closed, and #218 closed in PR #219. 14.B's current validation lane is green — 10 tests pass today (storage AWS/GCS/Azure Blob, secrets AWS/GCP/Azure KV, queue AWS/GCP, pubsub GCP, apigateway GCP). 14.C still independent + pending.
 
 ### Dependency on the sockerless project
 
-The 13.D.1 work surfaced six issues against sockerless ([BUGS.md § Upstream-tracked](BUGS.md#upstream-tracked-sockerless-validation-lane)). Phase 14 work unblocks as each closes:
+**Round 1 — closed by sockerless PR #179 (2026-05-23).** All 6 issues we filed at the end of Phase 13.D.1 landed in a single sockerless umbrella PR. Phase 14.A re-enabled the corresponding shim assertions; new services (Pub/Sub, Memorystore, APIM, Service Bus, …) now exist in sockerless.
 
-| Sockerless issue | Phase 14 work it unblocks |
+| Sockerless issue (round 1) | Phase 14 work it unblocked | Status |
+|---|---|---|
+| [#173](https://github.com/e6qu/sockerless/issues/173) — S3 `/s3/` URL prefix | 14.A.1 — drop the `/s3` workaround | ✅ 14.A landed |
+| [#174](https://github.com/e6qu/sockerless/issues/174) — `aws-chunked` envelope stored verbatim | 14.A.2 — AWS S3 round-trip assertions | ✅ 14.A landed |
+| [#175](https://github.com/e6qu/sockerless/issues/175) — missing `ListSecretVersionIds` | 14.A.3 — AWS Secrets Manager `HeadSecret` + `GetSecretValue` | ✅ 14.A landed |
+| [#176](https://github.com/e6qu/sockerless/issues/176) — AWS missing services | 14.B.1 — new AWS service lanes (SQS, SNS, RDS, ElastiCache, APIGW v1+v2) | ◐ current lane includes AWS SQS; additional AWS service lanes remain optional follow-on. |
+| [#177](https://github.com/e6qu/sockerless/issues/177) — GCP missing services | 14.B.2 — new GCP service lanes (Pub/Sub, Secrets, SQL, Memorystore, APIGW). | ◐ current lane includes GCP Pub/Sub queue/pubsub, Secret Manager, and APIGW; BUG-8 backend leg and BUG-15 backend leg cleared. |
+| [#178](https://github.com/e6qu/sockerless/issues/178) — Azure missing services | 14.B.3 — new Azure service lanes (Blob+KV data plane, Service Bus, PG, Redis, APIM) | ◐ current lane includes Azure Blob + KV; additional Azure service lanes remain optional follow-on. |
+
+**Round 2 — fidelity audit (Phase 14.D), 2026-05-24.** Probing sockerless directly with `curl` and the SDK-style request shapes the shim's backends emit surfaced 8 additional fidelity gaps in the now-shipped services. Filed and closed in sockerless PR #180.
+
+| Sockerless issue (round 2) | Blocks (in shim's lane) |
 |---|---|
-| [#173](https://github.com/e6qu/sockerless/issues/173) — S3 `/s3/` URL prefix | 14.A.1 — drop the `/s3` workaround from `scripts/run-sockerless-storage.sh` + the comment in `sockerless_test.go`. |
-| [#174](https://github.com/e6qu/sockerless/issues/174) — `aws-chunked` envelope stored verbatim | 14.A.2 — re-enable AWS S3 PutObject + GetObject + HeadObject round-trip assertions in the storage lane. |
-| [#175](https://github.com/e6qu/sockerless/issues/175) — missing `ListSecretVersionIds` | 14.A.3 — re-enable AWS Secrets Manager `HeadSecret` + `GetSecretValue` in the secrets lane. |
-| [#176](https://github.com/e6qu/sockerless/issues/176) — AWS missing services (SQS / SNS / APIGW / RDS / ElastiCache) | 14.B.1 — add `TestSockerless_AWS_<Service>_*` tests in `services/<svc>/conformance/` for each shim service the sim now supports. |
-| [#177](https://github.com/e6qu/sockerless/issues/177) — GCP missing services (Pub/Sub / Secrets / SQL / Memorystore / APIGW) | 14.B.2 — same for the GCP backends. **Closing GCP Pub/Sub portion unblocks 14.D's reclassification of BUG-15**; closing the API Gateway portion unblocks **closing BUG-8 via the sockerless lane** (no real-cloud needed). |
-| [#178](https://github.com/e6qu/sockerless/issues/178) — Azure missing services (Blob+KV data plane / Service Bus / PG / Redis / APIM) | 14.B.3 — same for the Azure backends. Adds the Azure storage data-plane lane (today's gap). |
+| [#181](https://github.com/e6qu/sockerless/issues/181) — Azure Cache for Redis ARM case sensitivity | Azure Redis cache lane (shim emits lowercase per spec, sim only matches `Redis`). |
+| [#182](https://github.com/e6qu/sockerless/issues/182) — GCP Pub/Sub strips 5 of 7 subscription fields | Pub/Sub field round-trip — **this is the same shape as BUG-15**. Closing this likely closes BUG-15 against sockerless without real-cloud Track A. |
+| [#183](https://github.com/e6qu/sockerless/issues/183) — GCP Secret Manager ListSecrets routing leak (also affects `/v1/operations`) | GCP Secret Manager list + Operations LRO polling. |
+| [#184](https://github.com/e6qu/sockerless/issues/184) — Azure Key Vault malformed `kid` / `id` URLs (duplicated host + HTTP) | Any KV client that follows the returned id; TF provider state recording the bad URL. |
+| [#185](https://github.com/e6qu/sockerless/issues/185) — Azure Key Vault placeholder modulus | JWKS / signature-verify integration tests against KV keys. |
+| [#186](https://github.com/e6qu/sockerless/issues/186) — AWS SQS attribute drops | AWS SQS attribute round-trip — same drift shape as BUG-15 in different protocol. |
+| [#187](https://github.com/e6qu/sockerless/issues/187) — GCP Cloud SQL relative `selfLink` | TF state with unfollowable selfLink. |
+| [#188](https://github.com/e6qu/sockerless/issues/188) — GCP Secret Manager `versions/latest` not resolved | Version-tracking flows. |
+
+**Later audit rounds — closed by sockerless PRs #192, #200, #202, #211, #216, and #219.** Follow-up probes filed #189-191, #193-199, #201, #203-210, #213-215, and #218. PR #216 closed the final audit set (#209, #210, #213, #214, #215); PR #219 closed the GCP Secret Manager lifecycle gap (#218). As of 2026-05-25, the current shim lane passes against sockerless `06ee3a5`.
+
+**Latest lane added.** The GCP Secret Manager backend lane found [sockerless#218](https://github.com/e6qu/sockerless/issues/218): the simulator lacked `ListSecretVersions`, `UpdateSecret`, and `DeleteSecret`. After #218 closed in PR #219, the shim added the real `services/secrets/backends/gcp` sockerless lane without a workaround.
 
 ### Why sockerless for cross-cloud + Terraform-provider validation
 
@@ -211,10 +228,10 @@ The 13.D.1 work surfaced six issues against sockerless ([BUGS.md § Upstream-tra
 
 | Track | What | Dependency | Status |
 |---|---|---|---|
-| 14.A | Re-enable shim assertions as sockerless fidelity bugs close. Three sub-items, one per sockerless#173/174/175. | sockerless#173-175 closing | ◻ |
-| 14.B | Add new sockerless service lanes as sockerless missing-service issues close. Three sub-items, one per sockerless#176/177/178. | sockerless#176-178 closing | ◻ |
+| 14.A | Re-enable shim assertions as sockerless fidelity bugs close. Three sub-items, one per sockerless#173/174/175. | sockerless#173-175 closing | ✅ landed (sockerless PR #179) |
+| 14.B | Add new sockerless service lanes as sockerless missing-service + fidelity issues close. | sockerless#176-218 audit chain closed through PR #219 | ◐ — current 10-test lane green; additional lanes optional follow-on |
 | 14.C | Full handler migrations for the 9 frontends that landed only as blank-import in Phase 13: `azure_blob` (69 ops; Service-Bus hybrid pattern), `azure_apim` (waits for upstream spec to broaden), 7 GCP frontends (cosmetic). | — (independent of sockerless) | ◻ |
-| 14.D | Real-cloud Track A residual — close or reclassify BUG-8 + BUG-15 for any portion not covered by 14.B (e.g. real signed-credentials conformance). | sockerless#177 closure first; what doesn't close via sockerless escalates here. | ◻ |
+| 14.D | Fidelity audit against sockerless's new services + file per-bug issues. Real-cloud Track A residual for whatever sockerless can't cover (e.g. real signed-credentials conformance and the remaining Terraform-provider legs of BUG-8/BUG-15). | — | ✅ simulator audit done through PR #219; real-cloud residual ◻ |
 | 14.E | Cross-cloud Apply matrix expansion per [13.E above](#13e--cross-cloud-apply-matrix-expansion-deferred-to-phase-14) — driven by sockerless lanes from 14.B. | 14.B in progress | ◻ optional, demand-driven |
 
 ### Exit criteria
@@ -235,7 +252,8 @@ The 13.D.1 work surfaced six issues against sockerless ([BUGS.md § Upstream-tra
 
 | PR | Phase | Headline | Merged |
 |---|---|---|---|
-| #19 | 12 | Spec-driven toolchain across all 8 services × 3 lanes (AWS Smithy / Azure OpenAPI / GCP Discovery). 8-stage Azure preprocessor closes BUG-20. Vendored-spec `_provenance` + spec-freshness lane + per-service Terraform walkthroughs. 82+ granular commits. | _pending_ |
+| #20 | 13 | Azure + GCP adapter migrations, production RS256 JWKS, and the first sockerless storage/secrets lane. | 2026-05-24 `3cf9e13` |
+| #19 | 12 | Spec-driven toolchain across all 8 services × 3 lanes (AWS Smithy / Azure OpenAPI / GCP Discovery). 8-stage Azure preprocessor closes BUG-20. Vendored-spec `_provenance` + spec-freshness lane + per-service Terraform walkthroughs. 82+ granular commits. | 2026-05-22 `778e8e9` |
 | #18 | 11 | Tighten the wire boundary — 8/8 AWS frontends spec-driven (5 protocols); 24/24 frontends verifier-wrapped; BUG-18 closed end-to-end; Azure oapi-codegen pilot. | 2026-05-22 `bcd72e5` |
 | #17 | 10 | Cross-cloud `terraform apply` across all 8 services; 8 BUGs closed; full developer + contributing docs. | 2026-05-21 `ebc30f7` |
 | #16 | 9 docs + 10.1 | Phase 9 docs + BUG-5 stateless `Operations.Get`. | 2026-05-21 `326f57d` |

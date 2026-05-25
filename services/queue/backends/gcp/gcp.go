@@ -232,6 +232,22 @@ func (b *Backend) HeadQueue(ctx context.Context, name string) (domain.Queue, err
 	attrs := domain.QueueAttributes{
 		VisibilityTimeoutSeconds: int(sub.AckDeadlineSeconds),
 	}
+	if d := sub.MessageRetentionDuration; d != "" {
+		// "Ns" duration string per the Discovery doc. Strip the trailing
+		// "s" and parse the integer; ignore parse errors silently — the
+		// duration is a backend-emitted value, not user input.
+		if n := len(d); n > 1 && d[n-1] == 's' {
+			secs := 0
+			for _, c := range d[:n-1] {
+				if c < '0' || c > '9' {
+					secs = 0
+					break
+				}
+				secs = secs*10 + int(c-'0')
+			}
+			attrs.MessageRetentionSeconds = secs
+		}
+	}
 	return domain.Queue{Name: name, Attributes: attrs}, nil
 }
 
