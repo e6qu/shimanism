@@ -1,6 +1,6 @@
 # Known Bugs
 
-**21 filed · 19 fixed · 2 open · 1 false positive. Upstream sockerless audit issues through #218 are closed as of sockerless PR #219. No upstream sockerless blocker is open at this checkpoint.**
+**22 filed · 20 fixed · 2 open · 1 false positive. Upstream sockerless audit issues through #218 are closed as of sockerless PR #219. No upstream sockerless blocker is open at this checkpoint.**
 
 Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLAN.md](PLAN.md) · narrative [WHAT_WE_DID.md](WHAT_WE_DID.md) · rules [AGENTS.md](AGENTS.md).
 
@@ -115,6 +115,7 @@ When a new bug fits one of these, tag it with the rule.
 
 | ID | Sev | Area | Closed in | One-liner |
 |---|---|---|---|---|
+| 22 | P3 | storage/conformance | Phase 14 | `services/storage/conformance/sockerless_test.go` was not gofmt-clean under the CI pre-commit hook after the GCS import landed. Fixed by running gofmt. |
 | 21 | P2 | CI / kind conformance jobs | Phase 14 | `helm/kind-action@v1` fetched the kind release binary without following GitHub release redirects, so the checksum step validated the redirect body and failed before tests ran. Fixed by preinstalling kind/kubectl into the action cache with redirect-following, checksum-verified downloads. |
 | 20 | P2 | azure-codegen / ARM | Phase 12.A.24 (PR #19) | `flattenARMAllOf` preprocessor inlines `{ allOf: [TrackedResource], properties: {own} }` so oapi-codegen emits a struct, not a type alias. ContainerApp / RedisResource / Server (PostgreSQL FlexibleServer) emit as proper Go structs. Phase 12.A.31 caught + fixed a chained-inheritance bug in the same stage. |
 | 18 | P3 | all frontends (sig verification) | Phase 11.14 (PR #18) | 4 verifier packages wrap all 24 frontends; bypass dropped; every conformance test signs end-to-end. AWS-CLI compatibility via manual SigV4 in `canonical.go` accepting both Go-SDK and boto3 signing shapes. See [doc/VERIFIERS.md](doc/VERIFIERS.md). |

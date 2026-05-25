@@ -18,9 +18,9 @@ import (
 	"os"
 	"testing"
 
+	gcsstorage "cloud.google.com/go/storage"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob"
-	gcsstorage "cloud.google.com/go/storage"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awshttp "github.com/aws/aws-sdk-go-v2/aws/transport/http"
 	"github.com/aws/aws-sdk-go-v2/config"
