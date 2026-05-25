@@ -68,21 +68,16 @@ func runTerraform(t *testing.T, dir, bin string, args ...string) ([]byte, []byte
 		"TF_IN_AUTOMATION=1",
 		"TF_INPUT=0",
 		"CHECKPOINT_DISABLE=1",
-		// Share a per-run provider cache so the second TF test
-		// doesn't re-download the provider.
-		"TF_PLUGIN_CACHE_DIR="+terraformPluginCacheDir(),
+		// Keep the provider cache scoped to this Terraform working
+		// directory. The cache is not safe to share across parallel
+		// terraform init calls.
+		"TF_PLUGIN_CACHE_DIR="+terraformPluginCacheDirForWorkdir(dir),
 	)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	err := cmd.Run()
 	return stdout.Bytes(), stderr.Bytes(), err
-}
-
-func terraformPluginCacheDir() string {
-	d := filepath.Join(os.TempDir(), "shim-secrets-tf-plugin-cache")
-	_ = os.MkdirAll(d, 0o755)
-	return d
 }
 
 func TestTerraform_AWSSecrets_ResourceLifecycle(t *testing.T) {

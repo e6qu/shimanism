@@ -6,19 +6,19 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 
 ## Where we are
 
-- **Phase 14 remains in-flight, with PR #21 merged.** Local `main` is synced to `45985e7` (PR #21 merged 2026-05-25). Start a new branch from `main` for the next Phase 14 sub-phase.
-- **Sockerless lane is green as of 2026-05-25.** The user merged sockerless PR #219 (`06ee3a5` in `/tmp/sockerless`), closing [sockerless#218](https://github.com/e6qu/sockerless/issues/218). `make sockerless-storage` passed all 10 current shim tests.
+- **Phase 14 remains in-flight, with PR #21 merged.** Current work is on `phase-181-e2e-docs-and-shims`, branched from local `main` at `45985e7` (PR #21 merged 2026-05-25).
+- **Sockerless lane is green as of 2026-05-25.** The user merged sockerless PR #219 (`06ee3a5` in `/tmp/sockerless`), closing [sockerless#218](https://github.com/e6qu/sockerless/issues/218). `make sockerless` passed the current shim tests, including the new storage through-shim cross-cloud E2E cells.
 - **GCP Secret Manager is now wired.** The real backend lane uses the official `cloud.google.com/go/secretmanager/apiv1` REST client against sockerless and covers CreateSecret, PutSecretValue, HeadSecret, GetSecretValue(latest + explicit version), ListVersions, ListSecrets, UpdateSecret, and DeleteSecret. No workaround, fake, mock, or partial test is carried.
-- **Current sockerless coverage:** storage AWS S3 + GCS + Azure Blob; secrets AWS Secrets Manager + GCP Secret Manager + Azure Key Vault; queue AWS SQS + GCP Pub/Sub queue; pubsub GCP Pub/Sub; apigateway GCP API Gateway.
-- **Still local/open:** BUG-8 and BUG-15 are not upstream-sockerless blockers anymore. BUG-8 is the hashicorp/google API Gateway Terraform endpoint/OAuth leg. BUG-15 is the hashicorp/google `message_retention_duration` state-drift question; the shim's GCP queue backend retention PATCH/read path is green.
+- **Current sockerless coverage:** storage AWS S3 + GCS + Azure Blob backend-adapter lanes plus storage through-shim E2E cells for AWS -> GCP, GCP -> Azure, and Azure -> AWS; secrets AWS Secrets Manager + GCP Secret Manager + Azure Key Vault; queue AWS SQS + GCP Pub/Sub queue; pubsub GCP Pub/Sub; apigateway GCP API Gateway.
+- **Still local/open:** BUG-8 and BUG-15 are not upstream-sockerless blockers anymore. BUG-8 is the hashicorp/google API Gateway Terraform endpoint/OAuth leg. BUG-15 is the hashicorp/google `message_retention_duration` state-drift question; the shim's GCP queue backend retention PATCH/read path is green. BUG-24 tracks expanding through-shim sockerless E2E beyond storage.
 - **Last merged:** PR #21 (Phase 14 sockerless validation lane) at `45985e7` on `main`, 2026-05-25.
 
 ## Session-start checklist
 
 1. `git fetch origin && git checkout main && git pull --ff-only origin main` — sync `main`.
 2. Create a new branch from `main` for the next Phase 14 sub-phase before editing.
-3. If sockerless changed again, `git -C /tmp/sockerless pull --ff-only`, rebuild the three sims, and rerun `make sockerless-storage`.
-4. Read [STATUS.md](STATUS.md) + this file. Skim the two open local bugs below.
+3. If sockerless changed again, `git -C /tmp/sockerless pull --ff-only`, rebuild the three sims, and rerun `make sockerless`.
+4. Read [STATUS.md](STATUS.md) + this file. Skim the three open local bugs below.
 5. Pick the next Phase 14 item: choose a different remaining sockerless lane, finish 14.C handler migrations, or continue real-cloud Track A residuals.
 
 ## Resume after sockerless work
@@ -32,7 +32,7 @@ git -C /tmp/sockerless pull --ff-only
 GOWORK=off CGO_ENABLED=0 go build -tags noui -o /tmp/sockerless/simulators/aws/simulator-aws /tmp/sockerless/simulators/aws
 GOWORK=off CGO_ENABLED=0 go build -tags noui -o /tmp/sockerless/simulators/gcp/simulator-gcp /tmp/sockerless/simulators/gcp
 GOWORK=off CGO_ENABLED=0 go build -tags noui -o /tmp/sockerless/simulators/azure/simulator-azure /tmp/sockerless/simulators/azure
-make sockerless-storage
+make sockerless
 ```
 
 Other lanes worth adding (gated on no upstream blocker today):
@@ -52,8 +52,8 @@ Always update `doc/SOCKERLESS_VALIDATION.md` + `BUGS.md` § Sockerless when a tr
 
 ## Next concrete actions (in priority order)
 
-1. Create the next branch from `main` for whichever Phase 14 sub-phase is selected.
-2. Choose between expanding 14.B to additional service lanes (GCP Cloud SQL / Memorystore; Azure Service Bus / PG / Redis / APIM; AWS Lambda / SNS / RDS / ElastiCache / APIGW), starting 14.C handler migrations, or continuing real-cloud Track A residuals.
+1. Finish PR for `phase-181-e2e-docs-and-shims`: rebase on `origin/main`, push, open PR with `Closes #23` and `Closes #25`; leave #24 open.
+2. Choose between expanding 14.B through-shim sockerless cells to more services (BUG-24), adding additional backend-adapter lanes (GCP Cloud SQL / Memorystore; Azure Service Bus / PG / Redis / APIM; AWS Lambda / SNS / RDS / ElastiCache / APIGW), starting 14.C handler migrations, or continuing real-cloud Track A residuals.
 3. Real-cloud Track A remains separate: BUG-8 / BUG-15 Terraform-provider legs plus real-signed verifier conformance.
 
 ## Historical migration context
@@ -112,12 +112,13 @@ Phase 12 ships one cell per service (typically AWS → K8s peer). Expanding to o
 - Fidelity to the source cloud's API; real backends only; tests from official client surfaces.
 - Reuse-over-reinvention.
 
-## Open bugs (2) — absorbed into Phase 14.D (real-cloud Track A residual)
+## Open bugs (3) — absorbed into Phase 14
 
-Sockerless no longer blocks either path. Both open bugs are now local/provider residuals:
+Sockerless no longer blocks BUG-8 or BUG-15. Both are now local/provider residuals:
 
 - **BUG-8** (P3) — apigateway/gcp-tf-frontend. `hashicorp/google` API Gateway endpoint-override + real OAuth signing. The GCP APIGW backend lane passes against sockerless; the Terraform-provider leg still needs Track A or explicit provider endpoint wiring.
 - **BUG-15** (P3) — queue/gcp-frontend. GCP Pub/Sub retention plan/apply asymmetry. The GCP queue backend retention PATCH/read path passes against sockerless; the remaining question is whether hashicorp/google shows the same `message_retention_duration` state drift against real GCP.
+- **BUG-24** (P2) — sockerless/conformance. Storage now has source-client -> shim frontend -> shim backend -> sockerless cross-cloud E2E cells; secrets, queue, pubsub, rdbms, cache, functions, and apigateway need the same pattern.
 
 ## Follow-ons — all rolled into Phase 14
 

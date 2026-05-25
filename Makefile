@@ -4,7 +4,7 @@
 # enough to run on every PR. Phase-specific targets (codegen, conformance)
 # get added as their sub-phases land.
 
-.PHONY: all build test vet lint typecheck fmt check clean fetch-specs license-check codegen codegen-check spec-freshness inject-provenance sockerless-storage help
+.PHONY: all build test vet lint typecheck fmt check clean fetch-specs license-check codegen codegen-check spec-freshness inject-provenance sockerless sockerless-storage help
 
 # Default: the full local pre-push lane.
 all: vet test build
@@ -35,7 +35,8 @@ help:
 	@echo "  license-check       verify every linked dep carries an AGPL-compatible license"
 	@echo ""
 	@echo "Sockerless validation lane (opt-in; requires a local clone of github.com/e6qu/sockerless):"
-	@echo "  sockerless-storage  build sims + run shim's TestSockerless_* against AWS S3 + GCS sims"
+	@echo "  sockerless          build sims + run shim's TestSockerless_* lanes"
+	@echo "  sockerless-storage  compatibility alias for the same lane"
 
 # Build every package + the shim binary into ./bin/.
 build:
@@ -229,5 +230,7 @@ license-check:
 # github.com/e6qu/sockerless (set SOCKERLESS_DIR to override the
 # default /tmp/sockerless). See doc/SOCKERLESS_VALIDATION.md and
 # scripts/run-sockerless-storage.sh for details.
+sockerless: sockerless-storage
+
 sockerless-storage:
 	@bash scripts/run-sockerless-storage.sh

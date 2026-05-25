@@ -71,7 +71,7 @@ resource "aws_s3_bucket" "app" {
 
 All four examples produce a real bucket holding real bytes — in MinIO (or GCS, Azure Blob, real S3, etc., whichever backend the shim was started with). The clients don't know they're not talking to real S3 / real GCS.
 
-See [docs/getting-started.md](docs/getting-started.md) for the five-minute walkthrough.
+See [docs/getting-started.md](docs/getting-started.md) for the five-minute walkthrough and [docs/end-to-end-examples.md](docs/end-to-end-examples.md) for real backend, optional simulator, SDK, CLI, and Terraform import examples.
 
 ## Shimmed services
 
@@ -113,7 +113,7 @@ The closest comparison points and how shimanism differs from each:
 
 | Project | What it is | How shimanism differs |
 |---|---|---|
-| **[LocalStack](https://localstack.cloud/)** | Local cloud emulator (AWS-shape; Pro adds Snowflake + others) for dev/test; state in-process or persisted to disk via the persistence module. | shimanism is not an emulator. Data lives in real backends. Production migration is the use case; LocalStack is dev/test. |
+| **[LocalStack](https://localstack.cloud/)** | Local cloud emulator (AWS-shape; Pro adds Snowflake + others) for dev/test; state in-process or persisted to disk via the persistence module. | shimanism is not an emulator. Data lives in real backends. Production migration is the use case; LocalStack is dev/test. The LocalStack-backed shimanism path is not tested yet. |
 | **[MinIO](https://min.io/)**, Cloudflare R2, Backblaze B2 | S3-compatible *backends*. They implement the S3 wire on top of their own storage. | shimanism is a *frontend translation layer*, not a backend. It can use MinIO as a backend; the value-add is the cross-cloud frontend matrix (`gcloud` → GCS frontend → MinIO; `aws` → S3 frontend → MinIO; etc.) and the other shimmed services beyond storage. |
 | **[Crossplane](https://www.crossplane.io/)** | Kubernetes CR-based control plane for multi-cloud infrastructure. Provider CRDs (managed resources) + composed `XR` abstractions via `XRD` + `Composition`. | **Crossplane requires you to stop using your cloud SDK / IaC provider and rewrite to its CRD model.** shimanism lets you keep the *original* SDK (`aws-sdk-go`, `boto3`, `@aws-sdk/*`, `cloud.google.com/go/...`, Azure SDK) and the *original* IaC (`hashicorp/aws`, `hashicorp/google`, `hashicorp/azurerm`) — same calls, same plans, just pointed at a different endpoint. No new abstraction to learn, no per-resource CRD translation. |
 | **[Dapr](https://dapr.io/)** | Distributed-app runtime with multi-cloud bindings for state, pub/sub, secrets, etc. Apps call the Dapr SDK/sidecar. | Dapr requires you to rewrite to its API. shimanism lets you keep the cloud's API. Different target: Dapr is for greenfield apps that want portability; shimanism is for brownfield apps that need migration. |
@@ -127,7 +127,7 @@ For deeper reading: [PHILOSOPHY.md](PHILOSOPHY.md) on the "intersection-only, ne
 
 ## Non-goals
 
-- **Not an emulator.** shimanism does not reimplement services in-memory or on local disk. For developer-local emulation, use LocalStack.
+- **Not an emulator.** shimanism does not reimplement services in-memory or on local disk. For local testing, shimanism has a maintained sockerless simulator lane; LocalStack may also be useful for AWS-shaped local development, but that path is not tested by this project yet.
 - **Not a neutral SDK.** There is no shimanism client library. Application code keeps importing `boto3`, `@azure/storage-blob`, `google-cloud-pubsub`, and so on.
 - **Not a lowest-common-denominator abstraction layer.** We honor the source cloud's API. Where a call cannot be translated honestly, it fails in the source cloud's own error vocabulary rather than being smoothed over.
 - **Not a Terraform wrapper.** Control-plane operations call the cloud admin APIs directly.
@@ -157,6 +157,7 @@ The full bug ledger lives in [BUGS.md](BUGS.md).
 The repo root keeps a small set of load-bearing files. Everything else lives under [`docs/`](docs/).
 
 - **[docs/](docs/README.md)** — the documentation index. Start here for setup, architecture, contributing, testing, codegen, releasing, and per-service detail.
+- **[docs/end-to-end-examples.md](docs/end-to-end-examples.md)** — start from real cloud credentials or an optional local simulator, then drive the shim with CLI, SDK, and Terraform provider endpoints.
 - **[PHILOSOPHY.md](PHILOSOPHY.md)** — the *why* every contributor should read before changing code.
 - **[AGENTS.md](AGENTS.md)** — rules for human and LLM contributors. The continuity contract, the no-fakes rule, the bug-first rule, branch + PR hygiene.
 - **[PLAN.md](PLAN.md)** — phase roadmap and exit criteria.

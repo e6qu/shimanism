@@ -27,6 +27,7 @@ import (
 	awss3 "github.com/aws/aws-sdk-go-v2/service/s3"
 	"google.golang.org/api/option"
 
+	"github.com/e6qu/shimanism/internal/harness"
 	"github.com/e6qu/shimanism/internal/storage/domain"
 	awsbackend "github.com/e6qu/shimanism/services/storage/backends/aws"
 	azurebackend "github.com/e6qu/shimanism/services/storage/backends/azureblob"
@@ -247,6 +248,167 @@ func TestSockerless_Azure_Blob_RoundTrip(t *testing.T) {
 	data, _ := io.ReadAll(got.Body)
 	if !bytes.Equal(data, body) {
 		t.Errorf("GetObject body = %q, want %q", string(data), string(body))
+	}
+}
+
+// TestSockerless_E2E_AWSFrontendToGCSBackend drives a real AWS S3
+// client into shimanism's AWS frontend, through the GCS backend, and
+// out to the sockerless GCP simulator. This is the concrete AWS -> GCP
+// migration path for storage.
+func TestSockerless_E2E_AWSFrontendToGCSBackend(t *testing.T) {
+	endpoint := os.Getenv("SOCKERLESS_GCP_ENDPOINT")
+	if endpoint == "" {
+		t.Skip("SOCKERLESS_GCP_ENDPOINT not set")
+	}
+	t.Setenv("STORAGE_EMULATOR_HOST", endpoint)
+	ctx := context.Background()
+	gcsClient, err := gcsstorage.NewClient(ctx, option.WithoutAuthentication())
+	if err != nil {
+		t.Fatalf("gcs client: %v", err)
+	}
+	t.Cleanup(func() { _ = gcsClient.Close() })
+	project := os.Getenv("SOCKERLESS_GCP_PROJECT")
+	if project == "" {
+		project = "shim-sockerless"
+	}
+	backend := gcsbackend.New(gcsClient, gcsbackend.Config{ProjectID: project})
+	shim := harness.StartStorageServer(t, backend)
+	awsClient := newS3Client(t, shim.URL)
+
+	bucket := randomNamespace("e2e-aws-gcp")
+	key := "rt/" + randomNamespace("obj") + ".txt"
+	body := []byte("aws frontend to gcs backend through sockerless")
+
+	if _, err := awsClient.CreateBucket(ctx, &awss3.CreateBucketInput{Bucket: aws.String(bucket)}); err != nil {
+		t.Fatalf("CreateBucket via AWS frontend: %v", err)
+	}
+	t.Cleanup(func() {
+		_, _ = awsClient.DeleteObject(ctx, &awss3.DeleteObjectInput{Bucket: aws.String(bucket), Key: aws.String(key)})
+		_, _ = awsClient.DeleteBucket(ctx, &awss3.DeleteBucketInput{Bucket: aws.String(bucket)})
+	})
+	if _, err := awsClient.PutObject(ctx, &awss3.PutObjectInput{
+		Bucket: aws.String(bucket),
+		Key:    aws.String(key),
+		Body:   bytes.NewReader(body),
+	}); err != nil {
+		t.Fatalf("PutObject via AWS frontend: %v", err)
+	}
+	got, err := awsClient.GetObject(ctx, &awss3.GetObjectInput{
+		Bucket: aws.String(bucket),
+		Key:    aws.String(key),
+	})
+	if err != nil {
+		t.Fatalf("GetObject via AWS frontend: %v", err)
+	}
+	defer got.Body.Close()
+	data, _ := io.ReadAll(got.Body)
+	if !bytes.Equal(data, body) {
+		t.Errorf("GetObject body = %q, want %q", string(data), string(body))
+	}
+}
+
+// TestSockerless_E2E_GCSFrontendToAzureBlobBackend drives a real GCS
+// client into shimanism's GCS frontend, through the Azure Blob backend,
+// and out to the sockerless Azure simulator. This is the concrete
+// GCP -> Azure migration path for storage.
+func TestSockerless_E2E_GCSFrontendToAzureBlobBackend(t *testing.T) {
+	account := os.Getenv("SOCKERLESS_AZURE_BLOB_ACCOUNT")
+	if account == "" {
+		t.Skip("SOCKERLESS_AZURE_BLOB_ACCOUNT not set")
+	}
+	port := os.Getenv("SOCKERLESS_AZURE_TLS_PORT")
+	if port == "" {
+		t.Skip("SOCKERLESS_AZURE_TLS_PORT not set")
+	}
+	keyMaterial := bytes.Repeat([]byte("k"), 32)
+	encodedKey := base64.StdEncoding.EncodeToString(keyMaterial)
+	cred, err := azblob.NewSharedKeyCredential(account, encodedKey)
+	if err != nil {
+		t.Fatalf("shared-key credential: %v", err)
+	}
+	blobURL := "https://" + account + ".blob.localhost:" + port + "/"
+	blobClient, err := azblob.NewClientWithSharedKeyCredential(blobURL, cred, &azblob.ClientOptions{
+		ClientOptions: azcore.ClientOptions{Transport: &http.Client{Transport: storageLocalhostDial(port)}},
+	})
+	if err != nil {
+		t.Fatalf("blob client: %v", err)
+	}
+	backend := azurebackend.New(blobClient, "eastus")
+	shim := harness.StartStorageServerGCS(t, backend)
+	gcsClient := newGCSClient(t, shim.URL)
+	ctx := context.Background()
+
+	bucket := randomNamespace("e2e-gcp-azure")
+	key := "rt/" + randomNamespace("obj") + ".txt"
+	body := []byte("gcs frontend to azure blob backend through sockerless")
+
+	if err := gcsClient.Bucket(bucket).Create(ctx, "shim-sockerless", nil); err != nil {
+		t.Fatalf("Create bucket via GCS frontend: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = gcsClient.Bucket(bucket).Object(key).Delete(ctx)
+		_ = gcsClient.Bucket(bucket).Delete(ctx)
+	})
+	wr := gcsClient.Bucket(bucket).Object(key).NewWriter(ctx)
+	if _, err := wr.Write(body); err != nil {
+		t.Fatalf("Write via GCS frontend: %v", err)
+	}
+	if err := wr.Close(); err != nil {
+		t.Fatalf("Close writer via GCS frontend: %v", err)
+	}
+	rd, err := gcsClient.Bucket(bucket).Object(key).NewReader(ctx)
+	if err != nil {
+		t.Fatalf("Read via GCS frontend: %v", err)
+	}
+	data, err := io.ReadAll(rd)
+	_ = rd.Close()
+	if err != nil {
+		t.Fatalf("read body: %v", err)
+	}
+	if !bytes.Equal(data, body) {
+		t.Errorf("GCS reader body = %q, want %q", string(data), string(body))
+	}
+}
+
+// TestSockerless_E2E_AzureBlobFrontendToAWSBackend drives a real Azure
+// Blob client into shimanism's Azure Blob frontend, through the AWS S3
+// backend, and out to the sockerless AWS simulator. This is the
+// concrete Azure -> AWS migration path for storage.
+func TestSockerless_E2E_AzureBlobFrontendToAWSBackend(t *testing.T) {
+	endpoint := os.Getenv("SOCKERLESS_AWS_ENDPOINT")
+	if endpoint == "" {
+		t.Skip("SOCKERLESS_AWS_ENDPOINT not set")
+	}
+	backend := awsbackend.New(newSockerlessAWSClient(t, endpoint))
+	shim := harness.StartStorageServerAzureBlob(t, backend)
+	blobClient := newAzureBlobClient(t, shim.URL)
+	ctx := context.Background()
+
+	containerName := randomNamespace("e2e-azure-aws")
+	blobName := "rt/" + randomNamespace("obj") + ".txt"
+	body := []byte("azure blob frontend to aws backend through sockerless")
+
+	if _, err := blobClient.CreateContainer(ctx, containerName, nil); err != nil {
+		t.Fatalf("CreateContainer via Azure frontend: %v", err)
+	}
+	t.Cleanup(func() {
+		_, _ = blobClient.DeleteBlob(ctx, containerName, blobName, nil)
+		_, _ = blobClient.DeleteContainer(ctx, containerName, nil)
+	})
+	if _, err := blobClient.UploadBuffer(ctx, containerName, blobName, body, &azblob.UploadBufferOptions{}); err != nil {
+		t.Fatalf("UploadBuffer via Azure frontend: %v", err)
+	}
+	got, err := blobClient.DownloadStream(ctx, containerName, blobName, nil)
+	if err != nil {
+		t.Fatalf("DownloadStream via Azure frontend: %v", err)
+	}
+	data, err := io.ReadAll(got.Body)
+	_ = got.Body.Close()
+	if err != nil {
+		t.Fatalf("read body: %v", err)
+	}
+	if !bytes.Equal(data, body) {
+		t.Errorf("Azure download body = %q, want %q", string(data), string(body))
 	}
 }
 

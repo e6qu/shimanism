@@ -8,11 +8,20 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 
 PR #21 merged on 2026-05-25 at `45985e7`, landing 14.A, the 14.D simulator audit, and the current 14.B sockerless lane. Phase 14 remains open for additional service lanes, 14.C handler migrations, and real-cloud Track A residuals.
 
+**14.B docs + through-shim sockerless E2E branch.** The `phase-181-e2e-docs-and-shims` branch switches the user-facing examples from scattered snippets into [docs/end-to-end-examples.md](docs/end-to-end-examples.md): start from real cloud credentials or from sockerless, then drive shimanism through CLI, SDK, and Terraform provider endpoint overrides. The doc includes Terraform import-state examples and cross-cloud route tables for AWS -> GCP, GCP -> Azure, and Azure -> AWS across all eight service families.
+
+Two local gaps surfaced and were filed before fixing:
+
+- **BUG-23 / GitHub #23** — sockerless validation had backend-adapter coverage, but no explicit source-client -> shim frontend -> shim backend -> sockerless cross-cloud cells. Fixed for storage with `TestSockerless_E2E_AWSFrontendToGCSBackend`, `TestSockerless_E2E_GCSFrontendToAzureBlobBackend`, and `TestSockerless_E2E_AzureBlobFrontendToAWSBackend`.
+- **BUG-25 / GitHub #25** — `make test` exposed a Terraform provider-cache race. Parallel Terraform tests shared package-level `TF_PLUGIN_CACHE_DIR` paths while running `terraform init`, producing provider handshake failures and checksum mismatches. Fixed by routing every Terraform working directory to its own `.terraform-plugin-cache`.
+
+**BUG-24 / GitHub #24 remains open** to extend the through-shim sockerless pattern beyond storage to secrets, queue, pubsub, rdbms, cache, functions, and apigateway. Validation on the branch: `make sockerless`, `make test`, `make vet`, and `make build` all pass.
+
 **14.B/14.D current state after sockerless PR #219.** The upstream simulator audit loop is clear. After the first Phase 14 commits, the user merged additional sockerless fix PRs (#200, #202, #211, #216, #219). Each time, the lane was rebuilt locally and re-probed; gaps were reopened or filed with full reproductions when fixes were partial. The current state on 2026-05-25:
 
 - `/tmp/sockerless` is at `06ee3a5` (sockerless PR #219, merged 2026-05-25).
 - [sockerless#218](https://github.com/e6qu/sockerless/issues/218) is closed; no upstream sockerless blocker is open at this checkpoint.
-- `make sockerless-storage` passes all 10 current shim lanes: storage AWS S3 / GCS / Azure Blob; secrets AWS Secrets Manager / GCP Secret Manager / Azure Key Vault; queue AWS SQS / GCP Pub/Sub queue; pubsub GCP Pub/Sub; apigateway GCP API Gateway.
+- `make sockerless` passes the current shim lanes: storage AWS S3 / GCS / Azure Blob plus the three through-shim storage cross-cloud E2E cells; secrets AWS Secrets Manager / GCP Secret Manager / Azure Key Vault; queue AWS SQS / GCP Pub/Sub queue; pubsub GCP Pub/Sub; apigateway GCP API Gateway.
 - BUG-8 is narrowed to the hashicorp/google API Gateway Terraform leg; the GCP APIGW backend/SDK leg is green.
 - BUG-15 is narrowed to the hashicorp/google Terraform state-drift question; the GCP queue backend retention PATCH/read round-trip is green.
 

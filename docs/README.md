@@ -5,6 +5,7 @@ The repository [README.md](../README.md) is intentionally light — what the pro
 ## For users
 
 - **[Getting Started](getting-started.md)** — install the shim, point an SDK at it, watch a real AWS-shape CLI command land on a non-AWS backend. Five-minute walkthrough.
+- **[End-to-end examples](end-to-end-examples.md)** — start from real backends or optional local simulator testing, then drive shimanism through CLI, SDK, and Terraform provider endpoint overrides.
 - **[Architecture](architecture.md)** — what a shim is, how the front / domain / back layers compose, why the shim is stateless, and how cross-cloud translation works without emulation.
 - **[Migration story](migration.md)** — rerouting cloud services one at a time, end-to-end walkthrough.
 - **[Comparison with other projects](comparison.md)** — LocalStack, MinIO, Crossplane, Dapr, gocloud.dev, Pulumi/Terraform, OpenStack/Ceph S3 compat — where shimanism fits relative to each.

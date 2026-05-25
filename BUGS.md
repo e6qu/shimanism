@@ -1,6 +1,6 @@
 # Known Bugs
 
-**22 filed · 20 fixed · 2 open · 1 false positive. Upstream sockerless audit issues through #218 are closed as of sockerless PR #219. No upstream sockerless blocker is open at this checkpoint.**
+**25 filed · 22 fixed · 3 open · 1 false positive. Upstream sockerless audit issues through #218 are closed as of sockerless PR #219. No upstream sockerless blocker is open at this checkpoint.**
 
 Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLAN.md](PLAN.md) · narrative [WHAT_WE_DID.md](WHAT_WE_DID.md) · rules [AGENTS.md](AGENTS.md).
 
@@ -19,6 +19,7 @@ Sockerless now simulates the relevant GCP API Gateway and Pub/Sub backend surfac
 |----|-----|------|------------|-----------|-------|
 | BUG-8 | P3 | apigateway/gcp-tf-frontend | `hashicorp/google` | API Gateway endpoint-override attribute name changed across provider major versions and the current provider's API Gateway resource lifecycle requires real OAuth-signed requests the mock httptest server can't sign. `services/apigateway/conformance/gcp_terraform_test.go` is smoke-skipped pending Track A real-cloud TF coverage. The sockerless GCP APIGW backend lane passes; this is now only the Terraform-provider leg. | **14.D** |
 | BUG-15 | P3 | queue/gcp-frontend | GCP Pub/Sub `subscriptions.get` | `message_retention_duration = "604800s"` declared in HCL and the shim responding "604800s" at every call, hashicorp/google records `"345600s"` in state. Plan after apply diffs `"345600s" -> "604800s"`. Shim's backend retention PATCH/read path now passes against sockerless; the open question is whether the provider shows the same state drift against real GCP or the shim frontend still misses a provider-needed field. | **14.D** |
+| BUG-24 | P2 | sockerless/conformance | Multi-service E2E | [GitHub #24](https://github.com/e6qu/shimanism/issues/24): after storage gets through-shim sockerless E2E cells, the same source-client → shim frontend → shim backend → sockerless pattern still needs expansion across secrets, queue, pubsub, rdbms, cache, functions, and apigateway. | **14.B** |
 
 ## Upstream-tracked (sockerless validation lane)
 
@@ -115,6 +116,8 @@ When a new bug fits one of these, tag it with the rule.
 
 | ID | Sev | Area | Closed in | One-liner |
 |---|---|---|---|---|
+| 25 | P2 | terraform/conformance | Phase 14 | Per-test Terraform working directories now use local `.terraform-plugin-cache` directories instead of shared package-level `TF_PLUGIN_CACHE_DIR` paths, removing parallel `terraform init` provider-cache races. |
+| 23 | P2 | sockerless/conformance | Phase 14 | Storage now has through-shim sockerless E2E cells for AWS -> GCP, GCP -> Azure, and Azure -> AWS: source SDK -> shimanism frontend -> shimanism backend -> sockerless destination simulator. |
 | 22 | P3 | storage/conformance | Phase 14 | `services/storage/conformance/sockerless_test.go` was not gofmt-clean under the CI pre-commit hook after the GCS import landed. Fixed by running gofmt. |
 | 21 | P2 | CI / kind conformance jobs | Phase 14 | `helm/kind-action@v1` fetched the kind release binary without following GitHub release redirects, so the checksum step validated the redirect body and failed before tests ran. Fixed by preinstalling kind/kubectl into the action cache with redirect-following, checksum-verified downloads. |
 | 20 | P2 | azure-codegen / ARM | Phase 12.A.24 (PR #19) | `flattenARMAllOf` preprocessor inlines `{ allOf: [TrackedResource], properties: {own} }` so oapi-codegen emits a struct, not a type alias. ContainerApp / RedisResource / Server (PostgreSQL FlexibleServer) emit as proper Go structs. Phase 12.A.31 caught + fixed a chained-inheritance bug in the same stage. |

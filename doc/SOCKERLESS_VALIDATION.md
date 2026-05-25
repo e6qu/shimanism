@@ -32,13 +32,31 @@ The same property makes sockerless the right vehicle for two things Phase 14 car
 | AWS SNS, RDS, ElastiCache, API Gateway v1+v2 | Sims work; lanes not yet added | 14.B follow-on. |
 | AWS Lambda, GCP Cloud Run + Cloud Functions, Azure Container Apps + Functions Sites | Sims work; lanes not yet added | 14.B follow-on. |
 
+## Through-shim cross-cloud E2E cells
+
+The backend rows above prove that shimanism's destination-cloud backend adapters can drive sockerless. The through-shim cells prove the full route users care about:
+
+```text
+source-cloud SDK -> shimanism frontend -> shimanism backend -> sockerless destination-cloud simulator
+```
+
+Storage currently has one green cell per requested migration direction:
+
+| Test | Route |
+|---|---|
+| `TestSockerless_E2E_AWSFrontendToGCSBackend` | AWS S3 SDK -> S3 frontend -> GCS backend -> sockerless GCP |
+| `TestSockerless_E2E_GCSFrontendToAzureBlobBackend` | GCS SDK -> GCS frontend -> Azure Blob backend -> sockerless Azure |
+| `TestSockerless_E2E_AzureBlobFrontendToAWSBackend` | Azure Blob SDK -> Azure Blob frontend -> AWS S3 backend -> sockerless AWS |
+
+[GitHub #24](https://github.com/e6qu/shimanism/issues/24) tracks expanding this same route shape to secrets, queue, pubsub, rdbms, cache, functions, and apigateway.
+
 ## Running the lane locally
 
 Requires a local clone of sockerless:
 
 ```sh
 git clone --depth=1 https://github.com/e6qu/sockerless.git /tmp/sockerless
-make sockerless-storage     # builds sims, generates cert, runs TestSockerless_* tests
+make sockerless             # builds sims, generates cert, runs TestSockerless_* tests
 ```
 
 Set `SOCKERLESS_DIR` to override the default `/tmp/sockerless` location.
@@ -81,7 +99,7 @@ The script:
 | [#213-215](https://github.com/e6qu/sockerless/issues/213) | ✅ closed by PR #216 — Azure Tags API, Service Bus authorizationRules, AWS IAM/API Gateway v1 gaps. |
 | [#218](https://github.com/e6qu/sockerless/issues/218) | ✅ closed by PR #219 — GCP Secret Manager ListSecretVersions, UpdateSecret, and DeleteSecret handlers. |
 
-As of the PR #219 verification run, `make sockerless-storage` passed all current shim lanes, including the full GCP Secret Manager lifecycle/versioning lane that had been blocked by [#218](https://github.com/e6qu/sockerless/issues/218).
+As of the `phase-181-e2e-docs-and-shims` verification run, `make sockerless` passed all current shim lanes, including the full GCP Secret Manager lifecycle/versioning lane that had been blocked by [#218](https://github.com/e6qu/sockerless/issues/218) and the three storage through-shim cross-cloud E2E cells.
 
 ## Extending to a new service
 
