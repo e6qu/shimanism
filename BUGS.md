@@ -1,6 +1,6 @@
 # Known Bugs
 
-**35 filed · 30 fixed · 4 open · 1 false positive.** Phase 14.B added new Azure ARM backend-adapter lanes (Redis, PostgreSQL, APIM). Two new upstream sockerless gaps surfaced and remain open: [sockerless#223](https://github.com/e6qu/sockerless/issues/223) (Service Bus namespace-level ATOM XML admin protocol) blocks the Azure SB queue + pubsub lanes; the Container Apps lane is wired but default-skipped pending pre-pulled-image opt-in.
+**35 filed · 31 fixed · 3 open · 1 false positive.** Phase 14.B added new Azure ARM backend-adapter lanes (Redis, PostgreSQL, APIM) plus Azure Service Bus queue + pubsub admin lanes after sockerless PRs #225 + #226 closed the namespace-level ATOM XML gap. BUG-34 is fixed. BUG-35 remains: the Container Apps lane is wired but default-skipped pending pre-pulled-image opt-in.
 
 Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLAN.md](PLAN.md) · narrative [WHAT_WE_DID.md](WHAT_WE_DID.md) · rules [AGENTS.md](AGENTS.md).
 
@@ -19,7 +19,6 @@ Sockerless now simulates the relevant GCP API Gateway and Pub/Sub backend surfac
 |----|-----|------|------------|-----------|-------|
 | BUG-8 | P3 | apigateway/gcp-tf-frontend | `hashicorp/google` | API Gateway endpoint-override attribute name changed across provider major versions and the current provider's API Gateway resource lifecycle requires real OAuth-signed requests the mock httptest server can't sign. `services/apigateway/conformance/gcp_terraform_test.go` is smoke-skipped pending Track A real-cloud TF coverage. The sockerless GCP APIGW backend lane passes; this is now only the Terraform-provider leg. | **14.D** |
 | BUG-15 | P3 | queue/gcp-frontend | GCP Pub/Sub `subscriptions.get` | `message_retention_duration = "604800s"` declared in HCL and the shim responding "604800s" at every call, hashicorp/google records `"345600s"` in state. Plan after apply diffs `"345600s" -> "604800s"`. Shim's backend retention PATCH/read path now passes against sockerless; the open question is whether the provider shows the same state drift against real GCP or the shim frontend still misses a provider-needed field. | **14.D** |
-| BUG-34 | P2 | queue+pubsub/azure-sb | `azservicebus/admin` | The shim's Azure Service Bus queue + pubsub backends use the Microsoft-supplied admin SDK, which speaks the **namespace-level ATOM XML admin protocol** at `<namespace>.servicebus.windows.net` (PUT/GET/DELETE on `/<entity>?api-version=…` with `application/atom+xml;type=entry`). Sockerless implements the ARM management API + the REST data plane but not the ATOM XML admin protocol — so admin calls hit the data-plane fallthrough and 404. Filed upstream as [sockerless#223](https://github.com/e6qu/sockerless/issues/223). Both Azure SB queue and pubsub sockerless lanes are blocked on this. | **14.B** |
 | BUG-35 | P3 | functions/azure-containerapps | `armappcontainers/v3` | Sockerless's Container Apps handler invokes the local container runtime to start a replica (matching real Azure, where the underlying execution is opaque to the caller). That means the sockerless functions Container Apps lane needs a docker/podman daemon **and** a pre-pulled image, which is more CI variance than the bundled lane should require by default. The test exists at `services/functions/conformance/sockerless_test.go` (`TestSockerless_Azure_Functions_ContainerApps_CRUD`) and opts in via `SOCKERLESS_AZURE_CONTAINERAPPS_IMAGE`. Resolution path is either pre-pull plumbing in `scripts/run-sockerless-storage.sh` or asking upstream for a "no-op image" mode. | **14.B** |
 
 ## Upstream-tracked (sockerless validation lane)
@@ -103,7 +102,8 @@ Phase 14.A re-enabled the shim assertions for #173/#174/#175 (storage + secrets 
 
 | Upstream | Status |
 |---|---|
-| [e6qu/sockerless#223](https://github.com/e6qu/sockerless/issues/223) — Azure Service Bus admin: namespace-level ATOM XML protocol not implemented (only ARM management is) | ◐ open. Tracked by BUG-34. The shim's `azservicebus/admin`-based Service Bus queue + pubsub backends speak the namespace-level ATOM XML admin protocol; sockerless implements ARM management + REST data plane but not ATOM admin. Both Azure SB lanes are blocked on this. |
+| [e6qu/sockerless#223](https://github.com/e6qu/sockerless/issues/223) — Azure Service Bus admin: namespace-level ATOM XML protocol not implemented (only ARM management is) | ✅ closed by [sockerless PR #225](https://github.com/e6qu/sockerless/pull/225) on 2026-05-26 (`Implement Azure Service Bus ATOM admin routes`). Closes BUG-34. The shim now wires `TestSockerless_Azure_ServiceBus_Queue_CRUD` and `TestSockerless_Azure_ServiceBus_Topic_CRUD` against the new admin surface (admin-only — AMQP data plane still out of scope for sockerless). |
+| [sockerless PR #226](https://github.com/e6qu/sockerless/pull/226) — Azure Storage data-plane SDK coverage (Blob/File/Queue/Table) | ✅ merged 2026-05-26. The shim's existing Azure Blob lanes continue to pass against the broader Storage data-plane coverage. |
 
 ## False positives
 

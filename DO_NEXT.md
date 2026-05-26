@@ -6,13 +6,11 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 
 ## Where we are
 
-- **Phase 14 in-flight on branch `phase-14-bundled-bce-bug24`.** This branch bundles 14.B Azure ARM backend-adapter lanes with file-and-defer status updates for 14.C / 14.E / BUG-24 expansion. PR open once docs + branch are pushed.
-- **Sockerless lane now reports 23 passing + 1 default-skipped** against sockerless `f858d66`. New green lanes:
-  - `TestSockerless_Azure_Cache_Redis_CRUD` — Microsoft.Cache/Redis ARM CRUD via armredis/v3.
-  - `TestSockerless_Azure_RDBMS_PostgreSQL_CRUD` — Microsoft.DBforPostgreSQL/flexibleServers via armpostgresqlflexibleservers/v4.
-  - `TestSockerless_Azure_APIGateway_APIM_CRUD` — Microsoft.ApiManagement/service+apis via armapimanagement/v3, with parent Service pre-created.
-- **`TestSockerless_Azure_Functions_ContainerApps_CRUD`** is wired but default-skipped (BUG-35). Opts in via `SOCKERLESS_AZURE_CONTAINERAPPS_IMAGE`.
-- **Two new upstream sockerless gaps surfaced this PR.** [sockerless#223](https://github.com/e6qu/sockerless/issues/223) (BUG-34) — Azure SB namespace-level ATOM XML admin protocol not implemented, blocks SB queue + pubsub lanes. [sockerless#224](https://github.com/e6qu/sockerless/issues/224) closed as not-a-bug (sockerless legitimately does real container execution).
+- **Phase 14.B continues on branch `phase-14b-azure-servicebus-lanes`.** PR #38 (Azure ARM lanes — Redis / PostgreSQL / APIM) landed on `main` 2026-05-26. The follow-on branch wires Azure Service Bus queue + pubsub admin lanes against sockerless's new namespace-level ATOM XML admin protocol, unblocked by [sockerless PR #225](https://github.com/e6qu/sockerless/pull/225) (+ [#226](https://github.com/e6qu/sockerless/pull/226) for storage data-plane SDK coverage).
+- **Sockerless lane now reports 25 passing + 1 default-skipped** against sockerless `3fae946`. New green lanes:
+  - `TestSockerless_Azure_ServiceBus_Queue_CRUD` — admin-only CreateQueue / SetQueueAttributes / HeadQueue / ListQueues / DeleteQueue via `azservicebus/admin` against sockerless's ATOM XML protocol.
+  - `TestSockerless_Azure_ServiceBus_Topic_CRUD` — admin-only CreateTopic / CreateSubscription / ListTopics / ListSubscriptions.
+- **BUG-34 closed.** Two of the three previously-open BUGs are now fixed; BUG-35 (Container Apps pre-pull) is the only Phase-14.B residual.
 - **GCP Secret Manager is wired.** The real backend lane uses the official `cloud.google.com/go/secretmanager/apiv1` REST client against sockerless and covers CreateSecret, PutSecretValue, HeadSecret, GetSecretValue(latest + explicit version), ListVersions, ListSecrets, UpdateSecret, and DeleteSecret. No workaround, fake, mock, or partial test is carried.
 - **Current sockerless coverage:** storage AWS S3 + GCS + Azure Blob backend-adapter lanes plus storage through-shim E2E cells for AWS -> GCP, GCP -> Azure, and Azure -> AWS; secrets AWS Secrets Manager + GCP Secret Manager + Azure Key Vault; queue AWS SQS + GCP Pub/Sub queue; pubsub GCP Pub/Sub; apigateway GCP API Gateway.
 - **Still local/open:** BUG-8 and BUG-15 are not upstream-sockerless blockers. BUG-8 is the hashicorp/google API Gateway Terraform endpoint/OAuth leg. BUG-15 is the hashicorp/google `message_retention_duration` state-drift question; the shim's GCP queue backend retention PATCH/read path is green. BUG-24 tracks expanding through-shim sockerless E2E beyond storage.
