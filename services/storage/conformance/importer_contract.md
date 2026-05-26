@@ -27,7 +27,7 @@ Each row is one HTTP request the official provider issues. The shim must answer 
 
 ## Cross-cloud variation
 
-The same import scenario against the GCS or Azure backends drives the same shim frontend (`aws_s3`), so the same wire ops are issued. The backend variation lives below `domain.Storage`. Matrix coverage in [`matrix_test.go`](matrix_test.go) verifies the basic CRUD; this importer contract is the AWS-frontend-specific Read-path enumeration.
+The same import scenario against the GCS or Azure backends drives the same shim frontend (`aws_s3`), so the same wire ops are issued. The backend variation lives below `domain.Storage`. Matrix coverage in [`backends_test.go`](backends_test.go) (the `TestConformanceMatrix_*Frontend` tests) verifies the basic CRUD; this importer contract is the AWS-frontend-specific Read-path enumeration.
 
 ## How to regenerate this contract
 

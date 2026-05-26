@@ -40,7 +40,7 @@ AWS uses UUID `VersionId`. Azure uses GUID version handles. GCP uses monotonic i
 - GCP uses `UpdateSecret` with `FieldMask`; description rides on the reserved label. Enabled=false → `InvalidArgument`.
 - Vault writes `custom_metadata`. Enabled=false → `InvalidArgument`.
 
-See [BUGS.md § resolved](../../BUGS.md#resolved-history-compressed) entries for BUG-17 detail.
+See [BUGS.md § resolved](../../BUGS.md#resolved-history-compressed-commit-log--linked-pr-have-detail) entries for BUG-17 detail.
 
 ## Conformance
 
