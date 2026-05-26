@@ -30,6 +30,10 @@ type Config struct {
 	ResourceGroup  string
 	Location       string // default eastus
 	Credential     azcore.TokenCredential
+	// ClientOptions, if non-nil, is forwarded to the armpg factory.
+	// Used by the sockerless test lane to point the ARM endpoint at a
+	// local simulator and inject a self-signed-cert-tolerant transport.
+	ClientOptions *arm.ClientOptions
 }
 
 type Backend struct {
@@ -51,7 +55,7 @@ func New(cfg Config) (*Backend, error) {
 	if loc == "" {
 		loc = "eastus"
 	}
-	factory, err := armpg.NewClientFactory(cfg.SubscriptionID, cfg.Credential, nil)
+	factory, err := armpg.NewClientFactory(cfg.SubscriptionID, cfg.Credential, cfg.ClientOptions)
 	if err != nil {
 		return nil, fmt.Errorf("azure rdbms client factory: %w", err)
 	}

@@ -4,10 +4,18 @@ package conformance_test
 import (
 	"context"
 	"crypto/rand"
+	"crypto/tls"
 	"encoding/hex"
+	"net"
+	"net/http"
 	"os"
 	"testing"
+	"time"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/arm"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/cloud"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
 	awsapi "github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
@@ -16,6 +24,8 @@ import (
 	sqladmin "google.golang.org/api/sqladmin/v1"
 
 	"github.com/e6qu/shimanism/internal/harness"
+	rdbmsdomain "github.com/e6qu/shimanism/internal/rdbms/domain"
+	azurerdbms "github.com/e6qu/shimanism/services/rdbms/backends/azure"
 	gcpbackend "github.com/e6qu/shimanism/services/rdbms/backends/gcp"
 )
 
@@ -109,4 +119,108 @@ func sockerlessHex8() string {
 	b := make([]byte, 4)
 	_, _ = rand.Read(b)
 	return hex.EncodeToString(b)
+}
+
+// TestSockerless_Azure_RDBMS_PostgreSQL_CRUD exercises the shim's
+// Azure PostgreSQL FlexibleServer rdbms backend against sockerless's
+// Microsoft.DBforPostgreSQL/flexibleServers ARM control plane:
+// CreateInstance → DescribeInstance → ListInstances → DeleteInstance.
+// The PG wire protocol is not in scope for sockerless.
+func TestSockerless_Azure_RDBMS_PostgreSQL_CRUD(t *testing.T) {
+	port := os.Getenv("SOCKERLESS_AZURE_TLS_PORT")
+	if port == "" {
+		t.Skip("SOCKERLESS_AZURE_TLS_PORT not set")
+	}
+	backend, err := azurerdbms.New(azurerdbms.Config{
+		SubscriptionID: sockerlessAzureSubscription(),
+		ResourceGroup:  "shim-sk-rg",
+		Location:       "eastus",
+		Credential:     sockerlessNoOpCredential{},
+		ClientOptions:  sockerlessARMClientOptions(port),
+	})
+	if err != nil {
+		t.Fatalf("azurerdbms.New: %v", err)
+	}
+	ctx := context.Background()
+
+	name := "shim-sk-pg-" + sockerlessHex8()
+	create, err := backend.CreateInstance(ctx, name, rdbmsdomain.CreateInstanceOptions{
+		Engine:             rdbmsdomain.EnginePostgres,
+		EngineVersion:      "15",
+		MasterUsername:     "shimadmin",
+		MasterPassword:     "Sup3rs3cret!",
+		AllocatedStorageGB: 32,
+		InstanceClass:      "Standard_B1ms",
+	})
+	if err != nil {
+		t.Fatalf("CreateInstance: %v", err)
+	}
+	if create.Instance.Name != name {
+		t.Errorf("CreateInstance.Name = %q, want %q", create.Instance.Name, name)
+	}
+	t.Cleanup(func() { _ = backend.DeleteInstance(ctx, name) })
+
+	got, err := backend.DescribeInstance(ctx, name)
+	if err != nil {
+		t.Fatalf("DescribeInstance: %v", err)
+	}
+	if got.Name != name {
+		t.Errorf("DescribeInstance.Name = %q, want %q", got.Name, name)
+	}
+
+	list, err := backend.ListInstances(ctx, rdbmsdomain.ListInstancesOptions{})
+	if err != nil {
+		t.Fatalf("ListInstances: %v", err)
+	}
+	found := false
+	for _, in := range list.Instances {
+		if in.Name == name {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("ListInstances did not contain %q", name)
+	}
+}
+
+// sockerlessARMClientOptions builds an arm.ClientOptions targeting
+// sockerless's ARM endpoint on TLS port `port`.
+func sockerlessARMClientOptions(port string) *arm.ClientOptions {
+	dialer := &net.Dialer{}
+	transport := &http.Transport{
+		DialContext: func(ctx context.Context, network, _ string) (net.Conn, error) {
+			return dialer.DialContext(ctx, network, "127.0.0.1:"+port)
+		},
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	return &arm.ClientOptions{
+		ClientOptions: azcore.ClientOptions{
+			Cloud: cloud.Configuration{
+				ActiveDirectoryAuthorityHost: "https://localhost:" + port + "/",
+				Services: map[cloud.ServiceName]cloud.ServiceConfiguration{
+					cloud.ResourceManager: {
+						Audience: "https://management.azure.com",
+						Endpoint: "https://localhost:" + port,
+					},
+				},
+			},
+			Transport: &http.Client{Transport: transport},
+		},
+	}
+}
+
+func sockerlessAzureSubscription() string {
+	if s := os.Getenv("SOCKERLESS_AZURE_SUBSCRIPTION"); s != "" {
+		return s
+	}
+	return "00000000-0000-0000-0000-000000000000"
+}
+
+type sockerlessNoOpCredential struct{}
+
+var sockerlessFarFuture = time.Date(2099, time.December, 31, 23, 59, 59, 0, time.UTC)
+
+func (sockerlessNoOpCredential) GetToken(_ context.Context, _ policy.TokenRequestOptions) (azcore.AccessToken, error) {
+	return azcore.AccessToken{Token: "sockerless-test", ExpiresOn: sockerlessFarFuture}, nil
 }

@@ -4,10 +4,18 @@ package conformance_test
 import (
 	"context"
 	"crypto/rand"
+	"crypto/tls"
 	"encoding/hex"
+	"net"
+	"net/http"
 	"os"
 	"testing"
+	"time"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/arm"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/cloud"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
 	awsapi "github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
@@ -15,7 +23,9 @@ import (
 	"google.golang.org/api/option"
 	redisapi "google.golang.org/api/redis/v1"
 
+	cachedomain "github.com/e6qu/shimanism/internal/cache/domain"
 	"github.com/e6qu/shimanism/internal/harness"
+	azurecache "github.com/e6qu/shimanism/services/cache/backends/azure"
 	gcpbackend "github.com/e6qu/shimanism/services/cache/backends/gcp"
 )
 
@@ -106,4 +116,110 @@ func sockerlessHex8() string {
 	b := make([]byte, 4)
 	_, _ = rand.Read(b)
 	return hex.EncodeToString(b)
+}
+
+// TestSockerless_Azure_Cache_Redis_CRUD exercises the shim's Azure
+// Cache for Redis backend against sockerless's Microsoft.Cache/Redis
+// ARM control plane: CreateInstance → DescribeInstance → ListInstances
+// → ModifyInstance → DeleteInstance. The data plane (Redis RESP wire
+// protocol) is not in scope for sockerless — only the ARM management
+// surface is.
+func TestSockerless_Azure_Cache_Redis_CRUD(t *testing.T) {
+	port := os.Getenv("SOCKERLESS_AZURE_TLS_PORT")
+	if port == "" {
+		t.Skip("SOCKERLESS_AZURE_TLS_PORT not set")
+	}
+	opts := sockerlessARMClientOptions(port)
+	backend, err := azurecache.New(azurecache.Config{
+		SubscriptionID: sockerlessAzureSubscription(),
+		ResourceGroup:  "shim-sk-rg",
+		Location:       "eastus",
+		Credential:     sockerlessNoOpCredential{},
+		ClientOptions:  opts,
+	})
+	if err != nil {
+		t.Fatalf("azurecache.New: %v", err)
+	}
+	ctx := context.Background()
+
+	name := "shim-sk-rd-" + sockerlessHex8()
+	create, err := backend.CreateInstance(ctx, name, cachedomain.CreateInstanceOptions{
+		EngineVersion: "6.0",
+		NodeType:      "Basic",
+	})
+	if err != nil {
+		t.Fatalf("CreateInstance: %v", err)
+	}
+	if create.Instance.Name != name {
+		t.Errorf("CreateInstance.Name = %q, want %q", create.Instance.Name, name)
+	}
+	t.Cleanup(func() { _ = backend.DeleteInstance(ctx, name) })
+
+	got, err := backend.DescribeInstance(ctx, name)
+	if err != nil {
+		t.Fatalf("DescribeInstance: %v", err)
+	}
+	if got.Name != name {
+		t.Errorf("DescribeInstance.Name = %q, want %q", got.Name, name)
+	}
+
+	list, err := backend.ListInstances(ctx, cachedomain.ListInstancesOptions{})
+	if err != nil {
+		t.Fatalf("ListInstances: %v", err)
+	}
+	found := false
+	for _, in := range list.Instances {
+		if in.Name == name {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("ListInstances did not contain %q", name)
+	}
+}
+
+// sockerlessARMClientOptions builds an arm.ClientOptions targeting the
+// sockerless Azure simulator on TLS port `port`. The cloud config
+// overrides ARM's Endpoint so the SDK sends requests to the sim, and
+// a localhost-only dialer + InsecureSkipVerify accept the sim's
+// self-signed cert.
+func sockerlessARMClientOptions(port string) *arm.ClientOptions {
+	dialer := &net.Dialer{}
+	transport := &http.Transport{
+		DialContext: func(ctx context.Context, network, _ string) (net.Conn, error) {
+			return dialer.DialContext(ctx, network, "127.0.0.1:"+port)
+		},
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	httpClient := &http.Client{Transport: transport}
+	return &arm.ClientOptions{
+		ClientOptions: azcore.ClientOptions{
+			Cloud: cloud.Configuration{
+				ActiveDirectoryAuthorityHost: "https://localhost:" + port + "/",
+				Services: map[cloud.ServiceName]cloud.ServiceConfiguration{
+					cloud.ResourceManager: {
+						Audience: "https://management.azure.com",
+						Endpoint: "https://localhost:" + port,
+					},
+				},
+			},
+			Transport: httpClient,
+		},
+	}
+}
+
+func sockerlessAzureSubscription() string {
+	if s := os.Getenv("SOCKERLESS_AZURE_SUBSCRIPTION"); s != "" {
+		return s
+	}
+	return "00000000-0000-0000-0000-000000000000"
+}
+
+type sockerlessNoOpCredential struct{}
+
+var sockerlessFarFuture = time.Date(2099, time.December, 31, 23, 59, 59, 0, time.UTC)
+
+func (sockerlessNoOpCredential) GetToken(_ context.Context, _ policy.TokenRequestOptions) (azcore.AccessToken, error) {
+	return azcore.AccessToken{Token: "sockerless-test", ExpiresOn: sockerlessFarFuture}, nil
 }

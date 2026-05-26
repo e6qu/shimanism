@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/arm"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/apimanagement/armapimanagement/v3"
 
 	"github.com/e6qu/shimanism/internal/apigateway/domain"
@@ -24,6 +25,10 @@ type Config struct {
 	ResourceGroup  string
 	ServiceName    string // APIM Service (pre-existing) the shim's Gateways live under
 	Credential     azcore.TokenCredential
+	// ClientOptions, if non-nil, is forwarded to the armapimanagement
+	// factory. Used by the sockerless test lane to point the ARM
+	// endpoint at a local simulator.
+	ClientOptions *arm.ClientOptions
 }
 
 type Backend struct {
@@ -42,7 +47,7 @@ func New(cfg Config) (*Backend, error) {
 	if cfg.Credential == nil {
 		return nil, fmt.Errorf("azure apigateway: TokenCredential required")
 	}
-	factory, err := armapimanagement.NewClientFactory(cfg.SubscriptionID, cfg.Credential, nil)
+	factory, err := armapimanagement.NewClientFactory(cfg.SubscriptionID, cfg.Credential, cfg.ClientOptions)
 	if err != nil {
 		return nil, fmt.Errorf("azure apim factory: %w", err)
 	}
