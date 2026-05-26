@@ -155,6 +155,18 @@ case "$gcs_loc" in
 	US|EU|ASIA|ASIA1|EUR4|EUR5|EUR7|EUR8|NAM4|*-*) : ;;
 	*) echo "FAIL: GCS frontend leaked non-GCS location: '$gcs_loc'" >&2; exit 1 ;;
 esac
+# Wire-fidelity assertion: bucket-list timeCreated must be a real
+# timestamp, not the Go zero value. Issue #33's other half — the
+# zero-`timeCreated`-on-list path — was upstream sockerless#220 /
+# closed by sockerless PR #221, which made the Azure simulator
+# populate <Properties><Last-Modified> on every container in the
+# list response. The shim was already reading that field; this
+# assertion enforces that the upstream value continues to flow
+# through.
+gcs_ct=$(run_with_timeout gcloud --quiet storage buckets list "--filter=name=$gcp_azure_bucket" --format='value(creation_time)')
+case "$gcs_ct" in
+	0001-*|"") echo "FAIL: GCS bucket-list creation_time is zero: '$gcs_ct'" >&2; exit 1 ;;
+esac
 run_with_timeout gcloud --quiet storage rm "gs://$gcp_azure_bucket/hello.txt"
 run_with_timeout gcloud --quiet storage rm --recursive "gs://$gcp_azure_bucket"
 

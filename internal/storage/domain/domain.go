@@ -23,6 +23,12 @@ type Bucket struct {
 	Name      string
 	CreatedAt time.Time
 	Region    string
+	// ETag is the backend's per-bucket entity tag, when the backend
+	// publishes one. Azure containers carry one; AWS S3 buckets and
+	// GCS buckets do not. Frontends that surface a bucket-level ETag
+	// (Azure list-containers) read this; backends without a real
+	// per-bucket ETag leave it empty.
+	ETag string
 }
 
 // Owner identifies the bucket's owning principal.

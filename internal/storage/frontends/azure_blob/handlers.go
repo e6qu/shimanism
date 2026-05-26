@@ -105,14 +105,7 @@ func (srv *Server) listContainers(w http.ResponseWriter, r *http.Request) {
 	for _, b := range out.Buckets {
 		c := containerXML{Name: b.Name}
 		c.Properties.LastModified = b.CreatedAt.UTC().Format(http.TimeFormat)
-		// Match the synthetic ETag GetContainerProperties returns
-		// (line ~118). Real container ETags require the backend to
-		// surface a per-container ETag; AWS S3 buckets have none,
-		// and the sockerless Azure simulator's ListContainers omits
-		// the <Properties> block entirely (sockerless#220). Until
-		// either backend support arrives, the consistent synthetic
-		// value lets clients round-trip get -> list responses.
-		c.Properties.ETag = `"shim"`
+		c.Properties.ETag = quoteETag(b.ETag)
 		resp.Containers.Containers = append(resp.Containers.Containers, c)
 	}
 	writeXML(w, http.StatusOK, &resp)
@@ -135,7 +128,9 @@ func (srv *Server) getContainerProperties(w http.ResponseWriter, r *http.Request
 		return
 	}
 	w.Header().Set("Last-Modified", b.CreatedAt.UTC().Format(http.TimeFormat))
-	w.Header().Set("ETag", `"shim"`)
+	if etag := quoteETag(b.ETag); etag != "" {
+		w.Header().Set("ETag", etag)
+	}
 	w.Header().Set("x-ms-lease-status", "unlocked")
 	w.Header().Set("x-ms-lease-state", "available")
 	w.WriteHeader(http.StatusOK)
