@@ -8,7 +8,20 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 
 PR #21 merged on 2026-05-25 at `45985e7`, landing 14.A, the 14.D simulator audit, and the current 14.B sockerless lane. Phase 14 remains open for additional service lanes, 14.C handler migrations, and real-cloud Track A residuals.
 
-### Azure ARM backend-adapter lanes (branch `phase-14-bundled-bce-bug24`, 2026-05-26)
+### Azure Service Bus admin lanes (branch `phase-14b-azure-servicebus-lanes`, 2026-05-26)
+
+Follow-on to the ARM-lanes PR. Two new green sockerless lanes against sockerless's brand-new namespace-level ATOM XML admin protocol:
+
+- `TestSockerless_Azure_ServiceBus_Queue_CRUD` — admin-only Create / SetAttributes / Head / List / Delete via `azservicebus/admin`.
+- `TestSockerless_Azure_ServiceBus_Topic_CRUD` — admin-only CreateTopic / CreateSubscription / ListTopics / ListSubscriptions.
+
+Pattern. Each Azure SB backend (`services/{queue,pubsub}/backends/azure`) gained two optional fields on `Config`: `AdminClientOptions *admin.ClientOptions` and `DataClientOptions *azservicebus.ClientOptions`. Production callers pass nil; the sockerless tests pass an `AdminClientOptions` with a transport that dials `127.0.0.1:<sim-port>` regardless of host, with `InsecureSkipVerify` for the self-signed TLS. The connection string is `Endpoint=sb://test-ns.servicebus.windows.net/;…`; the Host header survives the dial rewrite so sockerless's `*.servicebus.*` host dispatcher parses the namespace prefix.
+
+AMQP data plane (SendMessage / ReceiveMessage on the queue side, Publish / Receive on the pubsub side) is **not** in the lane. Sockerless implements the REST data plane but not AMQP; the shim's `azservicebus` data client speaks AMQP. The admin lanes prove the management surface; AMQP is real-cloud or future-sim territory.
+
+Caused BUG-34 to close. End state: `make sockerless` reports 25 passing + 1 documented-skipped (Container Apps, BUG-35 still open for pre-pull plumbing). The previously filed [sockerless#223](https://github.com/e6qu/sockerless/issues/223) closed in [sockerless PR #225](https://github.com/e6qu/sockerless/pull/225); [sockerless PR #226](https://github.com/e6qu/sockerless/pull/226) merged alongside adding Storage data-plane SDK coverage that doesn't unblock new shim lanes but strengthens the existing Azure Blob coverage.
+
+### Azure ARM backend-adapter lanes (PR #38, merged 2026-05-26)
 
 Pushing past the AWS+GCP-only sockerless coverage, this slice wired three new Azure ARM backends through the sim:
 

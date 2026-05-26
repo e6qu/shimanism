@@ -42,6 +42,15 @@ import (
 
 type Config struct {
 	ConnectionString string
+	// AdminClientOptions, if non-nil, is forwarded to
+	// admin.NewClientFromConnectionString. Used by the sockerless
+	// test lane to inject a custom HTTP transport.
+	AdminClientOptions *admin.ClientOptions
+	// DataClientOptions, if non-nil, is forwarded to
+	// azservicebus.NewClientFromConnectionString. Sockerless doesn't
+	// implement AMQP, so tests that only exercise the admin surface
+	// should leave this nil and avoid invoking Publish / Receive.
+	DataClientOptions *azservicebus.ClientOptions
 }
 
 type Backend struct {
@@ -63,11 +72,11 @@ func New(cfg Config) (*Backend, error) {
 	if err != nil {
 		return nil, err
 	}
-	dc, err := azservicebus.NewClientFromConnectionString(cfg.ConnectionString, nil)
+	dc, err := azservicebus.NewClientFromConnectionString(cfg.ConnectionString, cfg.DataClientOptions)
 	if err != nil {
 		return nil, fmt.Errorf("azservicebus: build data client: %w", err)
 	}
-	ac, err := admin.NewClientFromConnectionString(cfg.ConnectionString, nil)
+	ac, err := admin.NewClientFromConnectionString(cfg.ConnectionString, cfg.AdminClientOptions)
 	if err != nil {
 		return nil, fmt.Errorf("azservicebus: build admin client: %w", err)
 	}

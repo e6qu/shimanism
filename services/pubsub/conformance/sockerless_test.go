@@ -4,10 +4,15 @@ package conformance_test
 import (
 	"context"
 	"crypto/rand"
+	"crypto/tls"
 	"encoding/hex"
+	"net"
+	"net/http"
 	"os"
 	"testing"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
+	"github.com/Azure/azure-sdk-for-go/sdk/messaging/azservicebus/admin"
 	awsapi "github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
@@ -19,6 +24,7 @@ import (
 
 	"github.com/e6qu/shimanism/internal/harness"
 	"github.com/e6qu/shimanism/internal/pubsub/domain"
+	azurepubsub "github.com/e6qu/shimanism/services/pubsub/backends/azure"
 	gcpbackend "github.com/e6qu/shimanism/services/pubsub/backends/gcp"
 )
 
@@ -186,4 +192,95 @@ func randomHex8() string {
 	b := make([]byte, 4)
 	_, _ = rand.Read(b)
 	return hex.EncodeToString(b)
+}
+
+// TestSockerless_Azure_ServiceBus_Topic_CRUD exercises the shim's
+// Azure Service Bus pubsub backend's admin surface against
+// sockerless's namespace-level ATOM XML admin protocol (added in
+// sockerless PR #225, 2026-05-26). CreateTopic → CreateSubscription
+// → ListTopics → ListSubscriptions → DeleteSubscription → DeleteTopic.
+//
+// The AMQP data plane (Publish / Receive / Ack) is not exercised —
+// sockerless implements the REST data plane but not AMQP, and the
+// shim's azservicebus data client speaks AMQP. Admin-only.
+func TestSockerless_Azure_ServiceBus_Topic_CRUD(t *testing.T) {
+	port := os.Getenv("SOCKERLESS_AZURE_TLS_PORT")
+	if port == "" {
+		t.Skip("SOCKERLESS_AZURE_TLS_PORT not set")
+	}
+	backend, err := azurepubsub.New(azurepubsub.Config{
+		ConnectionString:   sockerlessAzureSBConnectionStringPubsub(),
+		AdminClientOptions: sockerlessSBAdminClientOptionsPubsub(port),
+	})
+	if err != nil {
+		t.Fatalf("azurepubsub.New: %v", err)
+	}
+	ctx := context.Background()
+
+	topic := "shim-sk-sbt-" + randomHex8()
+	if _, err := backend.CreateTopic(ctx, topic, domain.CreateTopicOptions{}); err != nil {
+		t.Fatalf("CreateTopic: %v", err)
+	}
+	t.Cleanup(func() { _ = backend.DeleteTopic(ctx, topic) })
+
+	sub := "shim-sk-sbs-" + randomHex8()
+	if _, err := backend.CreateSubscription(ctx, topic, sub, domain.CreateSubscriptionOptions{
+		AckDeadlineSeconds: 30,
+	}); err != nil {
+		t.Fatalf("CreateSubscription: %v", err)
+	}
+	t.Cleanup(func() { _ = backend.DeleteSubscription(ctx, sub) })
+
+	topics, err := backend.ListTopics(ctx, domain.ListTopicsOptions{})
+	if err != nil {
+		t.Fatalf("ListTopics: %v", err)
+	}
+	foundTopic := false
+	for _, top := range topics.Topics {
+		if top.Name == topic {
+			foundTopic = true
+			break
+		}
+	}
+	if !foundTopic {
+		t.Errorf("ListTopics did not contain %q", topic)
+	}
+
+	subs, err := backend.ListSubscriptions(ctx, domain.ListSubscriptionsOptions{
+		Topic: topic,
+	})
+	if err != nil {
+		t.Fatalf("ListSubscriptions: %v", err)
+	}
+	foundSub := false
+	for _, s := range subs.Subscriptions {
+		if s.Name == sub {
+			foundSub = true
+			break
+		}
+	}
+	if !foundSub {
+		t.Errorf("ListSubscriptions did not contain %q under topic %q", sub, topic)
+	}
+}
+
+func sockerlessAzureSBConnectionStringPubsub() string {
+	return "Endpoint=sb://test-ns.servicebus.windows.net/;" +
+		"SharedAccessKeyName=RootManageSharedAccessKey;" +
+		"SharedAccessKey=c29ja2VybGVzcy10ZXN0LWtleS1ub3QtdmVyaWZpZWQK"
+}
+
+func sockerlessSBAdminClientOptionsPubsub(port string) *admin.ClientOptions {
+	dialer := &net.Dialer{}
+	transport := &http.Transport{
+		DialContext: func(ctx context.Context, network, _ string) (net.Conn, error) {
+			return dialer.DialContext(ctx, network, "127.0.0.1:"+port)
+		},
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	return &admin.ClientOptions{
+		ClientOptions: azcore.ClientOptions{
+			Transport: &http.Client{Transport: transport},
+		},
+	}
 }

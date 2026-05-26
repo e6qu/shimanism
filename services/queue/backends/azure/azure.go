@@ -87,6 +87,19 @@ type Config struct {
 	// ConnectionString is the SAS-style connection string Azure
 	// hands out when you create a Service Bus namespace. Required.
 	ConnectionString string
+	// AdminClientOptions, if non-nil, is forwarded to the
+	// admin.NewClientFromConnectionString call. Used by the
+	// sockerless test lane to inject a custom HTTP transport
+	// (localhost dial + InsecureSkipVerify) so the admin SDK's
+	// ATOM XML calls land on the sim instead of the real
+	// `<namespace>.servicebus.windows.net` host.
+	AdminClientOptions *admin.ClientOptions
+	// DataClientOptions, if non-nil, is forwarded to the
+	// azservicebus.NewClientFromConnectionString call. The default
+	// (nil) path uses AMQP, which sockerless doesn't speak — tests
+	// that only exercise the admin surface can leave this nil and
+	// avoid invoking SendMessage / ReceiveMessage.
+	DataClientOptions *azservicebus.ClientOptions
 }
 
 // Backend implements domain.Queues via Azure Service Bus.
@@ -110,11 +123,11 @@ func New(cfg Config) (*Backend, error) {
 	if err != nil {
 		return nil, err
 	}
-	dc, err := azservicebus.NewClientFromConnectionString(cfg.ConnectionString, nil)
+	dc, err := azservicebus.NewClientFromConnectionString(cfg.ConnectionString, cfg.DataClientOptions)
 	if err != nil {
 		return nil, fmt.Errorf("azservicebus: build data client: %w", err)
 	}
-	ac, err := admin.NewClientFromConnectionString(cfg.ConnectionString, nil)
+	ac, err := admin.NewClientFromConnectionString(cfg.ConnectionString, cfg.AdminClientOptions)
 	if err != nil {
 		return nil, fmt.Errorf("azservicebus: build admin client: %w", err)
 	}
