@@ -116,13 +116,20 @@ func (b *Backend) ListBuckets(ctx context.Context, opt domain.ListBucketsOptions
 				name = *c.Name
 			}
 			created := time.Time{}
-			if c.Properties != nil && c.Properties.LastModified != nil {
-				created = *c.Properties.LastModified
+			etag := ""
+			if c.Properties != nil {
+				if c.Properties.LastModified != nil {
+					created = *c.Properties.LastModified
+				}
+				if c.Properties.ETag != nil {
+					etag = string(*c.Properties.ETag)
+				}
 			}
 			res.Buckets = append(res.Buckets, domain.Bucket{
 				Name:      name,
 				CreatedAt: created,
 				Region:    b.defaultRegion,
+				ETag:      etag,
 			})
 			if opt.MaxResults > 0 && len(res.Buckets) >= opt.MaxResults {
 				return res, nil
@@ -158,6 +165,9 @@ func (b *Backend) HeadBucket(ctx context.Context, name string) (domain.Bucket, e
 	bucket := domain.Bucket{Name: name, Region: b.defaultRegion}
 	if props.LastModified != nil {
 		bucket.CreatedAt = *props.LastModified
+	}
+	if props.ETag != nil {
+		bucket.ETag = string(*props.ETag)
 	}
 	return bucket, nil
 }

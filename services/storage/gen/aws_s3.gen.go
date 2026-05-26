@@ -866,8 +866,8 @@ type Object struct {
 // ListObjectsV2Output is a generated Smithy structure.
 type ListObjectsV2Output struct {
 	XMLName               xml.Name        `xml:"ListBucketResult"`
-	CommonPrefixes        []CommonPrefix  `xml:"CommonPrefix,omitempty"`
-	Contents              []Object        `xml:"Object,omitempty"`
+	CommonPrefixes        []CommonPrefix  `xml:"CommonPrefixes,omitempty"`
+	Contents              []Object        `xml:"Contents,omitempty"`
 	ContinuationToken     *string         `xml:"ContinuationToken,omitempty"`
 	Delimiter             *string         `xml:"Delimiter,omitempty"`
 	EncodingType          *EncodingType   `xml:"EncodingType,omitempty"`
@@ -1355,7 +1355,7 @@ type CompletedPart struct {
 
 // CompletedMultipartUpload is a generated Smithy structure.
 type CompletedMultipartUpload struct {
-	Parts []CompletedPart `xml:"CompletedPart,omitempty"`
+	Parts []CompletedPart `xml:"Part,omitempty"`
 }
 
 // CompleteMultipartUploadRequest is a generated Smithy structure.
@@ -1465,7 +1465,7 @@ type MultipartUpload struct {
 type ListMultipartUploadsOutput struct {
 	XMLName            xml.Name          `xml:"ListMultipartUploadsResult"`
 	Bucket             *string           `xml:"Bucket,omitempty"`
-	CommonPrefixes     []CommonPrefix    `xml:"CommonPrefix,omitempty"`
+	CommonPrefixes     []CommonPrefix    `xml:"CommonPrefixes,omitempty"`
 	Delimiter          *string           `xml:"Delimiter,omitempty"`
 	EncodingType       *EncodingType     `xml:"EncodingType,omitempty"`
 	IsTruncated        *bool             `xml:"IsTruncated,omitempty"`
@@ -1476,7 +1476,7 @@ type ListMultipartUploadsOutput struct {
 	Prefix             *string           `xml:"Prefix,omitempty"`
 	RequestCharged     *RequestCharged   // bound to header=x-amz-request-charged
 	UploadIdMarker     *string           `xml:"UploadIdMarker,omitempty"`
-	Uploads            []MultipartUpload `xml:"MultipartUpload,omitempty"`
+	Uploads            []MultipartUpload `xml:"Upload,omitempty"`
 }
 
 // ListPartsRequest is a generated Smithy structure.
@@ -1732,7 +1732,7 @@ type LifecycleRule struct {
 // GetBucketLifecycleConfigurationOutput is a generated Smithy structure.
 type GetBucketLifecycleConfigurationOutput struct {
 	XMLName                            xml.Name                            `xml:"LifecycleConfiguration"`
-	Rules                              []LifecycleRule                     `xml:"LifecycleRule,omitempty"`
+	Rules                              []LifecycleRule                     `xml:"Rule,omitempty"`
 	TransitionDefaultMinimumObjectSize *TransitionDefaultMinimumObjectSize // bound to header=x-amz-transition-default-minimum-object-size
 }
 
@@ -1835,7 +1835,7 @@ type ReplicationRule struct {
 // ReplicationConfiguration is a generated Smithy structure.
 type ReplicationConfiguration struct {
 	Role  string            `xml:"Role,omitempty"`
-	Rules []ReplicationRule `xml:"ReplicationRule,omitempty"`
+	Rules []ReplicationRule `xml:"Rule,omitempty"`
 }
 
 // GetBucketReplicationOutput is a generated Smithy structure.
@@ -1945,7 +1945,7 @@ type ServerSideEncryptionRule struct {
 
 // ServerSideEncryptionConfiguration is a generated Smithy structure.
 type ServerSideEncryptionConfiguration struct {
-	Rules []ServerSideEncryptionRule `xml:"ServerSideEncryptionRule,omitempty"`
+	Rules []ServerSideEncryptionRule `xml:"Rule,omitempty"`
 }
 
 // GetBucketEncryptionOutput is a generated Smithy structure.
@@ -2049,7 +2049,7 @@ type TopicConfiguration struct {
 // NotificationConfiguration is a generated Smithy structure.
 type NotificationConfiguration struct {
 	EventBridgeConfiguration     *EventBridgeConfiguration     `xml:"EventBridgeConfiguration,omitempty"`
-	LambdaFunctionConfigurations []LambdaFunctionConfiguration `xml:"LambdaFunctionConfiguration,omitempty"`
+	LambdaFunctionConfigurations []LambdaFunctionConfiguration `xml:"CloudFunctionConfiguration,omitempty"`
 	QueueConfigurations          []QueueConfiguration          `xml:"QueueConfiguration,omitempty"`
 	TopicConfigurations          []TopicConfiguration          `xml:"TopicConfiguration,omitempty"`
 }
@@ -2067,7 +2067,7 @@ type OwnershipControlsRule struct {
 
 // OwnershipControls is a generated Smithy structure.
 type OwnershipControls struct {
-	Rules []OwnershipControlsRule `xml:"OwnershipControlsRule,omitempty"`
+	Rules []OwnershipControlsRule `xml:"Rule,omitempty"`
 }
 
 // GetBucketOwnershipControlsOutput is a generated Smithy structure.

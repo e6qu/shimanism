@@ -122,6 +122,12 @@ run_with_timeout aws --endpoint-url="http://localhost:$AWS_GCP_PORT" s3 mb "s3:/
 run_with_timeout aws --endpoint-url="http://localhost:$AWS_GCP_PORT" s3 cp "$src" "s3://$aws_gcp_bucket/hello.txt"
 run_with_timeout aws --endpoint-url="http://localhost:$AWS_GCP_PORT" s3 cp "s3://$aws_gcp_bucket/hello.txt" "$WORK/aws-gcp.txt"
 cmp "$src" "$WORK/aws-gcp.txt"
+# Wire-fidelity assertion: ListObjectsV2 must surface the key
+# we just uploaded. Pre-fix (issue #32), the response used
+# <Object> instead of <Contents>, so botocore parsed zero
+# rows and `s3 ls` was silently empty.
+ls_out=$(run_with_timeout aws --endpoint-url="http://localhost:$AWS_GCP_PORT" s3 ls "s3://$aws_gcp_bucket/")
+echo "$ls_out" | grep -q "hello.txt" || { echo "FAIL: aws s3 ls missed hello.txt — got: $ls_out" >&2; exit 1; }
 run_with_timeout aws --endpoint-url="http://localhost:$AWS_GCP_PORT" s3 rm "s3://$aws_gcp_bucket/hello.txt"
 run_with_timeout aws --endpoint-url="http://localhost:$AWS_GCP_PORT" s3 rb "s3://$aws_gcp_bucket"
 
@@ -140,6 +146,27 @@ run_with_timeout gcloud --quiet storage buckets create "gs://$gcp_azure_bucket" 
 run_with_timeout gcloud --quiet storage cp "$src" "gs://$gcp_azure_bucket/hello.txt"
 run_with_timeout gcloud --quiet storage cp "gs://$gcp_azure_bucket/hello.txt" "$WORK/gcp-azure.txt"
 cmp "$src" "$WORK/gcp-azure.txt"
+# Wire-fidelity assertion: the GCS-shaped `location` field must
+# be a GCS location (US / EU / ASIA / regional), never the
+# backend's Azure region. Pre-fix (issue #33) the response
+# leaked "EASTUS".
+gcs_loc=$(run_with_timeout gcloud --quiet storage buckets describe "gs://$gcp_azure_bucket" --format='value(location)')
+case "$gcs_loc" in
+	US|EU|ASIA|ASIA1|EUR4|EUR5|EUR7|EUR8|NAM4|*-*) : ;;
+	*) echo "FAIL: GCS frontend leaked non-GCS location: '$gcs_loc'" >&2; exit 1 ;;
+esac
+# Wire-fidelity assertion: bucket-list timeCreated must be a real
+# timestamp, not the Go zero value. Issue #33's other half — the
+# zero-`timeCreated`-on-list path — was upstream sockerless#220 /
+# closed by sockerless PR #221, which made the Azure simulator
+# populate <Properties><Last-Modified> on every container in the
+# list response. The shim was already reading that field; this
+# assertion enforces that the upstream value continues to flow
+# through.
+gcs_ct=$(run_with_timeout gcloud --quiet storage buckets list "--filter=name=$gcp_azure_bucket" --format='value(creation_time)')
+case "$gcs_ct" in
+	0001-*|"") echo "FAIL: GCS bucket-list creation_time is zero: '$gcs_ct'" >&2; exit 1 ;;
+esac
 run_with_timeout gcloud --quiet storage rm "gs://$gcp_azure_bucket/hello.txt"
 run_with_timeout gcloud --quiet storage rm --recursive "gs://$gcp_azure_bucket"
 
@@ -151,6 +178,15 @@ run_with_timeout az storage container create --auth-mode key --account-name test
 run_with_timeout az storage blob upload --auth-mode key --account-name testacct --account-key "$azure_account_key" --blob-endpoint "http://localhost:$AZURE_AWS_PORT/testacct/" --container-name "$azure_aws_container" --name hello.txt --file "$src" --overwrite --only-show-errors
 run_with_timeout az storage blob download --auth-mode key --account-name testacct --account-key "$azure_account_key" --blob-endpoint "http://localhost:$AZURE_AWS_PORT/testacct/" --container-name "$azure_aws_container" --name hello.txt --file "$WORK/azure-aws.txt" --only-show-errors
 cmp "$src" "$WORK/azure-aws.txt"
+# Wire-fidelity assertion: blob list must return a quoted ETag,
+# matching the upload/download response shape. Pre-fix (issue
+# #34) the list path returned an unquoted hex value, breaking
+# `If-Match` round-trips.
+list_etag=$(run_with_timeout az storage blob list --auth-mode key --account-name testacct --account-key "$azure_account_key" --blob-endpoint "http://localhost:$AZURE_AWS_PORT/testacct/" --container-name "$azure_aws_container" --query '[0].properties.etag' -o tsv)
+case "$list_etag" in
+	\"*\") : ;;
+	*) echo "FAIL: blob-list ETag not quoted: '$list_etag'" >&2; exit 1 ;;
+esac
 run_with_timeout az storage blob delete --auth-mode key --account-name testacct --account-key "$azure_account_key" --blob-endpoint "http://localhost:$AZURE_AWS_PORT/testacct/" --container-name "$azure_aws_container" --name hello.txt --only-show-errors
 run_with_timeout az storage container delete --auth-mode key --account-name testacct --account-key "$azure_account_key" --blob-endpoint "http://localhost:$AZURE_AWS_PORT/testacct/" --name "$azure_aws_container" --only-show-errors
 

@@ -226,7 +226,9 @@ az storage blob download \
   --blob-endpoint http://localhost:19003/testacct/ \
   --container-name e2e-azure-aws-demo \
   --name hello.txt \
-  --file -
+  --file /tmp/shimanism-sockerless-roundtrip.txt
+cat /tmp/shimanism-sockerless-roundtrip.txt
+cmp /tmp/shimanism-sockerless.txt /tmp/shimanism-sockerless-roundtrip.txt
 
 az storage blob delete \
   --auth-mode key \
