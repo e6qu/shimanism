@@ -146,7 +146,7 @@ Phase 12 lands the spec-driven *toolchain*. Phase 13 turns the remaining hand-wr
 
 ### 13.C — Production RS256 JWKS
 
-Wire the real Microsoft Entra + Google JWKS paths. Touches `internal/azurebearer/` + `internal/gcpbearer/`. Test-mode HS256 stays the default; deployment-time config selects which path is active. See [docs/verifiers.md § Production deployment path](docs/verifiers.md#production-deployment-path-phase-13c).
+Wire the real Microsoft Entra + Google JWKS paths. Touches `internal/azurebearer/` + `internal/gcpbearer/`. Test-mode HS256 stays the default; deployment-time config selects which path is active. See [docs/verifiers.md § Production deployment path](docs/verifiers.md#production-deployment-path-phase-13c--landed).
 
 **Validation:** add `TestAzureBearer_RealJWKS_*` / `TestGCPBearer_RealJWKS_*` that mock the JWKS endpoint (the real production paths can't be exercised without a real Entra tenant / Google project — those are Track A).
 
