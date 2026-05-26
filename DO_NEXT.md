@@ -6,9 +6,13 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 
 ## Where we are
 
-- **Phase 14 remains in-flight; PR #37 just merged on 2026-05-26.** That PR closed the four end-to-end-walkthrough fidelity bugs (BUG-30..33 / GitHub #32-#35) end-to-end: the `@xmlFlattened` codegen emitter, the GCS frontend's Azure-region leak, the Azure Blob frontend's ETag handling (both list and container), and the docs `--file -` example + conformance-coverage gap. `scripts/check-standalone-sockerless-examples.sh` now asserts each of those wire shapes per route (including a non-zero `creation_time` on the GCS-frontend list, gated on sockerless's per-container `<Properties>` emission).
-- **Sockerless lane is green as of 2026-05-26 at `f858d66` / PR #221.** sockerless PR #221 closed [#220](https://github.com/e6qu/sockerless/issues/220) by populating `<Properties><Last-Modified>` + `<Etag>` on every entry in `handleListContainers`. The shim added `domain.Bucket.ETag` so the Azure backend can surface real container ETags; the previous synthetic `"shim"` placeholder is removed. `make sockerless` + the standalone-E2E script both pass.
-- **No upstream sockerless blocker open.**
+- **Phase 14 in-flight on branch `phase-14-bundled-bce-bug24`.** This branch bundles 14.B Azure ARM backend-adapter lanes with file-and-defer status updates for 14.C / 14.E / BUG-24 expansion. PR open once docs + branch are pushed.
+- **Sockerless lane now reports 23 passing + 1 default-skipped** against sockerless `f858d66`. New green lanes:
+  - `TestSockerless_Azure_Cache_Redis_CRUD` — Microsoft.Cache/Redis ARM CRUD via armredis/v3.
+  - `TestSockerless_Azure_RDBMS_PostgreSQL_CRUD` — Microsoft.DBforPostgreSQL/flexibleServers via armpostgresqlflexibleservers/v4.
+  - `TestSockerless_Azure_APIGateway_APIM_CRUD` — Microsoft.ApiManagement/service+apis via armapimanagement/v3, with parent Service pre-created.
+- **`TestSockerless_Azure_Functions_ContainerApps_CRUD`** is wired but default-skipped (BUG-35). Opts in via `SOCKERLESS_AZURE_CONTAINERAPPS_IMAGE`.
+- **Two new upstream sockerless gaps surfaced this PR.** [sockerless#223](https://github.com/e6qu/sockerless/issues/223) (BUG-34) — Azure SB namespace-level ATOM XML admin protocol not implemented, blocks SB queue + pubsub lanes. [sockerless#224](https://github.com/e6qu/sockerless/issues/224) closed as not-a-bug (sockerless legitimately does real container execution).
 - **GCP Secret Manager is wired.** The real backend lane uses the official `cloud.google.com/go/secretmanager/apiv1` REST client against sockerless and covers CreateSecret, PutSecretValue, HeadSecret, GetSecretValue(latest + explicit version), ListVersions, ListSecrets, UpdateSecret, and DeleteSecret. No workaround, fake, mock, or partial test is carried.
 - **Current sockerless coverage:** storage AWS S3 + GCS + Azure Blob backend-adapter lanes plus storage through-shim E2E cells for AWS -> GCP, GCP -> Azure, and Azure -> AWS; secrets AWS Secrets Manager + GCP Secret Manager + Azure Key Vault; queue AWS SQS + GCP Pub/Sub queue; pubsub GCP Pub/Sub; apigateway GCP API Gateway.
 - **Still local/open:** BUG-8 and BUG-15 are not upstream-sockerless blockers. BUG-8 is the hashicorp/google API Gateway Terraform endpoint/OAuth leg. BUG-15 is the hashicorp/google `message_retention_duration` state-drift question; the shim's GCP queue backend retention PATCH/read path is green. BUG-24 tracks expanding through-shim sockerless E2E beyond storage.
@@ -53,9 +57,14 @@ Always update `docs/sockerless-validation.md` + `BUGS.md` § Sockerless when a t
 
 ## Next concrete actions (in priority order)
 
-1. Finish PR for `phase-181-e2e-docs-and-shims`: rebase on `origin/main`, push, open PR with `Closes #23` and `Closes #25`; leave #24 open.
-2. Choose between expanding 14.B through-shim sockerless cells to more services (BUG-24), adding additional backend-adapter lanes (GCP Cloud SQL / Memorystore; Azure Service Bus / PG / Redis / APIM; AWS Lambda / SNS / RDS / ElastiCache / APIGW), starting 14.C handler migrations, or continuing real-cloud Track A residuals.
-3. Real-cloud Track A remains separate: BUG-8 / BUG-15 Terraform-provider legs plus real-signed verifier conformance.
+1. Land the current PR (`phase-14-bundled-bce-bug24`): 3 new Azure ARM backend-adapter lanes (Redis / PostgreSQL / APIM) + scaffolded Container Apps lane + 2 new BUGs filed (BUG-34 / BUG-35) + 2 upstream issues filed at e6qu/sockerless.
+2. **Unblock BUG-34** by watching for [sockerless#223](https://github.com/e6qu/sockerless/issues/223) to close (Azure SB namespace ATOM XML), then wire `TestSockerless_Azure_ServiceBus_Queue_*` + `TestSockerless_Azure_ServiceBus_Topic_*` lanes against the now-supported protocol.
+3. **Close BUG-35** by either (a) extending `scripts/run-sockerless-storage.sh` to pre-pull a small public Container Apps image and set `SOCKERLESS_AZURE_CONTAINERAPPS_IMAGE` before invoking `go test`, or (b) asking upstream for a no-op-image mode.
+4. **14.C handler migrations** (still independent of sockerless):
+   - `gcp_apigateway` (502 lines), `gcp_memorystore` (319), `gcp_cloudrun` (305), gcp_pubsub × 2, gcp_cloudsql, gcs — replace regex tables with path-shape inspection like `gcp_secretmanager`. Each is its own PR; existing `TestGCPRoutes_*_FrontendDispatchCoverage` pins the dispatch shape so the refactor is mechanically safe.
+   - `azure_blob` (69 ops) — needs the Service-Bus-style hybrid pattern; biggest single chunk.
+5. **14.E cross-cloud Apply cell expansion** — driven by the new sockerless lanes; can add Azure-source-and-destination cells now that the ARM lanes are green.
+6. **Track A residuals** (BUG-8 / BUG-15) — still need real-cloud GCP credentials.
 
 ## Historical migration context
 
