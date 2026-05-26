@@ -251,6 +251,98 @@ func TestSockerless_Azure_Blob_RoundTrip(t *testing.T) {
 	}
 }
 
+// TestSockerless_Azure_Blob_Multipart exercises the shim's azureblob
+// backend's block-blob staging code path against sockerless's
+// block-blob staging support (added in sockerless PR #229).
+// CreateMultipartUpload → UploadPart × N → ListParts →
+// CompleteMultipartUpload → GetObject, asserts the assembled blob
+// content matches the concatenation of all uploaded parts.
+//
+// On the wire this drives StageBlock (`?comp=block&blockid=…`) for
+// each part, CommitBlockList (`?comp=blocklist` with the XML block
+// list body) for the finalize, and GetBlockList
+// (`?comp=blocklist&blocklisttype=uncommitted`) for ListParts. The
+// test never speaks any of those wire shapes directly — it just
+// drives the shim's domain interface, which calls the Azure SDK,
+// which speaks block-blob HTTP to sockerless.
+func TestSockerless_Azure_Blob_Multipart(t *testing.T) {
+	account := os.Getenv("SOCKERLESS_AZURE_BLOB_ACCOUNT")
+	if account == "" {
+		t.Skip("SOCKERLESS_AZURE_BLOB_ACCOUNT not set")
+	}
+	port := os.Getenv("SOCKERLESS_AZURE_TLS_PORT")
+	if port == "" {
+		t.Skip("SOCKERLESS_AZURE_TLS_PORT not set")
+	}
+	keyMaterial := bytes.Repeat([]byte("k"), 32)
+	encodedKey := base64.StdEncoding.EncodeToString(keyMaterial)
+	cred, err := azblob.NewSharedKeyCredential(account, encodedKey)
+	if err != nil {
+		t.Fatalf("shared-key credential: %v", err)
+	}
+	vaultURL := "https://" + account + ".blob.localhost:" + port + "/"
+	c, err := azblob.NewClientWithSharedKeyCredential(vaultURL, cred, &azblob.ClientOptions{
+		ClientOptions: azcore.ClientOptions{Transport: &http.Client{Transport: storageLocalhostDial(port)}},
+	})
+	if err != nil {
+		t.Fatalf("blob client: %v", err)
+	}
+	backend := azurebackend.New(c, "eastus")
+	ctx := context.Background()
+
+	bucket := randomNamespace("shim-azblob-mp")
+	if err := backend.CreateBucket(ctx, bucket, "eastus"); err != nil {
+		t.Fatalf("CreateBucket: %v", err)
+	}
+	t.Cleanup(func() { _ = backend.DeleteBucket(ctx, bucket) })
+
+	key := "mp/" + randomNamespace("obj") + ".bin"
+	uploadID, err := backend.CreateMultipartUpload(ctx, bucket, key, "application/octet-stream", nil)
+	if err != nil {
+		t.Fatalf("CreateMultipartUpload: %v", err)
+	}
+	t.Cleanup(func() { _ = backend.AbortMultipartUpload(ctx, bucket, key, uploadID) })
+
+	parts := [][]byte{
+		bytes.Repeat([]byte("a"), 1024),
+		bytes.Repeat([]byte("b"), 1024),
+		bytes.Repeat([]byte("c"), 512),
+	}
+	completed := make([]domain.CompletePartRef, len(parts))
+	for i, part := range parts {
+		partNumber := int32(i + 1)
+		etag, err := backend.UploadPart(ctx, bucket, key, uploadID, partNumber, bytes.NewReader(part))
+		if err != nil {
+			t.Fatalf("UploadPart %d: %v", partNumber, err)
+		}
+		completed[i] = domain.CompletePartRef{Number: partNumber, ETag: etag}
+	}
+
+	listed, err := backend.ListParts(ctx, bucket, key, uploadID)
+	if err != nil {
+		t.Fatalf("ListParts: %v", err)
+	}
+	if len(listed) != len(parts) {
+		t.Errorf("ListParts returned %d parts, want %d", len(listed), len(parts))
+	}
+
+	if _, err := backend.CompleteMultipartUpload(ctx, bucket, key, uploadID, completed); err != nil {
+		t.Fatalf("CompleteMultipartUpload: %v", err)
+	}
+	t.Cleanup(func() { _ = backend.DeleteObject(ctx, bucket, key) })
+
+	got, err := backend.GetObject(ctx, bucket, key)
+	if err != nil {
+		t.Fatalf("GetObject: %v", err)
+	}
+	defer got.Body.Close()
+	data, _ := io.ReadAll(got.Body)
+	want := bytes.Join(parts, nil)
+	if !bytes.Equal(data, want) {
+		t.Errorf("multipart-assembled blob length = %d, want %d (parts concatenated)", len(data), len(want))
+	}
+}
+
 // TestSockerless_E2E_AWSFrontendToGCSBackend drives a real AWS S3
 // client into shimanism's AWS frontend, through the GCS backend, and
 // out to the sockerless GCP simulator. This is the concrete AWS -> GCP
