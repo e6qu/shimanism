@@ -20,6 +20,18 @@ import (
 // element name the Azure SDK expects.
 // ----------------------------------------------------------------------
 
+// quoteETag wraps a backend-supplied ETag value in the quoted form
+// real Azure Blob Storage emits ("0x8DAAEFF…"). Empty stays empty.
+// The function is idempotent: backends that return already-quoted
+// values round-trip through Trim+wrap unchanged.
+func quoteETag(raw string) string {
+	s := strings.Trim(raw, "\"")
+	if s == "" {
+		return ""
+	}
+	return `"` + s + `"`
+}
+
 type containerXML struct {
 	Name       string `xml:"Name"`
 	Properties struct {
@@ -93,6 +105,14 @@ func (srv *Server) listContainers(w http.ResponseWriter, r *http.Request) {
 	for _, b := range out.Buckets {
 		c := containerXML{Name: b.Name}
 		c.Properties.LastModified = b.CreatedAt.UTC().Format(http.TimeFormat)
+		// Match the synthetic ETag GetContainerProperties returns
+		// (line ~118). Real container ETags require the backend to
+		// surface a per-container ETag; AWS S3 buckets have none,
+		// and the sockerless Azure simulator's ListContainers omits
+		// the <Properties> block entirely (sockerless#220). Until
+		// either backend support arrives, the consistent synthetic
+		// value lets clients round-trip get -> list responses.
+		c.Properties.ETag = `"shim"`
 		resp.Containers.Containers = append(resp.Containers.Containers, c)
 	}
 	writeXML(w, http.StatusOK, &resp)
@@ -151,7 +171,7 @@ func (srv *Server) listBlobs(w http.ResponseWriter, r *http.Request, container s
 	for _, o := range out.Objects {
 		b := blobXML{Name: o.Key}
 		b.Properties.ContentLength = o.Size
-		b.Properties.ETag = strings.Trim(o.ETag, "\"")
+		b.Properties.ETag = quoteETag(o.ETag)
 		b.Properties.LastModified = o.LastModified.UTC().Format(http.TimeFormat)
 		b.Properties.BlobType = "BlockBlob"
 		resp.Blobs.Blobs = append(resp.Blobs.Blobs, b)

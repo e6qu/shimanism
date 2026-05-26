@@ -1,6 +1,6 @@
 # Known Bugs
 
-**29 filed · 26 fixed · 2 open · 1 false positive. Upstream sockerless audit issues through #218 are closed as of sockerless PR #219. No upstream sockerless blocker is open at this checkpoint.**
+**33 filed · 30 fixed · 2 open · 1 false positive.** Upstream sockerless audit issues through #218 are closed as of sockerless PR #219. The only open upstream item is [sockerless#220](https://github.com/e6qu/sockerless/issues/220) — `List Containers` response omits per-container `<Properties>` (surfaced by BUG-31 and BUG-32 during the end-to-end walkthrough).
 
 Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLAN.md](PLAN.md) · narrative [WHAT_WE_DID.md](WHAT_WE_DID.md) · rules [AGENTS.md](AGENTS.md).
 
@@ -91,6 +91,12 @@ Phase 14.A re-enabled the shim assertions for #173/#174/#175 (storage + secrets 
 - **Later rounds** ([#193-215](https://github.com/e6qu/sockerless/issues/193), excluding unused issue numbers) — closed by sockerless PRs #200, #202, #211, and #216.
 - **Next-lane fix**: [#218](https://github.com/e6qu/sockerless/issues/218) — GCP Secret Manager `ListSecretVersions`, `UpdateSecret`, and `DeleteSecret` landed in sockerless PR #219. The full `services/secrets/backends/gcp` sockerless lane is now green.
 
+### End-to-end walkthrough findings (BUG-30..33)
+
+| Upstream | Status |
+|---|---|
+| [e6qu/sockerless#220](https://github.com/e6qu/sockerless/issues/220) — Azure Blob `List Containers` omits per-container `<Properties>` (Last-Modified, Etag) | 🟡 open upstream; until it lands the GCS frontend list path emits zero `timeCreated` (BUG-31) and the Azure Blob frontend container-list emits a synthetic `"shim"` ETag (BUG-32). The single-container `GetContainerProperties` path is unaffected and returns real values. |
+
 ## False positives
 
 | Area | Finding | Why it's not a bug |
@@ -115,6 +121,10 @@ When a new bug fits one of these, tag it with the rule.
 
 | ID | Sev | Area | Closed in | One-liner |
 |---|---|---|---|---|
+| 30 | P1 | codegen/aws-smithy emitter | PR #__PR_NUMBER__ | [GitHub #32](https://github.com/e6qu/shimanism/issues/32): AWS S3 codegen mis-named every `@xmlFlattened` list element (`<Object>` instead of `<Contents>`, etc.). Per the Smithy XML protocol, flattened lists use the containing structure's member name unless the inner list-member has an explicit `@xmlName`. `internal/codegen/emit/emit.go` now respects that, regen produced 6 corrections across `ListObjectsV2`, `ListMultipartUploads`, `CompletedMultipartUpload`, `GetBucketLifecycleConfiguration`, and `ReplicationConfiguration`. `aws s3 ls` is no longer silently empty. |
+| 31 | P2 | storage/gcs-frontend | PR #__PR_NUMBER__ | [GitHub #33](https://github.com/e6qu/shimanism/issues/33): GCS-shaped `buckets.list`/`buckets.get` leaked the backend's Azure region in the `location` field (e.g. `"EASTUS"`, invalid as a GCS location). The frontend now routes through `gcsLocation()`, which keeps GCS-shaped regions as-is and folds non-GCS values into the default multi-region `"US"`. The zero-`timeCreated`-on-list half of the issue is the upstream sockerless gap [sockerless#220](https://github.com/e6qu/sockerless/issues/220) — sockerless's `handleListContainers` omits the per-container `<Properties>` block; tracked separately. |
+| 32 | P2 | storage/azure_blob-frontend | PR #__PR_NUMBER__ | [GitHub #34](https://github.com/e6qu/shimanism/issues/34): `blob list` returned unquoted ETags and `container list` returned an empty ETag, despite `upload`/`download` returning the quoted form. Both paths now route through a `quoteETag()` helper. The empty-container-ETag half is gated on [sockerless#220](https://github.com/e6qu/sockerless/issues/220); until the upstream `<Properties>` block lands the shim emits the same synthetic `"shim"` value `getContainerProperties` already uses, so `get`-then-`list` is internally consistent. |
+| 33 | P3 | docs / conformance script | PR #__PR_NUMBER__ | [GitHub #35](https://github.com/e6qu/shimanism/issues/35): `docs/end-to-end-examples.md` told readers to run `az storage blob download --file -`, which silently writes a literal file named `-` to `cwd` rather than streaming to stdout. The example now downloads to a real path and `cmp`s it. `scripts/check-standalone-sockerless-examples.sh` gained one wire-fidelity assertion per route — `aws s3 ls` must surface a key, the GCS `location` must be a valid GCS location, and the Azure blob-list ETag must be quoted — so the next round of this class of bug fails CI. |
 | 24 | P2 | sockerless/conformance | Phase 14 | [GitHub #24](https://github.com/e6qu/shimanism/issues/24): the sockerless lane now covers every service family with source SDK → shim frontend → shim backend → sockerless simulator E2E cells, and CI runs the expanded lane. |
 | 29 | P2 | storage/gcs-frontend | Phase 14 | [GitHub #29](https://github.com/e6qu/shimanism/issues/29): GCS frontend now serves the JSON API `managedFolders.list` route with an empty `storage#managedFolders` collection, so `gcloud storage rm --recursive gs://bucket` can finish cleanup instead of failing on a route miss. |
 | 28 | P2 | storage/aws-backend | Phase 14 | [GitHub #28](https://github.com/e6qu/shimanism/issues/28): AWS S3 backend now spools frontend upload streams into seekable temporary bodies before `PutObject` / `UploadPart`, so the official AWS SDK can perform HTTP endpoint payload signing/checksum/retry behavior without rejecting non-seekable request bodies. |

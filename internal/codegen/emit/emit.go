@@ -620,17 +620,18 @@ func (g *gen) fieldView(name string, m smithy.Member) (fieldView, error) {
 		if xml == "" {
 			xml = name
 		}
-		// Flattened list/map: the parent member tag matches the element
-		// name, not the container. Element name comes from the target
-		// list's member.xmlName trait (or its target's short name).
+		// Flattened list/set: per Smithy XML protocol, each list item
+		// serializes using the containing structure's *member name*
+		// (already in `xml` from the outer-member XMLName fallback),
+		// not the list shape's inner-target name. The inner member's
+		// @xmlName trait overrides — but only if explicitly set.
+		// https://smithy.io/2.0/spec/protocol-traits.html#smithy-api-xmlflattened-trait
 		if m.XMLFlattened() {
 			targetSh, err := g.model.LookupShape(m.Target)
 			if err == nil && (targetSh.Type == "list" || targetSh.Type == "set") && targetSh.Member != nil {
-				en := targetSh.Member.XMLName()
-				if en == "" {
-					en = smithy.ShortName(targetSh.Member.Target)
+				if en := targetSh.Member.XMLName(); en != "" {
+					xml = en
 				}
-				xml = en
 			}
 		}
 		fv.XMLTag = xml + ",omitempty"

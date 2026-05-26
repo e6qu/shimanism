@@ -6,19 +6,20 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 
 ## Where we are
 
-- **Phase 14 remains in-flight, with PR #21 merged.** Current work is on `phase-181-e2e-docs-and-shims`, branched from local `main` at `45985e7` (PR #21 merged 2026-05-25).
-- **Sockerless lane is green as of 2026-05-25.** The user merged sockerless PR #219 (`06ee3a5` in `/tmp/sockerless`), closing [sockerless#218](https://github.com/e6qu/sockerless/issues/218). `make sockerless` passed the current shim tests, including the new storage through-shim cross-cloud E2E cells.
-- **GCP Secret Manager is now wired.** The real backend lane uses the official `cloud.google.com/go/secretmanager/apiv1` REST client against sockerless and covers CreateSecret, PutSecretValue, HeadSecret, GetSecretValue(latest + explicit version), ListVersions, ListSecrets, UpdateSecret, and DeleteSecret. No workaround, fake, mock, or partial test is carried.
+- **Phase 14 remains in-flight; PR #__PR_NUMBER__ just merged on 2026-05-26.** That PR closed the four end-to-end-walkthrough fidelity bugs (BUG-30..33 / GitHub #32-#35): the `@xmlFlattened` codegen emitter, the GCS frontend's Azure-region leak, the Azure Blob frontend's list ETag quoting, and the docs `--file -` example + conformance-coverage gap. `scripts/check-standalone-sockerless-examples.sh` now asserts each of those wire shapes per route.
+- **Sockerless lane is green as of 2026-05-26.** `make sockerless` passes the current shim tests; the standalone-E2E script passes its new assertions.
+- **One upstream gap open:** [sockerless#220](https://github.com/e6qu/sockerless/issues/220) — `List Containers` response omits the per-container `<Properties>` block (Last-Modified + Etag). This is what makes `timeCreated` come back zero in the GCS frontend's bucket-list path and forces the Azure Blob frontend's container-list to emit a synthetic `"shim"` ETag. The single-container `GetContainerProperties` path is fine. Both shim halves of BUG-31/32 are closed; the follow-up here is to verify the shim once sockerless lands a fix.
+- **GCP Secret Manager is wired.** The real backend lane uses the official `cloud.google.com/go/secretmanager/apiv1` REST client against sockerless and covers CreateSecret, PutSecretValue, HeadSecret, GetSecretValue(latest + explicit version), ListVersions, ListSecrets, UpdateSecret, and DeleteSecret. No workaround, fake, mock, or partial test is carried.
 - **Current sockerless coverage:** storage AWS S3 + GCS + Azure Blob backend-adapter lanes plus storage through-shim E2E cells for AWS -> GCP, GCP -> Azure, and Azure -> AWS; secrets AWS Secrets Manager + GCP Secret Manager + Azure Key Vault; queue AWS SQS + GCP Pub/Sub queue; pubsub GCP Pub/Sub; apigateway GCP API Gateway.
-- **Still local/open:** BUG-8 and BUG-15 are not upstream-sockerless blockers anymore. BUG-8 is the hashicorp/google API Gateway Terraform endpoint/OAuth leg. BUG-15 is the hashicorp/google `message_retention_duration` state-drift question; the shim's GCP queue backend retention PATCH/read path is green. BUG-24 tracks expanding through-shim sockerless E2E beyond storage.
-- **Last merged:** PR #21 (Phase 14 sockerless validation lane) at `45985e7` on `main`, 2026-05-25.
+- **Still local/open:** BUG-8 and BUG-15 are not upstream-sockerless blockers. BUG-8 is the hashicorp/google API Gateway Terraform endpoint/OAuth leg. BUG-15 is the hashicorp/google `message_retention_duration` state-drift question; the shim's GCP queue backend retention PATCH/read path is green. BUG-24 tracks expanding through-shim sockerless E2E beyond storage.
+- **Last merged:** PR #__PR_NUMBER__ (fix the end-to-end-walkthrough fidelity bug cluster, BUG-30..33) on `main`, 2026-05-26.
 
 ## Session-start checklist
 
 1. `git fetch origin && git checkout main && git pull --ff-only origin main` — sync `main`.
 2. Create a new branch from `main` for the next Phase 14 sub-phase before editing.
-3. If sockerless changed again, `git -C /tmp/sockerless pull --ff-only`, rebuild the three sims, and rerun `make sockerless`.
-4. Read [STATUS.md](STATUS.md) + this file. Skim the three open local bugs below.
+3. If sockerless changed again, `git -C /tmp/sockerless pull --ff-only`, rebuild the three sims, and rerun `make sockerless`. If [sockerless#220](https://github.com/e6qu/sockerless/issues/220) has landed, drop the synthetic `"shim"` container-ETag in `internal/storage/frontends/azure_blob/handlers.go` and the GCS-list zero-`timeCreated` will resolve itself; tighten the standalone-E2E assertion to require a real timestamp.
+4. Read [STATUS.md](STATUS.md) + this file. Skim the two open local bugs below.
 5. Pick the next Phase 14 item: choose a different remaining sockerless lane, finish 14.C handler migrations, or continue real-cloud Track A residuals.
 
 ## Resume after sockerless work

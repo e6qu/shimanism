@@ -25,6 +25,58 @@ import (
 // Buckets
 // ----------------------------------------------------------------------
 
+// gcsLocation returns a GCS-shaped location string for the given
+// backend-region value. GCS uses values like "US", "EU", "ASIA", or
+// regional names like "US-CENTRAL1"; cross-cloud regions
+// ("eastus", "us-east-1", …) are not valid GCS locations.
+//
+// The shim doesn't store the source-shaped location the client wrote
+// on create (the shim is stateless; storing it in backend tags is
+// explicitly forbidden by AGENTS.md). Instead, the frontend returns
+// a deterministic GCS-shape: if the backend's region is already
+// GCS-shaped, uppercase it; otherwise return the GCS default
+// multi-region "US". The location field is therefore honest (it
+// reflects what GCS clients can use), if necessarily less specific
+// than what the client wrote.
+func gcsLocation(backendRegion string) string {
+	r := strings.TrimSpace(backendRegion)
+	if r == "" {
+		return "US"
+	}
+	upper := strings.ToUpper(r)
+	if isGCSShapedLocation(upper) {
+		return upper
+	}
+	return "US"
+}
+
+// isGCSShapedLocation reports whether s looks like a value the GCS
+// API would emit: a multi-region ("US", "EU", "ASIA"), a dual-region
+// ("NAM4", "EUR4", …), or a regional name ("US-CENTRAL1", …).
+// The list of GCS multi-regions and dual-regions is short and stable;
+// regional names use the "<continent>-<area><n>" convention.
+func isGCSShapedLocation(s string) bool {
+	switch s {
+	case "US", "EU", "ASIA",
+		"ASIA1", "EUR4", "EUR5", "EUR7", "EUR8", "NAM4":
+		return true
+	}
+	// Regional: at least one hyphen, alphanum + hyphen only.
+	if !strings.Contains(s, "-") {
+		return false
+	}
+	for _, c := range s {
+		switch {
+		case c >= 'A' && c <= 'Z':
+		case c >= '0' && c <= '9':
+		case c == '-':
+		default:
+			return false
+		}
+	}
+	return true
+}
+
 func (srv *Server) listBuckets(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	opt := domain.ListBucketsOptions{
@@ -51,7 +103,7 @@ func (srv *Server) listBuckets(w http.ResponseWriter, r *http.Request) {
 			Kind:        "storage#bucket",
 			Id:          b.Name,
 			Name:        b.Name,
-			Location:    strings.ToUpper(b.Region),
+			Location:    gcsLocation(b.Region),
 			TimeCreated: b.CreatedAt.UTC().Format(time.RFC3339),
 		})
 	}
@@ -68,7 +120,7 @@ func (srv *Server) getBucket(w http.ResponseWriter, r *http.Request, bucket stri
 		Kind:        "storage#bucket",
 		Id:          b.Name,
 		Name:        b.Name,
-		Location:    strings.ToUpper(b.Region),
+		Location:    gcsLocation(b.Region),
 		TimeCreated: b.CreatedAt.UTC().Format(time.RFC3339),
 	})
 }
@@ -92,7 +144,7 @@ func (srv *Server) insertBucket(w http.ResponseWriter, r *http.Request) {
 		Kind:        "storage#bucket",
 		Id:          in.Name,
 		Name:        in.Name,
-		Location:    strings.ToUpper(in.Location),
+		Location:    gcsLocation(in.Location),
 		TimeCreated: time.Now().UTC().Format(time.RFC3339),
 	})
 }
