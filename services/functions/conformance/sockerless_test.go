@@ -6,10 +6,16 @@ import (
 	"crypto/rand"
 	"crypto/tls"
 	"encoding/hex"
+	"net"
 	"net/http"
 	"os"
 	"testing"
+	"time"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/arm"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/cloud"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
 	awsapi "github.com/aws/aws-sdk-go-v2/aws"
 	awshttp "github.com/aws/aws-sdk-go-v2/aws/transport/http"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -17,8 +23,10 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/lambda"
 	lambdatypes "github.com/aws/aws-sdk-go-v2/service/lambda/types"
 
+	functionsdomain "github.com/e6qu/shimanism/internal/functions/domain"
 	"github.com/e6qu/shimanism/internal/harness"
 	awsbackend "github.com/e6qu/shimanism/services/functions/backends/aws"
+	azurefunctions "github.com/e6qu/shimanism/services/functions/backends/azure"
 )
 
 // TestSockerless_AWSLambdaFrontendToAWSBackend_CRUD drives the full
@@ -143,4 +151,121 @@ func sockerlessHex8() string {
 	b := make([]byte, 4)
 	_, _ = rand.Read(b)
 	return hex.EncodeToString(b)
+}
+
+// TestSockerless_Azure_Functions_ContainerApps_CRUD exercises the
+// shim's Azure Container Apps functions backend against sockerless's
+// Microsoft.App/containerApps ARM control plane: CreateFunction →
+// DescribeFunction → ListFunctions → DeleteFunction.
+//
+// Unlike the pure-control-plane sockerless lanes, sockerless's
+// Container Apps handler actually invokes the local container runtime
+// to start a replica — matching real Azure's behavior, where the
+// underlying execution is opaque to the caller. That means this lane
+// needs a docker/podman daemon AND the requested image must be
+// reachable. Set SOCKERLESS_AZURE_CONTAINERAPPS_IMAGE to a known-
+// pullable image (e.g. an image you've pre-pulled into the daemon)
+// to opt in. Default-skipped because requiring an outbound pull
+// during conformance is too much CI variance for the bundled lane.
+func TestSockerless_Azure_Functions_ContainerApps_CRUD(t *testing.T) {
+	port := os.Getenv("SOCKERLESS_AZURE_TLS_PORT")
+	if port == "" {
+		t.Skip("SOCKERLESS_AZURE_TLS_PORT not set")
+	}
+	image := os.Getenv("SOCKERLESS_AZURE_CONTAINERAPPS_IMAGE")
+	if image == "" {
+		t.Skip("SOCKERLESS_AZURE_CONTAINERAPPS_IMAGE not set; pre-pull an image into the local container runtime and export the reference to opt in.")
+	}
+	subscription := sockerlessAzureSubscriptionFunctions()
+	envID := "/subscriptions/" + subscription +
+		"/resourceGroups/shim-sk-rg/providers/Microsoft.App/managedEnvironments/shim-sk-env"
+	backend, err := azurefunctions.New(azurefunctions.Config{
+		SubscriptionID:       subscription,
+		ResourceGroup:        "shim-sk-rg",
+		Location:             "eastus",
+		ManagedEnvironmentID: envID,
+		Credential:           sockerlessNoOpCredentialFunctions{},
+		ClientOptions:        sockerlessARMClientOptionsFunctions(port),
+	})
+	if err != nil {
+		t.Fatalf("azurefunctions.New: %v", err)
+	}
+	ctx := context.Background()
+
+	name := "shim-sk-fn-" + sockerlessHex8()
+	fn, err := backend.CreateFunction(ctx, name, functionsdomain.CreateFunctionOptions{
+		Image:          image,
+		MemoryBytes:    512 << 20,
+		CPUMilliCores:  250,
+		TimeoutSeconds: 30,
+	})
+	if err != nil {
+		t.Fatalf("CreateFunction: %v", err)
+	}
+	if fn.Name != name {
+		t.Errorf("CreateFunction.Name = %q, want %q", fn.Name, name)
+	}
+	t.Cleanup(func() { _ = backend.DeleteFunction(ctx, name) })
+
+	got, err := backend.DescribeFunction(ctx, name)
+	if err != nil {
+		t.Fatalf("DescribeFunction: %v", err)
+	}
+	if got.Name != name {
+		t.Errorf("DescribeFunction.Name = %q, want %q", got.Name, name)
+	}
+
+	list, err := backend.ListFunctions(ctx, functionsdomain.ListFunctionsOptions{})
+	if err != nil {
+		t.Fatalf("ListFunctions: %v", err)
+	}
+	found := false
+	for _, f := range list.Functions {
+		if f.Name == name {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("ListFunctions did not contain %q", name)
+	}
+}
+
+func sockerlessARMClientOptionsFunctions(port string) *arm.ClientOptions {
+	dialer := &net.Dialer{}
+	transport := &http.Transport{
+		DialContext: func(ctx context.Context, network, _ string) (net.Conn, error) {
+			return dialer.DialContext(ctx, network, "127.0.0.1:"+port)
+		},
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	return &arm.ClientOptions{
+		ClientOptions: azcore.ClientOptions{
+			Cloud: cloud.Configuration{
+				ActiveDirectoryAuthorityHost: "https://localhost:" + port + "/",
+				Services: map[cloud.ServiceName]cloud.ServiceConfiguration{
+					cloud.ResourceManager: {
+						Audience: "https://management.azure.com",
+						Endpoint: "https://localhost:" + port,
+					},
+				},
+			},
+			Transport: &http.Client{Transport: transport},
+		},
+	}
+}
+
+func sockerlessAzureSubscriptionFunctions() string {
+	if s := os.Getenv("SOCKERLESS_AZURE_SUBSCRIPTION"); s != "" {
+		return s
+	}
+	return "00000000-0000-0000-0000-000000000000"
+}
+
+type sockerlessNoOpCredentialFunctions struct{}
+
+var sockerlessFarFutureFunctions = time.Date(2099, time.December, 31, 23, 59, 59, 0, time.UTC)
+
+func (sockerlessNoOpCredentialFunctions) GetToken(_ context.Context, _ policy.TokenRequestOptions) (azcore.AccessToken, error) {
+	return azcore.AccessToken{Token: "sockerless-test", ExpiresOn: sockerlessFarFutureFunctions}, nil
 }

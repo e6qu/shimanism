@@ -4,10 +4,20 @@ package conformance_test
 import (
 	"context"
 	"crypto/rand"
+	"crypto/tls"
 	"encoding/hex"
+	"net"
+	"net/http"
 	"os"
 	"testing"
+	"time"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/arm"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/cloud"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/to"
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/apimanagement/armapimanagement/v3"
 	awsapi "github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
@@ -18,6 +28,7 @@ import (
 
 	"github.com/e6qu/shimanism/internal/apigateway/domain"
 	"github.com/e6qu/shimanism/internal/harness"
+	azureapim "github.com/e6qu/shimanism/services/apigateway/backends/azure"
 	gcpbackend "github.com/e6qu/shimanism/services/apigateway/backends/gcp"
 )
 
@@ -175,4 +186,142 @@ func sockHex8apigw() string {
 	b := make([]byte, 4)
 	_, _ = rand.Read(b)
 	return hex.EncodeToString(b)
+}
+
+// TestSockerless_Azure_APIGateway_APIM_CRUD exercises the shim's Azure
+// APIM apigateway backend against sockerless's Microsoft.ApiManagement
+// ARM control plane: CreateGateway → DescribeGateway → ListGateways →
+// DeleteGateway.
+//
+// The parent APIM Service (`Microsoft.ApiManagement/service/<name>`) is
+// pre-created via a direct ARM PUT to the sim before invoking the
+// backend. Real users of the shim set up the APIM Service via
+// Terraform / ARM template; the shim itself only manages Apis within
+// it. This mirrors that order of operations.
+func TestSockerless_Azure_APIGateway_APIM_CRUD(t *testing.T) {
+	port := os.Getenv("SOCKERLESS_AZURE_TLS_PORT")
+	if port == "" {
+		t.Skip("SOCKERLESS_AZURE_TLS_PORT not set")
+	}
+	subscription := sockerlessAzureSubscriptionAPIGW()
+	resourceGroup := "shim-sk-rg"
+	serviceName := "shim-sk-apim-" + sockHex8apigw()
+	opts := sockerlessARMClientOptionsAPIGW(port)
+	if err := apimPreCreateService(opts, subscription, resourceGroup, serviceName); err != nil {
+		t.Fatalf("pre-create APIM service: %v", err)
+	}
+
+	backend, err := azureapim.New(azureapim.Config{
+		SubscriptionID: subscription,
+		ResourceGroup:  resourceGroup,
+		ServiceName:    serviceName,
+		Credential:     sockerlessNoOpCredentialAPIGW{},
+		ClientOptions:  opts,
+	})
+	if err != nil {
+		t.Fatalf("azureapim.New: %v", err)
+	}
+	ctx := context.Background()
+
+	name := "shim-sk-gw-" + sockHex8apigw()
+	gw, err := backend.CreateGateway(ctx, name, domain.CreateGatewayOptions{})
+	if err != nil {
+		t.Fatalf("CreateGateway: %v", err)
+	}
+	if gw.Name != name {
+		t.Errorf("CreateGateway.Name = %q, want %q", gw.Name, name)
+	}
+	t.Cleanup(func() { _ = backend.DeleteGateway(ctx, name) })
+
+	got, err := backend.DescribeGateway(ctx, name)
+	if err != nil {
+		t.Fatalf("DescribeGateway: %v", err)
+	}
+	if got.Name != name {
+		t.Errorf("DescribeGateway.Name = %q, want %q", got.Name, name)
+	}
+
+	list, err := backend.ListGateways(ctx, domain.ListGatewaysOptions{})
+	if err != nil {
+		t.Fatalf("ListGateways: %v", err)
+	}
+	found := false
+	for _, g := range list.Gateways {
+		if g.Name == name {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("ListGateways did not contain %q", name)
+	}
+}
+
+func sockerlessARMClientOptionsAPIGW(port string) *arm.ClientOptions {
+	dialer := &net.Dialer{}
+	transport := &http.Transport{
+		DialContext: func(ctx context.Context, network, _ string) (net.Conn, error) {
+			return dialer.DialContext(ctx, network, "127.0.0.1:"+port)
+		},
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	return &arm.ClientOptions{
+		ClientOptions: azcore.ClientOptions{
+			Cloud: cloud.Configuration{
+				ActiveDirectoryAuthorityHost: "https://localhost:" + port + "/",
+				Services: map[cloud.ServiceName]cloud.ServiceConfiguration{
+					cloud.ResourceManager: {
+						Audience: "https://management.azure.com",
+						Endpoint: "https://localhost:" + port,
+					},
+				},
+			},
+			Transport: &http.Client{Transport: transport},
+		},
+	}
+}
+
+func sockerlessAzureSubscriptionAPIGW() string {
+	if s := os.Getenv("SOCKERLESS_AZURE_SUBSCRIPTION"); s != "" {
+		return s
+	}
+	return "00000000-0000-0000-0000-000000000000"
+}
+
+type sockerlessNoOpCredentialAPIGW struct{}
+
+var sockerlessFarFutureAPIGW = time.Date(2099, time.December, 31, 23, 59, 59, 0, time.UTC)
+
+func (sockerlessNoOpCredentialAPIGW) GetToken(_ context.Context, _ policy.TokenRequestOptions) (azcore.AccessToken, error) {
+	return azcore.AccessToken{Token: "sockerless-test", ExpiresOn: sockerlessFarFutureAPIGW}, nil
+}
+
+// apimPreCreateService PUTs an APIM Service via the ServiceClient so
+// that subsequent API CRUD inside the shim's backend has a parent to
+// attach to. Real users of the shim pre-create the APIM Service via
+// Terraform / ARM template; the shim itself only manages Apis within
+// it. Mirrors that order of operations in the test.
+func apimPreCreateService(opts *arm.ClientOptions, subscription, resourceGroup, serviceName string) error {
+	factory, err := armapimanagement.NewClientFactory(subscription, sockerlessNoOpCredentialAPIGW{}, opts)
+	if err != nil {
+		return err
+	}
+	poller, err := factory.NewServiceClient().BeginCreateOrUpdate(
+		context.Background(), resourceGroup, serviceName,
+		armapimanagement.ServiceResource{
+			Location: to.Ptr("eastus"),
+			Properties: &armapimanagement.ServiceProperties{
+				PublisherEmail: to.Ptr("shim@example.invalid"),
+				PublisherName:  to.Ptr("shim"),
+			},
+			SKU: &armapimanagement.ServiceSKUProperties{
+				Name:     to.Ptr(armapimanagement.SKUTypeDeveloper),
+				Capacity: to.Ptr[int32](1),
+			},
+		}, nil)
+	if err != nil {
+		return err
+	}
+	_, err = poller.PollUntilDone(context.Background(), nil)
+	return err
 }

@@ -8,6 +8,23 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 
 PR #21 merged on 2026-05-25 at `45985e7`, landing 14.A, the 14.D simulator audit, and the current 14.B sockerless lane. Phase 14 remains open for additional service lanes, 14.C handler migrations, and real-cloud Track A residuals.
 
+### Azure ARM backend-adapter lanes (branch `phase-14-bundled-bce-bug24`, 2026-05-26)
+
+Pushing past the AWS+GCP-only sockerless coverage, this slice wired three new Azure ARM backends through the sim:
+
+- `TestSockerless_Azure_Cache_Redis_CRUD` — `armredis/v3` against `Microsoft.Cache/Redis`.
+- `TestSockerless_Azure_RDBMS_PostgreSQL_CRUD` — `armpostgresqlflexibleservers/v4` against `Microsoft.DBforPostgreSQL/flexibleServers`.
+- `TestSockerless_Azure_APIGateway_APIM_CRUD` — `armapimanagement/v3` against `Microsoft.ApiManagement/service` + `apis`. The test pre-creates the parent Service via the SDK (matching how real users provision APIM via Terraform / ARM template) before invoking the shim backend.
+
+Pattern. Each affected Azure backend (`services/{cache,rdbms,apigateway,functions}/backends/azure/`) gained an optional `ClientOptions *arm.ClientOptions` field on `Config`, forwarded into the SDK factory. Production callers pass nil; the sockerless tests pass a value that overrides `cloud.ResourceManager.Endpoint` to point at the local sim plus an `InsecureSkipVerify` transport that dials `127.0.0.1:<port>`. Tokens use a `noOpCredential` because the sim's `AzureAuthMiddleware` passes through unverified Bearer tokens.
+
+Two surprises along the way, both filed upstream before any workaround attempt:
+
+- **Azure Service Bus admin: wrong protocol family in the sim.** I started by trying to wire `services/queue/backends/azure` (and the parallel pubsub backend) — they use the `azservicebus/admin` SDK, which speaks the namespace-level ATOM XML admin protocol at `<namespace>.servicebus.windows.net` (`PUT /<queue>?api-version=…` with `application/atom+xml;type=entry`, plus `GET /$Resources/Queues`). Sockerless's Azure sim implements (a) the ARM management API for `Microsoft.ServiceBus/namespaces/queues` and (b) the REST data plane at `*.servicebus.*` hosts (`POST /<queue>/messages`), but **not** the ATOM XML admin protocol. The admin SDK's calls fall through to the data-plane handler and 404. Filed as [sockerless#223](https://github.com/e6qu/sockerless/issues/223) (BUG-34); the Azure SB queue + pubsub lanes wait on that closing.
+- **Container Apps actually runs containers.** First Container Apps test failed with `ContainerAppRevisionFailed: no such image`. I initially mis-filed this as a sim bug ([sockerless#224](https://github.com/e6qu/sockerless/issues/224)), thinking ARM operations should be control-plane only — but the user clarified that sockerless intentionally does real execution with the underlying runtime opaque to the caller, matching real Azure (which also tries to pull images and fails the same way if they're unreachable). Closed #224 as not-a-bug, marked `TestSockerless_Azure_Functions_ContainerApps_CRUD` default-skipped, opt-in via `SOCKERLESS_AZURE_CONTAINERAPPS_IMAGE` for now (BUG-35). Resolution path is either pre-pulling in the run script or asking upstream for a no-op-image mode — both follow-ons.
+
+End state: `make sockerless` runs 23 passing + 1 documented-skipped tests (up from 21). 14.C handler migrations and 14.E cross-cloud cell expansion stay deferred — the existing `TestGCPRoutes_*_FrontendDispatchCoverage` tests already pin the regex dispatchers' shape so the migration is cosmetic, and 14.E becomes easier once these new lanes exist as targets.
+
 ### End-to-end-walkthrough fidelity-bug cluster (PR #37, merged 2026-05-26)
 
 Walking [docs/end-to-end-examples.md](docs/end-to-end-examples.md) against sockerless after PR #36 surfaced four wire-fidelity gaps — filed as GitHub #32-#35 and as BUG-30..33 — that the maintained test lane had missed because the scripts only exercise `mb`/`cp`/`rm`/`rb`. None of the four changed semantics; all were emit-side mistakes the spec already covered.
