@@ -8,7 +8,7 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 
 PR #21 merged on 2026-05-25 at `45985e7`, landing 14.A, the 14.D simulator audit, and the current 14.B sockerless lane. Phase 14 remains open for additional service lanes, 14.C handler migrations, and real-cloud Track A residuals.
 
-### End-to-end-walkthrough fidelity-bug cluster (PR #__PR_NUMBER__, merged 2026-05-26)
+### End-to-end-walkthrough fidelity-bug cluster (PR #37, merged 2026-05-26)
 
 Walking [docs/end-to-end-examples.md](docs/end-to-end-examples.md) against sockerless after PR #36 surfaced four wire-fidelity gaps — filed as GitHub #32-#35 and as BUG-30..33 — that the maintained test lane had missed because the scripts only exercise `mb`/`cp`/`rm`/`rb`. None of the four changed semantics; all were emit-side mistakes the spec already covered.
 

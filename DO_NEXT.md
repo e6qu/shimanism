@@ -6,13 +6,13 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 
 ## Where we are
 
-- **Phase 14 remains in-flight; PR #__PR_NUMBER__ just merged on 2026-05-26.** That PR closed the four end-to-end-walkthrough fidelity bugs (BUG-30..33 / GitHub #32-#35): the `@xmlFlattened` codegen emitter, the GCS frontend's Azure-region leak, the Azure Blob frontend's list ETag quoting, and the docs `--file -` example + conformance-coverage gap. `scripts/check-standalone-sockerless-examples.sh` now asserts each of those wire shapes per route.
+- **Phase 14 remains in-flight; PR #37 just merged on 2026-05-26.** That PR closed the four end-to-end-walkthrough fidelity bugs (BUG-30..33 / GitHub #32-#35): the `@xmlFlattened` codegen emitter, the GCS frontend's Azure-region leak, the Azure Blob frontend's list ETag quoting, and the docs `--file -` example + conformance-coverage gap. `scripts/check-standalone-sockerless-examples.sh` now asserts each of those wire shapes per route.
 - **Sockerless lane is green as of 2026-05-26.** `make sockerless` passes the current shim tests; the standalone-E2E script passes its new assertions.
 - **One upstream gap open:** [sockerless#220](https://github.com/e6qu/sockerless/issues/220) — `List Containers` response omits the per-container `<Properties>` block (Last-Modified + Etag). This is what makes `timeCreated` come back zero in the GCS frontend's bucket-list path and forces the Azure Blob frontend's container-list to emit a synthetic `"shim"` ETag. The single-container `GetContainerProperties` path is fine. Both shim halves of BUG-31/32 are closed; the follow-up here is to verify the shim once sockerless lands a fix.
 - **GCP Secret Manager is wired.** The real backend lane uses the official `cloud.google.com/go/secretmanager/apiv1` REST client against sockerless and covers CreateSecret, PutSecretValue, HeadSecret, GetSecretValue(latest + explicit version), ListVersions, ListSecrets, UpdateSecret, and DeleteSecret. No workaround, fake, mock, or partial test is carried.
 - **Current sockerless coverage:** storage AWS S3 + GCS + Azure Blob backend-adapter lanes plus storage through-shim E2E cells for AWS -> GCP, GCP -> Azure, and Azure -> AWS; secrets AWS Secrets Manager + GCP Secret Manager + Azure Key Vault; queue AWS SQS + GCP Pub/Sub queue; pubsub GCP Pub/Sub; apigateway GCP API Gateway.
 - **Still local/open:** BUG-8 and BUG-15 are not upstream-sockerless blockers. BUG-8 is the hashicorp/google API Gateway Terraform endpoint/OAuth leg. BUG-15 is the hashicorp/google `message_retention_duration` state-drift question; the shim's GCP queue backend retention PATCH/read path is green. BUG-24 tracks expanding through-shim sockerless E2E beyond storage.
-- **Last merged:** PR #__PR_NUMBER__ (fix the end-to-end-walkthrough fidelity bug cluster, BUG-30..33) on `main`, 2026-05-26.
+- **Last merged:** PR #37 (fix the end-to-end-walkthrough fidelity bug cluster, BUG-30..33) on `main`, 2026-05-26.
 
 ## Session-start checklist
 
