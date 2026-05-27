@@ -343,6 +343,164 @@ func TestSockerless_Azure_Blob_Multipart(t *testing.T) {
 	}
 }
 
+// TestSockerless_AWS_S3_Multipart exercises the shim's AWS S3 backend's
+// native multipart code path against sockerless's S3 multipart support:
+// CreateMultipartUpload → UploadPart × N → ListParts →
+// CompleteMultipartUpload → GetObject, asserts the assembled object
+// matches the concatenation of all uploaded parts.
+//
+// On the wire this drives `POST ?uploads` (InitiateMultipartUpload),
+// `PUT ?uploadId=…&partNumber=…` (UploadPart), `POST ?uploadId=…` with
+// the `<CompleteMultipartUpload><Part>…` XML body, and
+// `GET ?uploadId=…` for ListParts. The test never speaks any of those
+// wire shapes — it drives the shim's domain.Storage multipart
+// interface, which calls the AWS SDK, which speaks S3 multipart HTTP
+// to sockerless.
+func TestSockerless_AWS_S3_Multipart(t *testing.T) {
+	endpoint := os.Getenv("SOCKERLESS_AWS_ENDPOINT")
+	if endpoint == "" {
+		t.Skip("SOCKERLESS_AWS_ENDPOINT not set")
+	}
+	client := newSockerlessAWSClient(t, endpoint)
+	backend := awsbackend.New(client)
+	ctx := context.Background()
+
+	bucket := randomNamespace("shim-s3-mp")
+	if err := backend.CreateBucket(ctx, bucket, "us-east-1"); err != nil {
+		t.Fatalf("CreateBucket: %v", err)
+	}
+	t.Cleanup(func() { _ = backend.DeleteBucket(ctx, bucket) })
+
+	key := "mp/" + randomNamespace("obj") + ".bin"
+	uploadID, err := backend.CreateMultipartUpload(ctx, bucket, key, "application/octet-stream", nil)
+	if err != nil {
+		t.Fatalf("CreateMultipartUpload: %v", err)
+	}
+	t.Cleanup(func() { _ = backend.AbortMultipartUpload(ctx, bucket, key, uploadID) })
+
+	// S3 multipart requires each part except the last to be ≥ 5 MiB.
+	// Use 5 MiB parts so the simulator's part validation accepts the
+	// completion call.
+	partSize := 5 << 20
+	parts := [][]byte{
+		bytes.Repeat([]byte("a"), partSize),
+		bytes.Repeat([]byte("b"), partSize),
+		bytes.Repeat([]byte("c"), 1024), // final part can be smaller
+	}
+	completed := make([]domain.CompletePartRef, len(parts))
+	for i, part := range parts {
+		partNumber := int32(i + 1)
+		etag, err := backend.UploadPart(ctx, bucket, key, uploadID, partNumber, bytes.NewReader(part))
+		if err != nil {
+			t.Fatalf("UploadPart %d: %v", partNumber, err)
+		}
+		completed[i] = domain.CompletePartRef{Number: partNumber, ETag: etag}
+	}
+
+	listed, err := backend.ListParts(ctx, bucket, key, uploadID)
+	if err != nil {
+		t.Fatalf("ListParts: %v", err)
+	}
+	if len(listed) != len(parts) {
+		t.Errorf("ListParts returned %d parts, want %d", len(listed), len(parts))
+	}
+
+	if _, err := backend.CompleteMultipartUpload(ctx, bucket, key, uploadID, completed); err != nil {
+		t.Fatalf("CompleteMultipartUpload: %v", err)
+	}
+	t.Cleanup(func() { _ = backend.DeleteObject(ctx, bucket, key) })
+
+	got, err := backend.GetObject(ctx, bucket, key)
+	if err != nil {
+		t.Fatalf("GetObject: %v", err)
+	}
+	defer got.Body.Close()
+	data, _ := io.ReadAll(got.Body)
+	want := bytes.Join(parts, nil)
+	if !bytes.Equal(data, want) {
+		t.Errorf("multipart-assembled object length = %d, want %d (parts concatenated)", len(data), len(want))
+	}
+}
+
+// TestSockerless_GCS_Multipart exercises the shim's GCS backend's
+// Compose-based multipart code path against sockerless's GCS
+// ComposeObject support. The shim translates S3-shaped
+// CreateMultipartUpload/UploadPart/CompleteMultipartUpload into:
+// stage each part as its own GCS object under a per-upload prefix,
+// then `composeObject` to assemble the final object from the parts.
+//
+// The test drives the shim's domain.Storage multipart interface and
+// asserts the final assembled object matches the concatenated parts.
+func TestSockerless_GCS_Multipart(t *testing.T) {
+	endpoint := os.Getenv("SOCKERLESS_GCP_ENDPOINT")
+	if endpoint == "" {
+		t.Skip("SOCKERLESS_GCP_ENDPOINT not set")
+	}
+	t.Setenv("STORAGE_EMULATOR_HOST", endpoint)
+	ctx := context.Background()
+	client, err := gcsstorage.NewClient(ctx, option.WithoutAuthentication())
+	if err != nil {
+		t.Fatalf("gcs client: %v", err)
+	}
+	project := os.Getenv("SOCKERLESS_GCP_PROJECT")
+	if project == "" {
+		project = "shim-sockerless"
+	}
+	backend := gcsbackend.New(client, gcsbackend.Config{ProjectID: project})
+
+	bucket := randomNamespace("shim-gcs-mp")
+	if err := backend.CreateBucket(ctx, bucket, "us-central1"); err != nil {
+		t.Fatalf("CreateBucket: %v", err)
+	}
+	t.Cleanup(func() { _ = backend.DeleteBucket(ctx, bucket) })
+
+	key := "mp/" + randomNamespace("obj") + ".bin"
+	uploadID, err := backend.CreateMultipartUpload(ctx, bucket, key, "application/octet-stream", nil)
+	if err != nil {
+		t.Fatalf("CreateMultipartUpload: %v", err)
+	}
+	t.Cleanup(func() { _ = backend.AbortMultipartUpload(ctx, bucket, key, uploadID) })
+
+	parts := [][]byte{
+		bytes.Repeat([]byte("a"), 1024),
+		bytes.Repeat([]byte("b"), 1024),
+		bytes.Repeat([]byte("c"), 512),
+	}
+	completed := make([]domain.CompletePartRef, len(parts))
+	for i, part := range parts {
+		partNumber := int32(i + 1)
+		etag, err := backend.UploadPart(ctx, bucket, key, uploadID, partNumber, bytes.NewReader(part))
+		if err != nil {
+			t.Fatalf("UploadPart %d: %v", partNumber, err)
+		}
+		completed[i] = domain.CompletePartRef{Number: partNumber, ETag: etag}
+	}
+
+	listed, err := backend.ListParts(ctx, bucket, key, uploadID)
+	if err != nil {
+		t.Fatalf("ListParts: %v", err)
+	}
+	if len(listed) != len(parts) {
+		t.Errorf("ListParts returned %d parts, want %d", len(listed), len(parts))
+	}
+
+	if _, err := backend.CompleteMultipartUpload(ctx, bucket, key, uploadID, completed); err != nil {
+		t.Fatalf("CompleteMultipartUpload: %v", err)
+	}
+	t.Cleanup(func() { _ = backend.DeleteObject(ctx, bucket, key) })
+
+	got, err := backend.GetObject(ctx, bucket, key)
+	if err != nil {
+		t.Fatalf("GetObject: %v", err)
+	}
+	defer got.Body.Close()
+	data, _ := io.ReadAll(got.Body)
+	want := bytes.Join(parts, nil)
+	if !bytes.Equal(data, want) {
+		t.Errorf("multipart-assembled object length = %d, want %d (parts concatenated)", len(data), len(want))
+	}
+}
+
 // TestSockerless_E2E_AWSFrontendToGCSBackend drives a real AWS S3
 // client into shimanism's AWS frontend, through the GCS backend, and
 // out to the sockerless GCP simulator. This is the concrete AWS -> GCP
