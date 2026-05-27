@@ -1,4 +1,12 @@
 {
+  "_provenance": {
+    "upstream_repo": "Azure/azure-rest-api-specs",
+    "upstream_path": "specification/storage/resource-manager/Microsoft.Storage/stable/2026-04-01/openapi.json",
+    "upstream_license": "MIT",
+    "pinned_at": "337bb8679bad87f26c74183095df1a0e0967d3b7",
+    "fetched_utc": "2026-05-27T19:30:00Z",
+    "note": "Vendored verbatim except for this top-level `_provenance` key. Refresh with the matching scripts/fetch-*.sh; see SOURCES.md for the authoritative pin."
+  },
   "swagger": "2.0",
   "info": {
     "title": "StorageManagementClient",
