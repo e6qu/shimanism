@@ -8,6 +8,13 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 
 PR #21 merged on 2026-05-25 at `45985e7`, landing 14.A, the 14.D simulator audit, and the current 14.B sockerless lane. Phase 14.B and 14.C are now closed (PR #46). Phase 13.A is also closed — PR #47 retired the last ◐ migration (`azure_blob`). What remains in Phase 14: PR 3 (14.D Track A, real-cloud-credentials-gated). 14.E cross-cloud Apply re-opens once shim-side ARM-shimming exists (see PR #46 narrative below).
 
+### BUG-35 closure + PR #47 narrative bookkeeping (PR #48, in flight 2026-05-27)
+
+Two threads bundled because both are doc-adjacent:
+
+- **BUG-35 closed by sockerless PR #245.** The upstream maintainer landed a single PR that addressed both #243 (Azure ARM endpoint emission across non-Storage services — endpoints now derived from request host) and #244 (Container Apps `Architecture: "linux/arm64"` hardcode — now derived from the resolved image manifest, sidecars included). After bumping the local sockerless clone past `b056d8d` and rebuilding the Azure sim binary, `scripts/run-sockerless-storage.sh` re-defaults `SOCKERLESS_AZURE_CONTAINERAPPS_IMAGE=docker.io/library/nginx:alpine` (same as the Cloud Run default — both now work on any host arch). `make sockerless` reports **38 passing + 0 skipped** (was 37 + 1 skip).
+- **PR #47 doc-narrative folded forward.** PR #47 (Phase 13.A.6) didn't include its own continuity-doc narrative in-diff; this PR closes that debt for the second time in two PRs (PR #47 caught up PR #46's debt; this PR catches up PR #47's). The lesson is in WHAT_WE_DID.md's PR #47 section: subsequent work PRs should write the WHAT_WE_DID entry *before* pushing, so the narrative ships in the same commit. If this pattern keeps repeating, the rule needs to graduate to a pre-commit hook.
+
 ### Phase 13.A.6 — `azure_blob` full handler migration (PR #47, merged 2026-05-27)
 
 The last `◐` in `DO_NEXT.md § Phase 13.A`. After this PR every Azure frontend in the shim implements `gen.ServerInterface` directly (with a `var _ gen.ServerInterface = (*Server)(nil)` compile-time gate), not just via blank import.
