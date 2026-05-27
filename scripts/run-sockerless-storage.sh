@@ -62,38 +62,26 @@ require_container_runtime() {
 }
 require_container_runtime
 
-# Pre-pull the Container Apps lane's reference image so
-# TestSockerless_Azure_Functions_ContainerApps_CRUD can run without
-# its own network/daemon plumbing. Sockerless's Container Apps
-# handler invokes the runtime to start a real replica (matching real
-# Azure — the simulator chose real execution, not a control-plane
-# mock; see sockerless#224 which closed as not-a-bug). Defaulting to
-# nginx:alpine because it's tiny (~20 MB), runs without args, and is
-# reliably reachable from public registries. Callers can override
-# via SOCKERLESS_AZURE_CONTAINERAPPS_IMAGE.
 # Container Apps + Cloud Run sockerless handlers do real container
-# execution. To opt the lanes in, set these env vars to a known-
-# pullable image reference, and this script will pre-pull it pinned
-# to the host arch via `go env GOARCH`:
+# execution: each `POST /containerApps` or `POST /services` boots a
+# real local replica via the resolved container runtime, matching
+# real Azure / GCP behaviour (the simulators chose real execution,
+# not control-plane mocks). Pre-pull the reference images pinned to
+# the host arch via `go env GOARCH` so the lanes don't pay first-
+# request pull latency.
+#
+# Both default to `docker.io/library/nginx:alpine` — tiny (~20 MB),
+# runs without args, reliably reachable from public registries. Both
+# sockerless handlers derive the container platform from the resolved
+# image manifest, so the same image works on arm64 and amd64 hosts.
+# Override either via:
 #
 #   SOCKERLESS_AZURE_CONTAINERAPPS_IMAGE
 #   SOCKERLESS_GCP_CLOUDRUN_IMAGE
-#
-# The Cloud Run lane works on any host arch — sockerless's Cloud Run
-# handler dynamically detects the image platform. The Container Apps
-# lane currently only works on arm64 hosts because sockerless's
-# Container Apps handler hardcodes `Architecture: "linux/arm64"`
-# (sockerless#244). Until #244 is fixed, the bundled CI lane leaves
-# SOCKERLESS_AZURE_CONTAINERAPPS_IMAGE unset so the test skips by
-# default on amd64 CI runners. Local devs on arm64 can opt in by
-# exporting it before running `make sockerless`.
 GO_ARCH=$(go env GOARCH 2>/dev/null || echo amd64)
 PULL_PLATFORM="linux/${GO_ARCH}"
-# Default the Cloud Run image (works on both arches — sockerless's
-# Cloud Run handler dynamically detects the image platform).
-# Container Apps stays unset by default; see sockerless#244.
 : "${SOCKERLESS_GCP_CLOUDRUN_IMAGE:=docker.io/library/nginx:alpine}"
-: "${SOCKERLESS_AZURE_CONTAINERAPPS_IMAGE:=}"
+: "${SOCKERLESS_AZURE_CONTAINERAPPS_IMAGE:=docker.io/library/nginx:alpine}"
 for image in "$SOCKERLESS_AZURE_CONTAINERAPPS_IMAGE" "$SOCKERLESS_GCP_CLOUDRUN_IMAGE"; do
     if [[ -z "$image" ]]; then continue; fi
     echo "pre-pull: $image (--platform=$PULL_PLATFORM) via $CONTAINER_RUNTIME"
