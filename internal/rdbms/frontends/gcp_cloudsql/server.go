@@ -17,7 +17,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"regexp"
 	"strings"
 	"time"
 
@@ -25,7 +24,7 @@ import (
 
 	"github.com/e6qu/shimanism/internal/rdbms/domain"
 
-	_ "github.com/e6qu/shimanism/services/rdbms/gen/gcp" // Phase 13.B spec-drift contract; gen.gcp.Routes is the canonical route inventory.
+	_ "github.com/e6qu/shimanism/services/rdbms/gen/gcp" // Phase 14.C spec-drift contract; gen.gcp.Routes is the canonical route inventory.
 )
 
 type Server struct {
@@ -42,108 +41,151 @@ func New(s domain.RDBMS) *Server { return &Server{s: s} }
 //	  (the `google_sql_database_instance` resource targets this)
 //
 // Both shapes route to the same handler. Phase 10.3 close of BUG-16.
-const sqlPathPrefix = `^/(?:v1|sql/v1beta4)`
 
-var (
-	reInstances       = regexp.MustCompile(sqlPathPrefix + `/projects/([^/]+)/instances/?$`)
-	reInstance        = regexp.MustCompile(sqlPathPrefix + `/projects/([^/]+)/instances/([^/]+)$`)
-	reInstanceRestart = regexp.MustCompile(sqlPathPrefix + `/projects/([^/]+)/instances/([^/]+)/restart$`)
-	reInstanceRestore = regexp.MustCompile(sqlPathPrefix + `/projects/([^/]+)/instances/([^/]+)/restoreBackup$`)
-	reBackupRuns      = regexp.MustCompile(sqlPathPrefix + `/projects/([^/]+)/instances/([^/]+)/backupRuns/?$`)
-	reBackupRun       = regexp.MustCompile(sqlPathPrefix + `/projects/([^/]+)/instances/([^/]+)/backupRuns/([^/]+)$`)
-	reInstanceUsers   = regexp.MustCompile(sqlPathPrefix + `/projects/([^/]+)/instances/([^/]+)/users/?$`)
-	reInstanceDBs     = regexp.MustCompile(sqlPathPrefix + `/projects/([^/]+)/instances/([^/]+)/databases/?$`)
-	reOperation       = regexp.MustCompile(sqlPathPrefix + `/projects/([^/]+)/operations/([^/]+)$`)
-	reOperations      = regexp.MustCompile(sqlPathPrefix + `/projects/([^/]+)/operations/?$`)
-)
+// stripSQLPrefix removes either `/v1/` or `/sql/v1beta4/` so
+// downstream dispatch works on the version-neutral remainder. Returns
+// the suffix without the leading version-prefix segment, plus ok=true
+// if a known prefix matched.
+func stripSQLPrefix(path string) (string, bool) {
+	if rest, ok := strings.CutPrefix(path, "/v1/"); ok {
+		return rest, true
+	}
+	if rest, ok := strings.CutPrefix(path, "/sql/v1beta4/"); ok {
+		return rest, true
+	}
+	return "", false
+}
 
+// ServeHTTP dispatches by path-shape inspection. Routes covered:
+//
+//	GET    /projects/{p}/instances
+//	POST   /projects/{p}/instances
+//	GET    /projects/{p}/instances/{i}
+//	DELETE /projects/{p}/instances/{i}
+//	PATCH  /projects/{p}/instances/{i}
+//	PUT    /projects/{p}/instances/{i}
+//	POST   /projects/{p}/instances/{i}/restart
+//	POST   /projects/{p}/instances/{i}/restoreBackup
+//	GET    /projects/{p}/instances/{i}/backupRuns
+//	POST   /projects/{p}/instances/{i}/backupRuns
+//	GET    /projects/{p}/instances/{i}/backupRuns/{br}
+//	DELETE /projects/{p}/instances/{i}/backupRuns/{br}
+//	GET    /projects/{p}/instances/{i}/users
+//	GET    /projects/{p}/instances/{i}/databases
+//	GET    /projects/{p}/operations
+//	GET    /projects/{p}/operations/{op}
+//
+// Existing `TestGCPRoutes_RDBMS_FrontendDispatchCoverage` pins behavior.
 func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path
 	method := r.Method
-
-	if m := reInstanceRestart.FindStringSubmatch(path); m != nil && method == http.MethodPost {
-		srv.restart(w, r, m[2])
+	rest, ok := stripSQLPrefix(path)
+	if !ok {
+		writeError(w, http.StatusNotFound, "NOT_FOUND",
+			"no Cloud SQL Admin route matches "+method+" "+path)
 		return
 	}
-	if m := reInstanceRestore.FindStringSubmatch(path); m != nil && method == http.MethodPost {
-		srv.restoreBackup(w, r, m[2])
+	segs := strings.Split(rest, "/")
+	// Expected: ["projects", p, "instances"|"operations", ...]
+	if len(segs) < 3 || segs[0] != "projects" {
+		writeError(w, http.StatusNotFound, "NOT_FOUND",
+			"no Cloud SQL Admin route matches "+method+" "+path)
 		return
 	}
-	if m := reBackupRun.FindStringSubmatch(path); m != nil {
-		switch method {
-		case http.MethodGet:
-			srv.getBackupRun(w, r, m[2], m[3])
-		case http.MethodDelete:
-			srv.deleteBackupRun(w, r, m[2], m[3])
-		default:
-			writeError(w, http.StatusMethodNotAllowed, "FAILED_PRECONDITION", method+" not allowed on backup run")
-		}
-		return
-	}
-	if m := reBackupRuns.FindStringSubmatch(path); m != nil {
-		switch method {
-		case http.MethodGet:
-			srv.listBackupRuns(w, r, m[2])
-		case http.MethodPost:
-			srv.createBackupRun(w, r, m[2])
-		default:
-			writeError(w, http.StatusMethodNotAllowed, "FAILED_PRECONDITION", method+" not allowed on backup runs")
-		}
-		return
-	}
-	if m := reInstanceUsers.FindStringSubmatch(path); m != nil && method == http.MethodGet {
-		// hashicorp/google's google_sql_database_instance reads the
-		// users list during plan refresh. The cross-cloud intersection
-		// doesn't expose Cloud SQL Users (per-engine auth is
-		// engine-specific and not part of the rdbms domain). Return
-		// the canonical "no users" envelope — real GCP returns the
-		// same shape for an instance with only the master user, which
-		// the provider's schema treats as out-of-state. Category 2
-		// (feature unset).
-		srv.listInstanceUsers(w, r, m[2])
-		return
-	}
-	if m := reInstanceDBs.FindStringSubmatch(path); m != nil && method == http.MethodGet {
-		// Same category as Users: provider refresh reads the
-		// databases list; cross-cloud intersection only models the
-		// instance-level "initial database" (Connection.DatabaseName).
-		// Return a single-item list with the initial database so the
-		// provider's state-walking doesn't propose a recreate.
-		srv.listInstanceDatabases(w, r, m[2])
-		return
-	}
-	if m := reInstance.FindStringSubmatch(path); m != nil {
-		switch method {
-		case http.MethodGet:
-			srv.getInstance(w, r, m[2])
-		case http.MethodDelete:
-			srv.deleteInstance(w, r, m[2])
-		case http.MethodPatch, http.MethodPut:
-			srv.patchInstance(w, r, m[2])
-		default:
-			writeError(w, http.StatusMethodNotAllowed, "FAILED_PRECONDITION", method+" not allowed on instance")
-		}
-		return
-	}
-	if reInstances.MatchString(path) {
-		switch method {
-		case http.MethodGet:
-			srv.listInstances(w, r)
-			return
-		case http.MethodPost:
-			srv.createInstance(w, r)
+	switch segs[2] {
+	case "instances":
+		// /instances or /instances/ — collection
+		if len(segs) == 3 || (len(segs) == 4 && segs[3] == "") {
+			switch method {
+			case http.MethodGet:
+				srv.listInstances(w, r)
+			case http.MethodPost:
+				srv.createInstance(w, r)
+			default:
+				writeError(w, http.StatusMethodNotAllowed, "FAILED_PRECONDITION", method+" not allowed on instances collection")
+			}
 			return
 		}
+		// /instances/{name}
+		if len(segs) == 4 {
+			inst := segs[3]
+			switch method {
+			case http.MethodGet:
+				srv.getInstance(w, r, inst)
+			case http.MethodDelete:
+				srv.deleteInstance(w, r, inst)
+			case http.MethodPatch, http.MethodPut:
+				srv.patchInstance(w, r, inst)
+			default:
+				writeError(w, http.StatusMethodNotAllowed, "FAILED_PRECONDITION", method+" not allowed on instance")
+			}
+			return
+		}
+		// /instances/{name}/{sub-resource}[...] — actions + sub-resources.
+		if len(segs) >= 5 {
+			inst := segs[3]
+			sub := segs[4]
+			switch sub {
+			case "restart":
+				if len(segs) == 5 && method == http.MethodPost {
+					srv.restart(w, r, inst)
+					return
+				}
+			case "restoreBackup":
+				if len(segs) == 5 && method == http.MethodPost {
+					srv.restoreBackup(w, r, inst)
+					return
+				}
+			case "backupRuns":
+				// /backupRuns or /backupRuns/
+				if len(segs) == 5 || (len(segs) == 6 && segs[5] == "") {
+					switch method {
+					case http.MethodGet:
+						srv.listBackupRuns(w, r, inst)
+					case http.MethodPost:
+						srv.createBackupRun(w, r, inst)
+					default:
+						writeError(w, http.StatusMethodNotAllowed, "FAILED_PRECONDITION", method+" not allowed on backup runs")
+					}
+					return
+				}
+				// /backupRuns/{id}
+				if len(segs) == 6 {
+					br := segs[5]
+					switch method {
+					case http.MethodGet:
+						srv.getBackupRun(w, r, inst, br)
+					case http.MethodDelete:
+						srv.deleteBackupRun(w, r, inst, br)
+					default:
+						writeError(w, http.StatusMethodNotAllowed, "FAILED_PRECONDITION", method+" not allowed on backup run")
+					}
+					return
+				}
+			case "users":
+				if (len(segs) == 5 || (len(segs) == 6 && segs[5] == "")) && method == http.MethodGet {
+					srv.listInstanceUsers(w, r, inst)
+					return
+				}
+			case "databases":
+				if (len(segs) == 5 || (len(segs) == 6 && segs[5] == "")) && method == http.MethodGet {
+					srv.listInstanceDatabases(w, r, inst)
+					return
+				}
+			}
+		}
+	case "operations":
+		// /operations or /operations/ — list
+		if (len(segs) == 3 || (len(segs) == 4 && segs[3] == "")) && method == http.MethodGet {
+			srv.listOperations(w, r)
+			return
+		}
+		// /operations/{op}
+		if len(segs) == 4 && method == http.MethodGet {
+			srv.getOperation(w, r, segs[3])
+			return
+		}
 	}
-	if m := reOperation.FindStringSubmatch(path); m != nil && method == http.MethodGet {
-		srv.getOperation(w, r, m[2])
-		return
-	}
-	if reOperations.MatchString(path) && method == http.MethodGet {
-		srv.listOperations(w, r)
-		return
-	}
-
 	writeError(w, http.StatusNotFound, "NOT_FOUND",
 		"no Cloud SQL Admin route matches "+method+" "+path)
 }

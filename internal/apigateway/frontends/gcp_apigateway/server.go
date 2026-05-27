@@ -7,13 +7,12 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"regexp"
 	"strings"
 	"time"
 
 	"github.com/e6qu/shimanism/internal/apigateway/domain"
 
-	_ "github.com/e6qu/shimanism/services/apigateway/gen/gcp" // Phase 13.B spec-drift contract; gen.gcp.Routes is the canonical route inventory.
+	_ "github.com/e6qu/shimanism/services/apigateway/gen/gcp" // Phase 14.C spec-drift contract; gen.gcp.Routes is the canonical route inventory.
 )
 
 type Server struct {
@@ -21,16 +20,6 @@ type Server struct {
 }
 
 func New(s domain.APIGateway) *Server { return &Server{s: s} }
-
-var (
-	reGateways   = regexp.MustCompile(`^/v1/projects/([^/]+)/locations/([^/]+)/gateways/?$`)
-	reGateway    = regexp.MustCompile(`^/v1/projects/([^/]+)/locations/([^/]+)/gateways/([^/:]+)$`)
-	reApis       = regexp.MustCompile(`^/v1/projects/([^/]+)/locations/global/apis/?$`)
-	reApi        = regexp.MustCompile(`^/v1/projects/([^/]+)/locations/global/apis/([^/:]+)$`)
-	reApiConfigs = regexp.MustCompile(`^/v1/projects/([^/]+)/locations/global/apis/([^/:]+)/configs/?$`)
-	reApiConfig  = regexp.MustCompile(`^/v1/projects/([^/]+)/locations/global/apis/([^/:]+)/configs/([^/:]+)$`)
-	reOperation  = regexp.MustCompile(`^/v1/projects/([^/]+)/locations/([^/]+)/operations/([^/]+)$`)
-)
 
 type gatewayResource struct {
 	Name            string `json:"name,omitempty"`
@@ -81,76 +70,123 @@ type apiConfigsListResponse struct {
 	ApiConfigs []*apiConfigResource `json:"apiConfigs"`
 }
 
+// ServeHTTP dispatches by path-shape inspection. Routes:
+//
+//	/v1/projects/{p}/locations/global/apis[/{api}[/configs[/{cfg}]]]
+//	/v1/projects/{p}/locations/{loc}/gateways[/{gw}]
+//	/v1/projects/{p}/locations/{loc}/operations/{op}
+//
+// Note: apis + configs are pinned to `locations/global`; gateways +
+// operations accept any location. Existing
+// `TestGCPRoutes_APIGateway_FrontendDispatchCoverage` pins behavior.
 func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path
 	method := r.Method
-	// Most-specific routes first.
-	if m := reApiConfig.FindStringSubmatch(path); m != nil {
-		switch method {
-		case http.MethodGet:
-			srv.getApiConfig(w, r, m[2], m[3])
-		case http.MethodDelete:
-			srv.deleteApiConfig(w, r, m[2], m[3])
-		default:
-			writeError(w, http.StatusMethodNotAllowed, "FAILED_PRECONDITION", method+" not allowed")
-		}
+	rest, ok := strings.CutPrefix(path, "/v1/")
+	if !ok {
+		writeError(w, http.StatusNotFound, "NOT_FOUND", "no route matches "+method+" "+path)
 		return
 	}
-	if m := reApiConfigs.FindStringSubmatch(path); m != nil {
-		switch method {
-		case http.MethodGet:
-			srv.listApiConfigs(w, r, m[2])
-			return
-		case http.MethodPost:
-			srv.createApiConfig(w, r, m[2])
-			return
-		}
-	}
-	if m := reApi.FindStringSubmatch(path); m != nil {
-		switch method {
-		case http.MethodGet:
-			srv.getApi(w, r, m[2])
-		case http.MethodDelete:
-			srv.deleteApi(w, r, m[2])
-		default:
-			writeError(w, http.StatusMethodNotAllowed, "FAILED_PRECONDITION", method+" not allowed")
-		}
+	segs := strings.Split(rest, "/")
+	// Expected: ["projects", p, "locations", l, ...]
+	if len(segs) < 5 || segs[0] != "projects" || segs[2] != "locations" {
+		writeError(w, http.StatusNotFound, "NOT_FOUND", "no route matches "+method+" "+path)
 		return
 	}
-	if reApis.MatchString(path) {
-		switch method {
-		case http.MethodGet:
-			srv.listApis(w, r)
-			return
-		case http.MethodPost:
-			srv.createApi(w, r)
-			return
-		}
-	}
-	if m := reGateway.FindStringSubmatch(path); m != nil {
-		switch method {
-		case http.MethodGet:
-			srv.getGateway(w, r, m[3])
-		case http.MethodDelete:
-			srv.deleteGateway(w, r, m[3])
-		default:
-			writeError(w, http.StatusMethodNotAllowed, "FAILED_PRECONDITION", method+" not allowed")
-		}
-		return
-	}
-	if m := reGateways.FindStringSubmatch(path); m != nil {
-		switch method {
-		case http.MethodGet:
-			srv.listGateways(w, r, m[1], m[2])
-			return
-		case http.MethodPost:
-			srv.createGateway(w, r)
+	location := segs[3]
+	switch segs[4] {
+	case "apis":
+		// apis are global-only.
+		if location != "global" {
+			writeError(w, http.StatusNotFound, "NOT_FOUND", "apis are only available under locations/global")
 			return
 		}
-	}
-	if m := reOperation.FindStringSubmatch(path); m != nil && method == http.MethodGet {
-		srv.getOperation(w, r, m[3])
-		return
+		// /apis or /apis/ — collection
+		if len(segs) == 5 || (len(segs) == 6 && segs[5] == "") {
+			switch method {
+			case http.MethodGet:
+				srv.listApis(w, r)
+			case http.MethodPost:
+				srv.createApi(w, r)
+			default:
+				writeError(w, http.StatusMethodNotAllowed, "FAILED_PRECONDITION", method+" not allowed")
+			}
+			return
+		}
+		// /apis/{api}
+		if len(segs) == 6 {
+			api := segs[5]
+			switch method {
+			case http.MethodGet:
+				srv.getApi(w, r, api)
+			case http.MethodDelete:
+				srv.deleteApi(w, r, api)
+			default:
+				writeError(w, http.StatusMethodNotAllowed, "FAILED_PRECONDITION", method+" not allowed")
+			}
+			return
+		}
+		// /apis/{api}/configs[/{cfg}]
+		if len(segs) >= 7 && segs[6] == "configs" {
+			api := segs[5]
+			// /configs or /configs/
+			if len(segs) == 7 || (len(segs) == 8 && segs[7] == "") {
+				switch method {
+				case http.MethodGet:
+					srv.listApiConfigs(w, r, api)
+				case http.MethodPost:
+					srv.createApiConfig(w, r, api)
+				default:
+					writeError(w, http.StatusMethodNotAllowed, "FAILED_PRECONDITION", method+" not allowed")
+				}
+				return
+			}
+			// /configs/{cfg}
+			if len(segs) == 8 {
+				cfg := segs[7]
+				switch method {
+				case http.MethodGet:
+					srv.getApiConfig(w, r, api, cfg)
+				case http.MethodDelete:
+					srv.deleteApiConfig(w, r, api, cfg)
+				default:
+					writeError(w, http.StatusMethodNotAllowed, "FAILED_PRECONDITION", method+" not allowed")
+				}
+				return
+			}
+		}
+	case "gateways":
+		// /gateways or /gateways/
+		if len(segs) == 5 || (len(segs) == 6 && segs[5] == "") {
+			switch method {
+			case http.MethodGet:
+				srv.listGateways(w, r, segs[1], location)
+			case http.MethodPost:
+				srv.createGateway(w, r)
+			default:
+				writeError(w, http.StatusMethodNotAllowed, "FAILED_PRECONDITION", method+" not allowed")
+			}
+			return
+		}
+		// /gateways/{gw}
+		if len(segs) == 6 {
+			gw := segs[5]
+			switch method {
+			case http.MethodGet:
+				srv.getGateway(w, r, gw)
+			case http.MethodDelete:
+				srv.deleteGateway(w, r, gw)
+			default:
+				writeError(w, http.StatusMethodNotAllowed, "FAILED_PRECONDITION", method+" not allowed")
+			}
+			return
+		}
+	case "operations":
+		// /operations/{op}
+		if len(segs) == 6 && method == http.MethodGet {
+			srv.getOperation(w, r, segs[5])
+			return
+		}
 	}
 	writeError(w, http.StatusNotFound, "NOT_FOUND", "no route matches "+method+" "+path)
 }
