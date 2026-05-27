@@ -3,8 +3,11 @@ package conformance_test
 
 import (
 	"context"
+	"crypto/hmac"
 	"crypto/rand"
+	"crypto/sha256"
 	"crypto/tls"
+	"encoding/base64"
 	"encoding/hex"
 	"net"
 	"net/http"
@@ -23,11 +26,13 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/apigatewayv2"
 	apigwtypes "github.com/aws/aws-sdk-go-v2/service/apigatewayv2/types"
+	"golang.org/x/oauth2"
 	apigwapi "google.golang.org/api/apigateway/v1"
 	"google.golang.org/api/option"
 
 	"github.com/e6qu/shimanism/internal/apigateway/domain"
 	"github.com/e6qu/shimanism/internal/harness"
+	awsapigw "github.com/e6qu/shimanism/services/apigateway/backends/aws"
 	azureapim "github.com/e6qu/shimanism/services/apigateway/backends/azure"
 	gcpbackend "github.com/e6qu/shimanism/services/apigateway/backends/gcp"
 )
@@ -186,6 +191,100 @@ func sockHex8apigw() string {
 	b := make([]byte, 4)
 	_, _ = rand.Read(b)
 	return hex.EncodeToString(b)
+}
+
+// gcpHS256Bearer mints a test-mode HS256 JWT that the shim's
+// gcpbearer middleware accepts in test mode.
+func gcpHS256Bearer(t *testing.T, audience string) string {
+	t.Helper()
+	header := base64.RawURLEncoding.EncodeToString([]byte(`{"alg":"HS256","typ":"JWT","kid":"shim-test"}`))
+	payloadJSON := []byte(`{"aud":"` + audience + `","exp":4102444800,"iat":1}`)
+	payload := base64.RawURLEncoding.EncodeToString(payloadJSON)
+	signingInput := header + "." + payload
+	mac := hmac.New(sha256.New, []byte("test-key-do-not-use-in-prod"))
+	mac.Write([]byte(signingInput))
+	sig := base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
+	return signingInput + "." + sig
+}
+
+type gcpStaticTokenSource struct{ token string }
+
+func (s gcpStaticTokenSource) Token() (*oauth2.Token, error) {
+	return &oauth2.Token{AccessToken: s.token, TokenType: "Bearer"}, nil
+}
+
+// TestSockerless_GCPAPIGatewayFrontendToAWSBackend_CRUD is the
+// reverse-direction through-shim cell: GCP API Gateway SDK drives
+// the shim's GCP apigateway frontend, which routes through the
+// shim's AWS APIGW v2 backend, which targets sockerless's AWS sim.
+// Complement of TestSockerless_AWSAPIGatewayFrontendToGCPBackend_CRUD.
+// BUG-24 reverse-direction coverage.
+func TestSockerless_GCPAPIGatewayFrontendToAWSBackend_CRUD(t *testing.T) {
+	awsEndpoint := os.Getenv("SOCKERLESS_AWS_ENDPOINT")
+	if awsEndpoint == "" {
+		t.Skip("SOCKERLESS_AWS_ENDPOINT not set")
+	}
+	ctx := context.Background()
+
+	cfg, err := config.LoadDefaultConfig(ctx,
+		config.WithRegion("us-east-1"),
+		config.WithCredentialsProvider(credentials.StaticCredentialsProvider{
+			Value: awsapi.Credentials{
+				AccessKeyID:     "AKIAIOSFODNN7EXAMPLE",
+				SecretAccessKey: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+			},
+		}),
+	)
+	if err != nil {
+		t.Fatalf("aws config: %v", err)
+	}
+	if os.Getenv("AWS_S3_CONFORMANCE_INSECURE_TLS") == "1" {
+		cfg.HTTPClient = &http.Client{Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		}}
+	}
+	apiGwClient := apigatewayv2.NewFromConfig(cfg, func(o *apigatewayv2.Options) {
+		o.BaseEndpoint = awsapi.String(awsEndpoint)
+	})
+	backend := awsapigw.New(apiGwClient)
+	srv := harness.StartAPIGatewayServerGCP(t, backend)
+
+	svc, err := apigwapi.NewService(ctx,
+		option.WithEndpoint(srv.URL+"/"),
+		option.WithTokenSource(gcpStaticTokenSource{token: gcpHS256Bearer(t, "https://apigateway.googleapis.com/")}),
+	)
+	if err != nil {
+		t.Fatalf("apigateway client: %v", err)
+	}
+
+	project := "shim-sockerless"
+	parent := "projects/" + project + "/locations/global"
+	apiID := "shim-sk-rev-gw-" + sockHex8apigw()
+
+	if _, err := svc.Projects.Locations.Apis.Create(parent, &apigwapi.ApigatewayApi{}).ApiId(apiID).Do(); err != nil {
+		t.Fatalf("Create api through shim: %v", err)
+	}
+	fullName := parent + "/apis/" + apiID
+	t.Cleanup(func() { _, _ = svc.Projects.Locations.Apis.Delete(fullName).Do() })
+
+	if _, err := svc.Projects.Locations.Apis.Get(fullName).Do(); err != nil {
+		t.Fatalf("Get api through shim: %v", err)
+	}
+
+	list, err := svc.Projects.Locations.Apis.List(parent).Do()
+	if err != nil {
+		t.Fatalf("List apis through shim: %v", err)
+	}
+	found := false
+	for _, api := range list.Apis {
+		if api.Name == fullName {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("List did not contain %q", fullName)
+	}
 }
 
 // TestSockerless_Azure_APIGateway_APIM_CRUD exercises the shim's Azure

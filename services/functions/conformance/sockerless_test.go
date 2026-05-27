@@ -3,8 +3,11 @@ package conformance_test
 
 import (
 	"context"
+	"crypto/hmac"
 	"crypto/rand"
+	"crypto/sha256"
 	"crypto/tls"
+	"encoding/base64"
 	"encoding/hex"
 	"net"
 	"net/http"
@@ -23,6 +26,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/lambda"
 	lambdatypes "github.com/aws/aws-sdk-go-v2/service/lambda/types"
 
+	"golang.org/x/oauth2"
 	"google.golang.org/api/option"
 	runapi "google.golang.org/api/run/v2"
 
@@ -344,5 +348,90 @@ func TestSockerless_GCP_CloudRun_CRUD(t *testing.T) {
 	}
 	if !found {
 		t.Errorf("ListFunctions did not contain %q", name)
+	}
+}
+
+// gcpHS256Bearer mints a test-mode HS256 JWT that the shim's
+// gcpbearer middleware accepts in test mode.
+func gcpHS256Bearer(t *testing.T, audience string) string {
+	t.Helper()
+	header := base64.RawURLEncoding.EncodeToString([]byte(`{"alg":"HS256","typ":"JWT","kid":"shim-test"}`))
+	payloadJSON := []byte(`{"aud":"` + audience + `","exp":4102444800,"iat":1}`)
+	payload := base64.RawURLEncoding.EncodeToString(payloadJSON)
+	signingInput := header + "." + payload
+	mac := hmac.New(sha256.New, []byte("test-key-do-not-use-in-prod"))
+	mac.Write([]byte(signingInput))
+	sig := base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
+	return signingInput + "." + sig
+}
+
+type gcpStaticTokenSource struct{ token string }
+
+func (s gcpStaticTokenSource) Token() (*oauth2.Token, error) {
+	return &oauth2.Token{AccessToken: s.token, TokenType: "Bearer"}, nil
+}
+
+// TestSockerless_GCPCloudRunFrontendToAWSBackend_CRUD is the
+// reverse-direction through-shim cell: GCP Cloud Run SDK drives
+// the shim's GCP functions frontend, which routes through the
+// shim's AWS Lambda backend, which targets sockerless's AWS sim.
+// BUG-24 reverse-direction coverage. Cross-cloud cell, complement
+// of the existing same-cloud AWS Lambda forward cell.
+func TestSockerless_GCPCloudRunFrontendToAWSBackend_CRUD(t *testing.T) {
+	awsEndpoint := os.Getenv("SOCKERLESS_AWS_ENDPOINT")
+	if awsEndpoint == "" {
+		t.Skip("SOCKERLESS_AWS_ENDPOINT not set")
+	}
+	ctx := context.Background()
+
+	lambdaClient := newSockerlessLambdaBackendClient(t, awsEndpoint)
+	backend := awsbackend.New(lambdaClient, awsbackend.Config{
+		ExecutionRoleARN: "arn:aws:iam::000000000000:role/lambda-execution",
+	})
+	srv := harness.StartFunctionsServerGCP(t, backend)
+
+	svc, err := runapi.NewService(ctx,
+		option.WithEndpoint(srv.URL+"/"),
+		option.WithTokenSource(gcpStaticTokenSource{token: gcpHS256Bearer(t, "https://run.googleapis.com/")}),
+	)
+	if err != nil {
+		t.Fatalf("cloud run client: %v", err)
+	}
+
+	project := "shim-sockerless"
+	region := "us-central1"
+	parent := "projects/" + project + "/locations/" + region
+	name := "shim-sk-rev-cr-" + sockerlessHex8()
+	fullName := parent + "/services/" + name
+
+	createReq := &runapi.GoogleCloudRunV2Service{
+		Template: &runapi.GoogleCloudRunV2RevisionTemplate{
+			Containers: []*runapi.GoogleCloudRunV2Container{{
+				Image: "docker.io/library/hello-world:latest",
+			}},
+		},
+	}
+	if _, err := svc.Projects.Locations.Services.Create(parent, createReq).ServiceId(name).Do(); err != nil {
+		t.Fatalf("Create through shim: %v", err)
+	}
+	t.Cleanup(func() { _, _ = svc.Projects.Locations.Services.Delete(fullName).Do() })
+
+	if _, err := svc.Projects.Locations.Services.Get(fullName).Do(); err != nil {
+		t.Fatalf("Get through shim: %v", err)
+	}
+
+	list, err := svc.Projects.Locations.Services.List(parent).Do()
+	if err != nil {
+		t.Fatalf("List through shim: %v", err)
+	}
+	found := false
+	for _, s := range list.Services {
+		if s.Name == fullName {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("List did not contain %q", fullName)
 	}
 }

@@ -854,3 +854,50 @@ func storageLocalhostDial(port string) *http.Transport {
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
 }
+
+// TestSockerless_E2E_GCSFrontendToAWSBackend drives a real GCS client
+// into shimanism's GCS frontend, through the AWS S3 backend, and out
+// to the sockerless AWS simulator. This is the concrete GCP -> AWS
+// migration path for storage — the last cell needed to fill out the
+// 6-direction frontend-to-backend matrix.
+func TestSockerless_E2E_GCSFrontendToAWSBackend(t *testing.T) {
+	endpoint := os.Getenv("SOCKERLESS_AWS_ENDPOINT")
+	if endpoint == "" {
+		t.Skip("SOCKERLESS_AWS_ENDPOINT not set")
+	}
+	backend := awsbackend.New(newSockerlessAWSClient(t, endpoint))
+	shim := harness.StartStorageServerGCS(t, backend)
+	gcsClient := newGCSClient(t, shim.URL)
+	ctx := context.Background()
+
+	bucket := randomNamespace("e2e-gcp-aws")
+	key := "rt/" + randomNamespace("obj") + ".txt"
+	body := []byte("gcs frontend to aws backend through sockerless")
+
+	if err := gcsClient.Bucket(bucket).Create(ctx, "shim-sockerless", nil); err != nil {
+		t.Fatalf("Create bucket via GCS frontend: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = gcsClient.Bucket(bucket).Object(key).Delete(ctx)
+		_ = gcsClient.Bucket(bucket).Delete(ctx)
+	})
+	wr := gcsClient.Bucket(bucket).Object(key).NewWriter(ctx)
+	if _, err := wr.Write(body); err != nil {
+		t.Fatalf("Write via GCS frontend: %v", err)
+	}
+	if err := wr.Close(); err != nil {
+		t.Fatalf("Close writer via GCS frontend: %v", err)
+	}
+	rd, err := gcsClient.Bucket(bucket).Object(key).NewReader(ctx)
+	if err != nil {
+		t.Fatalf("Read via GCS frontend: %v", err)
+	}
+	data, err := io.ReadAll(rd)
+	_ = rd.Close()
+	if err != nil {
+		t.Fatalf("read body: %v", err)
+	}
+	if !bytes.Equal(data, body) {
+		t.Errorf("GCS reader body = %q, want %q", string(data), string(body))
+	}
+}
