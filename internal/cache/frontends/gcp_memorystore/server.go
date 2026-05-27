@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"regexp"
 	"strings"
 	"time"
 
@@ -16,7 +15,7 @@ import (
 
 	"github.com/e6qu/shimanism/internal/cache/domain"
 
-	_ "github.com/e6qu/shimanism/services/cache/gen/gcp" // Phase 13.B spec-drift contract; gen.gcp.Routes is the canonical route inventory.
+	_ "github.com/e6qu/shimanism/services/cache/gen/gcp" // Phase 14.C spec-drift contract; gen.gcp.Routes is the canonical route inventory.
 )
 
 type Server struct {
@@ -31,54 +30,77 @@ func New(s domain.Cache) *Server { return &Server{s: s} }
 //	/v1beta1/projects/{p}/... — hashicorp/google google_redis_instance
 //
 // Both shapes route to the same handler.
-const memorystorePathPrefix = `^/(?:v1|v1beta1)`
 
-var (
-	reInstances        = regexp.MustCompile(memorystorePathPrefix + `/projects/([^/]+)/locations/([^/]+)/instances/?$`)
-	reInstance         = regexp.MustCompile(memorystorePathPrefix + `/projects/([^/]+)/locations/([^/]+)/instances/([^/:]+)$`)
-	reInstanceFailover = regexp.MustCompile(memorystorePathPrefix + `/projects/([^/]+)/locations/([^/]+)/instances/([^/:]+):failover$`)
-	reOperation        = regexp.MustCompile(memorystorePathPrefix + `/projects/([^/]+)/locations/([^/]+)/operations/([^/]+)$`)
-)
-
+// ServeHTTP dispatches by path-shape inspection. Both `/v1/` and
+// `/v1beta1/` prefixes are accepted (SDK and Terraform provider
+// respectively). Routes covered: instances collection, instance,
+// instance:failover action, operations. Existing
+// `TestGCPRoutes_Cache_FrontendDispatchCoverage` pins behavior.
 func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path
 	method := r.Method
-
-	if m := reInstanceFailover.FindStringSubmatch(path); m != nil && method == http.MethodPost {
-		srv.failover(w, r, m[3])
+	rest := stripVersionPrefix(path)
+	if rest == path {
+		writeError(w, http.StatusNotFound, "NOT_FOUND",
+			"no Memorystore route matches "+method+" "+path)
 		return
 	}
-	if m := reInstance.FindStringSubmatch(path); m != nil {
-		switch method {
-		case http.MethodGet:
-			srv.getInstance(w, r, m[3])
-		case http.MethodDelete:
-			srv.deleteInstance(w, r, m[3])
-		case http.MethodPatch, http.MethodPut:
-			srv.patchInstance(w, r, m[3])
-		default:
-			writeError(w, http.StatusMethodNotAllowed, "FAILED_PRECONDITION",
-				method+" not allowed on instance")
-		}
+	segs := strings.Split(strings.TrimPrefix(rest, "/"), "/")
+	// segs = ["projects", p, "locations", l, "instances"|"operations", ...]
+	if len(segs) < 5 || segs[0] != "projects" || segs[2] != "locations" {
+		writeError(w, http.StatusNotFound, "NOT_FOUND",
+			"no Memorystore route matches "+method+" "+path)
 		return
 	}
-	if m := reInstances.FindStringSubmatch(path); m != nil {
-		switch method {
-		case http.MethodGet:
-			srv.listInstances(w, r)
+	switch segs[4] {
+	case "instances":
+		if len(segs) == 5 || (len(segs) == 6 && segs[5] == "") {
+			switch method {
+			case http.MethodGet:
+				srv.listInstances(w, r)
+			case http.MethodPost:
+				srv.createInstance(w, r)
+			default:
+				writeError(w, http.StatusMethodNotAllowed, "FAILED_PRECONDITION",
+					method+" not allowed on instances collection")
+			}
 			return
-		case http.MethodPost:
-			srv.createInstance(w, r)
+		}
+		if len(segs) == 6 {
+			tail := segs[5]
+			if i := strings.IndexByte(tail, ':'); i >= 0 {
+				// /instances/{name}:action
+				name, action := tail[:i], tail[i+1:]
+				if action == "failover" && method == http.MethodPost {
+					srv.failover(w, r, name)
+					return
+				}
+			} else {
+				// /instances/{name}
+				switch method {
+				case http.MethodGet:
+					srv.getInstance(w, r, tail)
+				case http.MethodDelete:
+					srv.deleteInstance(w, r, tail)
+				case http.MethodPatch, http.MethodPut:
+					srv.patchInstance(w, r, tail)
+				default:
+					writeError(w, http.StatusMethodNotAllowed, "FAILED_PRECONDITION",
+						method+" not allowed on instance")
+				}
+				return
+			}
+		}
+	case "operations":
+		if len(segs) == 6 && method == http.MethodGet {
+			srv.getOperation(w, r, segs[5])
 			return
 		}
-	}
-	if m := reOperation.FindStringSubmatch(path); m != nil && method == http.MethodGet {
-		srv.getOperation(w, r, m[3])
-		return
 	}
 	writeError(w, http.StatusNotFound, "NOT_FOUND",
 		"no Memorystore route matches "+method+" "+path)
 }
+
 
 func (srv *Server) createInstance(w http.ResponseWriter, r *http.Request) {
 	var body redisapi.Instance
