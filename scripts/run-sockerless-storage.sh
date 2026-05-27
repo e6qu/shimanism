@@ -71,17 +71,31 @@ require_container_runtime
 # nginx:alpine because it's tiny (~20 MB), runs without args, and is
 # reliably reachable from public registries. Callers can override
 # via SOCKERLESS_AZURE_CONTAINERAPPS_IMAGE.
-SOCKERLESS_AZURE_CONTAINERAPPS_IMAGE=${SOCKERLESS_AZURE_CONTAINERAPPS_IMAGE:-docker.io/library/nginx:alpine}
-SOCKERLESS_GCP_CLOUDRUN_IMAGE=${SOCKERLESS_GCP_CLOUDRUN_IMAGE:-docker.io/library/nginx:alpine}
-# Sockerless's Container Apps / Cloud Run handlers ask the runtime
-# to start a container with an explicit `linux/<host-arch>` platform.
-# `docker pull <ref>` without `--platform` can select a manifest that
-# doesn't match (esp. on GitHub Actions ARM runners that default to
-# amd64). Pin the platform to the host arch via `go env GOARCH`
-# (amd64 / arm64) so the daemon has a matching image cached.
+# Container Apps + Cloud Run sockerless handlers do real container
+# execution. To opt the lanes in, set these env vars to a known-
+# pullable image reference, and this script will pre-pull it pinned
+# to the host arch via `go env GOARCH`:
+#
+#   SOCKERLESS_AZURE_CONTAINERAPPS_IMAGE
+#   SOCKERLESS_GCP_CLOUDRUN_IMAGE
+#
+# The Cloud Run lane works on any host arch — sockerless's Cloud Run
+# handler dynamically detects the image platform. The Container Apps
+# lane currently only works on arm64 hosts because sockerless's
+# Container Apps handler hardcodes `Architecture: "linux/arm64"`
+# (sockerless#244). Until #244 is fixed, the bundled CI lane leaves
+# SOCKERLESS_AZURE_CONTAINERAPPS_IMAGE unset so the test skips by
+# default on amd64 CI runners. Local devs on arm64 can opt in by
+# exporting it before running `make sockerless`.
 GO_ARCH=$(go env GOARCH 2>/dev/null || echo amd64)
 PULL_PLATFORM="linux/${GO_ARCH}"
+# Default the Cloud Run image (works on both arches — sockerless's
+# Cloud Run handler dynamically detects the image platform).
+# Container Apps stays unset by default; see sockerless#244.
+: "${SOCKERLESS_GCP_CLOUDRUN_IMAGE:=docker.io/library/nginx:alpine}"
+: "${SOCKERLESS_AZURE_CONTAINERAPPS_IMAGE:=}"
 for image in "$SOCKERLESS_AZURE_CONTAINERAPPS_IMAGE" "$SOCKERLESS_GCP_CLOUDRUN_IMAGE"; do
+    if [[ -z "$image" ]]; then continue; fi
     echo "pre-pull: $image (--platform=$PULL_PLATFORM) via $CONTAINER_RUNTIME"
     "$CONTAINER_RUNTIME" pull --platform="$PULL_PLATFORM" "$image" >/dev/null 2>&1 || echo "WARN: pre-pull of $image failed — affected lane will skip." >&2
 done
