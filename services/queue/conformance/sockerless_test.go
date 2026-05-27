@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
+	"github.com/Azure/azure-sdk-for-go/sdk/messaging/azservicebus"
 	"github.com/Azure/azure-sdk-for-go/sdk/messaging/azservicebus/admin"
 	awsapi "github.com/aws/aws-sdk-go-v2/aws"
 	awshttp "github.com/aws/aws-sdk-go-v2/aws/transport/http"
@@ -331,5 +332,70 @@ func sockerlessSBAdminClientOptions(port string) *admin.ClientOptions {
 		ClientOptions: azcore.ClientOptions{
 			Transport: &http.Client{Transport: transport},
 		},
+	}
+}
+
+// TestSockerless_Azure_ServiceBus_Queue_SendReceive drives the shim's
+// Azure Service Bus queue backend's full data-plane round-trip
+// against sockerless's raw AMQP/TLS transport (added in sockerless
+// PR #231): CreateQueue (admin, ATOM XML) → SendMessage (azservicebus
+// AMQP/TLS) → ReceiveMessages → DeleteMessage → DeleteQueue.
+//
+// The test driver is the Azure SDK throughout. The two transport
+// knobs the SDK exposes — `admin.ClientOptions.Transport` for the
+// ATOM HTTPS admin client and `azservicebus.ClientOptions.CustomEndpoint`
+// + `TLSConfig` for the AMQP data client — point at the sim. The
+// SDK speaks its native protocols on top; no transport adapter
+// code lives in the test.
+func TestSockerless_Azure_ServiceBus_Queue_SendReceive(t *testing.T) {
+	httpPort := os.Getenv("SOCKERLESS_AZURE_TLS_PORT")
+	if httpPort == "" {
+		t.Skip("SOCKERLESS_AZURE_TLS_PORT not set")
+	}
+	amqpPort := os.Getenv("SOCKERLESS_AZURE_SB_AMQP_PORT")
+	if amqpPort == "" {
+		t.Skip("SOCKERLESS_AZURE_SB_AMQP_PORT not set")
+	}
+	backend, err := azurequeue.New(azurequeue.Config{
+		ConnectionString:   sockerlessAzureSBConnectionString(),
+		AdminClientOptions: sockerlessSBAdminClientOptions(httpPort),
+		DataClientOptions: &azservicebus.ClientOptions{
+			CustomEndpoint: "localhost:" + amqpPort,
+			TLSConfig:      &tls.Config{InsecureSkipVerify: true},
+		},
+	})
+	if err != nil {
+		t.Fatalf("azurequeue.New: %v", err)
+	}
+	ctx := context.Background()
+
+	name := "shim-sk-sbq-sr-" + sockHex8()
+	if _, err := backend.CreateQueue(ctx, name, domain.CreateQueueOptions{
+		Attributes: domain.QueueAttributes{
+			VisibilityTimeoutSeconds: 30,
+			MessageRetentionSeconds:  3600,
+		},
+	}); err != nil {
+		t.Fatalf("CreateQueue: %v", err)
+	}
+	t.Cleanup(func() { _ = backend.DeleteQueue(ctx, name) })
+
+	body := []byte("shim-sb-amqp round-trip body")
+	if _, err := backend.SendMessage(ctx, name, domain.SendMessageOptions{Body: body}); err != nil {
+		t.Fatalf("SendMessage: %v", err)
+	}
+
+	msgs, err := backend.ReceiveMessages(ctx, name, domain.ReceiveMessagesOptions{
+		MaxMessages: 1,
+		WaitTime:    5,
+	})
+	if err != nil {
+		t.Fatalf("ReceiveMessages: %v", err)
+	}
+	if len(msgs) == 0 {
+		t.Fatalf("ReceiveMessages returned no messages")
+	}
+	if got := string(msgs[0].Body); got != string(body) {
+		t.Errorf("ReceiveMessages body = %q, want %q", got, string(body))
 	}
 }

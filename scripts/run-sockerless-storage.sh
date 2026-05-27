@@ -29,6 +29,10 @@ SOCKERLESS_DIR=${SOCKERLESS_DIR:-/tmp/sockerless}
 AWS_PORT=${AWS_PORT:-14566}
 GCP_PORT=${GCP_PORT:-14567}
 AZURE_PORT=${AZURE_PORT:-14569}
+# Service Bus raw AMQP/TLS lives on its own listener (sockerless PR
+# #231). Used by the SB queue / pubsub Send-Receive lanes via the
+# azservicebus SDK's CustomEndpoint + TLSConfig knobs.
+AZURE_SB_AMQP_PORT=${AZURE_SB_AMQP_PORT:-14570}
 CERT_DIR=${CERT_DIR:-/tmp/sockerless-tls}
 
 if [[ ! -d $SOCKERLESS_DIR ]]; then
@@ -104,10 +108,11 @@ SIM_LISTEN_ADDR=":$GCP_PORT" \
     "$GCP_BIN" >/tmp/sockerless-gcp.log 2>&1 &
 GCP_PID=$!
 
-echo "start: Azure sim → https://localhost:$AZURE_PORT (TLS, self-signed; reuses the AWS sim's cert)"
+echo "start: Azure sim → https://localhost:$AZURE_PORT + Service Bus AMQP/TLS on :$AZURE_SB_AMQP_PORT (self-signed cert)"
 SIM_LISTEN_ADDR=":$AZURE_PORT" \
 SIM_TLS_CERT="$CERT_DIR/sim.crt" \
 SIM_TLS_KEY="$CERT_DIR/sim.key" \
+SIM_SERVICEBUS_AMQP_LISTEN_ADDR=":$AZURE_SB_AMQP_PORT" \
     "$AZURE_BIN" >/tmp/sockerless-azure.log 2>&1 &
 AZURE_PID=$!
 
@@ -121,6 +126,7 @@ SOCKERLESS_GCP_ENDPOINT="localhost:$GCP_PORT" \
 SOCKERLESS_AWS_SM_ENDPOINT="https://localhost:$AWS_PORT" \
 SOCKERLESS_AZURE_KV_URL="https://testvault.vault.azure.net" \
 SOCKERLESS_AZURE_TLS_PORT="$AZURE_PORT" \
+SOCKERLESS_AZURE_SB_AMQP_PORT="$AZURE_SB_AMQP_PORT" \
 SOCKERLESS_AZURE_BLOB_ACCOUNT="testacct" \
 AWS_S3_CONFORMANCE_INSECURE_TLS=1 \
 go test -run '^TestSockerless_' -count=1 -v \
