@@ -8,12 +8,12 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 
 | | |
 |---|---|
-| Active branch | `main` after PR #44 merged 2026-05-27 (storage CopyObject lanes; closed BUG-37 + BUG-38). |
-| In-flight | **Phase 14.B nearly complete.** 33 sockerless lanes passing + 1 documented-skipped. Storage matrix complete 3×3 (single-shot + multipart + copy across AWS S3 + GCS + Azure Blob). SB admin + raw-AMQP/TLS lanes both green. ARM-based Azure lanes (Redis / PG / APIM) green. **3 PRs planned to close out remaining Phase-14.B/C/E work** — see [DO_NEXT.md § The 3-PR closure plan](DO_NEXT.md#the-3-pr-closure-plan) for the concrete task list. 14.D (Track A real-cloud) stays blocked on infra. |
-| Last merged | PR #44 — Phase 14.B storage CopyObject sockerless lanes (closes BUG-37 + BUG-38), 2026-05-27. |
+| Active branch | `main` after PR #46 merged 2026-05-27 (Phase 14.B closure: BUG-35 plumbing + GCP Cloud Run lane + 3 reverse-direction cells + all 7 14.C GCP frontend migrations). |
+| In-flight | **Phase 14.B + 14.C closed.** 37 sockerless lanes passing + 1 documented-skipped (Container Apps on amd64, awaiting sockerless#244). All 7 GCP frontends migrated from regex tables to path-shape dispatch. Storage matrix 3×3 complete. SB admin + raw-AMQP/TLS green. ARM-based Azure lanes (Redis / PG / APIM) green. **Remaining of the 3-PR plan:** PR 2 (`azure_blob` 69-op handler migration) is the next active sub-task. PR 3 (Track A) stays blocked on real-cloud credentials. 14.E (cross-cloud Apply) deferred — shim needs ARM-shimming on its own side before sockerless#243 is on its critical path. |
+| Last merged | PR #46 — Phase 14.B closure: BUG-35 + Cloud Run + 3 reverse cells + 7 GCP handler migrations, 2026-05-27. |
 | Phases 1–12 | All closed. PR index in [PLAN.md § Closed phases](PLAN.md#closed-phases-pr-index). |
-| Bugs | **38 filed · 35 fixed · 3 open · 1 false positive.** Open: **BUG-8** (apigateway TF-provider Track A leg, real GCP), **BUG-15** (queue TF state-drift Track A leg, real GCP), **BUG-35** (Container Apps pre-pull — shim-side script change, planned PR 1). |
-| Upstream | 3 sockerless follow-ons open after PR #235/#238 reviews ([#239](https://github.com/e6qu/sockerless/issues/239) validation, [#240](https://github.com/e6qu/sockerless/issues/240) redundant clone, [#241](https://github.com/e6qu/sockerless/issues/241) write-guard) — all internal-only; none block any shim lane. |
+| Bugs | **38 filed · 35 fixed · 3 open · 1 false positive.** Open: **BUG-8** (apigateway TF-provider Track A leg, real GCP), **BUG-15** (queue TF state-drift Track A leg, real GCP), **BUG-35** (Container Apps lane skipped by default on amd64; the shim-side script plumbing landed in PR #46 — the lane unblocks once sockerless#244 lands). |
+| Upstream | Two sockerless tracking issues: [#243](https://github.com/e6qu/sockerless/issues/243) (Azure ARM endpoint emission across non-Storage services — maintainer reframed scope; not on shimanism's critical path because shimanism's 14.E needs shim-side ARM-shimming, with sockerless on the destination/AWS side), [#244](https://github.com/e6qu/sockerless/issues/244) (Container Apps `linux/arm64` hardcode — blocks BUG-35 closure on amd64 runners). Earlier follow-ons #239/#240/#241 closed via sockerless PR #242. |
 | CI | 18 required checks. Real-cloud lanes wait on Track A. |
 | Renovate | Config + custom manager for vendored-spec SHAs (12.0.15). **User must install the Renovate GitHub App.** |
 | Standing merge auth | **None.** User merges every PR. |
