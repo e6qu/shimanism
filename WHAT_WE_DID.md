@@ -6,7 +6,47 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 
 ## Phase 14 — In flight
 
-PR #21 merged on 2026-05-25 at `45985e7`, landing 14.A, the 14.D simulator audit, and the current 14.B sockerless lane. Phase 14 remains open for additional service lanes, 14.C handler migrations, and real-cloud Track A residuals.
+PR #21 merged on 2026-05-25 at `45985e7`, landing 14.A, the 14.D simulator audit, and the current 14.B sockerless lane. Phase 14 remains open for the planned 3-PR closure (see [DO_NEXT.md § The 3-PR closure plan](DO_NEXT.md#the-3-pr-closure-plan)) plus 14.D Track A which stays blocked on real-cloud credentials.
+
+### Storage CopyObject sockerless lanes (PR #44, merged 2026-05-27)
+
+Closed BUG-37 + BUG-38 by adding three CopyObject lanes — `TestSockerless_AWS_S3_Copy`, `TestSockerless_GCS_Copy`, `TestSockerless_Azure_Blob_Copy` — that exercise the shim's `domain.Storage.CopyObject` code path against the new sockerless surfaces from sockerless PR #235 (Azure Blob `x-ms-copy-source`, GCS `rewriteTo`/`copyTo`, GCS list lex-order). The storage matrix is now complete 3×3 (single-shot + multipart + copy across AWS S3 + GCS + Azure Blob).
+
+The upstream flow was driven by a tight loop: I'd file an upstream sockerless issue with full repro + suggested fix; the maintainer reframed each through the "public-surface fidelity" principle (the sim should expose what real cloud exposes, not what's convenient for any specific caller); the maintainer landed PRs that often re-scoped my acceptance criteria to match real cloud contracts more precisely. Specifically:
+
+- **sockerless#223 → PR #225** added the Service Bus namespace-level ATOM XML admin protocol (the protocol `azservicebus/admin` actually speaks). Unblocked BUG-34 (closed in PR #39).
+- **sockerless#228 → PR #229** added AMQP-over-WebSocket. I initially proposed this but then realized using `azservicebus.ClientOptions.NewWebSocketConn` would leak WebSocket-dial code into test layer — violating the "test driver is the cloud SDK" principle. Declined the WebSocket path in shim and filed **sockerless#230** asking for raw AMQP/TLS.
+- **sockerless#230 → PR #231** added raw AMQP-over-TCP/TLS with namespace routing from TLS SNI / AMQP Open hostname and entity routing from AMQP link source/target addresses. The maintainer reframed the issue from "test convenience" to "Service Bus public-surface fidelity." Unblocked the shim's SB Send/Receive lanes via `azservicebus.ClientOptions.CustomEndpoint` + `TLSConfig` — same SDK-clean shape as every other 14.B lane. Closed BUG-36 (PR #42).
+- **sockerless#232 → PR #235** added Azure Blob Copy Blob via `x-ms-copy-source`. Closed BUG-37 (PR #44).
+- **sockerless#233 → PR #235** added GCS `rewriteTo` + `copyTo`. Closed BUG-38 (PR #44).
+- **sockerless#234 → PR #235** made GCS `objects.list` return objects in lexicographic order (real GCS contract). CI surfaced this as a flaky failure in the shim's GCS multipart lane — the shim was relying on the documented order — and the shim's `CompleteMultipartUpload` was also patched to build the part-object list from the caller's explicit `PartNumber` sequence (defensive: removes the dependency on listing order entirely).
+
+A pattern emerged in PR reviews: review observations get filed by the maintainer as separate trackable issues. sockerless#236/#237 came from the PR #235 review (destination metadata + persistence helper) and were closed by PR #238. sockerless#239/#240/#241 came from the PR #238 review (field validation, redundant clone, write-guard) and remain open as internal sockerless improvements that don't block any shim lane.
+
+The architectural principle that kept proving itself across the cluster: **the shim's test driver is the cloud SDK / CLI / Terraform provider; transport beneath that is the SDK's business**. When integrating against any cloud sim, the shim uses only the SDK-public configuration knobs — `arm.ClientOptions.Cloud.ResourceManager.Endpoint`, `admin.ClientOptions.Transport`, `azservicebus.ClientOptions.CustomEndpoint` + `TLSConfig`, `BaseEndpoint` for AWS, `STORAGE_EMULATOR_HOST` for GCS — and never writes protocol code in tests. This is what makes the lanes both real-cloud-compatible and sim-correct simultaneously.
+
+End state after PR #44: `make sockerless` reports **33 passing + 1 documented-skipped** (the documented-skipped is Container Apps, BUG-35 — pre-pull plumbing, planned for the next PR).
+
+### Storage multipart sockerless lanes (PR #41 + #43, merged 2026-05-26 / 27)
+
+Two-step storage multipart matrix completion. PR #41 landed the Azure Blob multipart lane against sockerless's new block-blob staging (`?comp=block`, `?comp=blocklist`, `?comp=blocklist&blocklisttype=…`) added in sockerless PR #229. PR #43 added the AWS S3 + GCS Compose-based multipart lanes — both surfaces already implemented in sockerless, just not previously exercised by the shim.
+
+PR #41 also declined the AMQP-over-WebSocket SDK path that PR #229 added (architectural reason captured above) and filed sockerless#230 for raw AMQP/TLS.
+
+PR #43's GCS multipart lane was flaky in CI — caught the GCS list-order bug (sockerless#234) that prompted the shim's defensive refactor of `CompleteMultipartUpload`.
+
+### Azure Service Bus AMQP Send/Receive lanes (PR #42, merged 2026-05-27)
+
+After sockerless PR #231 added raw AMQP/TLS, two new shim lanes:
+
+- `TestSockerless_Azure_ServiceBus_Queue_SendReceive` — CreateQueue (admin, ATOM XML) → SendMessage (AMQP/TLS) → ReceiveMessages → DeleteQueue.
+- `TestSockerless_Azure_ServiceBus_Topic_PublishReceive` — CreateTopic + CreateSubscription (admin) → Publish (AMQP/TLS) → Receive.
+
+Same SDK-clean integration shape as the admin lanes: `azservicebus.ClientOptions.CustomEndpoint` + `TLSConfig`. Zero protocol code in test layer.
+
+`scripts/run-sockerless-storage.sh` extended to set `SIM_SERVICEBUS_AMQP_LISTEN_ADDR=:14570` when starting the Azure sim and export the corresponding `SOCKERLESS_AZURE_SB_AMQP_PORT` for tests.
+
+Closed BUG-36.
 
 ### Azure Service Bus admin lanes (branch `phase-14b-azure-servicebus-lanes`, 2026-05-26)
 

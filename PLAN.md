@@ -187,7 +187,7 @@ Phase 12 ships `TestCrossCloudApply_Roundtrip_<svc>_<cell>` for one cell per ser
 >
 > Phase 14 cashes in the items Phase 13 deferred, on the cadence of the upstream sockerless project closing the six issues we filed in 13.D.1. Each shim-side follow-on has an explicit upstream dependency.
 >
-> **Status: in-flight after PR #21 merged.** 14.A landed (sockerless PR #179 closed all 6 round-1 issues; shim assertions re-enabled). 14.D audit rounds through sockerless PR #216 are done; all upstream issues filed from the shim audit are closed, and #218 closed in PR #219. 14.B's current validation lane is green — 10 tests pass today (storage AWS/GCS/Azure Blob, secrets AWS/GCP/Azure KV, queue AWS/GCP, pubsub GCP, apigateway GCP). 14.C still independent + pending.
+> **Status: nearly closed (33+1 sockerless lanes on `main` after PR #44).** 14.A landed; 14.D simulator audit landed through PR #219 + #221 + #229 + #231 + #235 + #238. 14.B is materially complete: storage matrix 3×3 (single-shot + multipart + copy), SB admin + raw-AMQP/TLS, ARM Azure (Redis/PG/APIM). Remaining 14.B/C/E shim-side work folds into **3 PRs** documented in [DO_NEXT.md § The 3-PR closure plan](DO_NEXT.md#the-3-pr-closure-plan); 14.D Track A stays blocked on real cloud credentials.
 
 ### Dependency on the sockerless project
 
@@ -229,10 +229,18 @@ Phase 12 ships `TestCrossCloudApply_Roundtrip_<svc>_<cell>` for one cell per ser
 | Track | What | Dependency | Status |
 |---|---|---|---|
 | 14.A | Re-enable shim assertions as sockerless fidelity bugs close. Three sub-items, one per sockerless#173/174/175. | sockerless#173-175 closing | ✅ landed (sockerless PR #179) |
-| 14.B | Add new sockerless service lanes as sockerless missing-service + fidelity issues close. | sockerless#176-218 audit chain closed through PR #219; sockerless#223 (Azure SB ATOM XML) now blocks Azure SB queue+pubsub lanes | ◐ — 13 backend-adapter lanes green after 2026-05-26 Azure ARM additions (Redis / PostgreSQL / APIM); Container Apps lane scaffolded + default-skipped (BUG-35); Service Bus blocked on sockerless#223 (BUG-34) |
-| 14.C | Full handler migrations for the 9 frontends that landed only as blank-import in Phase 13: `azure_blob` (69 ops; Service-Bus hybrid pattern), `azure_apim` (waits for upstream spec to broaden), 7 GCP frontends (cosmetic). | — (independent of sockerless) | ◻ |
-| 14.D | Fidelity audit against sockerless's new services + file per-bug issues. Real-cloud Track A residual for whatever sockerless can't cover (e.g. real signed-credentials conformance and the remaining Terraform-provider legs of BUG-8/BUG-15). | — | ✅ simulator audit done through PR #219; real-cloud residual ◻ |
-| 14.E | Cross-cloud Apply matrix expansion per [13.E above](#13e--cross-cloud-apply-matrix-expansion-deferred-to-phase-14) — driven by sockerless lanes from 14.B. | 14.B in progress | ◻ optional, demand-driven |
+| 14.B | Add new sockerless service lanes as sockerless missing-service + fidelity issues close. | All audit chains closed through sockerless PR #238. | ◐ — 33 lanes green covering storage (single-shot + multipart + copy across 3 clouds), secrets, queue admin + SB Send/Receive, pubsub, rdbms, cache (Azure Redis), apigateway. Residual: BUG-35 Container Apps pre-pull (planned PR 1). |
+| 14.C | Full handler migrations for the 9 frontends that landed only as blank-import in Phase 13: `azure_blob` (69 ops; Service-Bus hybrid pattern), `azure_apim` (waits for upstream spec to broaden), 7 GCP frontends (cosmetic). | — (independent of sockerless) | ◐ — bundled with PR 1 (7 GCP frontends together) + PR 2 (`azure_blob`). `azure_apim` waits indefinitely on upstream spec broadening. |
+| 14.D | Fidelity audit against sockerless's new services + file per-bug issues. Real-cloud Track A residual for whatever sockerless can't cover (e.g. real signed-credentials conformance and the remaining Terraform-provider legs of BUG-8/BUG-15). | — | ✅ simulator audit done through sockerless PR #238; real-cloud residual blocked on infra. |
+| 14.E | Cross-cloud Apply matrix expansion — Terraform-driven `TestCrossCloudApply_Roundtrip_*` cells across additional source/destination pairs per service family, driven by the 14.B lanes that landed in PR #38/#39/#41/#42/#44. | 14.B substantially complete | ◐ — bundled with PR 1 (Azure-source/destination cells). Likely surfaces upstream sockerless gaps that file + `t.Skip`. |
+
+### The 3-PR closure plan
+
+Remaining 14.B/C/E shim-side work is bundled into 3 PRs (full task lists in [DO_NEXT.md](DO_NEXT.md)):
+
+- **PR 1** — BUG-35 Container Apps pre-pull + GCP Cloud Run lane + 3 BUG-24 reverse-direction cells + all 7 GCP frontend 14.C migrations + 14.E Azure-source/destination cross-cloud Apply cells. ~1500-2500 LOC.
+- **PR 2** — `azure_blob` full handler migration (69 ops, Service-Bus-style hybrid dispatch). ~1500-2000 LOC concentrated in one file.
+- **PR 3 (blocked on infra)** — 14.D Track A: BUG-8 + BUG-15 + real-signed verifier conformance.
 
 ### Exit criteria
 

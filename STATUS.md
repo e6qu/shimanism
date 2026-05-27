@@ -8,11 +8,12 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 
 | | |
 |---|---|
-| Active branch | `main` after PR #37 merged 2026-05-26 closed the end-to-end-walkthrough fidelity-bug cluster (BUG-30..33 / GitHub #32-#35). |
-| In-flight | **Phase 14 — Sockerless-verified validation lane + deferred follow-ons.** **14.A done** (2026-05-24). **14.D audit done through PR #216** (2026-05-25). **PR #38 merged** (2026-05-26): 3 Azure ARM lanes (Redis / PostgreSQL / APIM) + Container Apps scaffold. **In-flight on branch `phase-14b-azure-servicebus-lanes`**: Azure SB queue + pubsub admin lanes wired against sockerless's new namespace-level ATOM XML admin protocol (sockerless PR #225 + #226 merged 2026-05-26 closed [sockerless#223](https://github.com/e6qu/sockerless/issues/223), unblocking BUG-34). `make sockerless` now reports 25 passing + 1 documented-skipped. 14.C / 14.E remain deferred to dedicated PRs. |
-| Last merged | PR #38 — Phase 14.B Azure ARM backend-adapter sockerless lanes, 2026-05-26. |
+| Active branch | `main` after PR #44 merged 2026-05-27 (storage CopyObject lanes; closed BUG-37 + BUG-38). |
+| In-flight | **Phase 14.B nearly complete.** 33 sockerless lanes passing + 1 documented-skipped. Storage matrix complete 3×3 (single-shot + multipart + copy across AWS S3 + GCS + Azure Blob). SB admin + raw-AMQP/TLS lanes both green. ARM-based Azure lanes (Redis / PG / APIM) green. **3 PRs planned to close out remaining Phase-14.B/C/E work** — see [DO_NEXT.md § The 3-PR closure plan](DO_NEXT.md#the-3-pr-closure-plan) for the concrete task list. 14.D (Track A real-cloud) stays blocked on infra. |
+| Last merged | PR #44 — Phase 14.B storage CopyObject sockerless lanes (closes BUG-37 + BUG-38), 2026-05-27. |
 | Phases 1–12 | All closed. PR index in [PLAN.md § Closed phases](PLAN.md#closed-phases-pr-index). |
-| Bugs | **35 filed · 31 fixed · 3 open · 1 false positive.** BUG-34 closed by [sockerless PR #225](https://github.com/e6qu/sockerless/pull/225) on 2026-05-26 (Azure SB ATOM XML admin protocol implemented; shim lanes wired). BUG-8 / BUG-15 remain Track A residuals (real-cloud TF provider legs). BUG-24 stays open for reverse-direction through-shim expansion. BUG-35 stays open for Container Apps pre-pull plumbing. |
+| Bugs | **38 filed · 35 fixed · 3 open · 1 false positive.** Open: **BUG-8** (apigateway TF-provider Track A leg, real GCP), **BUG-15** (queue TF state-drift Track A leg, real GCP), **BUG-35** (Container Apps pre-pull — shim-side script change, planned PR 1). |
+| Upstream | 3 sockerless follow-ons open after PR #235/#238 reviews ([#239](https://github.com/e6qu/sockerless/issues/239) validation, [#240](https://github.com/e6qu/sockerless/issues/240) redundant clone, [#241](https://github.com/e6qu/sockerless/issues/241) write-guard) — all internal-only; none block any shim lane. |
 | CI | 18 required checks. Real-cloud lanes wait on Track A. |
 | Renovate | Config + custom manager for vendored-spec SHAs (12.0.15). **User must install the Renovate GitHub App.** |
 | Standing merge auth | **None.** User merges every PR. |
