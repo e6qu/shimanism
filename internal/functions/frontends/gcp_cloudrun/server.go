@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"regexp"
 	"strings"
 	"time"
 
@@ -16,7 +15,7 @@ import (
 
 	"github.com/e6qu/shimanism/internal/functions/domain"
 
-	_ "github.com/e6qu/shimanism/services/functions/gen/gcp" // Phase 13.B spec-drift contract; gen.gcp.Routes is the canonical route inventory.
+	_ "github.com/e6qu/shimanism/services/functions/gen/gcp" // Phase 14.C spec-drift contract; gen.gcp.Routes is the canonical route inventory.
 )
 
 type Server struct {
@@ -25,41 +24,63 @@ type Server struct {
 
 func New(s domain.Functions) *Server { return &Server{s: s} }
 
-var (
-	reServices  = regexp.MustCompile(`^/v2/projects/([^/]+)/locations/([^/]+)/services/?$`)
-	reService   = regexp.MustCompile(`^/v2/projects/([^/]+)/locations/([^/]+)/services/([^/]+)$`)
-	reOperation = regexp.MustCompile(`^/v2/projects/([^/]+)/locations/([^/]+)/operations/([^/]+)$`)
-)
-
+// ServeHTTP dispatches by path-shape inspection. Routes for Cloud Run
+// v2 are `/v2/projects/{project}/locations/{location}/services[/{svc}]`
+// and `/v2/projects/{project}/locations/{location}/operations/{op}`.
+// Existing `TestGCPRoutes_Functions_FrontendDispatchCoverage` pins the
+// behavior against the gen.gcp.Routes inventory.
 func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path
 	method := r.Method
-	if m := reService.FindStringSubmatch(path); m != nil {
-		switch method {
-		case http.MethodGet:
-			srv.getService(w, r, m[3])
-		case http.MethodDelete:
-			srv.deleteService(w, r, m[3])
-		case http.MethodPatch:
-			srv.patchService(w, r, m[3])
-		default:
-			writeError(w, http.StatusMethodNotAllowed, "FAILED_PRECONDITION", method+" not allowed on service")
-		}
+	rest, ok := strings.CutPrefix(path, "/v2/")
+	if !ok {
+		writeError(w, http.StatusNotFound, "NOT_FOUND",
+			"no Cloud Run route matches "+method+" "+path)
 		return
 	}
-	if m := reServices.FindStringSubmatch(path); m != nil {
-		switch method {
-		case http.MethodGet:
-			srv.listServices(w, r)
-			return
-		case http.MethodPost:
-			srv.createService(w, r)
+	segs := strings.Split(rest, "/")
+	// segs = ["projects", p, "locations", l, "services"|"operations", ...]
+	if len(segs) < 5 || segs[0] != "projects" || segs[2] != "locations" {
+		writeError(w, http.StatusNotFound, "NOT_FOUND",
+			"no Cloud Run route matches "+method+" "+path)
+		return
+	}
+	switch segs[4] {
+	case "services":
+		// /services or /services/ — collection ops.
+		if len(segs) == 5 || (len(segs) == 6 && segs[5] == "") {
+			switch method {
+			case http.MethodGet:
+				srv.listServices(w, r)
+			case http.MethodPost:
+				srv.createService(w, r)
+			default:
+				writeError(w, http.StatusMethodNotAllowed, "FAILED_PRECONDITION",
+					method+" not allowed on services collection")
+			}
 			return
 		}
-	}
-	if m := reOperation.FindStringSubmatch(path); m != nil && method == http.MethodGet {
-		srv.getOperation(w, r, m[3])
-		return
+		// /services/{name} — single-service ops.
+		if len(segs) == 6 {
+			name := segs[5]
+			switch method {
+			case http.MethodGet:
+				srv.getService(w, r, name)
+			case http.MethodDelete:
+				srv.deleteService(w, r, name)
+			case http.MethodPatch:
+				srv.patchService(w, r, name)
+			default:
+				writeError(w, http.StatusMethodNotAllowed, "FAILED_PRECONDITION",
+					method+" not allowed on service")
+			}
+			return
+		}
+	case "operations":
+		if len(segs) == 6 && method == http.MethodGet {
+			srv.getOperation(w, r, segs[5])
+			return
+		}
 	}
 	writeError(w, http.StatusNotFound, "NOT_FOUND",
 		"no Cloud Run route matches "+method+" "+path)

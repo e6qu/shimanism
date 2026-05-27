@@ -3,8 +3,11 @@ package conformance_test
 
 import (
 	"context"
+	"crypto/hmac"
 	"crypto/rand"
+	"crypto/sha256"
 	"crypto/tls"
+	"encoding/base64"
 	"encoding/hex"
 	"net"
 	"net/http"
@@ -19,6 +22,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	awssqs "github.com/aws/aws-sdk-go-v2/service/sqs"
 	awssqsTypes "github.com/aws/aws-sdk-go-v2/service/sqs/types"
+	"golang.org/x/oauth2"
 	"google.golang.org/api/option"
 	pubsubraw "google.golang.org/api/pubsub/v1"
 
@@ -397,5 +401,89 @@ func TestSockerless_Azure_ServiceBus_Queue_SendReceive(t *testing.T) {
 	}
 	if got := string(msgs[0].Body); got != string(body) {
 		t.Errorf("ReceiveMessages body = %q, want %q", got, string(body))
+	}
+}
+
+// gcpHS256Bearer mints a test-mode HS256 JWT that the shim's
+// gcpbearer middleware accepts.
+func gcpHS256Bearer(t *testing.T, audience string) string {
+	t.Helper()
+	header := base64.RawURLEncoding.EncodeToString([]byte(`{"alg":"HS256","typ":"JWT","kid":"shim-test"}`))
+	payloadJSON := []byte(`{"aud":"` + audience + `","exp":4102444800,"iat":1}`)
+	payload := base64.RawURLEncoding.EncodeToString(payloadJSON)
+	signingInput := header + "." + payload
+	mac := hmac.New(sha256.New, []byte("test-key-do-not-use-in-prod"))
+	mac.Write([]byte(signingInput))
+	sig := base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
+	return signingInput + "." + sig
+}
+
+type gcpStaticTokenSource struct{ token string }
+
+func (s gcpStaticTokenSource) Token() (*oauth2.Token, error) {
+	return &oauth2.Token{AccessToken: s.token, TokenType: "Bearer"}, nil
+}
+
+// TestSockerless_GCPPubsubQueueFrontendToAWSBackend_RoundTrip is the
+// reverse-direction through-shim cell for queues: GCP Pub/Sub SDK
+// drives the shim's GCP queue frontend (Pub/Sub-shaped), which
+// routes through the shim's AWS SQS backend, which targets
+// sockerless's AWS sim. GCP→AWS migration path for queues; the
+// queue domain abstracts the SQS / Pub/Sub semantics so this is a
+// real bidirectional translation test.
+func TestSockerless_GCPPubsubQueueFrontendToAWSBackend_RoundTrip(t *testing.T) {
+	awsEndpoint := os.Getenv("SOCKERLESS_AWS_SM_ENDPOINT")
+	if awsEndpoint == "" {
+		t.Skip("SOCKERLESS_AWS_SM_ENDPOINT not set")
+	}
+	if os.Getenv("AWS_ACCESS_KEY_ID") == "" {
+		os.Setenv("AWS_ACCESS_KEY_ID", "test")
+	}
+	if os.Getenv("AWS_SECRET_ACCESS_KEY") == "" {
+		os.Setenv("AWS_SECRET_ACCESS_KEY", "test")
+	}
+	if os.Getenv("AWS_REGION") == "" {
+		os.Setenv("AWS_REGION", "us-east-1")
+	}
+	cfg, err := config.LoadDefaultConfig(context.Background())
+	if err != nil {
+		t.Fatalf("aws config: %v", err)
+	}
+	if os.Getenv("AWS_S3_CONFORMANCE_INSECURE_TLS") == "1" {
+		cfg.HTTPClient = insecureAWSHTTPClient()
+	}
+	sqsClient := awssqs.NewFromConfig(cfg, func(o *awssqs.Options) {
+		o.BaseEndpoint = awsapi.String(awsEndpoint)
+	})
+	backend := awsqueue.New(sqsClient)
+	srv := harness.StartQueueServerGCP(t, backend)
+
+	ctx := context.Background()
+	svc, err := pubsubraw.NewService(ctx,
+		option.WithEndpoint(srv.URL+"/"),
+		option.WithTokenSource(gcpStaticTokenSource{token: gcpHS256Bearer(t, "https://pubsub.googleapis.com/")}),
+	)
+	if err != nil {
+		t.Fatalf("pubsub client: %v", err)
+	}
+
+	project := "shim-sockerless"
+	topicName := "projects/" + project + "/topics/shim-sk-rev-q-" + sockHex8()
+	// Pub/Sub-shaped queue: a topic with attached subscription. The
+	// shim's GCP queue frontend maps this to AWS SQS CreateQueue.
+	if _, err := svc.Projects.Topics.Create(topicName, &pubsubraw.Topic{}).Do(); err != nil {
+		t.Fatalf("Topics.Create through shim: %v", err)
+	}
+	t.Cleanup(func() {
+		_, _ = svc.Projects.Topics.Delete(topicName).Do()
+	})
+
+	// HeadQueue equivalent via topics.get
+	got, err := svc.Projects.Topics.Get(topicName).Do()
+	if err != nil {
+		t.Fatalf("Topics.Get through shim: %v", err)
+	}
+	if got.Name != topicName {
+		t.Errorf("Topics.Get.Name = %q, want %q", got.Name, topicName)
 	}
 }
