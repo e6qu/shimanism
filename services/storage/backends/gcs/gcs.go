@@ -370,40 +370,36 @@ func (b *Backend) UploadPart(ctx context.Context, bucket, key, uploadID string, 
 }
 
 func (b *Backend) CompleteMultipartUpload(ctx context.Context, bucket, key, uploadID string, parts []domain.CompletePartRef) (string, error) {
-	// Discover parts under .uploads/<id>/ and order by part-NNNNN.
+	// Build the part-object list from the caller's explicit PartNumber
+	// sequence rather than from a Bucket.Objects listing — that way
+	// the assembly order is the order the caller declared, independent
+	// of any storage-backend listing semantics.
 	prefix := uploadPrefix(key, uploadID)
-	it := b.c.Bucket(bucket).Objects(ctx, &gcsstorage.Query{Prefix: prefix})
-	var partObjs []*gcsstorage.ObjectHandle
-	var markerObj *gcsstorage.ObjectHandle
 	markerName := prefix + ".init"
-	var contentType string
+	markerObj := b.c.Bucket(bucket).Object(markerName)
+	markerAttrs, err := markerObj.Attrs(ctx)
+	if err != nil {
+		if errors.Is(err, gcsstorage.ErrObjectNotExist) {
+			return "", domain.NoSuchUpload(uploadID)
+		}
+		return "", translateErr(err, bucket, key)
+	}
+	contentType := markerAttrs.Metadata["shim-content-type"]
 	var userMeta map[string]string
-	for {
-		attrs, err := it.Next()
-		if errors.Is(err, iterator.Done) {
-			break
-		}
-		if err != nil {
-			return "", translateErr(err, bucket, key)
-		}
-		switch attrs.Name {
-		case markerName:
-			markerObj = b.c.Bucket(bucket).Object(markerName)
-			contentType = attrs.Metadata["shim-content-type"]
-			for k, v := range attrs.Metadata {
-				if strings.HasPrefix(k, "shim-user-") {
-					if userMeta == nil {
-						userMeta = map[string]string{}
-					}
-					userMeta[strings.TrimPrefix(k, "shim-user-")] = v
-				}
+	for k, v := range markerAttrs.Metadata {
+		if strings.HasPrefix(k, "shim-user-") {
+			if userMeta == nil {
+				userMeta = map[string]string{}
 			}
-		default:
-			partObjs = append(partObjs, b.c.Bucket(bucket).Object(attrs.Name))
+			userMeta[strings.TrimPrefix(k, "shim-user-")] = v
 		}
 	}
-	if len(partObjs) == 0 {
+	if len(parts) == 0 {
 		return "", domain.NoSuchUpload(uploadID)
+	}
+	partObjs := make([]*gcsstorage.ObjectHandle, 0, len(parts))
+	for _, p := range parts {
+		partObjs = append(partObjs, b.c.Bucket(bucket).Object(partName(key, uploadID, p.Number)))
 	}
 
 	// Compose into the final key. GCS Compose handles up to 32
