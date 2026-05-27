@@ -6,7 +6,43 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 
 ## Phase 14 — In flight
 
-PR #21 merged on 2026-05-25 at `45985e7`, landing 14.A, the 14.D simulator audit, and the current 14.B sockerless lane. Phase 14 remains open for the planned 3-PR closure (see [DO_NEXT.md § The 3-PR closure plan](DO_NEXT.md#the-3-pr-closure-plan)) plus 14.D Track A which stays blocked on real-cloud credentials.
+PR #21 merged on 2026-05-25 at `45985e7`, landing 14.A, the 14.D simulator audit, and the current 14.B sockerless lane. Phase 14.B and 14.C are now closed (PR #46). What remains: PR 2 (azure_blob full handler migration) and PR 3 (14.D Track A, real-cloud-credentials-gated). 14.E cross-cloud Apply re-opens once shim-side ARM-shimming exists (see PR #46 narrative below).
+
+### Phase 14.B closure (PR #46, merged 2026-05-27)
+
+Single PR bundling four threads — the user's "don't be sneaky! bundle everything that was planned as part of the first PR" rule applied to the 3-PR closure plan from PR #45.
+
+**1. BUG-35 — Container Apps pre-pull plumbing.** Extended `scripts/run-sockerless-storage.sh` to pre-pull `SOCKERLESS_AZURE_CONTAINERAPPS_IMAGE` / `SOCKERLESS_GCP_CLOUDRUN_IMAGE` (defaults to `docker.io/library/nginx:alpine` for Cloud Run; Container Apps stays unset by default) pinned to the host arch via `go env GOARCH`. Cloud Run worked immediately. Container Apps surfaced `simulators/azure/containerapps_apps.go:444` hardcoding `Architecture: "linux/arm64"` regardless of pulled image platform — filed [sockerless#244](https://github.com/e6qu/sockerless/issues/244); shim-side plumbing is correct, the lane skips by default on amd64 CI until the upstream fix lands.
+
+**2. GCP Cloud Run sockerless lane.** Added `TestSockerless_GCP_CloudRun_CRUD` against `services/functions/backends/gcp` using `runapi "google.golang.org/api/run/v2"` with `option.WithEndpoint` + `option.WithoutAuthentication`. Bare-minimum CRUD against sockerless's Cloud Run handler.
+
+**3. Reverse-direction through-shim cells (BUG-24).** Three exemplars added — cache, secrets, queue — all GCP→AWS direction (the existing cells were AWS→GCP). Each test mints an HS256 bearer with audience matching the service's published audience (`https://secretmanager.googleapis.com/`, `https://pubsub.googleapis.com/`, etc.) signed with the shared test key, and feeds it through the gcpbearer middleware to the AWS-backed handler. Inline `gcpHS256Bearer(t, audience)` helper + `gcpStaticTokenSource{token}` implementing `oauth2.TokenSource` per file.
+
+**4. 14.C — all 7 GCP frontend handler migrations.** Retired the `regexp.MustCompile` dispatch table from `internal/{functions,cache,queue,pubsub,storage,rdbms,apigateway}/frontends/gcp_*/server.go`. New shape: `strings.CutPrefix` to strip the version prefix → `strings.Split` → `segs[N]` inspection → optional `IndexByte(':')` to peel action suffixes. The reference pattern is `gcp_secretmanager` from PR #21. Per-frontend nuance:
+
+- `gcp_memorystore` reuses the existing `stripVersionPrefix` for `/v1` vs `/v1beta1`.
+- `gcs` got new `stripGCSPrefix` + `splitBucketObject` helpers — bucket+object addressing isn't a flat `projects/{p}/...` walk like the others.
+- `gcp_cloudsql` got `stripSQLPrefix` for the two coexisting prefixes (`/v1` SDK + `/sql/v1beta4` Terraform).
+- `gcp_apigateway` pins APIs collection to `locations/global`.
+- `gcp_pubsub` (queue + pubsub sides identical in shape) uses `IndexByte(':')` to split entity from action suffix (e.g. `subscriptions/sub-x:pull`).
+
+The `regexp` import is fully retired from each frontend. Existing `TestGCPRoutes_*_FrontendDispatchCoverage` tests pin behaviour — migration is a pure refactor, mechanically validated.
+
+**What didn't make this PR: 14.E cross-cloud Apply cells.** Initially in scope. During the audit I realised 14.E for Azure-source cells needs the *shim* to grow ARM-shimming (`Microsoft.Storage/storageAccounts`, `Microsoft.Cache/Redis`, `Microsoft.DBforPostgreSQL/flexibleServers`, etc.) before sockerless can be on the destination side. sockerless#243 was the analogous question on the sockerless side — the maintainer reframed it to require real data planes per Azure service, which would be sockerless internal architecture (not shimanism's critical path). 14.E re-opens once shim-side ARM-shimming exists; that's separate from this closure PR.
+
+**Upstream sockerless story.** Two issues filed during this PR:
+
+- [sockerless#243](https://github.com/e6qu/sockerless/issues/243) — Azure ARM endpoint emission consistency. Originally framed as "rewrite the ARM strings for 5 services"; the maintainer reframed to "endpoint emission must be paired with real data-plane implementation, all Azure-shaped." Service Bus can land standalone (real data plane already exists via PR #231). Redis/PG/APIM/Container Apps need real data planes first — sockerless internal architecture, not shimanism's critical path.
+- [sockerless#244](https://github.com/e6qu/sockerless/issues/244) — Container Apps `linux/arm64` hardcode. Blocks BUG-35 closure on amd64 CI runners.
+
+Earlier review follow-ons (sockerless#239 validation, #240 redundant clone, #241 write-guard) all closed via sockerless PR #242.
+
+**CI surprises during PR #46.**
+- First failure: `docker pull nginx:alpine` selected amd64 manifest on ARM dev → fixed via `--platform=linux/$(go env GOARCH)`.
+- Second failure: same pull-platform mismatch on amd64 CI, but root cause was sockerless's Container Apps handler hardcoding arm64 (not the pull). Worked around by leaving `SOCKERLESS_AZURE_CONTAINERAPPS_IMAGE` unset by default — existing `t.Skip` triggers.
+- Third failure: transient github.com 502 cloning sockerless during the workflow's setup step. Retry-rerun resolved it. Pure infrastructure flake.
+
+End state: **37 passing + 1 documented-skipped**.
 
 ### Storage CopyObject sockerless lanes (PR #44, merged 2026-05-27)
 

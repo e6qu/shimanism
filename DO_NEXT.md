@@ -6,14 +6,16 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 
 ## Where we are
 
-- **Phase 14.B nearly complete.** `make sockerless` reports 33 passing + 1 documented-skipped on `main` after PR #44.
+- **Phase 14.B closed + 14.C closed.** `make sockerless` reports **37 passing + 1 documented-skipped** on `main` after PR #46.
 - **Storage matrix complete 3×3** — single-shot + multipart + copy across AWS S3 + GCS + Azure Blob.
 - **Service Bus matrix complete** — admin (ATOM XML) + Send/Receive data-plane (raw AMQP/TLS via `azservicebus.ClientOptions.CustomEndpoint`).
 - **Azure ARM lanes complete** for Redis / PG / APIM via custom `arm.ClientOptions.Cloud.ResourceManager.Endpoint`.
-- **Through-shim cross-cloud cells** cover every service family (one direction per family today).
-- **All current upstream sockerless gaps are closed.** Three open upstream issues from review feedback ([#239](https://github.com/e6qu/sockerless/issues/239) validation, [#240](https://github.com/e6qu/sockerless/issues/240) clone, [#241](https://github.com/e6qu/sockerless/issues/241) write-guard) are internal sockerless improvements that don't unlock any shim lane.
-- **Open BUGs (3):** BUG-8 + BUG-15 (Track A, real GCP needed), BUG-35 (Container Apps pre-pull — shim-side script, planned PR 1).
-- **Last merged:** PR #44 — storage CopyObject sockerless lanes, 2026-05-27.
+- **GCP Cloud Run lane added** (PR #46) using `google.golang.org/api/run/v2` against sockerless's Cloud Run handler.
+- **Through-shim cross-cloud cells cover both directions for cache / secrets / queue** (AWS↔GCP). Other families still cover one direction; reverse-direction expansion is ongoing BUG-24 work.
+- **All 7 GCP frontends migrated** from `regexp` tables to `strings.CutPrefix` + `strings.Split` + `segs[N]` dispatch (PR #46). `regexp` import retired from all per-frontend GCP handlers.
+- **Open BUGs (3):** BUG-8 + BUG-15 (Track A, real GCP needed), BUG-35 (Container Apps lane — shim-side script plumbing shipped in PR #46; the lane unblocks once sockerless#244 lands).
+- **Upstream watch:** sockerless#243 (Azure ARM endpoint emission — maintainer reframed scope; not on shimanism's critical path), sockerless#244 (Container Apps `linux/arm64` hardcode — blocks BUG-35 closure on amd64).
+- **Last merged:** PR #46 — Phase 14.B closure, 2026-05-27.
 
 ## Session-start checklist
 
@@ -23,25 +25,13 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 4. Read [STATUS.md](STATUS.md) + this file. Skim BUGS.md § Open.
 5. Pick from the 3-PR closure plan below.
 
-## The 3-PR closure plan
+## The 3-PR closure plan — status
 
-The remaining Phase-14 scope I can do (excluding 14.D Track A which needs real GCP credentials) fits into **3 PRs**. Each is independent; they can land in any order.
+- **PR 1 — ✅ shipped as PR #46** (2026-05-27). BUG-35 shim-side plumbing + GCP Cloud Run lane + 3 reverse-direction cells (cache / secrets / queue, all GCP→AWS) + all 7 14.C GCP frontend migrations. 14.E cross-cloud Apply cells deferred from PR 1 scope — the gating problem is shim-side ARM-shimming (not sockerless), see footnote below.
+- **PR 2 — next active sub-task.** `azure_blob` full handler migration.
+- **PR 3 — blocked on real-cloud credentials.**
 
-### PR 1 — "Round out Phase 14.B + 14.C GCP cosmetic migrations + 14.E Azure cross-cloud cells"
-
-**Estimated size:** ~1500-2500 LOC across ~15 files. **Sockerless dep:** none expected; 14.E cells may surface gaps which then file upstream + `t.Skip` with reference.
-
-Contents:
-
-1. **BUG-35** — extend `scripts/run-sockerless-storage.sh` to pre-pull a small public image (e.g. `nginx:alpine` or `mcr.microsoft.com/azuredocs/aci-helloworld:latest`) into the local container runtime and export `SOCKERLESS_AZURE_CONTAINERAPPS_IMAGE`. The existing `TestSockerless_Azure_Functions_ContainerApps_CRUD` (currently `t.Skip`) becomes the 34th passing lane.
-2. **GCP Cloud Run standalone sockerless lane** — `TestSockerless_GCP_CloudRun_CRUD` in `services/functions/conformance/sockerless_test.go`. Pattern matches the existing AWS Lambda lane; uses the shim's `services/functions/backends/gcp` against sockerless's `cloudrun.go` handler.
-3. **BUG-24 reverse-direction through-shim cells (3 exemplars)** — pick three service families and add reverse-direction cells (GCP source → AWS backend, Azure source → AWS backend, or similar). No new sockerless surface needed.
-4. **14.C handler migrations — all 7 GCP frontends** — `gcp_apigateway` (502 lines), `gcp_memorystore` (319), `gcp_cloudrun` (305), `gcp_pubsub` queue side, `gcp_pubsub` pubsub side, `gcp_cloudsql`, `gcs`. Replace regex dispatch with path-shape inspection like the `gcp_secretmanager` reference. Existing `TestGCPRoutes_*_FrontendDispatchCoverage` tests pin behavior so refactor is mechanically safe.
-5. **14.E cross-cloud Apply cells** — Azure-source-and-destination `TestCrossCloudApply_Roundtrip_*` cells across service families. Build on the new Azure ARM lanes from PR #38 + PR #39 + PR #42 + PR #44. Terraform drives the shim, which drives sockerless. Likely surfaces upstream sockerless gaps; resolution is file + `t.Skip` per affected cell.
-
-**End state of PR 1:** `make sockerless` at ~38-42 passing lanes. Closes BUG-35 + BUG-24.
-
-### PR 2 — "azure_blob full handler migration"
+### PR 2 — "azure_blob full handler migration" — next active
 
 **Estimated size:** ~1500-2000 LOC concentrated in `internal/storage/frontends/azure_blob/server.go`. **Sockerless dep:** none.
 
@@ -49,11 +39,13 @@ Migrate the 69-op Azure Blob frontend from regex dispatch to the Service-Bus-sty
 
 Existing conformance tests + `TestAzureGen_Storage_HandlerDispatch` (to be added) pin behavior.
 
-Separate from PR 1 because its review surface is concentrated in one file with one substantial design (~69 ops) that warrants focused attention.
-
 ### PR 3 — "Track A residuals" — BLOCKED ON INFRA
 
 Real-cloud lanes for BUG-8 (hashicorp/google API Gateway TF endpoint/OAuth leg) + BUG-15 (`message_retention_duration` state-drift question) + real-signed verifier conformance. Requires AWS / GCP / Azure accounts. Not actionable until infra exists.
+
+### Footnote: why 14.E is not the next active sub-task
+
+I started PR #46 expecting 14.E cross-cloud Apply cells to fit. During the work I audited what 14.E actually needs and the audit reframed the problem: sockerless is on the *destination* side of cross-cloud Apply (AWS or GCP), not the Azure source side. The Azure source side is the shim itself, which doesn't yet expose ARM-shimmed routes for `Microsoft.Storage/storageAccounts`, `Microsoft.Cache/Redis`, `Microsoft.DBforPostgreSQL/flexibleServers`, etc. — the shim needs to grow those shape translations before any Azure-source 14.E cell can run end-to-end. sockerless#243 (Azure ARM endpoint emission) is the analogous gap on the sockerless side and the maintainer reframed it to require real data planes too, but it's not on shimanism's critical path. 14.E re-opens once shim-side ARM-shimming exists; that's a separate workstream worth its own PR.
 
 ## Sockerless rebuild + lane run (when needed)
 
@@ -73,7 +65,7 @@ The Azure sim now needs `SIM_SERVICEBUS_AMQP_LISTEN_ADDR` set on a separate port
 
 - File or reopen upstream sockerless issues for any gap surfaced by shim work; never paper over with a workaround in shim test code.
 - Test driver is the cloud SDK / CLI / Terraform provider; transport beneath that is the SDK's business (no WebSocket / AMQP / protocol code in test code).
-- `make sockerless` baseline as of PR #44: **33 passing + 1 documented-skipped**.
+- `make sockerless` baseline as of PR #46: **37 passing + 1 documented-skipped** (Container Apps, awaiting sockerless#244).
 
 ## Historical migration context
 
