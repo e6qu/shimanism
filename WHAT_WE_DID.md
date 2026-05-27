@@ -6,7 +6,23 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 
 ## Phase 14 — In flight
 
-PR #21 merged on 2026-05-25 at `45985e7`, landing 14.A, the 14.D simulator audit, and the current 14.B sockerless lane. Phase 14.B and 14.C are now closed (PR #46). What remains: PR 2 (azure_blob full handler migration) and PR 3 (14.D Track A, real-cloud-credentials-gated). 14.E cross-cloud Apply re-opens once shim-side ARM-shimming exists (see PR #46 narrative below).
+PR #21 merged on 2026-05-25 at `45985e7`, landing 14.A, the 14.D simulator audit, and the current 14.B sockerless lane. Phase 14.B and 14.C are now closed (PR #46). Phase 13.A is also closed — PR #47 retired the last ◐ migration (`azure_blob`). What remains in Phase 14: PR 3 (14.D Track A, real-cloud-credentials-gated). 14.E cross-cloud Apply re-opens once shim-side ARM-shimming exists (see PR #46 narrative below).
+
+### Phase 13.A.6 — `azure_blob` full handler migration (PR #47, merged 2026-05-27)
+
+The last `◐` in `DO_NEXT.md § Phase 13.A`. After this PR every Azure frontend in the shim implements `gen.ServerInterface` directly (with a `var _ gen.ServerInterface = (*Server)(nil)` compile-time gate), not just via blank import.
+
+`azure_blob` is the largest by surface area — 69 gen operations vs ~6-66 for the other Azure frontends. The migration retains the existing hand-written query-discriminated `ServeHTTP` dispatcher (Go 1.22's `ServeMux` can't dispatch on `?restype=container` or `?comp=list`); it adds the gen.ServerInterface methods as a parallel surface, with 12 in-intersection methods bridging to the existing handlers and 57 returning the Azure error envelope via `notImplemented` (HTTP 501, `x-ms-error-code: OperationNotSupported`, XML body). Pattern matches `azure_servicebus` from Phase 13.A.4.
+
+**In-intersection mapping (12):** `ServiceListContainersSegment` → `listContainers`; `ContainerCreate`/`GetProperties`/`Delete` → `createContainer` / `getContainerProperties` / `deleteContainer`; `ContainerListBlobFlatSegment` + `ContainerListBlobHierarchySegment` → `listBlobs` (the hierarchical variant just sets a delimiter); `BlockBlobUpload`/`BlobDownload`/`BlobGetProperties`/`BlobDelete` → `putBlob` / `getBlob` / `headBlob` / `deleteBlob`; `BlobStartCopyFromURL` + `BlobCopyFromURL` → `copyBlob` (the shim treats async and sync copy identically because it doesn't expose async operation polling).
+
+**Out-of-intersection stubs (57):** lease ops (Acquire/Break/Change/Release/Renew Lease × Blob + Container); page-blob ops (Create, Clear/Upload/UploadFromURL/GetRanges/GetRangesDiff/Resize/CopyIncremental/UpdateSequenceNumber); append-blob ops (Create/AppendBlock/AppendBlockFromUrl/Seal); block staging (StageBlock/StageBlockFromURL/GetBlockList/CommitBlockList — the shim's multipart support runs through the *backend* directly to its destination cloud, not through frontend block-staging); tags (Get/Set); snapshots; tier; service-level (Properties/Stats/AccountInfo/UserDelegationKey/SubmitBatch/FilterBlobs); ACLs (GetAccessPolicy/SetAccessPolicy); container-level batch/filter/rename/restore/metadata; immutability + legal hold; expiry; HTTPHeaders; undelete; Query.
+
+Three tests pin the contract: a compile-time assertion (interface satisfaction), an in-intersection bridge test (PUT container + GET list via `ServeHTTP`), and an out-of-intersection envelope test (`BlobSetTier` direct call → 501 + `OperationNotSupported` XML body).
+
+This PR also folded forward the continuity-doc updates that should have shipped inside PR #46. PR #46 closed Phase 14.B + 14.C without updating STATUS / DO_NEXT / WHAT_WE_DID in its own diff — a continuity-rule violation caught only after merge. Subsequent PRs should update the docs inside the same PR that does the work.
+
+End state: `make sockerless` still **37 passing + 1 documented-skipped**. Storage + sockerless conformance unaffected (the migration is pure spec-drift-contract refactor; ServeHTTP routing is unchanged).
 
 ### Phase 14.B closure (PR #46, merged 2026-05-27)
 
