@@ -6,10 +6,13 @@ import (
 	"crypto/rand"
 	"crypto/tls"
 	"encoding/hex"
+	"net"
 	"net/http"
 	"os"
 	"testing"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
+	"github.com/Azure/azure-sdk-for-go/sdk/messaging/azservicebus/admin"
 	awsapi "github.com/aws/aws-sdk-go-v2/aws"
 	awshttp "github.com/aws/aws-sdk-go-v2/aws/transport/http"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -21,6 +24,7 @@ import (
 	"github.com/e6qu/shimanism/internal/harness"
 	"github.com/e6qu/shimanism/internal/queue/domain"
 	awsqueue "github.com/e6qu/shimanism/services/queue/backends/aws"
+	azurequeue "github.com/e6qu/shimanism/services/queue/backends/azure"
 	gcpqueue "github.com/e6qu/shimanism/services/queue/backends/gcp"
 )
 
@@ -221,4 +225,111 @@ func sockHex8() string {
 	b := make([]byte, 4)
 	_, _ = rand.Read(b)
 	return hex.EncodeToString(b)
+}
+
+// TestSockerless_Azure_ServiceBus_Queue_CRUD exercises the shim's
+// Azure Service Bus queue backend's admin surface against sockerless's
+// new namespace-level ATOM XML admin protocol (sockerless#225,
+// sockerless PR #225 merged 2026-05-26). CreateQueue →
+// SetQueueAttributes (LockDuration + DefaultMessageTimeToLive
+// updates) → HeadQueue → ListQueues → DeleteQueue.
+//
+// The AMQP data plane is not exercised — sockerless implements REST
+// data-plane operations but not AMQP, and the shim's queue domain's
+// SendMessage / ReceiveMessage round-trip goes through azservicebus
+// AMQP. Test stays admin-only.
+func TestSockerless_Azure_ServiceBus_Queue_CRUD(t *testing.T) {
+	port := os.Getenv("SOCKERLESS_AZURE_TLS_PORT")
+	if port == "" {
+		t.Skip("SOCKERLESS_AZURE_TLS_PORT not set")
+	}
+	connStr := sockerlessAzureSBConnectionString()
+	backend, err := azurequeue.New(azurequeue.Config{
+		ConnectionString:   connStr,
+		AdminClientOptions: sockerlessSBAdminClientOptions(port),
+	})
+	if err != nil {
+		t.Fatalf("azurequeue.New: %v", err)
+	}
+	ctx := context.Background()
+
+	name := "shim-sk-sbq-" + sockHex8()
+	if _, err := backend.CreateQueue(ctx, name, domain.CreateQueueOptions{
+		Attributes: domain.QueueAttributes{
+			VisibilityTimeoutSeconds: 30,
+			MessageRetentionSeconds:  60,
+		},
+	}); err != nil {
+		t.Fatalf("CreateQueue: %v", err)
+	}
+	t.Cleanup(func() { _ = backend.DeleteQueue(ctx, name) })
+
+	if err := backend.SetQueueAttributes(ctx, name, domain.QueueAttributes{
+		VisibilityTimeoutSeconds: 60,
+		MessageRetentionSeconds:  604800,
+	}); err != nil {
+		t.Fatalf("SetQueueAttributes: %v", err)
+	}
+
+	q, err := backend.HeadQueue(ctx, name)
+	if err != nil {
+		t.Fatalf("HeadQueue: %v", err)
+	}
+	if q.Name != name {
+		t.Errorf("HeadQueue.Name = %q, want %q", q.Name, name)
+	}
+	if q.Attributes.VisibilityTimeoutSeconds != 60 {
+		t.Errorf("VisibilityTimeoutSeconds = %d, want 60",
+			q.Attributes.VisibilityTimeoutSeconds)
+	}
+	if q.Attributes.MessageRetentionSeconds != 604800 {
+		t.Errorf("MessageRetentionSeconds = %d, want 604800",
+			q.Attributes.MessageRetentionSeconds)
+	}
+
+	list, err := backend.ListQueues(ctx, domain.ListQueuesOptions{})
+	if err != nil {
+		t.Fatalf("ListQueues: %v", err)
+	}
+	found := false
+	for _, lq := range list.Queues {
+		if lq.Name == name {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("ListQueues did not contain %q", name)
+	}
+}
+
+// sockerlessAzureSBConnectionString returns a Service Bus connection
+// string targeted at the sockerless namespace `test-ns`. The SAS key
+// is a fixed base64 string the sim doesn't actually verify; the
+// custom transport pinned to the sim's port handles the routing.
+func sockerlessAzureSBConnectionString() string {
+	return "Endpoint=sb://test-ns.servicebus.windows.net/;" +
+		"SharedAccessKeyName=RootManageSharedAccessKey;" +
+		"SharedAccessKey=c29ja2VybGVzcy10ZXN0LWtleS1ub3QtdmVyaWZpZWQK"
+}
+
+// sockerlessSBAdminClientOptions builds admin.ClientOptions whose
+// transport dials 127.0.0.1:<port> regardless of the request URL's
+// host. The Host header (`test-ns.servicebus.windows.net`) survives
+// — sockerless's `*.servicebus.*` host dispatcher parses the
+// namespace prefix from it. InsecureSkipVerify because the sim's
+// cert is self-signed.
+func sockerlessSBAdminClientOptions(port string) *admin.ClientOptions {
+	dialer := &net.Dialer{}
+	transport := &http.Transport{
+		DialContext: func(ctx context.Context, network, _ string) (net.Conn, error) {
+			return dialer.DialContext(ctx, network, "127.0.0.1:"+port)
+		},
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	return &admin.ClientOptions{
+		ClientOptions: azcore.ClientOptions{
+			Transport: &http.Client{Transport: transport},
+		},
+	}
 }
