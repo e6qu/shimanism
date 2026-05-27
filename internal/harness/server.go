@@ -49,6 +49,7 @@ import (
 	"github.com/e6qu/shimanism/internal/sigv4verifier"
 	"github.com/e6qu/shimanism/internal/storage/domain"
 	awsfront "github.com/e6qu/shimanism/internal/storage/frontends/aws_s3"
+	azurearmstoragefront "github.com/e6qu/shimanism/internal/storage/frontends/azure_arm_storageaccounts"
 	azurefront "github.com/e6qu/shimanism/internal/storage/frontends/azure_blob"
 	gcsfront "github.com/e6qu/shimanism/internal/storage/frontends/gcs"
 	storagegen "github.com/e6qu/shimanism/services/storage/gen"
@@ -149,6 +150,23 @@ func StartStorageServerAzureBlob(t *testing.T, backend domain.Storage) *StorageS
 		Key:     []byte("test-key-do-not-use-in-prod-this-is-32-bytes-of-junk"),
 	})
 	mw := azuresharedkey.Middleware(verifier)
+	ts := httptest.NewServer(&logRoundTrip{t: t, mux: mw(srv)})
+	t.Cleanup(ts.Close)
+	return &StorageServer{URL: ts.URL, Close: ts.Close}
+}
+
+// StartStorageServerAzureARM starts a shim instance with the
+// Microsoft.Storage ARM frontend (storage accounts + blob containers
+// at the control plane). Wrapped with the same `azurebearer`
+// middleware all the other ARM-shimmed services use, configured for
+// audience "https://management.azure.com/" + the shared HS256 test
+// key. Phase 14.E unblocks `azurerm_storage_account` +
+// `azurerm_storage_container` through-shim Terraform Apply.
+func StartStorageServerAzureARM(t *testing.T, backend domain.Storage) *StorageServer {
+	t.Helper()
+	srv := azurearmstoragefront.New(backend)
+	verifier := azurebearer.New(azurebearer.Options{Audience: "https://management.azure.com/", TestKey: []byte("test-key-do-not-use-in-prod")})
+	mw := azurebearer.Middleware(verifier)
 	ts := httptest.NewServer(&logRoundTrip{t: t, mux: mw(srv)})
 	t.Cleanup(ts.Close)
 	return &StorageServer{URL: ts.URL, Close: ts.Close}

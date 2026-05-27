@@ -127,7 +127,7 @@ codegen:
 			-ops="$$ops" \
 			-commit="$$commit" || exit $$?; \
 	done
-	@for manifest in $$(find services -maxdepth 2 -name azure-codegen.json | sort); do \
+	@for manifest in $$(find services -maxdepth 2 -name 'azure*codegen.json' | sort); do \
 		svc_dir=$$(dirname $$manifest); \
 		spec=$$(jq -r '.spec' $$manifest); \
 		pkg=$$(jq -r '.package' $$manifest); \

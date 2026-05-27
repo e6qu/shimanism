@@ -17,9 +17,16 @@ import (
 	"net/http"
 	"os"
 	"testing"
+	"time"
 
 	gcsstorage "cloud.google.com/go/storage"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/arm"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/cloud"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/runtime"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/to"
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/storage/armstorage"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awshttp "github.com/aws/aws-sdk-go-v2/aws/transport/http"
@@ -27,6 +34,7 @@ import (
 	awss3 "github.com/aws/aws-sdk-go-v2/service/s3"
 	"google.golang.org/api/option"
 
+	"github.com/e6qu/shimanism/internal/azurebearer"
 	"github.com/e6qu/shimanism/internal/harness"
 	"github.com/e6qu/shimanism/internal/storage/domain"
 	awsbackend "github.com/e6qu/shimanism/services/storage/backends/aws"
@@ -900,4 +908,114 @@ func TestSockerless_E2E_GCSFrontendToAWSBackend(t *testing.T) {
 	if !bytes.Equal(data, body) {
 		t.Errorf("GCS reader body = %q, want %q", string(data), string(body))
 	}
+}
+
+// TestSockerless_E2E_AzureARM_StorageAccount_Through_Shim drives a
+// real `armstorage` SDK + `azblob` SDK end-to-end through TWO shim
+// frontends — the Microsoft.Storage ARM frontend on the control
+// plane, the existing azure_blob frontend on the data plane — both
+// wired to the same backend (AWS S3 → sockerless AWS). The
+// cross-cloud Apply primitive this proves: an `azurerm_storage_account`
+// PUT acknowledges synthetically (the shim's accounts are routing-
+// fiction), an `azurerm_storage_container` PUT bridges to
+// backend.CreateBucket, and a subsequent blob upload via the data
+// plane hits the same backend bucket. Phase 14.E.
+func TestSockerless_E2E_AzureARM_StorageAccount_Through_Shim(t *testing.T) {
+	endpoint := os.Getenv("SOCKERLESS_AWS_ENDPOINT")
+	if endpoint == "" {
+		t.Skip("SOCKERLESS_AWS_ENDPOINT not set")
+	}
+	ctx := context.Background()
+
+	backend := awsbackend.New(newSockerlessAWSClient(t, endpoint))
+	armShim := harness.StartStorageServerAzureARM(t, backend)
+	blobShim := harness.StartStorageServerAzureBlob(t, backend)
+
+	token := azurebearer.TestJWT(
+		[]byte("test-key-do-not-use-in-prod"),
+		"https://shim.test/",
+		"https://management.azure.com/",
+		time.Hour,
+	)
+	armOpts := &arm.ClientOptions{ClientOptions: azcore.ClientOptions{
+		Cloud: cloud.Configuration{
+			ActiveDirectoryAuthorityHost: armShim.URL + "/",
+			Services: map[cloud.ServiceName]cloud.ServiceConfiguration{
+				cloud.ResourceManager: {
+					Audience: "https://management.azure.com",
+					Endpoint: armShim.URL,
+				},
+			},
+		},
+		// The shim's httptest.NewServer is HTTP, not HTTPS — the
+		// Azure SDK refuses to send bearer tokens to non-HTTPS by
+		// default. This flag relaxes that for the test harness; not
+		// suitable for production deployments (where TLS is real).
+		InsecureAllowCredentialWithHTTP: true,
+	}}
+	cred := staticBearer{token: token}
+
+	subID := "00000000-0000-0000-0000-000000000000"
+	rg := "shim-rg"
+	account := "shimacct" + randomNamespace("a")[:6]
+	containerName := "rt-" + randomNamespace("c")
+
+	accountsClient, err := armstorage.NewAccountsClient(subID, cred, armOpts)
+	if err != nil {
+		t.Fatalf("armstorage AccountsClient: %v", err)
+	}
+	poller, err := accountsClient.BeginCreate(ctx, rg, account, armstorage.AccountCreateParameters{
+		Kind:     to.Ptr(armstorage.KindStorageV2),
+		Location: to.Ptr("eastus"),
+		SKU:      &armstorage.SKU{Name: to.Ptr(armstorage.SKUNameStandardLRS)},
+	}, nil)
+	if err != nil {
+		t.Fatalf("ARM CreateAccount: %v", err)
+	}
+	if _, err := poller.PollUntilDone(ctx, &runtime.PollUntilDoneOptions{Frequency: 50 * time.Millisecond}); err != nil {
+		t.Fatalf("ARM CreateAccount poll: %v", err)
+	}
+	t.Cleanup(func() { _, _ = accountsClient.Delete(ctx, rg, account, nil) })
+
+	if _, err := accountsClient.GetProperties(ctx, rg, account, nil); err != nil {
+		t.Fatalf("ARM GetProperties: %v", err)
+	}
+
+	containersClient, err := armstorage.NewBlobContainersClient(subID, cred, armOpts)
+	if err != nil {
+		t.Fatalf("armstorage BlobContainersClient: %v", err)
+	}
+	if _, err := containersClient.Create(ctx, rg, account, containerName, armstorage.BlobContainer{}, nil); err != nil {
+		t.Fatalf("ARM Create container: %v", err)
+	}
+	t.Cleanup(func() { _, _ = containersClient.Delete(ctx, rg, account, containerName, nil) })
+
+	blobClient := newAzureBlobClient(t, blobShim.URL)
+	body := []byte("through-shim ARM + blob: " + account + "/" + containerName)
+	blobName := "rt/obj.txt"
+	if _, err := blobClient.UploadBuffer(ctx, containerName, blobName, body, &azblob.UploadBufferOptions{}); err != nil {
+		t.Fatalf("UploadBuffer via blob frontend (after ARM PUT): %v", err)
+	}
+	got, err := blobClient.DownloadStream(ctx, containerName, blobName, nil)
+	if err != nil {
+		t.Fatalf("DownloadStream: %v", err)
+	}
+	data, err := io.ReadAll(got.Body)
+	_ = got.Body.Close()
+	if err != nil {
+		t.Fatalf("read body: %v", err)
+	}
+	if !bytes.Equal(data, body) {
+		t.Errorf("downloaded body = %q, want %q", string(data), string(body))
+	}
+
+	t.Cleanup(func() {
+		_, _ = blobClient.DeleteBlob(ctx, containerName, blobName, nil)
+	})
+}
+
+type staticBearer struct{ token string }
+
+func (s staticBearer) GetToken(_ context.Context, _ policy.TokenRequestOptions) (azcore.AccessToken, error) {
+	return azcore.AccessToken{Token: s.token, ExpiresOn: time.Now().Add(time.Hour)}, nil
 }
