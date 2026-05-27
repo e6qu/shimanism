@@ -2,15 +2,12 @@ package gcs
 
 import (
 	"net/http"
-	"regexp"
 	"strings"
 
 	"github.com/e6qu/shimanism/internal/storage/domain"
 
-	_ "github.com/e6qu/shimanism/services/storage/gen/gcp" // Phase 13.B spec-drift contract; gen.gcp.Routes is the canonical route inventory.
+	_ "github.com/e6qu/shimanism/services/storage/gen/gcp" // Phase 14.C spec-drift contract; gen.gcp.Routes is the canonical route inventory.
 )
-
-var _ = strings.HasPrefix
 
 // Server is a GCS-shaped HTTP frontend that dispatches to a
 // domain.Storage backend. Mount with http.Handle / http.Serve;
@@ -22,132 +19,160 @@ type Server struct {
 // New returns a GCS frontend wired to the given storage backend.
 func New(s domain.Storage) *Server { return &Server{s: s} }
 
-// route patterns. The `(?:/storage/v1)?` prefix is optional because
-// `cloud.google.com/go/storage` constructs URLs relative to the
-// configured endpoint without the `/storage/v1` prefix when an
-// endpoint override is set, but the bare `gcloud storage` CLI hits
-// the full `/storage/v1/...` path. Both shapes route the same way.
-var (
-	// .../download/storage/v1/b/{bucket}/o/{object}
-	reDownloadObject = regexp.MustCompile(`^/download(?:/storage/v1)?/b/([^/]+)/o/(.+)$`)
-	// .../b/{bucket}/o/{src}/rewriteTo/b/{dst}/o/{dstObj}
-	reRewriteTo = regexp.MustCompile(`^(?:/storage/v1)?/b/([^/]+)/o/(.+?)/rewriteTo/b/([^/]+)/o/(.+)$`)
-	// .../b/{bucket}/o/{src}/copyTo/b/{dst}/o/{dstObj}
-	reCopyTo = regexp.MustCompile(`^(?:/storage/v1)?/b/([^/]+)/o/(.+?)/copyTo/b/([^/]+)/o/(.+)$`)
-	// .../b/{bucket}/o/{object}
-	reBucketObject = regexp.MustCompile(`^(?:/storage/v1)?/b/([^/]+)/o/(.+)$`)
-	// .../b/{bucket}/o
-	reBucketObjects = regexp.MustCompile(`^(?:/storage/v1)?/b/([^/]+)/o/?$`)
-	// .../b/{bucket}/storageLayout
-	reBucketStorageLayout = regexp.MustCompile(`^(?:/storage/v1)?/b/([^/]+)/storageLayout/?$`)
-	// .../b/{bucket}/managedFolders
-	reBucketManagedFolders = regexp.MustCompile(`^(?:/storage/v1)?/b/([^/]+)/managedFolders/?$`)
-	// .../b/{bucket}
-	reBucket = regexp.MustCompile(`^(?:/storage/v1)?/b/([^/]+)/?$`)
-	// .../b
-	reBuckets = regexp.MustCompile(`^(?:/storage/v1)?/b/?$`)
-	// /upload/storage/v1/b/{bucket}/o OR /upload/b/{bucket}/o
-	reUploadObjects = regexp.MustCompile(`^/upload(?:/storage/v1)?/b/([^/]+)/o/?$`)
-)
+// stripGCSPrefix removes the optional `/storage/v1` segment so
+// downstream parsing can work with the version-neutral remainder.
+// Both `gcloud storage` (full `/storage/v1/b/...`) and the Go SDK's
+// endpoint-override path (bare `/b/...`) route the same way.
+func stripGCSPrefix(path string) (rest string, hadV1 bool) {
+	if r, ok := strings.CutPrefix(path, "/storage/v1"); ok {
+		return r, true
+	}
+	return path, false
+}
 
-// ServeHTTP routes the request. The GCS REST surface is regular
-// enough that regex matching is fine; we don't have the
-// (method, path, query) ambiguity that drove the AWS router's
-// disambiguation layer.
+// ServeHTTP dispatches by path-shape inspection. Existing
+// `TestGCPRoutes_Storage_FrontendDispatchCoverage` pins behavior.
+//
+// Routes covered (with optional `/storage/v1` prefix):
+//
+//	GET    /b
+//	POST   /b
+//	GET    /b/{bucket}
+//	DELETE /b/{bucket}
+//	GET    /b/{bucket}/storageLayout
+//	GET    /b/{bucket}/managedFolders
+//	GET    /b/{bucket}/o
+//	GET    /b/{bucket}/o/{object}
+//	DELETE /b/{bucket}/o/{object}
+//	POST   /b/{src-bucket}/o/{src-obj}/rewriteTo/b/{dst-bucket}/o/{dst-obj}
+//	POST   /b/{src-bucket}/o/{src-obj}/copyTo/b/{dst-bucket}/o/{dst-obj}
+//	POST   /upload[/storage/v1]/b/{bucket}/o
+//	GET    /download[/storage/v1]/b/{bucket}/o/{object}
+//	GET    /{bucket}/{object}            (XML-style media fallback)
 func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path
 	method := r.Method
 
-	// Upload routes live under /upload/. Both simple and multipart
-	// land here; routing branches on the `uploadType` query.
-	if m := reUploadObjects.FindStringSubmatch(path); m != nil {
-		if method == http.MethodPost {
-			srv.uploadObject(w, r, m[1])
-			return
+	// Upload routes.
+	if rest, ok := strings.CutPrefix(path, "/upload"); ok {
+		rest, _ = stripGCSPrefix(rest)
+		segs := strings.Split(strings.TrimPrefix(rest, "/"), "/")
+		// segs = ["b", bucket, "o", ...]
+		if len(segs) >= 3 && segs[0] == "b" && segs[2] == "o" && (len(segs) == 3 || (len(segs) == 4 && segs[3] == "")) {
+			if method == http.MethodPost {
+				srv.uploadObject(w, r, segs[1])
+				return
+			}
 		}
-	}
-
-	if m := reDownloadObject.FindStringSubmatch(path); m != nil {
-		if method == http.MethodGet {
-			srv.getObjectMedia(w, r, m[1], decodeObject(m[2]))
-			return
-		}
-		writeError(w, http.StatusMethodNotAllowed, "methodNotAllowed", method+" not allowed on media download")
+		writeError(w, http.StatusNotFound, "notFound", "no GCS route matches "+method+" "+path)
 		return
 	}
 
-	if m := reRewriteTo.FindStringSubmatch(path); m != nil {
-		if method == http.MethodPost {
-			srv.rewriteTo(w, r, m[1], decodeObject(m[2]), m[3], decodeObject(m[4]))
+	// Download routes.
+	if rest, ok := strings.CutPrefix(path, "/download"); ok {
+		rest, _ = stripGCSPrefix(rest)
+		// rest = "/b/{bucket}/o/{object…}"
+		if bucket, obj, ok := splitBucketObject(rest); ok {
+			if method == http.MethodGet {
+				srv.getObjectMedia(w, r, bucket, decodeObject(obj))
+				return
+			}
+			writeError(w, http.StatusMethodNotAllowed, "methodNotAllowed", method+" not allowed on media download")
 			return
 		}
+		writeError(w, http.StatusNotFound, "notFound", "no GCS route matches "+method+" "+path)
+		return
 	}
-	if m := reCopyTo.FindStringSubmatch(path); m != nil {
-		if method == http.MethodPost {
-			srv.copyTo(w, r, m[1], decodeObject(m[2]), m[3], decodeObject(m[4]))
+
+	// JSON API routes with optional /storage/v1 prefix.
+	if rest, _ := stripGCSPrefix(path); strings.HasPrefix(rest, "/b") {
+		// Check for inline rewriteTo / copyTo cuts first (they nest /b/...).
+		if i := strings.Index(rest, "/rewriteTo/b/"); i >= 0 && method == http.MethodPost {
+			if srcBucket, srcObj, ok := splitBucketObject(rest[:i]); ok {
+				dstPart := rest[i+len("/rewriteTo"):]
+				if dstBucket, dstObj, ok := splitBucketObject(dstPart); ok {
+					srv.rewriteTo(w, r, srcBucket, decodeObject(srcObj), dstBucket, decodeObject(dstObj))
+					return
+				}
+			}
+		}
+		if i := strings.Index(rest, "/copyTo/b/"); i >= 0 && method == http.MethodPost {
+			if srcBucket, srcObj, ok := splitBucketObject(rest[:i]); ok {
+				dstPart := rest[i+len("/copyTo"):]
+				if dstBucket, dstObj, ok := splitBucketObject(dstPart); ok {
+					srv.copyTo(w, r, srcBucket, decodeObject(srcObj), dstBucket, decodeObject(dstObj))
+					return
+				}
+			}
+		}
+		// Strip leading "/" so segs starts at "b".
+		segs := strings.Split(strings.TrimPrefix(rest, "/"), "/")
+		// segs starts with "b". Possible shapes:
+		//   ["b"]                          /b
+		//   ["b", ""]                      /b/
+		//   ["b", bucket]                  /b/{bucket}
+		//   ["b", bucket, ""]              /b/{bucket}/
+		//   ["b", bucket, "storageLayout"] /b/{bucket}/storageLayout
+		//   ["b", bucket, "managedFolders"]/b/{bucket}/managedFolders
+		//   ["b", bucket, "o"]             /b/{bucket}/o
+		//   ["b", bucket, "o", obj...]     /b/{bucket}/o/{object}
+		switch {
+		case len(segs) == 1, len(segs) == 2 && segs[1] == "":
+			switch method {
+			case http.MethodGet:
+				srv.listBuckets(w, r)
+			case http.MethodPost:
+				srv.insertBucket(w, r)
+			default:
+				writeError(w, http.StatusMethodNotAllowed, "methodNotAllowed", method+" not allowed on buckets")
+			}
+			return
+		case len(segs) == 2 || (len(segs) == 3 && segs[2] == ""):
+			bucket := segs[1]
+			switch method {
+			case http.MethodGet:
+				srv.getBucket(w, r, bucket)
+			case http.MethodDelete:
+				srv.deleteBucket(w, r, bucket)
+			default:
+				writeError(w, http.StatusMethodNotAllowed, "methodNotAllowed", method+" not allowed on bucket")
+			}
+			return
+		case len(segs) == 3 && segs[2] == "storageLayout", len(segs) == 4 && segs[2] == "storageLayout" && segs[3] == "":
+			if method == http.MethodGet {
+				srv.getBucketStorageLayout(w, r, segs[1])
+				return
+			}
+			writeError(w, http.StatusMethodNotAllowed, "methodNotAllowed", method+" not allowed on storageLayout")
+			return
+		case len(segs) == 3 && segs[2] == "managedFolders", len(segs) == 4 && segs[2] == "managedFolders" && segs[3] == "":
+			if method == http.MethodGet {
+				srv.listManagedFolders(w, r, segs[1])
+				return
+			}
+			writeError(w, http.StatusMethodNotAllowed, "methodNotAllowed", method+" not allowed on managedFolders")
+			return
+		case len(segs) == 3 && segs[2] == "o", len(segs) == 4 && segs[2] == "o" && segs[3] == "":
+			switch method {
+			case http.MethodGet:
+				srv.listObjects(w, r, segs[1])
+			default:
+				writeError(w, http.StatusMethodNotAllowed, "methodNotAllowed", method+" not allowed on objects")
+			}
+			return
+		case len(segs) >= 4 && segs[2] == "o":
+			bucket := segs[1]
+			obj := decodeObject(strings.Join(segs[3:], "/"))
+			switch method {
+			case http.MethodGet:
+				srv.getObject(w, r, bucket, obj)
+			case http.MethodDelete:
+				srv.deleteObject(w, r, bucket, obj)
+			default:
+				writeError(w, http.StatusMethodNotAllowed, "methodNotAllowed", method+" not allowed on object")
+			}
 			return
 		}
-	}
-	if m := reBucketObject.FindStringSubmatch(path); m != nil {
-		bucket, obj := m[1], decodeObject(m[2])
-		switch method {
-		case http.MethodGet:
-			srv.getObject(w, r, bucket, obj)
-		case http.MethodDelete:
-			srv.deleteObject(w, r, bucket, obj)
-		default:
-			writeError(w, http.StatusMethodNotAllowed, "methodNotAllowed", method+" not allowed on object")
-		}
-		return
-	}
-	if reBucketObjects.MatchString(path) {
-		m := reBucketObjects.FindStringSubmatch(path)
-		switch method {
-		case http.MethodGet:
-			srv.listObjects(w, r, m[1])
-		default:
-			writeError(w, http.StatusMethodNotAllowed, "methodNotAllowed", method+" not allowed on objects")
-		}
-		return
-	}
-	if m := reBucketStorageLayout.FindStringSubmatch(path); m != nil {
-		if method == http.MethodGet {
-			srv.getBucketStorageLayout(w, r, m[1])
-			return
-		}
-		writeError(w, http.StatusMethodNotAllowed, "methodNotAllowed", method+" not allowed on storageLayout")
-		return
-	}
-	if m := reBucketManagedFolders.FindStringSubmatch(path); m != nil {
-		if method == http.MethodGet {
-			srv.listManagedFolders(w, r, m[1])
-			return
-		}
-		writeError(w, http.StatusMethodNotAllowed, "methodNotAllowed", method+" not allowed on managedFolders")
-		return
-	}
-	if m := reBucket.FindStringSubmatch(path); m != nil {
-		bucket := m[1]
-		switch method {
-		case http.MethodGet:
-			srv.getBucket(w, r, bucket)
-		case http.MethodDelete:
-			srv.deleteBucket(w, r, bucket)
-		default:
-			writeError(w, http.StatusMethodNotAllowed, "methodNotAllowed", method+" not allowed on bucket")
-		}
-		return
-	}
-	if reBuckets.MatchString(path) {
-		switch method {
-		case http.MethodGet:
-			srv.listBuckets(w, r)
-		case http.MethodPost:
-			srv.insertBucket(w, r)
-		default:
-			writeError(w, http.StatusMethodNotAllowed, "methodNotAllowed", method+" not allowed on buckets")
-		}
-		return
 	}
 
 	// Fallback: media download at /{bucket}/{object}. The GCS SDK
@@ -164,6 +189,31 @@ func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeError(w, http.StatusNotFound, "notFound", "no GCS route matches "+method+" "+path)
+}
+
+// splitBucketObject parses `/b/{bucket}/o/{object…}` (object may
+// contain slashes) into the bucket name and the raw escaped object
+// path. Returns ok=false if the shape doesn't match.
+func splitBucketObject(rest string) (bucket, obj string, ok bool) {
+	rest = strings.TrimPrefix(rest, "/")
+	if !strings.HasPrefix(rest, "b/") {
+		return "", "", false
+	}
+	rest = rest[len("b/"):]
+	slash := strings.IndexByte(rest, '/')
+	if slash < 0 {
+		return "", "", false
+	}
+	bucket = rest[:slash]
+	rest = rest[slash+1:]
+	if !strings.HasPrefix(rest, "o/") {
+		return "", "", false
+	}
+	obj = rest[len("o/"):]
+	if obj == "" {
+		return "", "", false
+	}
+	return bucket, obj, true
 }
 
 // splitMediaPath parses `/{bucket}/{object}` into its parts. The

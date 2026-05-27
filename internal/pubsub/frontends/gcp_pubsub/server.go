@@ -14,7 +14,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"regexp"
 	"strings"
 	"time"
 
@@ -22,7 +21,7 @@ import (
 
 	"github.com/e6qu/shimanism/internal/pubsub/domain"
 
-	_ "github.com/e6qu/shimanism/services/pubsub/gen/gcp" // Phase 13.B spec-drift contract; gen.gcp.Routes is the canonical route inventory.
+	_ "github.com/e6qu/shimanism/services/pubsub/gen/gcp" // Phase 14.C spec-drift contract; gen.gcp.Routes is the canonical route inventory.
 )
 
 type Server struct {
@@ -31,71 +30,96 @@ type Server struct {
 
 func New(s domain.Pubsub) *Server { return &Server{s: s} }
 
-var (
-	reTopicPublish     = regexp.MustCompile(`^/v1/projects/([^/]+)/topics/([^/:]+):publish$`)
-	reTopic            = regexp.MustCompile(`^/v1/projects/([^/]+)/topics/([^/]+)$`)
-	reTopics           = regexp.MustCompile(`^/v1/projects/([^/]+)/topics/?$`)
-	reSubPull          = regexp.MustCompile(`^/v1/projects/([^/]+)/subscriptions/([^/:]+):pull$`)
-	reSubAck           = regexp.MustCompile(`^/v1/projects/([^/]+)/subscriptions/([^/:]+):acknowledge$`)
-	reSubModAck        = regexp.MustCompile(`^/v1/projects/([^/]+)/subscriptions/([^/:]+):modifyAckDeadline$`)
-	reSubscription     = regexp.MustCompile(`^/v1/projects/([^/]+)/subscriptions/([^/]+)$`)
-	reSubscriptionList = regexp.MustCompile(`^/v1/projects/([^/]+)/subscriptions/?$`)
-)
-
+// ServeHTTP dispatches by path-shape inspection. Same shape as the
+// queue gcp_pubsub frontend; the only differences are the domain
+// interface (Pubsub vs Queues) and that subscriptions are
+// independent of topics (fanout-aware). Existing
+// `TestGCPRoutes_Pubsub_FrontendDispatchCoverage` pins behavior.
 func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path
 	method := r.Method
-	if m := reTopicPublish.FindStringSubmatch(path); m != nil && method == http.MethodPost {
-		srv.publish(w, r, m[2])
+	rest, ok := strings.CutPrefix(path, "/v1/")
+	if !ok {
+		writeError(w, http.StatusNotFound, "NOT_FOUND",
+			"no GCP Pub/Sub route matches "+method+" "+path)
 		return
 	}
-	if m := reTopic.FindStringSubmatch(path); m != nil {
-		switch method {
-		case http.MethodPut:
-			srv.createTopic(w, r, m[2])
-		case http.MethodGet:
-			srv.getTopic(w, r, m[2])
-		case http.MethodDelete:
-			srv.deleteTopic(w, r, m[2])
-		default:
-			writeError(w, http.StatusMethodNotAllowed, "FAILED_PRECONDITION",
-				method+" not allowed on topic")
+	segs := strings.Split(rest, "/")
+	if len(segs) < 3 || segs[0] != "projects" {
+		writeError(w, http.StatusNotFound, "NOT_FOUND",
+			"no GCP Pub/Sub route matches "+method+" "+path)
+		return
+	}
+	switch segs[2] {
+	case "topics":
+		if len(segs) == 3 || (len(segs) == 4 && segs[3] == "") {
+			if method == http.MethodGet {
+				srv.listTopics(w, r)
+				return
+			}
 		}
-		return
-	}
-	if reTopics.MatchString(path) && method == http.MethodGet {
-		srv.listTopics(w, r)
-		return
-	}
-	if m := reSubPull.FindStringSubmatch(path); m != nil && method == http.MethodPost {
-		srv.pull(w, r, m[2])
-		return
-	}
-	if m := reSubAck.FindStringSubmatch(path); m != nil && method == http.MethodPost {
-		srv.acknowledge(w, r, m[2])
-		return
-	}
-	if m := reSubModAck.FindStringSubmatch(path); m != nil && method == http.MethodPost {
-		srv.modifyAckDeadline(w, r, m[2])
-		return
-	}
-	if m := reSubscription.FindStringSubmatch(path); m != nil {
-		switch method {
-		case http.MethodPut:
-			srv.createSubscription(w, r, m[1], m[2])
-		case http.MethodGet:
-			srv.getSubscription(w, r, m[1], m[2])
-		case http.MethodDelete:
-			srv.deleteSubscription(w, r, m[2])
-		default:
-			writeError(w, http.StatusMethodNotAllowed, "FAILED_PRECONDITION",
-				method+" not allowed on subscription")
+		if len(segs) == 4 {
+			tail := segs[3]
+			if i := strings.IndexByte(tail, ':'); i >= 0 {
+				name, action := tail[:i], tail[i+1:]
+				if action == "publish" && method == http.MethodPost {
+					srv.publish(w, r, name)
+					return
+				}
+			} else {
+				switch method {
+				case http.MethodPut:
+					srv.createTopic(w, r, tail)
+				case http.MethodGet:
+					srv.getTopic(w, r, tail)
+				case http.MethodDelete:
+					srv.deleteTopic(w, r, tail)
+				default:
+					writeError(w, http.StatusMethodNotAllowed, "FAILED_PRECONDITION",
+						method+" not allowed on topic")
+				}
+				return
+			}
 		}
-		return
-	}
-	if reSubscriptionList.MatchString(path) && method == http.MethodGet {
-		srv.listSubscriptions(w, r)
-		return
+	case "subscriptions":
+		if len(segs) == 3 || (len(segs) == 4 && segs[3] == "") {
+			if method == http.MethodGet {
+				srv.listSubscriptions(w, r)
+				return
+			}
+		}
+		if len(segs) == 4 {
+			tail := segs[3]
+			if i := strings.IndexByte(tail, ':'); i >= 0 {
+				name, action := tail[:i], tail[i+1:]
+				if method == http.MethodPost {
+					switch action {
+					case "pull":
+						srv.pull(w, r, name)
+						return
+					case "acknowledge":
+						srv.acknowledge(w, r, name)
+						return
+					case "modifyAckDeadline":
+						srv.modifyAckDeadline(w, r, name)
+						return
+					}
+				}
+			} else {
+				switch method {
+				case http.MethodPut:
+					srv.createSubscription(w, r, segs[1], tail)
+				case http.MethodGet:
+					srv.getSubscription(w, r, segs[1], tail)
+				case http.MethodDelete:
+					srv.deleteSubscription(w, r, tail)
+				default:
+					writeError(w, http.StatusMethodNotAllowed, "FAILED_PRECONDITION",
+						method+" not allowed on subscription")
+				}
+				return
+			}
+		}
 	}
 	writeError(w, http.StatusNotFound, "NOT_FOUND",
 		"no GCP Pub/Sub route matches "+method+" "+path)

@@ -23,10 +23,14 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/lambda"
 	lambdatypes "github.com/aws/aws-sdk-go-v2/service/lambda/types"
 
+	"google.golang.org/api/option"
+	runapi "google.golang.org/api/run/v2"
+
 	functionsdomain "github.com/e6qu/shimanism/internal/functions/domain"
 	"github.com/e6qu/shimanism/internal/harness"
 	awsbackend "github.com/e6qu/shimanism/services/functions/backends/aws"
 	azurefunctions "github.com/e6qu/shimanism/services/functions/backends/azure"
+	gcpfunctions "github.com/e6qu/shimanism/services/functions/backends/gcp"
 )
 
 // TestSockerless_AWSLambdaFrontendToAWSBackend_CRUD drives the full
@@ -268,4 +272,77 @@ var sockerlessFarFutureFunctions = time.Date(2099, time.December, 31, 23, 59, 59
 
 func (sockerlessNoOpCredentialFunctions) GetToken(_ context.Context, _ policy.TokenRequestOptions) (azcore.AccessToken, error) {
 	return azcore.AccessToken{Token: "sockerless-test", ExpiresOn: sockerlessFarFutureFunctions}, nil
+}
+
+// TestSockerless_GCP_CloudRun_CRUD exercises the shim's GCP Cloud Run
+// functions backend against sockerless's Cloud Run v2 service surface
+// (`/v2/projects/{project}/locations/{location}/services`):
+// CreateFunction → DescribeFunction → ListFunctions → DeleteFunction.
+//
+// Like Azure Container Apps, sockerless's Cloud Run handler does real
+// container execution — `SIM_GCP_CPU_QUOTA_PER_REGION` quota check
+// then `StartHTTPContainer` to spawn a real replica. Set
+// `SOCKERLESS_GCP_CLOUDRUN_IMAGE` to a pullable image reference
+// (scripts/run-sockerless-storage.sh defaults to nginx:alpine and
+// pre-pulls it). Default-skipped if the env var isn't set.
+func TestSockerless_GCP_CloudRun_CRUD(t *testing.T) {
+	endpoint := os.Getenv("SOCKERLESS_GCP_ENDPOINT")
+	if endpoint == "" {
+		t.Skip("SOCKERLESS_GCP_ENDPOINT not set")
+	}
+	image := os.Getenv("SOCKERLESS_GCP_CLOUDRUN_IMAGE")
+	if image == "" {
+		t.Skip("SOCKERLESS_GCP_CLOUDRUN_IMAGE not set; pre-pull an image and export the reference to opt in.")
+	}
+	ctx := context.Background()
+	svc, err := runapi.NewService(ctx,
+		option.WithEndpoint("http://"+endpoint+"/"),
+		option.WithoutAuthentication(),
+	)
+	if err != nil {
+		t.Fatalf("cloud run client: %v", err)
+	}
+	project := os.Getenv("SOCKERLESS_GCP_PROJECT")
+	if project == "" {
+		project = "shim-sockerless"
+	}
+	backend := gcpfunctions.New(svc, gcpfunctions.Config{ProjectID: project, Region: "us-central1"})
+
+	name := "shim-sk-cr-" + sockerlessHex8()
+	fn, err := backend.CreateFunction(ctx, name, functionsdomain.CreateFunctionOptions{
+		Image:          image,
+		MemoryBytes:    256 << 20,
+		CPUMilliCores:  250,
+		TimeoutSeconds: 30,
+	})
+	if err != nil {
+		t.Fatalf("CreateFunction: %v", err)
+	}
+	if fn.Name != name {
+		t.Errorf("CreateFunction.Name = %q, want %q", fn.Name, name)
+	}
+	t.Cleanup(func() { _ = backend.DeleteFunction(ctx, name) })
+
+	got, err := backend.DescribeFunction(ctx, name)
+	if err != nil {
+		t.Fatalf("DescribeFunction: %v", err)
+	}
+	if got.Name != name {
+		t.Errorf("DescribeFunction.Name = %q, want %q", got.Name, name)
+	}
+
+	list, err := backend.ListFunctions(ctx, functionsdomain.ListFunctionsOptions{})
+	if err != nil {
+		t.Fatalf("ListFunctions: %v", err)
+	}
+	found := false
+	for _, f := range list.Functions {
+		if f.Name == name {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("ListFunctions did not contain %q", name)
+	}
 }
