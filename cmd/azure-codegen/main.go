@@ -631,8 +631,10 @@ var crossVersionPattern = regexp.MustCompile(`\.\./(v[0-9]+)/([A-Za-z0-9_.-]+\.j
 
 // sameVersionPattern matches the `./<file>.json` form used by
 // common-types files to reference siblings in the same version
-// directory.
-var sameVersionPattern = regexp.MustCompile(`^\./([A-Za-z0-9_.-]+\.json)`)
+// directory. Also matches the bare `<file>.json` form (no `./`
+// prefix) used by some Azure ARM specs — e.g. Key Vault's
+// keyvault.json references common.json without a `./` prefix.
+var sameVersionPattern = regexp.MustCompile(`^(?:\./)?([A-Za-z0-9_.-]+\.json)`)
 
 // refKind is the dispatch category a $ref falls into after parsing.
 type refKind int

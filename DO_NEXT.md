@@ -8,9 +8,9 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 
 - **3-PR plan: 2/3 shipped; PR 3 (Track A) blocked.** PR #46/#47/#48/#49/#50 all landed 2026-05-27.
 - **BUG-24 reverse-direction coverage is now complete** — every service family has both cross-cloud directions (PR #50).
-- **14.E ARM-shimming PR 1 in flight** — Microsoft.Storage ARM frontend added. First of 3 missing ARM-shims (Service Bus namespaces + Key Vault vaults still pending in future PRs).
+- **14.E ARM-shimming.** PR #51 (Microsoft.Storage ARM) shipped. PR 2 in flight: Microsoft.KeyVault ARM. Service Bus namespaces ARM still pending (needs codegen inliner extension for `../../common/v<N>/` ref form).
 - **Phase 13.A is fully closed.** Every Azure frontend has full `gen.ServerInterface` impl.
-- `make sockerless` reports **44 passing + 0 skipped** locally with the new ARM → blob through-shim cell (was 43 after PR #50).
+- `make sockerless` reports **45 passing + 0 skipped** locally with the KV ARM through-shim cell (was 44 after PR #51).
 - **Storage matrix complete 3×3** — single-shot + multipart + copy across AWS S3 + GCS + Azure Blob.
 - **Service Bus matrix complete** — admin (ATOM XML) + Send/Receive data-plane (raw AMQP/TLS via `azservicebus.ClientOptions.CustomEndpoint`).
 - **Azure ARM lanes complete** for Redis / PG / APIM via custom `arm.ClientOptions.Cloud.ResourceManager.Endpoint`.
@@ -44,9 +44,9 @@ Real-cloud lanes for BUG-8 (hashicorp/google API Gateway TF endpoint/OAuth leg) 
 
 1. ~~BUG-24 reverse-direction expansion.~~ ✅ Shipped in PR #50.
 2. **14.E shim-side ARM-shimming.** Multi-PR workstream:
-   - **PR 1 (in flight)** — Microsoft.Storage/storageAccounts. Adds the `azure_arm_storageaccounts` frontend, generates the gen pkg from upstream spec, wires the harness Start helper, adds the ARM → blob through-shim sockerless cell.
-   - **PR 2 (next)** — Microsoft.ServiceBus/namespaces. Vendor + gen the SB ARM spec, add the frontend for queue + pubsub (shared namespaces). The shim's existing Service Bus admin uses ATOM XML; ARM gives Terraform's `azurerm_servicebus_namespace`.
-   - **PR 3 (then)** — Microsoft.KeyVault/vaults. Vendor + gen the KV ARM spec, add the frontend for secrets. Unblocks `azurerm_key_vault` Terraform Apply.
+   - **PR 1** — ✅ shipped as PR #51 (Microsoft.Storage/storageAccounts).
+   - **PR 2 (in flight)** — Microsoft.KeyVault/vaults. Adds `azure_arm_keyvault` frontend (17 ops; 7 bridges + 10 stubs), `StartSecretsServerAzureARM` harness, sockerless cell for vault PUT/GET/DELETE. Also fixes `scripts/fetch-azure-spec.sh` to auto-append SOURCES.md rows and extends codegen inliner to accept bare-sibling `$ref` (KV's `common.json` form, no `./` prefix).
+   - **PR 3 (next)** — Microsoft.ServiceBus/namespaces. **Blocked** on codegen inliner extension: SB's namespace-preview.json uses `../../common/v<N>/definitions.json` refs (parent-dir form) that the current inliner doesn't recognize. Either extend the inliner OR vendor SB's local common file under a discoverable location. Defer until storage/KV ARM are proven in real cross-cloud apply.
 3. ~~Watch sockerless#244.~~ ✅ Done in PR #49.
 
 ### Footnote: why 14.E is not active yet

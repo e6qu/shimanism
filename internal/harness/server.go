@@ -44,6 +44,7 @@ import (
 	"github.com/e6qu/shimanism/internal/restxml"
 	secretsdomain "github.com/e6qu/shimanism/internal/secrets/domain"
 	awssmfront "github.com/e6qu/shimanism/internal/secrets/frontends/aws_secretsmanager"
+	azurearmkvfront "github.com/e6qu/shimanism/internal/secrets/frontends/azure_arm_keyvault"
 	azurekvfront "github.com/e6qu/shimanism/internal/secrets/frontends/azure_keyvault"
 	gcpsmfront "github.com/e6qu/shimanism/internal/secrets/frontends/gcp_secretmanager"
 	"github.com/e6qu/shimanism/internal/sigv4verifier"
@@ -230,6 +231,26 @@ func StartSecretsServerAzure(t *testing.T, backend secretsdomain.Secrets) *Secre
 	})
 	mw := azurebearer.Middleware(verifier, azurebearer.WithChallenge("https://vault.azure.net"))
 	ts := httptest.NewTLSServer(&logRoundTrip{t: t, mux: mw(srv)})
+	t.Cleanup(ts.Close)
+	return &SecretsServer{URL: ts.URL, Close: ts.Close}
+}
+
+// StartSecretsServerAzureARM starts a shim instance with the
+// Microsoft.KeyVault ARM frontend (vault create/get/list/delete
+// at the control plane). Wrapped with the same `azurebearer`
+// middleware all the other ARM-shimmed services use, configured for
+// audience "https://management.azure.com/" + the shared HS256 test
+// key. Phase 14.E unblocks `azurerm_key_vault` through-shim
+// Terraform Apply.
+func StartSecretsServerAzureARM(t *testing.T) *SecretsServer {
+	t.Helper()
+	srv := azurearmkvfront.New()
+	verifier := azurebearer.New(azurebearer.Options{
+		Audience: "https://management.azure.com/",
+		TestKey:  []byte("test-key-do-not-use-in-prod"),
+	})
+	mw := azurebearer.Middleware(verifier)
+	ts := httptest.NewServer(&logRoundTrip{t: t, mux: mw(srv)})
 	t.Cleanup(ts.Close)
 	return &SecretsServer{URL: ts.URL, Close: ts.Close}
 }

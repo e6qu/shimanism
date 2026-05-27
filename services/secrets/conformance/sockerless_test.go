@@ -17,7 +17,11 @@ import (
 
 	gcpsm "cloud.google.com/go/secretmanager/apiv1"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/arm"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/cloud"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/to"
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/keyvault/armkeyvault"
 	"github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/azsecrets"
 	awsapi "github.com/aws/aws-sdk-go-v2/aws"
 	awshttp "github.com/aws/aws-sdk-go-v2/aws/transport/http"
@@ -26,6 +30,7 @@ import (
 	"golang.org/x/oauth2"
 	"google.golang.org/api/option"
 
+	"github.com/e6qu/shimanism/internal/azurebearer"
 	"github.com/e6qu/shimanism/internal/harness"
 	"github.com/e6qu/shimanism/internal/secrets/domain"
 	awsbackend "github.com/e6qu/shimanism/services/secrets/backends/aws"
@@ -481,4 +486,90 @@ func TestSockerless_GCPSecretManagerFrontendToAWSBackend_RoundTrip(t *testing.T)
 	if string(v.Value) != "rev-source-payload" {
 		t.Errorf("GetSecretValue = %q, want %q", string(v.Value), "rev-source-payload")
 	}
+}
+
+// TestSockerless_E2E_AzureARM_KeyVault_Through_Shim drives a real
+// `armkeyvault` SDK end-to-end through the shim's Microsoft.KeyVault
+// ARM frontend. The shim acknowledges vault PUT/GET/DELETE
+// synthetically (the shim is vault-agnostic — vault names are
+// routing fiction; subsequent secret data-plane ops already work
+// via the existing azure_keyvault frontend). Phase 14.E.
+//
+// This cell doesn't need sockerless on the destination side because
+// vault ARM ops are pure shim acknowledgements. The test runs in the
+// sockerless lane for consistency with the other 14.E cells (which
+// DO need a backend), but skips only when SOCKERLESS_AWS_ENDPOINT
+// is missing as a soft "are we running the lane" sentinel.
+func TestSockerless_E2E_AzureARM_KeyVault_Through_Shim(t *testing.T) {
+	if os.Getenv("SOCKERLESS_AWS_ENDPOINT") == "" {
+		t.Skip("SOCKERLESS_AWS_ENDPOINT not set (use as lane sentinel)")
+	}
+	ctx := context.Background()
+
+	armShim := harness.StartSecretsServerAzureARM(t)
+
+	token := azurebearer.TestJWT(
+		[]byte("test-key-do-not-use-in-prod"),
+		"https://shim.test/",
+		"https://management.azure.com/",
+		time.Hour,
+	)
+	armOpts := &arm.ClientOptions{ClientOptions: azcore.ClientOptions{
+		Cloud: cloud.Configuration{
+			ActiveDirectoryAuthorityHost: armShim.URL + "/",
+			Services: map[cloud.ServiceName]cloud.ServiceConfiguration{
+				cloud.ResourceManager: {
+					Audience: "https://management.azure.com",
+					Endpoint: armShim.URL,
+				},
+			},
+		},
+		InsecureAllowCredentialWithHTTP: true,
+	}}
+	cred := staticARMBearer{token: token}
+
+	subID := "00000000-0000-0000-0000-000000000000"
+	rg := "shim-rg"
+	name := "shim-kv-" + randomKVHex8()
+
+	vaultsClient, err := armkeyvault.NewVaultsClient(subID, cred, armOpts)
+	if err != nil {
+		t.Fatalf("armkeyvault VaultsClient: %v", err)
+	}
+
+	tenantID := "00000000-0000-0000-0000-000000000000"
+	poller, err := vaultsClient.BeginCreateOrUpdate(ctx, rg, name, armkeyvault.VaultCreateOrUpdateParameters{
+		Location: to.Ptr("eastus"),
+		Properties: &armkeyvault.VaultProperties{
+			TenantID: to.Ptr(tenantID),
+			SKU: &armkeyvault.SKU{
+				Family: to.Ptr(armkeyvault.SKUFamilyA),
+				Name:   to.Ptr(armkeyvault.SKUNameStandard),
+			},
+			AccessPolicies: []*armkeyvault.AccessPolicyEntry{},
+		},
+	}, nil)
+	if err != nil {
+		t.Fatalf("ARM CreateVault: %v", err)
+	}
+	if _, err := poller.PollUntilDone(ctx, nil); err != nil {
+		t.Fatalf("ARM CreateVault poll: %v", err)
+	}
+	t.Cleanup(func() { _, _ = vaultsClient.Delete(ctx, rg, name, nil) })
+
+	if _, err := vaultsClient.Get(ctx, rg, name, nil); err != nil {
+		t.Fatalf("ARM GetVault: %v", err)
+	}
+}
+
+type staticARMBearer struct{ token string }
+
+func (s staticARMBearer) GetToken(_ context.Context, _ policy.TokenRequestOptions) (azcore.AccessToken, error) {
+	return azcore.AccessToken{Token: s.token, ExpiresOn: time.Now().Add(time.Hour)}, nil
+}
+
+func randomKVHex8() string {
+	b := make([]byte, 4)
+	_, _ = rand.Read(b)
+	return hex.EncodeToString(b)
 }
