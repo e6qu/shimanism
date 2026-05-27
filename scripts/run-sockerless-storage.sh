@@ -73,9 +73,17 @@ require_container_runtime
 # via SOCKERLESS_AZURE_CONTAINERAPPS_IMAGE.
 SOCKERLESS_AZURE_CONTAINERAPPS_IMAGE=${SOCKERLESS_AZURE_CONTAINERAPPS_IMAGE:-docker.io/library/nginx:alpine}
 SOCKERLESS_GCP_CLOUDRUN_IMAGE=${SOCKERLESS_GCP_CLOUDRUN_IMAGE:-docker.io/library/nginx:alpine}
+# Sockerless's Container Apps / Cloud Run handlers ask the runtime
+# to start a container with an explicit `linux/<host-arch>` platform.
+# `docker pull <ref>` without `--platform` can select a manifest that
+# doesn't match (esp. on GitHub Actions ARM runners that default to
+# amd64). Pin the platform to the host arch via `go env GOARCH`
+# (amd64 / arm64) so the daemon has a matching image cached.
+GO_ARCH=$(go env GOARCH 2>/dev/null || echo amd64)
+PULL_PLATFORM="linux/${GO_ARCH}"
 for image in "$SOCKERLESS_AZURE_CONTAINERAPPS_IMAGE" "$SOCKERLESS_GCP_CLOUDRUN_IMAGE"; do
-    echo "pre-pull: $image via $CONTAINER_RUNTIME"
-    "$CONTAINER_RUNTIME" pull "$image" >/dev/null 2>&1 || echo "WARN: pre-pull of $image failed — affected lane will skip." >&2
+    echo "pre-pull: $image (--platform=$PULL_PLATFORM) via $CONTAINER_RUNTIME"
+    "$CONTAINER_RUNTIME" pull --platform="$PULL_PLATFORM" "$image" >/dev/null 2>&1 || echo "WARN: pre-pull of $image failed — affected lane will skip." >&2
 done
 
 cleanup() {

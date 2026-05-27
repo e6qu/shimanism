@@ -101,7 +101,6 @@ func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		"no Memorystore route matches "+method+" "+path)
 }
 
-
 func (srv *Server) createInstance(w http.ResponseWriter, r *http.Request) {
 	var body redisapi.Instance
 	if !decodeJSON(w, r, &body) {
