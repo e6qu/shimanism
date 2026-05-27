@@ -45,11 +45,14 @@ fi
 # Sockerless's sims require a container runtime (podman/docker) — fail
 # fast with a clear message rather than letting the sim start and
 # crash on the first request with FATAL: Docker/Podman not available.
+CONTAINER_RUNTIME=""
 require_container_runtime() {
-    if command -v podman >/dev/null 2>&1 && podman info >/dev/null 2>&1; then
+    if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
+        CONTAINER_RUNTIME=docker
         return 0
     fi
-    if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
+    if command -v podman >/dev/null 2>&1 && podman info >/dev/null 2>&1; then
+        CONTAINER_RUNTIME=podman
         return 0
     fi
     echo "ERR: sockerless sims require a running container runtime (podman or docker)." >&2
@@ -58,6 +61,22 @@ require_container_runtime() {
     exit 3
 }
 require_container_runtime
+
+# Pre-pull the Container Apps lane's reference image so
+# TestSockerless_Azure_Functions_ContainerApps_CRUD can run without
+# its own network/daemon plumbing. Sockerless's Container Apps
+# handler invokes the runtime to start a real replica (matching real
+# Azure — the simulator chose real execution, not a control-plane
+# mock; see sockerless#224 which closed as not-a-bug). Defaulting to
+# nginx:alpine because it's tiny (~20 MB), runs without args, and is
+# reliably reachable from public registries. Callers can override
+# via SOCKERLESS_AZURE_CONTAINERAPPS_IMAGE.
+SOCKERLESS_AZURE_CONTAINERAPPS_IMAGE=${SOCKERLESS_AZURE_CONTAINERAPPS_IMAGE:-docker.io/library/nginx:alpine}
+SOCKERLESS_GCP_CLOUDRUN_IMAGE=${SOCKERLESS_GCP_CLOUDRUN_IMAGE:-docker.io/library/nginx:alpine}
+for image in "$SOCKERLESS_AZURE_CONTAINERAPPS_IMAGE" "$SOCKERLESS_GCP_CLOUDRUN_IMAGE"; do
+    echo "pre-pull: $image via $CONTAINER_RUNTIME"
+    "$CONTAINER_RUNTIME" pull "$image" >/dev/null 2>&1 || echo "WARN: pre-pull of $image failed — affected lane will skip." >&2
+done
 
 cleanup() {
     if [[ -n ${AWS_PID:-} ]]; then kill "$AWS_PID" 2>/dev/null || true; fi
@@ -128,6 +147,8 @@ SOCKERLESS_AZURE_KV_URL="https://testvault.vault.azure.net" \
 SOCKERLESS_AZURE_TLS_PORT="$AZURE_PORT" \
 SOCKERLESS_AZURE_SB_AMQP_PORT="$AZURE_SB_AMQP_PORT" \
 SOCKERLESS_AZURE_BLOB_ACCOUNT="testacct" \
+SOCKERLESS_AZURE_CONTAINERAPPS_IMAGE="$SOCKERLESS_AZURE_CONTAINERAPPS_IMAGE" \
+SOCKERLESS_GCP_CLOUDRUN_IMAGE="$SOCKERLESS_GCP_CLOUDRUN_IMAGE" \
 AWS_S3_CONFORMANCE_INSECURE_TLS=1 \
 go test -run '^TestSockerless_' -count=1 -v \
     ./services/storage/conformance/... \

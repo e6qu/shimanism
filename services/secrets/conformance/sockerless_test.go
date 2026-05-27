@@ -3,8 +3,11 @@ package conformance_test
 
 import (
 	"context"
+	"crypto/hmac"
 	"crypto/rand"
+	"crypto/sha256"
 	"crypto/tls"
+	"encoding/base64"
 	"encoding/hex"
 	"net"
 	"net/http"
@@ -20,6 +23,7 @@ import (
 	awshttp "github.com/aws/aws-sdk-go-v2/aws/transport/http"
 	"github.com/aws/aws-sdk-go-v2/config"
 	awssm "github.com/aws/aws-sdk-go-v2/service/secretsmanager"
+	"golang.org/x/oauth2"
 	"google.golang.org/api/option"
 
 	"github.com/e6qu/shimanism/internal/harness"
@@ -390,5 +394,91 @@ func localhostDialTransport(port string) *http.Transport {
 			// the sim's self-signed cert's CN=localhost.
 			InsecureSkipVerify: true,
 		},
+	}
+}
+
+// gcpHS256Bearer mints a test-mode HS256 JWT that the shim's
+// gcpbearer middleware accepts. Same helper as the cache reverse
+// lane; duplicated here because each conformance package is its own
+// test compilation unit.
+func gcpHS256Bearer(t *testing.T, audience string) string {
+	t.Helper()
+	header := base64.RawURLEncoding.EncodeToString([]byte(`{"alg":"HS256","typ":"JWT","kid":"shim-test"}`))
+	payloadJSON := []byte(`{"aud":"` + audience + `","exp":4102444800,"iat":1}`)
+	payload := base64.RawURLEncoding.EncodeToString(payloadJSON)
+	signingInput := header + "." + payload
+	mac := hmac.New(sha256.New, []byte("test-key-do-not-use-in-prod"))
+	mac.Write([]byte(signingInput))
+	sig := base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
+	return signingInput + "." + sig
+}
+
+type gcpStaticTokenSource struct{ token string }
+
+func (s gcpStaticTokenSource) Token() (*oauth2.Token, error) {
+	return &oauth2.Token{AccessToken: s.token, TokenType: "Bearer"}, nil
+}
+
+// TestSockerless_GCPSecretManagerFrontendToAWSBackend_RoundTrip is
+// the reverse-direction through-shim cell for secrets: GCP Secret
+// Manager SDK drives the shim's GCP frontend, which routes through
+// the shim's AWS Secrets Manager backend, which targets sockerless's
+// AWS sim. Complement of the existing AWS→GCP cell.
+func TestSockerless_GCPSecretManagerFrontendToAWSBackend_RoundTrip(t *testing.T) {
+	awsEndpoint := os.Getenv("SOCKERLESS_AWS_SM_ENDPOINT")
+	if awsEndpoint == "" {
+		t.Skip("SOCKERLESS_AWS_SM_ENDPOINT not set")
+	}
+	if os.Getenv("AWS_ACCESS_KEY_ID") == "" {
+		os.Setenv("AWS_ACCESS_KEY_ID", "test")
+	}
+	if os.Getenv("AWS_SECRET_ACCESS_KEY") == "" {
+		os.Setenv("AWS_SECRET_ACCESS_KEY", "test")
+	}
+	if os.Getenv("AWS_REGION") == "" {
+		os.Setenv("AWS_REGION", "us-east-1")
+	}
+	cfg, err := config.LoadDefaultConfig(context.Background())
+	if err != nil {
+		t.Fatalf("aws config: %v", err)
+	}
+	if os.Getenv("AWS_S3_CONFORMANCE_INSECURE_TLS") == "1" {
+		cfg.HTTPClient = awshttp.NewBuildableClient().WithTransportOptions(func(tr *http.Transport) {
+			tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+		})
+	}
+	smClient := awssm.NewFromConfig(cfg, func(o *awssm.Options) {
+		o.BaseEndpoint = awsapi.String(awsEndpoint)
+	})
+	backend := awsbackend.New(smClient)
+	srv := harness.StartSecretsServerGCP(t, backend)
+
+	ctx := context.Background()
+	c, err := gcpsm.NewRESTClient(ctx,
+		option.WithEndpoint(srv.URL+"/"),
+		option.WithTokenSource(gcpStaticTokenSource{token: gcpHS256Bearer(t, "https://secretmanager.googleapis.com/")}),
+	)
+	if err != nil {
+		t.Fatalf("gcp sm client: %v", err)
+	}
+	t.Cleanup(func() { _ = c.Close() })
+
+	project := "shim-sockerless"
+	name := "shim-sk-rev-sec-" + randomHex(8)
+	gcpBackend := gcpbackend.New(c, gcpbackend.Config{ProjectID: project})
+	if _, err := gcpBackend.CreateSecret(ctx, name, domain.CreateSecretOptions{
+		InitialValue: []byte("rev-source-payload"),
+		Tags:         map[string]string{"env": "test"},
+	}); err != nil {
+		t.Fatalf("CreateSecret through shim: %v", err)
+	}
+	t.Cleanup(func() { _ = gcpBackend.DeleteSecret(ctx, name, true) })
+
+	v, err := gcpBackend.GetSecretValue(ctx, name, 0)
+	if err != nil {
+		t.Fatalf("GetSecretValue through shim: %v", err)
+	}
+	if string(v.Value) != "rev-source-payload" {
+		t.Errorf("GetSecretValue = %q, want %q", string(v.Value), "rev-source-payload")
 	}
 }

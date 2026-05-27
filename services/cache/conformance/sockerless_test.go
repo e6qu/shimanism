@@ -3,8 +3,11 @@ package conformance_test
 
 import (
 	"context"
+	"crypto/hmac"
 	"crypto/rand"
+	"crypto/sha256"
 	"crypto/tls"
+	"encoding/base64"
 	"encoding/hex"
 	"net"
 	"net/http"
@@ -17,14 +20,17 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/cloud"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
 	awsapi "github.com/aws/aws-sdk-go-v2/aws"
+	awshttp "github.com/aws/aws-sdk-go-v2/aws/transport/http"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/elasticache"
+	"golang.org/x/oauth2"
 	"google.golang.org/api/option"
 	redisapi "google.golang.org/api/redis/v1"
 
 	cachedomain "github.com/e6qu/shimanism/internal/cache/domain"
 	"github.com/e6qu/shimanism/internal/harness"
+	awscachebackend "github.com/e6qu/shimanism/services/cache/backends/aws"
 	azurecache "github.com/e6qu/shimanism/services/cache/backends/azure"
 	gcpbackend "github.com/e6qu/shimanism/services/cache/backends/gcp"
 )
@@ -222,4 +228,127 @@ var sockerlessFarFuture = time.Date(2099, time.December, 31, 23, 59, 59, 0, time
 
 func (sockerlessNoOpCredential) GetToken(_ context.Context, _ policy.TokenRequestOptions) (azcore.AccessToken, error) {
 	return azcore.AccessToken{Token: "sockerless-test", ExpiresOn: sockerlessFarFuture}, nil
+}
+
+// gcpHS256Bearer mints a test-mode HS256 JWT that the shim's
+// gcpbearer middleware accepts. The shim's GCP frontends run behind
+// gcpbearer.Middleware in test mode (HS256 with key
+// "test-key-do-not-use-in-prod") — equivalent to the SigV4
+// signature the AWS frontend's existing through-shim cells satisfy
+// via static credentials. This is the GCP-side parity.
+func gcpHS256Bearer(t *testing.T, audience string) string {
+	t.Helper()
+	header := base64.RawURLEncoding.EncodeToString([]byte(`{"alg":"HS256","typ":"JWT","kid":"shim-test"}`))
+	payloadJSON := []byte(`{"aud":"` + audience + `","exp":4102444800,"iat":1}`) // exp = 2100-01-01
+	payload := base64.RawURLEncoding.EncodeToString(payloadJSON)
+	signingInput := header + "." + payload
+	mac := hmac.New(sha256.New, []byte("test-key-do-not-use-in-prod"))
+	mac.Write([]byte(signingInput))
+	sig := base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
+	return signingInput + "." + sig
+}
+
+// gcpStaticTokenSource produces a static token source for the GCP
+// SDK's option.WithTokenSource. The SDK auto-attaches the bearer
+// to outgoing requests.
+type gcpStaticTokenSource struct{ token string }
+
+func (s gcpStaticTokenSource) Token() (*oauth2.Token, error) {
+	return &oauth2.Token{AccessToken: s.token, TokenType: "Bearer"}, nil
+}
+
+// TestSockerless_GCPMemorystoreFrontendToAWSBackend_CRUD is the
+// reverse-direction through-shim cell: GCP Memorystore SDK drives
+// the shim's GCP cache frontend, which routes through the shim's
+// AWS ElastiCache backend, which targets sockerless's AWS sim. This
+// is the GCP→AWS migration path (complement of the existing
+// AWS→GCP cell). BUG-24 reverse-direction coverage.
+func TestSockerless_GCPMemorystoreFrontendToAWSBackend_CRUD(t *testing.T) {
+	awsEndpoint := os.Getenv("SOCKERLESS_AWS_ENDPOINT")
+	if awsEndpoint == "" {
+		awsEndpoint = os.Getenv("SOCKERLESS_AWS_SM_ENDPOINT")
+	}
+	if awsEndpoint == "" {
+		t.Skip("SOCKERLESS_AWS_ENDPOINT not set")
+	}
+	ctx := context.Background()
+
+	// AWS ElastiCache backend pointed at sockerless AWS.
+	if os.Getenv("AWS_ACCESS_KEY_ID") == "" {
+		os.Setenv("AWS_ACCESS_KEY_ID", "test")
+	}
+	if os.Getenv("AWS_SECRET_ACCESS_KEY") == "" {
+		os.Setenv("AWS_SECRET_ACCESS_KEY", "test")
+	}
+	if os.Getenv("AWS_REGION") == "" {
+		os.Setenv("AWS_REGION", "us-east-1")
+	}
+	cfg, err := config.LoadDefaultConfig(ctx)
+	if err != nil {
+		t.Fatalf("aws config: %v", err)
+	}
+	if os.Getenv("AWS_S3_CONFORMANCE_INSECURE_TLS") == "1" {
+		cfg.HTTPClient = awshttp.NewBuildableClient().WithTransportOptions(func(tr *http.Transport) {
+			tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+		})
+	}
+	ecClient := elasticache.NewFromConfig(cfg, func(o *elasticache.Options) {
+		o.BaseEndpoint = awsapi.String(awsEndpoint)
+	})
+	backend := awscachebackend.New(ecClient)
+	srv := harness.StartCacheServerGCP(t, backend)
+
+	// GCP Memorystore SDK driver pointing at the shim's GCP frontend.
+	// Test-mode bearer minted with the gcpbearer test key + audience
+	// the harness configured for the cache frontend.
+	mem, err := redisapi.NewService(ctx,
+		option.WithEndpoint(srv.URL+"/"),
+		option.WithTokenSource(gcpStaticTokenSource{token: gcpHS256Bearer(t, "https://redis.googleapis.com/")}),
+	)
+	if err != nil {
+		t.Fatalf("memorystore client: %v", err)
+	}
+
+	project := "shim-sockerless"
+	region := "us-central1"
+	parent := "projects/" + project + "/locations/" + region
+	name := "shim-sk-rev-" + sockerlessHex8()
+
+	op, err := mem.Projects.Locations.Instances.Create(parent, &redisapi.Instance{
+		Tier:         "BASIC",
+		RedisVersion: "REDIS_7_0",
+		MemorySizeGb: 1,
+	}).InstanceId(name).Do()
+	if err != nil {
+		t.Fatalf("Create through shim: %v", err)
+	}
+	if op == nil {
+		t.Fatalf("Create returned nil operation")
+	}
+	t.Cleanup(func() {
+		_, _ = mem.Projects.Locations.Instances.Delete(parent + "/instances/" + name).Do()
+	})
+
+	got, err := mem.Projects.Locations.Instances.Get(parent + "/instances/" + name).Do()
+	if err != nil {
+		t.Fatalf("Get through shim: %v", err)
+	}
+	if got == nil || got.Name == "" {
+		t.Errorf("Get returned empty: %+v", got)
+	}
+
+	list, err := mem.Projects.Locations.Instances.List(parent).Do()
+	if err != nil {
+		t.Fatalf("List through shim: %v", err)
+	}
+	found := false
+	for _, inst := range list.Instances {
+		if inst.Name == parent+"/instances/"+name {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("List did not contain %q", name)
+	}
 }

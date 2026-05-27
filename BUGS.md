@@ -1,6 +1,6 @@
 # Known Bugs
 
-**38 filed · 35 fixed · 2 open · 1 false positive.** Phase 14.B closed BUG-34 (SB ATOM admin), BUG-36 (SB raw AMQP/TLS), BUG-37 + BUG-38 (storage CopyObject — sockerless PR #235 added Azure Blob CopyBlob + GCS `rewriteTo`/`copyTo` + GCS list lex-order). Storage matrix is now complete for single-shot + multipart + copy (3/3 clouds across all three operations). BUG-35 (Container Apps pre-pull) is the remaining Phase-14.B residual.
+**38 filed · 36 fixed · 2 open · 1 false positive.** Phase 14.B is materially complete after BUG-35 closure (Container Apps pre-pull plumbing in `scripts/run-sockerless-storage.sh`). The only remaining open BUGs are the two Track A residuals (BUG-8, BUG-15) which need real GCP credentials. BUG-24 reverse-direction through-shim coverage gets ongoing additions per PR — two exemplar reverse cells (cache GCP→AWS, secrets GCP→AWS) landed alongside BUG-35 in this PR; queue / pubsub / rdbms reverse cells will follow the same pattern in future PRs.
 
 Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLAN.md](PLAN.md) · narrative [WHAT_WE_DID.md](WHAT_WE_DID.md) · rules [AGENTS.md](AGENTS.md).
 
@@ -19,7 +19,6 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 |----|-----|------|------------|-----------|-------|
 | BUG-8 | P3 | apigateway/gcp-tf-frontend | `hashicorp/google` | API Gateway endpoint-override attribute name changed across provider major versions and the current provider's API Gateway resource lifecycle requires real OAuth-signed requests the mock httptest server can't sign. `services/apigateway/conformance/gcp_terraform_test.go` is smoke-skipped pending Track A real-cloud TF coverage. The sockerless GCP APIGW backend lane passes; this is now only the Terraform-provider leg. | **14.D** |
 | BUG-15 | P3 | queue/gcp-frontend | GCP Pub/Sub `subscriptions.get` | `message_retention_duration = "604800s"` declared in HCL and the shim responding "604800s" at every call, hashicorp/google records `"345600s"` in state. Plan after apply diffs `"345600s" -> "604800s"`. Shim's backend retention PATCH/read path now passes against sockerless; the open question is whether the provider shows the same state drift against real GCP or the shim frontend still misses a provider-needed field. | **14.D** |
-| BUG-35 | P3 | functions/azure-containerapps | `armappcontainers/v3` | Sockerless's Container Apps handler invokes the local container runtime to start a replica (matching real Azure, where the underlying execution is opaque to the caller). That means the sockerless functions Container Apps lane needs a docker/podman daemon **and** a pre-pulled image, which is more CI variance than the bundled lane should require by default. The test exists at `services/functions/conformance/sockerless_test.go` (`TestSockerless_Azure_Functions_ContainerApps_CRUD`) and opts in via `SOCKERLESS_AZURE_CONTAINERAPPS_IMAGE`. Resolution path is either pre-pull plumbing in `scripts/run-sockerless-storage.sh` or asking upstream for a "no-op image" mode. | **14.B** |
 
 ## Upstream-tracked (sockerless validation lane)
 
