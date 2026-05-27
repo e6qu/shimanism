@@ -501,6 +501,185 @@ func TestSockerless_GCS_Multipart(t *testing.T) {
 	}
 }
 
+// TestSockerless_AWS_S3_Copy exercises the shim's AWS S3 backend's
+// CopyObject code path against sockerless's S3 multipart/subresource
+// handler (`handleS3CopyObject`, dispatched via the
+// `x-amz-copy-source` header on a PUT to the destination key).
+// PutObject → CopyObject → GetObject, assert the destination bytes
+// match the source.
+func TestSockerless_AWS_S3_Copy(t *testing.T) {
+	endpoint := os.Getenv("SOCKERLESS_AWS_ENDPOINT")
+	if endpoint == "" {
+		t.Skip("SOCKERLESS_AWS_ENDPOINT not set")
+	}
+	client := newSockerlessAWSClient(t, endpoint)
+	backend := awsbackend.New(client)
+	ctx := context.Background()
+
+	bucket := randomNamespace("shim-s3-cp")
+	if err := backend.CreateBucket(ctx, bucket, "us-east-1"); err != nil {
+		t.Fatalf("CreateBucket: %v", err)
+	}
+	t.Cleanup(func() { _ = backend.DeleteBucket(ctx, bucket) })
+
+	srcKey := "src/" + randomNamespace("obj") + ".bin"
+	dstKey := "dst/" + randomNamespace("obj") + ".bin"
+	body := []byte("aws s3 CopyObject through-shim payload")
+	if _, err := backend.PutObject(ctx, domain.PutObjectOptions{
+		Bucket: bucket, Key: srcKey,
+		Body: bytes.NewReader(body), ContentType: "text/plain",
+	}); err != nil {
+		t.Fatalf("PutObject src: %v", err)
+	}
+	t.Cleanup(func() { _ = backend.DeleteObject(ctx, bucket, srcKey) })
+
+	if _, err := backend.CopyObject(ctx, domain.CopyObjectOptions{
+		SrcBucket: bucket, SrcKey: srcKey,
+		DstBucket: bucket, DstKey: dstKey,
+	}); err != nil {
+		t.Fatalf("CopyObject: %v", err)
+	}
+	t.Cleanup(func() { _ = backend.DeleteObject(ctx, bucket, dstKey) })
+
+	obj, err := backend.GetObject(ctx, bucket, dstKey)
+	if err != nil {
+		t.Fatalf("GetObject dst: %v", err)
+	}
+	defer obj.Body.Close()
+	got, _ := io.ReadAll(obj.Body)
+	if !bytes.Equal(got, body) {
+		t.Errorf("CopyObject dst body mismatch: got %d bytes, want %d", len(got), len(body))
+	}
+}
+
+// TestSockerless_GCS_Copy exercises the shim's GCS backend's
+// CopyObject code path against sockerless's `rewriteTo` REST endpoint
+// (sockerless PR #235). The shim calls `Object.CopierFrom(src).Run(ctx)`
+// which the SDK translates into a `rewriteTo` POST; the sim returns
+// a `storage#rewriteResponse` with `done: true` and the destination
+// object resource. Tests object names containing spaces and slashes
+// to stress the path-escape handling.
+func TestSockerless_GCS_Copy(t *testing.T) {
+	endpoint := os.Getenv("SOCKERLESS_GCP_ENDPOINT")
+	if endpoint == "" {
+		t.Skip("SOCKERLESS_GCP_ENDPOINT not set")
+	}
+	t.Setenv("STORAGE_EMULATOR_HOST", endpoint)
+	ctx := context.Background()
+	client, err := gcsstorage.NewClient(ctx, option.WithoutAuthentication())
+	if err != nil {
+		t.Fatalf("gcs client: %v", err)
+	}
+	project := os.Getenv("SOCKERLESS_GCP_PROJECT")
+	if project == "" {
+		project = "shim-sockerless"
+	}
+	backend := gcsbackend.New(client, gcsbackend.Config{ProjectID: project})
+
+	bucket := randomNamespace("shim-gcs-cp")
+	if err := backend.CreateBucket(ctx, bucket, "us-central1"); err != nil {
+		t.Fatalf("CreateBucket: %v", err)
+	}
+	t.Cleanup(func() { _ = backend.DeleteBucket(ctx, bucket) })
+
+	srcKey := "src/source file.txt"
+	dstKey := "dst/destination file.txt"
+	body := []byte("gcs CopyObject (rewriteTo) through-shim payload")
+	if _, err := backend.PutObject(ctx, domain.PutObjectOptions{
+		Bucket: bucket, Key: srcKey,
+		Body: bytes.NewReader(body), ContentType: "text/plain",
+	}); err != nil {
+		t.Fatalf("PutObject src: %v", err)
+	}
+	t.Cleanup(func() { _ = backend.DeleteObject(ctx, bucket, srcKey) })
+
+	if _, err := backend.CopyObject(ctx, domain.CopyObjectOptions{
+		SrcBucket: bucket, SrcKey: srcKey,
+		DstBucket: bucket, DstKey: dstKey,
+	}); err != nil {
+		t.Fatalf("CopyObject: %v", err)
+	}
+	t.Cleanup(func() { _ = backend.DeleteObject(ctx, bucket, dstKey) })
+
+	obj, err := backend.GetObject(ctx, bucket, dstKey)
+	if err != nil {
+		t.Fatalf("GetObject dst: %v", err)
+	}
+	defer obj.Body.Close()
+	got, _ := io.ReadAll(obj.Body)
+	if !bytes.Equal(got, body) {
+		t.Errorf("CopyObject dst body mismatch: got %d bytes, want %d", len(got), len(body))
+	}
+}
+
+// TestSockerless_Azure_Blob_Copy exercises the shim's Azure Blob
+// backend's CopyObject code path against sockerless's Copy Blob
+// implementation (sockerless PR #235). The shim calls
+// `StartCopyFromURL`, which sends a PUT to the destination blob with
+// the `x-ms-copy-source` header naming the source URL. Sockerless
+// resolves both host-style (`<account>.blob.<host>/<container>/<blob>`)
+// and Azurite-style path URLs; the shim's source URL is host-style.
+func TestSockerless_Azure_Blob_Copy(t *testing.T) {
+	account := os.Getenv("SOCKERLESS_AZURE_BLOB_ACCOUNT")
+	if account == "" {
+		t.Skip("SOCKERLESS_AZURE_BLOB_ACCOUNT not set")
+	}
+	port := os.Getenv("SOCKERLESS_AZURE_TLS_PORT")
+	if port == "" {
+		t.Skip("SOCKERLESS_AZURE_TLS_PORT not set")
+	}
+	keyMaterial := bytes.Repeat([]byte("k"), 32)
+	encodedKey := base64.StdEncoding.EncodeToString(keyMaterial)
+	cred, err := azblob.NewSharedKeyCredential(account, encodedKey)
+	if err != nil {
+		t.Fatalf("shared-key credential: %v", err)
+	}
+	vaultURL := "https://" + account + ".blob.localhost:" + port + "/"
+	c, err := azblob.NewClientWithSharedKeyCredential(vaultURL, cred, &azblob.ClientOptions{
+		ClientOptions: azcore.ClientOptions{Transport: &http.Client{Transport: storageLocalhostDial(port)}},
+	})
+	if err != nil {
+		t.Fatalf("blob client: %v", err)
+	}
+	backend := azurebackend.New(c, "eastus")
+	ctx := context.Background()
+
+	bucket := randomNamespace("shim-azblob-cp")
+	if err := backend.CreateBucket(ctx, bucket, "eastus"); err != nil {
+		t.Fatalf("CreateBucket: %v", err)
+	}
+	t.Cleanup(func() { _ = backend.DeleteBucket(ctx, bucket) })
+
+	srcKey := "src/source blob.txt"
+	dstKey := "dst/destination blob.txt"
+	body := []byte("azure blob CopyBlob through-shim payload")
+	if _, err := backend.PutObject(ctx, domain.PutObjectOptions{
+		Bucket: bucket, Key: srcKey,
+		Body: bytes.NewReader(body), ContentType: "text/plain",
+	}); err != nil {
+		t.Fatalf("PutObject src: %v", err)
+	}
+	t.Cleanup(func() { _ = backend.DeleteObject(ctx, bucket, srcKey) })
+
+	if _, err := backend.CopyObject(ctx, domain.CopyObjectOptions{
+		SrcBucket: bucket, SrcKey: srcKey,
+		DstBucket: bucket, DstKey: dstKey,
+	}); err != nil {
+		t.Fatalf("CopyObject: %v", err)
+	}
+	t.Cleanup(func() { _ = backend.DeleteObject(ctx, bucket, dstKey) })
+
+	obj, err := backend.GetObject(ctx, bucket, dstKey)
+	if err != nil {
+		t.Fatalf("GetObject dst: %v", err)
+	}
+	defer obj.Body.Close()
+	got, _ := io.ReadAll(obj.Body)
+	if !bytes.Equal(got, body) {
+		t.Errorf("CopyObject dst body mismatch: got %d bytes, want %d", len(got), len(body))
+	}
+}
+
 // TestSockerless_E2E_AWSFrontendToGCSBackend drives a real AWS S3
 // client into shimanism's AWS frontend, through the GCS backend, and
 // out to the sockerless GCP simulator. This is the concrete AWS -> GCP
