@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
+	"github.com/Azure/azure-sdk-for-go/sdk/messaging/azservicebus"
 	"github.com/Azure/azure-sdk-for-go/sdk/messaging/azservicebus/admin"
 	awsapi "github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -282,5 +283,72 @@ func sockerlessSBAdminClientOptionsPubsub(port string) *admin.ClientOptions {
 		ClientOptions: azcore.ClientOptions{
 			Transport: &http.Client{Transport: transport},
 		},
+	}
+}
+
+// TestSockerless_Azure_ServiceBus_Topic_PublishReceive drives the
+// shim's Azure Service Bus pubsub backend's full data-plane
+// round-trip against sockerless's raw AMQP/TLS transport (added in
+// sockerless PR #231): CreateTopic + CreateSubscription (admin,
+// ATOM XML) → Publish (azservicebus AMQP/TLS) → Receive → Ack →
+// DeleteSubscription → DeleteTopic.
+//
+// Same SDK-clean integration shape as the queue counterpart: the
+// admin client uses `Transport`, the AMQP data client uses
+// `CustomEndpoint` + `TLSConfig`. No transport adapter code in the
+// test layer.
+func TestSockerless_Azure_ServiceBus_Topic_PublishReceive(t *testing.T) {
+	httpPort := os.Getenv("SOCKERLESS_AZURE_TLS_PORT")
+	if httpPort == "" {
+		t.Skip("SOCKERLESS_AZURE_TLS_PORT not set")
+	}
+	amqpPort := os.Getenv("SOCKERLESS_AZURE_SB_AMQP_PORT")
+	if amqpPort == "" {
+		t.Skip("SOCKERLESS_AZURE_SB_AMQP_PORT not set")
+	}
+	backend, err := azurepubsub.New(azurepubsub.Config{
+		ConnectionString:   sockerlessAzureSBConnectionStringPubsub(),
+		AdminClientOptions: sockerlessSBAdminClientOptionsPubsub(httpPort),
+		DataClientOptions: &azservicebus.ClientOptions{
+			CustomEndpoint: "localhost:" + amqpPort,
+			TLSConfig:      &tls.Config{InsecureSkipVerify: true},
+		},
+	})
+	if err != nil {
+		t.Fatalf("azurepubsub.New: %v", err)
+	}
+	ctx := context.Background()
+
+	topic := "shim-sk-sbt-pr-" + randomHex8()
+	if _, err := backend.CreateTopic(ctx, topic, domain.CreateTopicOptions{}); err != nil {
+		t.Fatalf("CreateTopic: %v", err)
+	}
+	t.Cleanup(func() { _ = backend.DeleteTopic(ctx, topic) })
+
+	sub := "shim-sk-sbs-pr-" + randomHex8()
+	if _, err := backend.CreateSubscription(ctx, topic, sub, domain.CreateSubscriptionOptions{
+		AckDeadlineSeconds: 30,
+	}); err != nil {
+		t.Fatalf("CreateSubscription: %v", err)
+	}
+	t.Cleanup(func() { _ = backend.DeleteSubscription(ctx, sub) })
+
+	body := []byte("shim-sb-amqp topic publish/receive body")
+	if _, err := backend.Publish(ctx, topic, domain.PublishOptions{Body: body}); err != nil {
+		t.Fatalf("Publish: %v", err)
+	}
+
+	msgs, err := backend.Receive(ctx, sub, domain.ReceiveOptions{
+		MaxMessages: 1,
+		WaitTime:    5,
+	})
+	if err != nil {
+		t.Fatalf("Receive: %v", err)
+	}
+	if len(msgs) == 0 {
+		t.Fatalf("Receive returned no messages")
+	}
+	if got := string(msgs[0].Body); got != string(body) {
+		t.Errorf("Receive body = %q, want %q", got, string(body))
 	}
 }
