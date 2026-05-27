@@ -6,16 +6,19 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 
 ## Where we are
 
-- **Phase 14.B closed + 14.C closed.** `make sockerless` reports **37 passing + 1 documented-skipped** on `main` after PR #46.
+- **3-PR plan now 2/3 shipped.** PR #46 (Phase 14.B + 14.C closure) and PR #47 (Phase 13.A.6 `azure_blob` migration) landed 2026-05-27.
+- **Phase 13.A is fully closed.** `azure_blob` was the last ◐ migration — the full `gen.ServerInterface` impl now ships on every Azure frontend.
+- `make sockerless` reports **37 passing + 1 documented-skipped** on `main`.
 - **Storage matrix complete 3×3** — single-shot + multipart + copy across AWS S3 + GCS + Azure Blob.
 - **Service Bus matrix complete** — admin (ATOM XML) + Send/Receive data-plane (raw AMQP/TLS via `azservicebus.ClientOptions.CustomEndpoint`).
 - **Azure ARM lanes complete** for Redis / PG / APIM via custom `arm.ClientOptions.Cloud.ResourceManager.Endpoint`.
-- **GCP Cloud Run lane added** (PR #46) using `google.golang.org/api/run/v2` against sockerless's Cloud Run handler.
+- **GCP Cloud Run lane** uses `google.golang.org/api/run/v2` against sockerless's Cloud Run handler.
 - **Through-shim cross-cloud cells cover both directions for cache / secrets / queue** (AWS↔GCP). Other families still cover one direction; reverse-direction expansion is ongoing BUG-24 work.
-- **All 7 GCP frontends migrated** from `regexp` tables to `strings.CutPrefix` + `strings.Split` + `segs[N]` dispatch (PR #46). `regexp` import retired from all per-frontend GCP handlers.
+- **All 7 GCP frontends migrated** from `regexp` tables to `strings.CutPrefix` + `strings.Split` + `segs[N]` dispatch. `regexp` import retired from all per-frontend GCP handlers.
+- **All Azure frontends carry full `gen.ServerInterface` impls** with the `var _ gen.ServerInterface = (*Server)(nil)` compile-time gate.
 - **Open BUGs (3):** BUG-8 + BUG-15 (Track A, real GCP needed), BUG-35 (Container Apps lane — shim-side script plumbing shipped in PR #46; the lane unblocks once sockerless#244 lands).
 - **Upstream watch:** sockerless#243 (Azure ARM endpoint emission — maintainer reframed scope; not on shimanism's critical path), sockerless#244 (Container Apps `linux/arm64` hardcode — blocks BUG-35 closure on amd64).
-- **Last merged:** PR #46 — Phase 14.B closure, 2026-05-27.
+- **Last merged:** PR #47 — Phase 13.A.6 `azure_blob` full handler migration, 2026-05-27.
 
 ## Session-start checklist
 
@@ -27,25 +30,25 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 
 ## The 3-PR closure plan — status
 
-- **PR 1 — ✅ shipped as PR #46** (2026-05-27). BUG-35 shim-side plumbing + GCP Cloud Run lane + 3 reverse-direction cells (cache / secrets / queue, all GCP→AWS) + all 7 14.C GCP frontend migrations. 14.E cross-cloud Apply cells deferred from PR 1 scope — the gating problem is shim-side ARM-shimming (not sockerless), see footnote below.
-- **PR 2 — next active sub-task.** `azure_blob` full handler migration.
+- **PR 1 — ✅ shipped as PR #46** (2026-05-27). BUG-35 shim-side plumbing + GCP Cloud Run lane + 3 reverse-direction cells (cache / secrets / queue, all GCP→AWS) + all 7 14.C GCP frontend migrations.
+- **PR 2 — ✅ shipped as PR #47** (2026-05-27). Phase 13.A.6 `azure_blob` full `gen.ServerInterface` impl: 12 in-intersection bridges + 57 out-of-intersection stubs. Phase 13.A officially closed.
 - **PR 3 — blocked on real-cloud credentials.**
-
-### PR 2 — "azure_blob full handler migration" — next active
-
-**Estimated size:** ~1500-2000 LOC concentrated in `internal/storage/frontends/azure_blob/server.go`. **Sockerless dep:** none.
-
-Migrate the 69-op Azure Blob frontend from regex dispatch to the Service-Bus-style hybrid pattern (hand-written regex into `gen.ServerInterface` methods). ~11 in-intersection ops wired through; ~58 out-of-intersection return Azure error envelope via `notImplemented`. Mirror the reference pattern in `internal/secrets/frontends/azure_keyvault/server.go` (full `gen.ServerInterface` impl, except `azure_blob` needs the hybrid because its spec has query-discriminated URLs that Go 1.22's ServeMux can't dispatch on natively — same constraint that drove `azure_servicebus` to hybrid in 13.A.4).
-
-Existing conformance tests + `TestAzureGen_Storage_HandlerDispatch` (to be added) pin behavior.
 
 ### PR 3 — "Track A residuals" — BLOCKED ON INFRA
 
 Real-cloud lanes for BUG-8 (hashicorp/google API Gateway TF endpoint/OAuth leg) + BUG-15 (`message_retention_duration` state-drift question) + real-signed verifier conformance. Requires AWS / GCP / Azure accounts. Not actionable until infra exists.
 
-### Footnote: why 14.E is not the next active sub-task
+## Practical next chunks (while Track A is blocked)
 
-I started PR #46 expecting 14.E cross-cloud Apply cells to fit. During the work I audited what 14.E actually needs and the audit reframed the problem: sockerless is on the *destination* side of cross-cloud Apply (AWS or GCP), not the Azure source side. The Azure source side is the shim itself, which doesn't yet expose ARM-shimmed routes for `Microsoft.Storage/storageAccounts`, `Microsoft.Cache/Redis`, `Microsoft.DBforPostgreSQL/flexibleServers`, etc. — the shim needs to grow those shape translations before any Azure-source 14.E cell can run end-to-end. sockerless#243 (Azure ARM endpoint emission) is the analogous gap on the sockerless side and the maintainer reframed it to require real data planes too, but it's not on shimanism's critical path. 14.E re-opens once shim-side ARM-shimming exists; that's a separate workstream worth its own PR.
+The 3-PR plan is now scope-complete except for the Track-A-blocked PR 3. Three actionable workstreams remain:
+
+1. **BUG-24 reverse-direction expansion.** Five service families still cover one direction only (storage, pubsub, rdbms, functions, apigateway). Each new cell is small (~50-100 LOC of test code, no new shim feature) and follows the pattern from PR #46's cache/secrets/queue cells. Bundle 3-5 in a PR.
+2. **14.E shim-side ARM-shimming.** New workstream: grow the shim's Azure frontends to accept ARM resource-management calls (`PUT https://management.azure.com/subscriptions/{s}/resourceGroups/{rg}/providers/Microsoft.Storage/storageAccounts/{name}?api-version=…`). Today the shim's Azure frontends only speak the data planes — ARM landing on the shim is unimplemented. Once shim-side ARM exists, the existing `azurerm` Terraform provider can drive cross-cloud Apply through the shim to AWS/GCP backends via sockerless. Substantial — multi-PR workstream.
+3. **Watch sockerless#244.** Container Apps `linux/arm64` hardcode. Once fixed upstream, re-enable `SOCKERLESS_AZURE_CONTAINERAPPS_IMAGE` default in `scripts/run-sockerless-storage.sh` and close BUG-35. ~5 LOC shim-side change.
+
+### Footnote: why 14.E is not active yet
+
+PR #46 originally planned to include 14.E cross-cloud Apply cells. During the work I audited what 14.E actually needs and the audit reframed the problem: sockerless is on the *destination* side of cross-cloud Apply (AWS or GCP), not the Azure source side. The Azure source side is the shim itself, which doesn't yet expose ARM-shimmed routes for `Microsoft.Storage/storageAccounts`, `Microsoft.Cache/Redis`, `Microsoft.DBforPostgreSQL/flexibleServers`, etc. — the shim needs to grow those shape translations before any Azure-source 14.E cell can run end-to-end. sockerless#243 (Azure ARM endpoint emission) is the analogous gap on the sockerless side and the maintainer reframed it to require real data planes too, but it's not on shimanism's critical path. 14.E re-opens once shim-side ARM-shimming exists; that's workstream 2 above.
 
 ## Sockerless rebuild + lane run (when needed)
 
