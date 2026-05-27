@@ -3,8 +3,11 @@ package conformance_test
 
 import (
 	"context"
+	"crypto/hmac"
 	"crypto/rand"
+	"crypto/sha256"
 	"crypto/tls"
+	"encoding/base64"
 	"encoding/hex"
 	"net"
 	"net/http"
@@ -20,11 +23,13 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sns"
 	snstypes "github.com/aws/aws-sdk-go-v2/service/sns/types"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
+	"golang.org/x/oauth2"
 	"google.golang.org/api/option"
 	pubsubraw "google.golang.org/api/pubsub/v1"
 
 	"github.com/e6qu/shimanism/internal/harness"
 	"github.com/e6qu/shimanism/internal/pubsub/domain"
+	awspubsubbackend "github.com/e6qu/shimanism/services/pubsub/backends/aws"
 	azurepubsub "github.com/e6qu/shimanism/services/pubsub/backends/azure"
 	gcpbackend "github.com/e6qu/shimanism/services/pubsub/backends/gcp"
 )
@@ -193,6 +198,106 @@ func randomHex8() string {
 	b := make([]byte, 4)
 	_, _ = rand.Read(b)
 	return hex.EncodeToString(b)
+}
+
+// gcpHS256Bearer mints a test-mode HS256 JWT that the shim's
+// gcpbearer middleware accepts in test mode (key
+// "test-key-do-not-use-in-prod"). Equivalent to the static SigV4
+// credentials the AWS frontend's through-shim cells satisfy.
+func gcpHS256Bearer(t *testing.T, audience string) string {
+	t.Helper()
+	header := base64.RawURLEncoding.EncodeToString([]byte(`{"alg":"HS256","typ":"JWT","kid":"shim-test"}`))
+	payloadJSON := []byte(`{"aud":"` + audience + `","exp":4102444800,"iat":1}`)
+	payload := base64.RawURLEncoding.EncodeToString(payloadJSON)
+	signingInput := header + "." + payload
+	mac := hmac.New(sha256.New, []byte("test-key-do-not-use-in-prod"))
+	mac.Write([]byte(signingInput))
+	sig := base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
+	return signingInput + "." + sig
+}
+
+type gcpStaticTokenSource struct{ token string }
+
+func (s gcpStaticTokenSource) Token() (*oauth2.Token, error) {
+	return &oauth2.Token{AccessToken: s.token, TokenType: "Bearer"}, nil
+}
+
+// TestSockerless_GCPPubsubFrontendToAWSBackend_RoundTrip is the
+// reverse-direction through-shim cell: GCP Pub/Sub SDK drives the
+// shim's GCP pubsub frontend, which routes through the shim's AWS
+// SNS+SQS backend, which targets sockerless's AWS sim. Complement
+// of TestSockerless_AWSSNSFrontendToGCPBackend_Fanout. BUG-24
+// reverse-direction coverage.
+func TestSockerless_GCPPubsubFrontendToAWSBackend_RoundTrip(t *testing.T) {
+	awsEndpoint := os.Getenv("SOCKERLESS_AWS_ENDPOINT")
+	if awsEndpoint == "" {
+		t.Skip("SOCKERLESS_AWS_ENDPOINT not set")
+	}
+	ctx := context.Background()
+
+	cfg, err := config.LoadDefaultConfig(ctx,
+		config.WithRegion("us-east-1"),
+		config.WithCredentialsProvider(credentials.StaticCredentialsProvider{
+			Value: awsapi.Credentials{
+				AccessKeyID:     "AKIAIOSFODNN7EXAMPLE",
+				SecretAccessKey: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+			},
+		}),
+	)
+	if err != nil {
+		t.Fatalf("aws config: %v", err)
+	}
+	if os.Getenv("AWS_S3_CONFORMANCE_INSECURE_TLS") == "1" {
+		cfg.HTTPClient = &http.Client{Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		}}
+	}
+	snsClient := sns.NewFromConfig(cfg, func(o *sns.Options) {
+		o.BaseEndpoint = awsapi.String(awsEndpoint)
+	})
+	sqsClient := sqs.NewFromConfig(cfg, func(o *sqs.Options) {
+		o.BaseEndpoint = awsapi.String(awsEndpoint)
+	})
+	backend := awspubsubbackend.New(snsClient, sqsClient, awspubsubbackend.Config{
+		Region:  "us-east-1",
+		Account: "000000000000",
+	})
+	srv := harness.StartPubsubServerGCP(t, backend)
+
+	svc, err := pubsubraw.NewService(ctx,
+		option.WithEndpoint(srv.URL+"/"),
+		option.WithTokenSource(gcpStaticTokenSource{token: gcpHS256Bearer(t, "https://pubsub.googleapis.com/")}),
+	)
+	if err != nil {
+		t.Fatalf("pubsub client: %v", err)
+	}
+
+	project := "shim-sockerless"
+	topic := "projects/" + project + "/topics/shim-sk-rev-pub-" + randomHex8()
+
+	if _, err := svc.Projects.Topics.Create(topic, &pubsubraw.Topic{}).Do(); err != nil {
+		t.Fatalf("Create topic through shim: %v", err)
+	}
+	t.Cleanup(func() { _, _ = svc.Projects.Topics.Delete(topic).Do() })
+
+	if _, err := svc.Projects.Topics.Get(topic).Do(); err != nil {
+		t.Fatalf("Get topic through shim: %v", err)
+	}
+
+	list, err := svc.Projects.Topics.List("projects/" + project).Do()
+	if err != nil {
+		t.Fatalf("List topics through shim: %v", err)
+	}
+	found := false
+	for _, tp := range list.Topics {
+		if tp.Name == topic {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("List did not contain %q", topic)
+	}
 }
 
 // TestSockerless_Azure_ServiceBus_Topic_CRUD exercises the shim's

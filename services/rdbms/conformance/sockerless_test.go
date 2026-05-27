@@ -3,8 +3,11 @@ package conformance_test
 
 import (
 	"context"
+	"crypto/hmac"
 	"crypto/rand"
+	"crypto/sha256"
 	"crypto/tls"
+	"encoding/base64"
 	"encoding/hex"
 	"net"
 	"net/http"
@@ -20,11 +23,13 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/rds"
+	"golang.org/x/oauth2"
 	"google.golang.org/api/option"
 	sqladmin "google.golang.org/api/sqladmin/v1"
 
 	"github.com/e6qu/shimanism/internal/harness"
 	rdbmsdomain "github.com/e6qu/shimanism/internal/rdbms/domain"
+	awsrdbms "github.com/e6qu/shimanism/services/rdbms/backends/aws"
 	azurerdbms "github.com/e6qu/shimanism/services/rdbms/backends/azure"
 	gcpbackend "github.com/e6qu/shimanism/services/rdbms/backends/gcp"
 )
@@ -119,6 +124,104 @@ func sockerlessHex8() string {
 	b := make([]byte, 4)
 	_, _ = rand.Read(b)
 	return hex.EncodeToString(b)
+}
+
+// gcpHS256Bearer mints a test-mode HS256 JWT that the shim's
+// gcpbearer middleware accepts in test mode.
+func gcpHS256Bearer(t *testing.T, audience string) string {
+	t.Helper()
+	header := base64.RawURLEncoding.EncodeToString([]byte(`{"alg":"HS256","typ":"JWT","kid":"shim-test"}`))
+	payloadJSON := []byte(`{"aud":"` + audience + `","exp":4102444800,"iat":1}`)
+	payload := base64.RawURLEncoding.EncodeToString(payloadJSON)
+	signingInput := header + "." + payload
+	mac := hmac.New(sha256.New, []byte("test-key-do-not-use-in-prod"))
+	mac.Write([]byte(signingInput))
+	sig := base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
+	return signingInput + "." + sig
+}
+
+type gcpStaticTokenSource struct{ token string }
+
+func (s gcpStaticTokenSource) Token() (*oauth2.Token, error) {
+	return &oauth2.Token{AccessToken: s.token, TokenType: "Bearer"}, nil
+}
+
+// TestSockerless_GCPCloudSQLFrontendToAWSBackend_CRUD is the
+// reverse-direction through-shim cell: GCP Cloud SQL admin SDK
+// drives the shim's GCP rdbms frontend, which routes through the
+// shim's AWS RDS backend, which targets sockerless's AWS sim.
+// Complement of TestSockerless_AWSRDSFrontendToGCPBackend_CRUD.
+// BUG-24 reverse-direction coverage.
+func TestSockerless_GCPCloudSQLFrontendToAWSBackend_CRUD(t *testing.T) {
+	awsEndpoint := os.Getenv("SOCKERLESS_AWS_ENDPOINT")
+	if awsEndpoint == "" {
+		t.Skip("SOCKERLESS_AWS_ENDPOINT not set")
+	}
+	ctx := context.Background()
+
+	cfg, err := config.LoadDefaultConfig(ctx,
+		config.WithRegion("us-east-1"),
+		config.WithCredentialsProvider(credentials.StaticCredentialsProvider{
+			Value: awsapi.Credentials{
+				AccessKeyID:     "AKIAIOSFODNN7EXAMPLE",
+				SecretAccessKey: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+			},
+		}),
+	)
+	if err != nil {
+		t.Fatalf("aws config: %v", err)
+	}
+	if os.Getenv("AWS_S3_CONFORMANCE_INSECURE_TLS") == "1" {
+		cfg.HTTPClient = &http.Client{Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		}}
+	}
+	rdsClient := rds.NewFromConfig(cfg, func(o *rds.Options) {
+		o.BaseEndpoint = awsapi.String(awsEndpoint)
+	})
+	backend := awsrdbms.New(rdsClient)
+	srv := harness.StartRDBMSServerGCP(t, backend)
+
+	svc, err := sqladmin.NewService(ctx,
+		option.WithEndpoint(srv.URL+"/"),
+		option.WithTokenSource(gcpStaticTokenSource{token: gcpHS256Bearer(t, "https://sqladmin.googleapis.com/")}),
+	)
+	if err != nil {
+		t.Fatalf("cloud sql client: %v", err)
+	}
+
+	project := "shim-sockerless"
+	name := "shim-sk-rev-db-" + sockerlessHex8()
+
+	if _, err := svc.Instances.Insert(project, &sqladmin.DatabaseInstance{
+		Name:            name,
+		DatabaseVersion: "POSTGRES_14",
+		Settings: &sqladmin.Settings{
+			Tier: "db-custom-1-3840",
+		},
+	}).Do(); err != nil {
+		t.Fatalf("Insert through shim: %v", err)
+	}
+	t.Cleanup(func() { _, _ = svc.Instances.Delete(project, name).Do() })
+
+	if _, err := svc.Instances.Get(project, name).Do(); err != nil {
+		t.Fatalf("Get through shim: %v", err)
+	}
+
+	list, err := svc.Instances.List(project).Do()
+	if err != nil {
+		t.Fatalf("List through shim: %v", err)
+	}
+	found := false
+	for _, inst := range list.Items {
+		if inst.Name == name {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("List did not contain %q", name)
+	}
 }
 
 // TestSockerless_Azure_RDBMS_PostgreSQL_CRUD exercises the shim's

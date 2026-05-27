@@ -8,6 +8,27 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 
 PR #21 merged on 2026-05-25 at `45985e7`, landing 14.A, the 14.D simulator audit, and the current 14.B sockerless lane. Phase 14.B and 14.C are now closed (PR #46). Phase 13.A is also closed — PR #47 retired the last ◐ migration (`azure_blob`). What remains in Phase 14: PR 3 (14.D Track A, real-cloud-credentials-gated). 14.E cross-cloud Apply re-opens once shim-side ARM-shimming exists (see PR #46 narrative below).
 
+### BUG-24 reverse-direction expansion: 5 new cells (in flight 2026-05-27)
+
+Every service family now has both cross-cloud directions covered. PR #46 added the first batch (cache, secrets, queue — all GCP→AWS). This PR fills out the remaining 5:
+
+- **storage GCS→AWS** — `TestSockerless_E2E_GCSFrontendToAWSBackend`. Real GCS client drives shim's GCS frontend; AWS S3 backend targets sockerless AWS. Storage now has the full 6-direction matrix (every frontend × every backend).
+- **pubsub GCP→AWS** — `TestSockerless_GCPPubsubFrontendToAWSBackend_RoundTrip`. Real GCP Pub/Sub topic admin API drives shim's GCP pubsub frontend; AWS SNS+SQS backend targets sockerless AWS.
+- **rdbms CloudSQL→AWS RDS** — `TestSockerless_GCPCloudSQLFrontendToAWSBackend_CRUD`. Real GCP Cloud SQL admin API drives shim's GCP rdbms frontend; AWS RDS backend targets sockerless AWS.
+- **functions CloudRun→AWS Lambda** — `TestSockerless_GCPCloudRunFrontendToAWSBackend_CRUD`. Real Cloud Run v2 admin API drives shim's GCP functions frontend; AWS Lambda backend targets sockerless AWS. The functions service didn't previously have any cross-cloud cell (the existing AWS Lambda cell is same-cloud); this PR adds the first.
+- **apigateway GCP→AWS APIGW v2** — `TestSockerless_GCPAPIGatewayFrontendToAWSBackend_CRUD`. Real GCP API Gateway admin API drives shim's GCP apigateway frontend; AWS APIGW v2 backend targets sockerless AWS.
+
+Each cell follows the same pattern as PR #46's reverse cells: GCP SDK client with `option.WithEndpoint(shim.URL)` + `option.WithTokenSource(gcpStaticTokenSource{token: gcpHS256Bearer(t, audience)})` to satisfy the shim's gcpbearer middleware in test mode (HS256 with shared test key); AWS client pointed directly at sockerless's AWS endpoint with static credentials and `AWS_S3_CONFORMANCE_INSECURE_TLS=1` honored for the self-signed cert.
+
+Storage was the outlier — its GCS frontend uses `gcpbearer.TestJWT` minted inside `newGCSClient`, not the per-file `gcpHS256Bearer` helper. Mirrors what the other GCS sockerless cells already do.
+
+**Two surprises during the run:**
+
+- `apigwapi.ApiGateway` doesn't exist as a Go SDK type — the real name is `ApigatewayApi`. Caught by `go build`; fixed before push.
+- The rdbms helper `newSockerlessRDSClient` didn't honor `AWS_S3_CONFORMANCE_INSECURE_TLS=1`. Forward cells didn't need it because they point the RDS client at the shim's HTTP test server; this reverse cell points it at sockerless's HTTPS endpoint, surfacing the TLS gap. Solved inline (don't use the helper for this cell) rather than touch the helper, to minimize blast radius. Worth refactoring later — the same TLS check exists 3-4 times across services.
+
+End state: `make sockerless` reports **43 passing + 0 skipped** (was 38 after PR #49).
+
 ### BUG-35 closure + PR #47 narrative bookkeeping (PR #48, in flight 2026-05-27)
 
 Two threads bundled because both are doc-adjacent:

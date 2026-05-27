@@ -8,9 +8,9 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 
 | | |
 |---|---|
-| Active branch | `main` after PR #47 merged 2026-05-27. PR #48 in flight bundles the PR #47 doc narrative + BUG-35 closure (sockerless PR #245 unblocked the Container Apps lane). |
-| In-flight | **3-PR plan now 2/3 shipped.** PR #46 closed Phase 14.B + 14.C. PR #47 closed Phase 13.A.6. PR 3 (Track A: BUG-8 + BUG-15 + real-signed verifier conformance) stays blocked on real-cloud credentials. **Sockerless lane: 38 passing + 0 skipped** (Container Apps unblocked via sockerless PR #245 — re-default in PR #48). 14.E cross-cloud Apply deferred — shim needs ARM-shimming on its own side. **Practical next chunks**: BUG-24 reverse-direction expansion (5 remaining service families), or starting the shim-side ARM-shimming workstream that unblocks 14.E. |
-| Last merged | PR #47 — Phase 13.A.6: `azure_blob` full handler migration, 2026-05-27. |
+| Active branch | `main` after PR #49 merged 2026-05-27 (BUG-35 closure). Working on BUG-24 reverse-direction expansion next. |
+| In-flight | **BUG-24 reverse-direction expansion** — adds 5 reverse cells (storage GCS→AWS, pubsub GCP→AWS, rdbms CloudSQL→AWS, functions CloudRun→AWS, apigateway GCP→AWS) bringing the sockerless lane to **43 passing + 0 skipped** (was 38). Every service family now has both cross-cloud directions covered. Track A still blocked on real-cloud credentials. 14.E cross-cloud Apply deferred (separate ARM-shimming workstream). |
+| Last merged | PR #49 — close BUG-35: re-default Container Apps image after sockerless#245, 2026-05-27. |
 | Phases 1–12 | All closed. PR index in [PLAN.md § Closed phases](PLAN.md#closed-phases-pr-index). |
 | Bugs | **38 filed · 36 fixed · 2 open · 1 false positive.** Open: **BUG-8** (apigateway TF-provider Track A leg, real GCP), **BUG-15** (queue TF state-drift Track A leg, real GCP). BUG-35 closed by sockerless PR #245. |
 | Upstream | **Zero open sockerless issues.** Sockerless PR #245 (merged 2026-05-27) closed #243 + #244 — ACA image platforms derived from manifest, Azure ARM endpoint hosts derived from request host across SB/Redis/APIM/PG/Container Apps. Earlier follow-ons #239/#240/#241 closed via sockerless PR #242. |
