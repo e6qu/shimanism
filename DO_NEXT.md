@@ -6,10 +6,11 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 
 ## Where we are
 
-- **3-PR plan: 2/3 shipped; PR 3 (Track A) blocked.** PR #46 (Phase 14.B + 14.C closure), PR #47 (Phase 13.A.6 `azure_blob` migration), PR #48 (PR #47 doc narrative), PR #49 (BUG-35 closure via sockerless#245) all landed 2026-05-27.
-- **BUG-24 reverse-direction expansion in flight** — adds 5 new reverse cells (storage GCS→AWS, pubsub GCP→AWS, rdbms CloudSQL→AWS, functions CloudRun→AWS, apigateway GCP→AWS). Every service family now has both cross-cloud directions covered.
-- **Phase 13.A is fully closed.** `azure_blob` was the last ◐ migration — the full `gen.ServerInterface` impl now ships on every Azure frontend.
-- `make sockerless` reports **43 passing + 0 skipped** locally with the 5 new BUG-24 cells (was 38 after PR #49).
+- **3-PR plan: 2/3 shipped; PR 3 (Track A) blocked.** PR #46/#47/#48/#49/#50 all landed 2026-05-27.
+- **BUG-24 reverse-direction coverage is now complete** — every service family has both cross-cloud directions (PR #50).
+- **14.E ARM-shimming PR 1 in flight** — Microsoft.Storage ARM frontend added. First of 3 missing ARM-shims (Service Bus namespaces + Key Vault vaults still pending in future PRs).
+- **Phase 13.A is fully closed.** Every Azure frontend has full `gen.ServerInterface` impl.
+- `make sockerless` reports **44 passing + 0 skipped** locally with the new ARM → blob through-shim cell (was 43 after PR #50).
 - **Storage matrix complete 3×3** — single-shot + multipart + copy across AWS S3 + GCS + Azure Blob.
 - **Service Bus matrix complete** — admin (ATOM XML) + Send/Receive data-plane (raw AMQP/TLS via `azservicebus.ClientOptions.CustomEndpoint`).
 - **Azure ARM lanes complete** for Redis / PG / APIM via custom `arm.ClientOptions.Cloud.ResourceManager.Endpoint`.
@@ -41,9 +42,12 @@ Real-cloud lanes for BUG-8 (hashicorp/google API Gateway TF endpoint/OAuth leg) 
 
 ## Practical next chunks (while Track A is blocked)
 
-1. ~~BUG-24 reverse-direction expansion.~~ ✅ In flight this PR — 5 reverse cells added (storage GCS→AWS, pubsub GCP→AWS, rdbms CloudSQL→AWS, functions CloudRun→AWS, apigateway GCP→AWS). Every family now has both cross-cloud directions.
-2. **14.E shim-side ARM-shimming.** New workstream: grow the shim's Azure frontends to accept ARM resource-management calls (`PUT https://management.azure.com/subscriptions/{s}/resourceGroups/{rg}/providers/Microsoft.Storage/storageAccounts/{name}?api-version=…`). Today the shim's Azure frontends only speak the data planes — ARM landing on the shim is unimplemented. Once shim-side ARM exists, the existing `azurerm` Terraform provider can drive cross-cloud Apply through the shim to AWS/GCP backends via sockerless. Substantial — multi-PR workstream.
-3. ~~Watch sockerless#244.~~ ✅ Done in PR #49 (sockerless PR #245 merged; ACA image platforms now derived from manifest; shim re-defaulted `SOCKERLESS_AZURE_CONTAINERAPPS_IMAGE`).
+1. ~~BUG-24 reverse-direction expansion.~~ ✅ Shipped in PR #50.
+2. **14.E shim-side ARM-shimming.** Multi-PR workstream:
+   - **PR 1 (in flight)** — Microsoft.Storage/storageAccounts. Adds the `azure_arm_storageaccounts` frontend, generates the gen pkg from upstream spec, wires the harness Start helper, adds the ARM → blob through-shim sockerless cell.
+   - **PR 2 (next)** — Microsoft.ServiceBus/namespaces. Vendor + gen the SB ARM spec, add the frontend for queue + pubsub (shared namespaces). The shim's existing Service Bus admin uses ATOM XML; ARM gives Terraform's `azurerm_servicebus_namespace`.
+   - **PR 3 (then)** — Microsoft.KeyVault/vaults. Vendor + gen the KV ARM spec, add the frontend for secrets. Unblocks `azurerm_key_vault` Terraform Apply.
+3. ~~Watch sockerless#244.~~ ✅ Done in PR #49.
 
 ### Footnote: why 14.E is not active yet
 

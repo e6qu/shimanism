@@ -8,6 +8,35 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 
 PR #21 merged on 2026-05-25 at `45985e7`, landing 14.A, the 14.D simulator audit, and the current 14.B sockerless lane. Phase 14.B and 14.C are now closed (PR #46). Phase 13.A is also closed — PR #47 retired the last ◐ migration (`azure_blob`). What remains in Phase 14: PR 3 (14.D Track A, real-cloud-credentials-gated). 14.E cross-cloud Apply re-opens once shim-side ARM-shimming exists (see PR #46 narrative below).
 
+### 14.E ARM-shimming PR 1 — Microsoft.Storage/storageAccounts (in flight 2026-05-27)
+
+First PR in the multi-PR workstream that grows shim-side ARM-shimming so the `azurerm` Terraform provider can drive cross-cloud Apply through the shim. Today: the shim's Azure frontends (`azure_blob`, `azure_servicebus`, `azure_keyvault`) only speak data planes. This PR adds an ARM frontend for Microsoft.Storage; future PRs follow for Service Bus + Key Vault.
+
+**Vendored spec.** `services/storage/spec/azure-arm-storage.json` (622KB) — `specification/storage/resource-manager/Microsoft.Storage/stable/2026-04-01/openapi.json` from Azure/azure-rest-api-specs@337bb8679. Added via `scripts/fetch-azure-spec.sh`; SOURCES.md updated.
+
+**Codegen.** New `services/storage/azure-arm-codegen.json` manifest pointing at the new spec. The Makefile glob expanded to find `azure*codegen.json` so a service can carry both `azure-codegen.json` (existing data-plane) and `azure-arm-codegen.json` (new ARM) side-by-side. `make codegen` emits `services/storage/gen/azure_arm/azure_arm_storage.gen.go` (768KB, 120 ServerInterface methods).
+
+**Frontend.** New `internal/storage/frontends/azure_arm_storageaccounts/` implements all 120 methods:
+
+- **11 in-intersection bridges.** `StorageAccountsCreate/GetProperties/Update/Delete/List/ListByResourceGroup/CheckNameAvailability` acknowledge synthetically (the shim is account-agnostic — accounts are routing-fiction). `BlobContainersCreate/Get/Delete/List` bridge to `domain.Storage.CreateBucket/HeadBucket/DeleteBucket/ListBuckets`. Account names from the URL are stripped; the backend bucket namespace is shared across all "accounts" (the data-plane `azure_blob` frontend already does the same).
+- **109 stubs.** Everything else (encryption scopes, blob inventory, lifecycle management, queue/file/table services, network rules, private endpoints, SAS / keys, etc.) returns the ARM error envelope via `notImplemented` (HTTP 501, `OperationNotSupported`).
+
+**Harness.** New `harness.StartStorageServerAzureARM(t, backend)` wraps the new frontend with the same `azurebearer` middleware (`Audience: https://management.azure.com/`, test HS256 key) every other ARM-shimmed service uses.
+
+**Sockerless cell.** `TestSockerless_E2E_AzureARM_StorageAccount_Through_Shim` exercises the full ARM → data-plane round trip:
+1. `armstorage.NewAccountsClient` PUT `storageAccount` (shim acknowledges synthetically).
+2. ARM GET `storageAccount` (shim returns synthetic resource — always "exists").
+3. `armstorage.NewBlobContainersClient` PUT `container` (shim bridges to `backend.CreateBucket`).
+4. `azblob.UploadBuffer` PUT blob through the data-plane frontend (shim's existing `azure_blob` → `backend.PutObject`).
+5. `azblob.DownloadStream` GET blob → assert content matches.
+6. ARM DELETE container + account.
+
+Two shim frontends backed by the same backend instance (`awsbackend.New(...)` pointing at sockerless's AWS sim) prove that the account-name-as-routing-fiction works end-to-end: the bucket created via ARM `BlobContainersCreate` is visible to the data-plane `azure_blob` frontend without any account-level state in the shim.
+
+**Surprise during the run:** the Azure SDK refuses to send bearer tokens to non-HTTPS endpoints by default. The shim's `httptest.NewServer` is HTTP. Added `InsecureAllowCredentialWithHTTP: true` to the test's `arm.ClientOptions` — a flag azcore added in v1.21 specifically for test harnesses. Not suitable for production but exactly the right knob for the through-shim test.
+
+End state: `make sockerless` reports **44 passing + 0 skipped** (was 43 after PR #50).
+
 ### BUG-24 reverse-direction expansion: 5 new cells (in flight 2026-05-27)
 
 Every service family now has both cross-cloud directions covered. PR #46 added the first batch (cache, secrets, queue — all GCP→AWS). This PR fills out the remaining 5:

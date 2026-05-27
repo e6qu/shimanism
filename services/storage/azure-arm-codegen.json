@@ -1,0 +1,6 @@
+{
+  "_comment": "Phase 14.E: Azure Storage ARM (resource-manager) spec — Microsoft.Storage/storageAccounts. Drives the new `azure_arm_storageaccounts` frontend that accepts ARM control-plane calls (azurerm Terraform provider, az storage account CLI, Azure SDK) and acknowledges them statelessly — the shim is account-agnostic, so accounts are routing-fiction; subsequent data-plane operations target the existing azure_blob frontend.",
+  "spec": "services/storage/spec/azure-arm-storage.json",
+  "package": "azure_arm",
+  "out": "services/storage/gen/azure_arm/azure_arm_storage.gen.go"
+}
