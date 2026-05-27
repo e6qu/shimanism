@@ -17,8 +17,8 @@ The same property makes sockerless the right vehicle for two things Phase 14 car
 
 | Backend | Coverage | Notes |
 |---|---|---|
-| AWS S3 (`services/storage/backends/aws`) | Full round-trip | sockerless#173 + #174 closed in PR #179. |
-| GCS (`services/storage/backends/gcs`) | Full round-trip | Uses the SDK's `STORAGE_EMULATOR_HOST` env var. |
+| AWS S3 (`services/storage/backends/aws`) | Full single-shot + multipart round-trip | Single-shot lane: sockerless#173 + #174 closed in PR #179. Multipart lane (`TestSockerless_AWS_S3_Multipart`): CreateMultipartUpload → UploadPart × N (5 MiB minimum per non-final part) → ListParts → CompleteMultipartUpload → GetObject, asserts concatenated body. |
+| GCS (`services/storage/backends/gcs`) | Full single-shot + multipart round-trip | Single-shot lane uses the SDK's `STORAGE_EMULATOR_HOST` env var. Multipart lane (`TestSockerless_GCS_Multipart`) exercises the shim's Compose-based assembly: stage parts under a per-upload prefix, then `composeObject` to assemble. |
 | AWS Secrets Manager (`services/secrets/backends/aws`) | Full round-trip | sockerless#175 closed in PR #179. |
 | AWS SQS (`services/queue/backends/aws`) | CreateQueue with Attributes → HeadQueue assertion (VisibilityTimeout + MessageRetentionPeriod) | sockerless#186 closed in PR #180. |
 | GCP Pub/Sub queue (`services/queue/backends/gcp`) | Retention round-trip — CreateQueue → SetQueueAttributes → HeadQueue | Clears the shim backend leg of BUG-15; the remaining BUG-15 question is hashicorp/google Terraform state drift. |
