@@ -2,11 +2,8 @@ package azure_arm_keyvault
 
 import (
 	"encoding/json"
-	"errors"
 	"io"
 	"net/http"
-
-	"github.com/e6qu/shimanism/internal/secrets/domain"
 )
 
 type armErrorResponse struct {
@@ -46,20 +43,4 @@ func decodeJSON(w http.ResponseWriter, r *http.Request, target interface{}) bool
 		return false
 	}
 	return true
-}
-
-func mapDomainError(w http.ResponseWriter, err error) {
-	var de *domain.Error
-	if !errors.As(err, &de) {
-		writeError(w, http.StatusInternalServerError, "InternalError", err.Error())
-		return
-	}
-	switch de.Kind {
-	case domain.KindNoSuchSecret:
-		writeError(w, http.StatusNotFound, "ResourceNotFound", de.Message)
-	case domain.KindInvalidArgument:
-		writeError(w, http.StatusBadRequest, "BadRequest", de.Message)
-	default:
-		writeError(w, http.StatusInternalServerError, "InternalError", de.Message)
-	}
 }
