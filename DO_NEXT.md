@@ -43,11 +43,16 @@ Real-cloud lanes for BUG-8 (hashicorp/google API Gateway TF endpoint/OAuth leg) 
 ## Practical next chunks (while Track A is blocked)
 
 1. ~~BUG-24 reverse-direction expansion.~~ ✅ Shipped in PR #50.
-2. **14.E cross-cloud Apply via sockerless-driven ARM.** PRs #51–#54 attempted shim-side ARM-shimming but violated the "no fakes / stateless shim" rules; the in-flight revert PR removes that work. The honest architecture:
-   - **Control plane:** sockerless's Azure simulator owns real Azure ARM (storage accounts, vaults, etc. with real state). sockerless PR #259 (merged) added configurable data-plane endpoint emission via `SIM_AZURE_ARM_EXTERNAL_DATA_PLANE_URLS_JSON`.
+2. **14.E cross-cloud Apply via sockerless-driven ARM.** Revert of PR #51–#54's fakes shipped (PR #56). The honest architecture:
+   - **Control plane:** sockerless's Azure simulator owns real Azure ARM. sockerless#259 added configurable data-plane endpoint emission via `SIM_AZURE_ARM_EXTERNAL_DATA_PLANE_URLS_JSON`.
    - **Data plane:** shimanism's existing `azure_blob` / `azure_keyvault` / `azure_servicebus` frontends translate Azure-shaped data-plane calls to AWS/GCP backends.
    - **Composition:** `azurerm → sockerless ARM (real state) → response embeds shim URL in primaryEndpoints.* / vaultUri → shim data plane → AWS/GCP backend`.
-   - **Next PR after the revert:** wire `scripts/run-sockerless-storage.sh` to export `SIM_AZURE_ARM_EXTERNAL_DATA_PLANE_URLS_JSON` pointing at fixed-port shim data-plane URLs; bind the shim to those ports in the cross-cloud Apply tests; add a through-shim `azurerm_storage_account` + `azurerm_storage_container` Apply test that exercises the full path without any shim-side ARM.
+
+   **Currently blocked on two sockerless gaps:**
+   - [sockerless#260](https://github.com/e6qu/sockerless/issues/260) — storage `listKeys` emits hardcoded 9-byte stubs; needs per-account deterministic 32-byte keys (matching `simListKey32` convention) so the shim's `azuresharedkey` verifier can derive the same key for signature validation.
+   - [sockerless#261](https://github.com/e6qu/sockerless/issues/261) — Azure AD tokens are HS256-signed with a per-process random key (unpublished); needs RS256 + real JWKS at `/discovery/v2.0/keys` so the shim's `azurebearer` RS256/JWKS verifier can validate them.
+
+   Without these, the shim's verifiers reject sockerless-issued credentials. Cross-cloud Apply through the honest path can't compose with end-to-end verification until both land. The `SHIMANISM_TEST_UNAUTHENTICATED_AZURE=1` test-mode bypass would let the apply succeed without verification but would skip the most interesting cell of the matrix.
 3. ~~Watch sockerless#244.~~ ✅ Done in PR #49.
 
 ### Lesson: ARM shimming via fakes was the wrong design
