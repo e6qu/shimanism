@@ -302,6 +302,23 @@ func syntheticContainerItem(subId gen.SubscriptionIdParameter, rg gen.ResourceGr
 
 func ptr[T any](v T) *T { return &v }
 
+// syntheticServiceProperties returns the canonical ARM
+// /{Blob,File,Queue,Table}Services/default response shape.
+// azurerm polls all four after account create to confirm the data
+// plane is ready; returning a populated ProxyResource lets the
+// wait succeed without the shim needing to actually serve those
+// services.
+func syntheticServiceProperties(svc string) *gen.Resource {
+	id := "/subscriptions/shim/resourceGroups/shim/providers/Microsoft.Storage/storageAccounts/shim/" + svc + "Services/default"
+	name := "default"
+	typ := "Microsoft.Storage/storageAccounts/" + svc + "Services"
+	return &gen.Resource{
+		Id:   &id,
+		Name: &name,
+		Type: &typ,
+	}
+}
+
 // recordAccount notes that StorageAccountsCreate was called for
 // `name`. No-op when TrackAccounts is false.
 func (srv *Server) recordAccount(name string) {
@@ -418,7 +435,7 @@ func (srv *Server) BlobServicesList(w http.ResponseWriter, _ *http.Request, _ ge
 }
 
 func (srv *Server) BlobServicesGetServiceProperties(w http.ResponseWriter, _ *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ gen.BlobServicesGetServicePropertiesParams) {
-	notImplemented(w, "BlobServicesGetServiceProperties")
+	writeJSON(w, http.StatusOK, syntheticServiceProperties("blob"))
 }
 
 func (srv *Server) BlobServicesSetServiceProperties(w http.ResponseWriter, _ *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ gen.BlobServicesSetServicePropertiesParams) {
@@ -534,7 +551,7 @@ func (srv *Server) FileServicesList(w http.ResponseWriter, _ *http.Request, _ ge
 }
 
 func (srv *Server) FileServicesGetServiceProperties(w http.ResponseWriter, _ *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ gen.FileServicesGetServicePropertiesParams) {
-	notImplemented(w, "FileServicesGetServiceProperties")
+	writeJSON(w, http.StatusOK, syntheticServiceProperties("file"))
 }
 
 func (srv *Server) FileServicesSetServiceProperties(w http.ResponseWriter, _ *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ gen.FileServicesSetServicePropertiesParams) {
@@ -694,7 +711,7 @@ func (srv *Server) QueueServicesList(w http.ResponseWriter, _ *http.Request, _ g
 }
 
 func (srv *Server) QueueServicesGetServiceProperties(w http.ResponseWriter, _ *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ gen.QueueServicesGetServicePropertiesParams) {
-	notImplemented(w, "QueueServicesGetServiceProperties")
+	writeJSON(w, http.StatusOK, syntheticServiceProperties("queue"))
 }
 
 func (srv *Server) QueueServicesSetServiceProperties(w http.ResponseWriter, _ *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ gen.QueueServicesSetServicePropertiesParams) {
@@ -774,7 +791,7 @@ func (srv *Server) TableServicesList(w http.ResponseWriter, _ *http.Request, _ g
 }
 
 func (srv *Server) TableServicesGetServiceProperties(w http.ResponseWriter, _ *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ gen.TableServicesGetServicePropertiesParams) {
-	notImplemented(w, "TableServicesGetServiceProperties")
+	writeJSON(w, http.StatusOK, syntheticServiceProperties("table"))
 }
 
 func (srv *Server) TableServicesSetServiceProperties(w http.ResponseWriter, _ *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ gen.TableServicesSetServicePropertiesParams) {
