@@ -928,8 +928,8 @@ func TestSockerless_E2E_AzureARM_StorageAccount_Through_Shim(t *testing.T) {
 	ctx := context.Background()
 
 	backend := awsbackend.New(newSockerlessAWSClient(t, endpoint))
-	armShim := harness.StartStorageServerAzureARM(t, backend)
 	blobShim := harness.StartStorageServerAzureBlob(t, backend)
+	armShim := harness.StartStorageServerAzureARM(t, backend, blobShim.URL)
 
 	token := azurebearer.TestJWT(
 		[]byte("test-key-do-not-use-in-prod"),
@@ -977,8 +977,20 @@ func TestSockerless_E2E_AzureARM_StorageAccount_Through_Shim(t *testing.T) {
 	}
 	t.Cleanup(func() { _, _ = accountsClient.Delete(ctx, rg, account, nil) })
 
-	if _, err := accountsClient.GetProperties(ctx, rg, account, nil); err != nil {
+	accountProps, err := accountsClient.GetProperties(ctx, rg, account, nil)
+	if err != nil {
 		t.Fatalf("ARM GetProperties: %v", err)
+	}
+	// The ARM frontend should advertise the blob frontend's URL in
+	// PrimaryEndpoints.Blob so that azurerm Terraform's storage-
+	// account-driven endpoint discovery routes blob ops to the
+	// shim's data plane.
+	if accountProps.Account.Properties == nil || accountProps.Account.Properties.PrimaryEndpoints == nil || accountProps.Account.Properties.PrimaryEndpoints.Blob == nil {
+		t.Fatalf("ARM GetProperties: PrimaryEndpoints.Blob missing")
+	}
+	wantBlob := blobShim.URL + "/"
+	if gotBlob := *accountProps.Account.Properties.PrimaryEndpoints.Blob; gotBlob != wantBlob {
+		t.Errorf("PrimaryEndpoints.Blob = %q, want %q", gotBlob, wantBlob)
 	}
 
 	containersClient, err := armstorage.NewBlobContainersClient(subID, cred, armOpts)

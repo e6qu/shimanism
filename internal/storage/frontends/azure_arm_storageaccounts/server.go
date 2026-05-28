@@ -38,6 +38,7 @@ package azure_arm_storageaccounts
 import (
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/e6qu/shimanism/internal/storage/domain"
@@ -46,13 +47,30 @@ import (
 
 // Server is the Microsoft.Storage ARM-shaped HTTP frontend.
 type Server struct {
-	s   domain.Storage
-	mux http.Handler
+	s            domain.Storage
+	mux          http.Handler
+	blobEndpoint string // optional override returned in PrimaryEndpoints.Blob
+}
+
+// Options configures the ARM frontend.
+type Options struct {
+	// BlobEndpoint, when non-empty, is returned verbatim in
+	// `properties.primaryEndpoints.blob` on every StorageAccount
+	// response. The `hashicorp/azurerm` Terraform provider reads
+	// this field at apply time to derive the blob data-plane URL
+	// for resources that depend on the account (azurerm_storage_container,
+	// azurerm_storage_blob, etc.). Leave empty to fall back to the
+	// real-Azure-shaped `https://<account>.blob.core.windows.net/`
+	// default.
+	BlobEndpoint string
 }
 
 // New returns a frontend bound to the given backend.
-func New(s domain.Storage) *Server {
+func New(s domain.Storage, opts ...Options) *Server {
 	srv := &Server{s: s}
+	if len(opts) > 0 {
+		srv.blobEndpoint = opts[0].BlobEndpoint
+	}
 	srv.mux = gen.HandlerWithOptions(srv, gen.StdHTTPServerOptions{})
 	return srv
 }
@@ -79,17 +97,17 @@ func (srv *Server) StorageAccountsCreate(w http.ResponseWriter, r *http.Request,
 	if !decodeJSON(w, r, &body) {
 		return
 	}
-	writeJSON(w, http.StatusOK, syntheticStorageAccount(subscriptionId, resourceGroupName, accountName, body.Location))
+	writeJSON(w, http.StatusOK, srv.syntheticStorageAccount(subscriptionId, resourceGroupName, accountName, body.Location))
 }
 
 func (srv *Server) StorageAccountsGetProperties(w http.ResponseWriter, _ *http.Request, subscriptionId gen.SubscriptionIdParameter, resourceGroupName gen.ResourceGroupNameParameter, accountName string, _ gen.StorageAccountsGetPropertiesParams) {
-	writeJSON(w, http.StatusOK, syntheticStorageAccount(subscriptionId, resourceGroupName, accountName, ""))
+	writeJSON(w, http.StatusOK, srv.syntheticStorageAccount(subscriptionId, resourceGroupName, accountName, ""))
 }
 
 func (srv *Server) StorageAccountsUpdate(w http.ResponseWriter, r *http.Request, subscriptionId gen.SubscriptionIdParameter, resourceGroupName gen.ResourceGroupNameParameter, accountName string, _ gen.StorageAccountsUpdateParams) {
 	// Drain body for fidelity; ignore contents (shim doesn't persist).
 	_ = decodeJSON(w, r, &struct{}{})
-	writeJSON(w, http.StatusOK, syntheticStorageAccount(subscriptionId, resourceGroupName, accountName, ""))
+	writeJSON(w, http.StatusOK, srv.syntheticStorageAccount(subscriptionId, resourceGroupName, accountName, ""))
 }
 
 func (srv *Server) StorageAccountsDelete(w http.ResponseWriter, _ *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ gen.StorageAccountsDeleteParams) {
@@ -165,7 +183,16 @@ func (srv *Server) BlobContainersList(w http.ResponseWriter, r *http.Request, su
 // StorageV2 account at the requested location. Provisioning state is
 // "Succeeded" because the shim doesn't run async; the create
 // completes synchronously from the caller's POV.
-func syntheticStorageAccount(subId gen.SubscriptionIdParameter, rg gen.ResourceGroupNameParameter, name, location string) *gen.StorageAccount {
+//
+// `PrimaryEndpoints.Blob` is populated from `srv.blobEndpoint` if
+// set; otherwise the real-Azure-shaped default
+// `https://<account>.blob.core.windows.net/` is emitted. The
+// hashicorp/azurerm Terraform provider reads this field at apply
+// time to derive the blob data-plane URL for resources that depend
+// on the account (azurerm_storage_container, azurerm_storage_blob,
+// etc.) — populating it with the shim's blob frontend URL is what
+// makes through-shim Terraform Apply work.
+func (srv *Server) syntheticStorageAccount(subId gen.SubscriptionIdParameter, rg gen.ResourceGroupNameParameter, name, location string) *gen.StorageAccount {
 	if location == "" {
 		location = "eastus"
 	}
@@ -177,6 +204,12 @@ func syntheticStorageAccount(subId gen.SubscriptionIdParameter, rg gen.ResourceG
 	created := time.Now().UTC()
 	state := gen.ProvisioningStateSucceeded
 	primary := gen.AccountStatusAvailable
+	blobURL := srv.blobEndpoint
+	if blobURL == "" {
+		blobURL = fmt.Sprintf("https://%s.blob.core.windows.net/", name)
+	} else if !strings.HasSuffix(blobURL, "/") {
+		blobURL += "/"
+	}
 	return &gen.StorageAccount{
 		Id:       &id,
 		Name:     &name,
@@ -193,6 +226,9 @@ func syntheticStorageAccount(subId gen.SubscriptionIdParameter, rg gen.ResourceG
 			PrimaryLocation:          &location,
 			AllowBlobPublicAccess:    ptr(false),
 			SupportsHttpsTrafficOnly: ptr(true),
+			PrimaryEndpoints: &gen.Endpoints{
+				Blob: &blobURL,
+			},
 		},
 	}
 }
