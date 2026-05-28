@@ -85,12 +85,18 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // handleMetadata serves the cloud-metadata document. azurerm's
 // `metadata_host` config makes the provider fetch this; the fields
 // it reads to configure its own AAD + ARM endpoints are
-// `authentication.loginEndpoint`, `authentication.audiences`, and
-// `resourceManager`.
+// `name` (the environment selector), `authentication.loginEndpoint`,
+// `authentication.audiences`, and `resourceManager`.
+//
+// The response shape is an array of environment objects — the real
+// Azure metadata service returns multiple clouds (AzureCloud,
+// AzureChinaCloud, etc.); azurerm picks the one whose `name`
+// matches its `environment` setting (default "public").
 func (s *Server) handleMetadata(w http.ResponseWriter, _ *http.Request) {
-	doc := map[string]any{
+	env := map[string]any{
+		"name":                              "AzureCloud",
 		"portal":                            s.opts.SelfURL,
-		"authentication":                    map[string]any{"loginEndpoint": s.opts.SelfURL + "/", "audiences": []string{"https://management.core.windows.net/", "https://management.azure.com/"}},
+		"authentication":                    map[string]any{"loginEndpoint": s.opts.SelfURL + "/", "audiences": []string{"https://management.core.windows.net/", "https://management.azure.com/"}, "tenant": "common", "identityProvider": "AAD"},
 		"resourceManager":                   s.opts.ResourceManagerURL,
 		"graphAudience":                     "https://graph.windows.net/",
 		"graph":                             "https://graph.windows.net/",
@@ -105,8 +111,9 @@ func (s *Server) handleMetadata(w http.ResponseWriter, _ *http.Request) {
 		"galleryEndpoint":                   "https://gallery.azure.com/",
 		"keyVaultDns":                       "vault.azure.net",
 		"storageEndpointSuffix":             "core.windows.net",
+		"suffixes":                          map[string]any{"storage": "core.windows.net", "keyVaultDns": "vault.azure.net", "acrLoginServer": "azurecr.io"},
 	}
-	writeJSON(w, http.StatusOK, doc)
+	writeJSON(w, http.StatusOK, []any{env})
 }
 
 // handleAny dispatches OIDC discovery + token endpoints under any
