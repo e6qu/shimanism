@@ -335,10 +335,10 @@ var _ gen.ServerInterface = (*Server)(nil)
 // static key the data-plane verifier is configured to accept, so
 // the whole Terraform Apply cycle composes.
 func (srv *Server) StorageAccountsListKeys(w http.ResponseWriter, _ *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ gen.StorageAccountsListKeysParams) {
-	// Matches `azuresharedkey.StaticStore{Key: bytes.Repeat([]byte("k"), 32)}`
-	// in StartStorageServerAzureBlob. Base64-encode for the
-	// wire format ARM uses.
-	keyValue := "a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s="
+	// Matches `azuresharedkey.StaticStore.Key` in StartStorageServerAzureBlob
+	// (the literal byte sequence is `test-key-do-not-use-in-prod-this-is-32-bytes-of-junk`).
+	// Base64-encode for the SharedKey wire format ARM uses.
+	keyValue := "dGVzdC1rZXktZG8tbm90LXVzZS1pbi1wcm9kLXRoaXMtaXMtMzItYnl0ZXMtb2YtanVuaw=="
 	keyName := "key1"
 	perm := gen.KeyPermissionFull
 	now := time.Now().UTC()

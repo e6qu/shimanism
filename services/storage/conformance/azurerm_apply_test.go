@@ -67,7 +67,13 @@ provider "azurerm" {
 }
 
 resource "azurerm_storage_account" "sa" {
-  name                     = "shimsa%s"
+  # Fixed account name. The shim's azure_blob frontend's SharedKey
+  # verifier is hard-wired to Account="shimstorage"; if the name
+  # differs, the verifier rejects every blob data-plane request
+  # with 403. Tests don't need randomised account names because
+  # the shim is account-agnostic at the data-plane layer (the
+  # container namespace is shared backend-wide).
+  name                     = "shimstorage"
   resource_group_name      = "shim-rg"
   location                 = "eastus"
   account_tier             = "Standard"
@@ -106,11 +112,7 @@ func TestCrossCloudApply_Roundtrip_StorageAzureToAWS(t *testing.T) {
 
 	metadataHost := strings.TrimPrefix(aad.URL, "https://")
 
-	suffix := strings.ToLower(strings.ReplaceAll(t.Name(), "/", ""))
-	if len(suffix) > 16 {
-		suffix = suffix[len(suffix)-16:]
-	}
-	hcl := fmt.Sprintf(terraformAzureStorageApplyConfig, metadataHost, suffix)
+	hcl := fmt.Sprintf(terraformAzureStorageApplyConfig, metadataHost)
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "main.tf"), []byte(hcl), 0o644); err != nil {
 		t.Fatalf("write main.tf: %v", err)
