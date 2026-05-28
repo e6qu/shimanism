@@ -88,12 +88,14 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // `name` (the environment selector), `authentication.loginEndpoint`,
 // `authentication.audiences`, and `resourceManager`.
 //
-// The response shape is an array of environment objects — the real
-// Azure metadata service returns multiple clouds (AzureCloud,
-// AzureChinaCloud, etc.); azurerm picks the one whose `name`
-// matches its `environment` setting (default "public").
+// **Shape note.** First attempt returned a single object — azurerm
+// said `name was nil`. Second attempt wrapped it in an array —
+// azurerm said `cannot unmarshal array into Go value of type
+// metaDataResponse`. So the expected shape IS a single object,
+// but the `name` field has to be populated (azurerm matches it
+// against its `environment` setting).
 func (s *Server) handleMetadata(w http.ResponseWriter, _ *http.Request) {
-	env := map[string]any{
+	doc := map[string]any{
 		"name":                              "AzureCloud",
 		"portal":                            s.opts.SelfURL,
 		"authentication":                    map[string]any{"loginEndpoint": s.opts.SelfURL + "/", "audiences": []string{"https://management.core.windows.net/", "https://management.azure.com/"}, "tenant": "common", "identityProvider": "AAD"},
@@ -113,7 +115,7 @@ func (s *Server) handleMetadata(w http.ResponseWriter, _ *http.Request) {
 		"storageEndpointSuffix":             "core.windows.net",
 		"suffixes":                          map[string]any{"storage": "core.windows.net", "keyVaultDns": "vault.azure.net", "acrLoginServer": "azurecr.io"},
 	}
-	writeJSON(w, http.StatusOK, []any{env})
+	writeJSON(w, http.StatusOK, doc)
 }
 
 // handleAny dispatches OIDC discovery + token endpoints under any

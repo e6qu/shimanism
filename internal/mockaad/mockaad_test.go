@@ -84,17 +84,13 @@ func TestMockAAD_CloudMetadata(t *testing.T) {
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("metadata status = %d, want 200", resp.StatusCode)
 	}
-	// The metadata response is an array of environment objects; we
-	// emit one ("AzureCloud") to mirror the real Azure metadata
-	// service.
-	var envs []map[string]any
-	if err := json.NewDecoder(resp.Body).Decode(&envs); err != nil {
+	// The metadata response is a single environment object with a
+	// `name` field that azurerm matches against its `environment`
+	// setting.
+	var doc map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&doc); err != nil {
 		t.Fatalf("decode metadata: %v", err)
 	}
-	if len(envs) == 0 {
-		t.Fatalf("metadata returned 0 environments")
-	}
-	doc := envs[0]
 	if got, _ := doc["name"].(string); got != "AzureCloud" {
 		t.Errorf("name = %q, want AzureCloud", got)
 	}
