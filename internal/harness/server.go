@@ -297,8 +297,14 @@ func syntheticResourceGroup(sub, name string) map[string]any {
 // addressable URL. Same shape as StorageServer; the URL goes to
 // SDK / CLI / Terraform clients via their endpoint-override path.
 type SecretsServer struct {
-	URL   string
-	Close func()
+	URL string
+	// CertFile, when set, is the PEM-encoded cert of the TLS-fronted
+	// SecretsServer (populated by StartSecretsServerAzure since it
+	// uses httptest.NewTLSServer). Tests that hit the SecretsServer
+	// over HTTPS from a subprocess (e.g. terraform via SSL_CERT_FILE)
+	// need this to trust the self-signed cert.
+	CertFile string
+	Close    func()
 }
 
 // StartSecretsServerAWS starts a shim instance with the AWS Secrets
@@ -351,8 +357,14 @@ func StartSecretsServerAzure(t *testing.T, backend secretsdomain.Secrets) *Secre
 	})
 	mw := azurebearer.Middleware(verifier, azurebearer.WithChallenge("https://vault.azure.net"))
 	ts := httptest.NewTLSServer(&logRoundTrip{t: t, mux: mw(srv)})
+	// Write the auto-generated cert to a temp file so subprocess
+	// callers (terraform via SSL_CERT_FILE) can trust this server.
+	certFile := filepath.Join(t.TempDir(), "secrets-azure-cert.pem")
+	if err := os.WriteFile(certFile, certToPEM(ts.Certificate()), 0o644); err != nil {
+		t.Fatalf("write secrets Azure cert: %v", err)
+	}
 	t.Cleanup(ts.Close)
-	return &SecretsServer{URL: ts.URL, Close: ts.Close}
+	return &SecretsServer{URL: ts.URL, CertFile: certFile, Close: ts.Close}
 }
 
 // StartSecretsServerAzureARM starts a shim instance with the
@@ -362,15 +374,23 @@ func StartSecretsServerAzure(t *testing.T, backend secretsdomain.Secrets) *Secre
 // audience "https://management.azure.com/" + the shared HS256 test
 // key. Phase 14.E unblocks `azurerm_key_vault` through-shim
 // Terraform Apply.
-func StartSecretsServerAzureARM(t *testing.T) *SecretsServer {
+func StartSecretsServerAzureARM(t *testing.T, vaultURI ...string) *SecretsServer {
 	t.Helper()
-	srv := azurearmkvfront.New()
+	opts := azurearmkvfront.Options{TrackVaults: true}
+	if len(vaultURI) > 0 {
+		opts.VaultURI = vaultURI[0]
+	}
+	srv := azurearmkvfront.New(opts)
 	verifier := azurebearer.New(azurebearer.Options{
 		Audience: "https://management.azure.com/",
 		TestKey:  []byte("test-key-do-not-use-in-prod"),
 	})
 	mw := azurebearer.Middleware(verifier)
-	ts := httptest.NewServer(&logRoundTrip{t: t, mux: mw(srv)})
+	// Wrap with armResourcesStub so generic ARM routes
+	// (Microsoft.Resources/*) that hashicorp/azurerm hits at init
+	// time don't 404. Same pattern as StartStorageServerAzureARM.
+	wrapped := armResourcesStub(srv)
+	ts := httptest.NewServer(&logRoundTrip{t: t, mux: mw(wrapped)})
 	t.Cleanup(ts.Close)
 	return &SecretsServer{URL: ts.URL, Close: ts.Close}
 }

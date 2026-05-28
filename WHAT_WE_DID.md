@@ -8,6 +8,25 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 
 PR #21 merged on 2026-05-25 at `45985e7`, landing 14.A, the 14.D simulator audit, and the current 14.B sockerless lane. Phase 14.B and 14.C are now closed (PR #46). Phase 13.A is also closed — PR #47 retired the last ◐ migration (`azure_blob`). What remains in Phase 14: PR 3 (14.D Track A, real-cloud-credentials-gated). 14.E cross-cloud Apply re-opens once shim-side ARM-shimming exists (see PR #46 narrative below).
 
+### 14.E.5 — Through-shim azurerm Terraform Apply for Key Vault (in flight 2026-05-28)
+
+Second un-skipped azurerm Terraform Apply, mirroring the storage pattern from PR #54. Confirms the mock-AAD approach generalizes across services with an ARM frontend.
+
+**Frontend changes** — `internal/secrets/frontends/azure_arm_keyvault/server.go`:
+- `Options{VaultURI, TrackVaults}` (parallels storage's `Options{BlobEndpoint, TrackAccounts}` from PR #53).
+- `syntheticVault` is now a method (was a free function) so it can read `srv.vaultURI` for the synthetic `properties.vaultUri`. Falls back to the real-Azure-shaped `https://<name>.vault.azure.net/` default when no override is set.
+- `recordVault` / `hasVault` / `forgetVault` track which vault names have been PUT — used by `VaultsGet` to return 404 before the first PUT (azurerm's pre-create idempotency check otherwise sees "already exists").
+
+**Harness** — `StartSecretsServerAzureARM` now takes a variadic `vaultURI string`. The existing sockerless cell at `services/secrets/conformance/sockerless_test.go` continues to work (no URI passed → real-Azure-shaped default). `SecretsServer` exposes a `CertFile` field (populated by `StartSecretsServerAzure`'s TLS server) so tests can build a combined CA bundle including the data-plane cert.
+
+**Test** — `services/secrets/conformance/azurerm_apply_test.go`. The HCL creates `azurerm_key_vault.kv` (ARM PUT, vault tracking flips, vault_uri = data-plane shim URL) followed by `azurerm_key_vault_secret.secret` (data-plane PUT to the URI azurerm read from ARM). Assertion: `domain.Secrets.ListSecrets` contains `shim-applied-secret`.
+
+The previously-skipped `TestTerraform_AzureSecrets_ResourceLifecycle` stays as a redirect-stub pointing at the new cell.
+
+**Why KV was easier than storage:** KV's data-plane auth uses bearer tokens (same `azurebearer` middleware as ARM) instead of SharedKey. No synthetic `listKeys` equivalent needed — the same bearer azurerm got from mock-AAD works for the vault data plane.
+
+End state: `make sockerless` still 45 passing. The new Linux-only test is opt-in via system-CA-bundle presence (same skip-on-macOS as PR #54).
+
 ### 14.E.4 — Mock Microsoft Entra + first through-shim azurerm Terraform Apply (in flight 2026-05-28)
 
 The last barrier between PR #51–#53's ARM-shimming infrastructure and a green `hashicorp/azurerm` Terraform Apply against the shim: the provider routes through Microsoft Entra (Azure AD) to exchange a `client_secret` for a bearer token. The shim doesn't shim Entra in production.

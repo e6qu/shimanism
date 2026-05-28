@@ -32,6 +32,8 @@ package azure_arm_keyvault
 import (
 	"fmt"
 	"net/http"
+	"strings"
+	"sync"
 
 	openapi_types "github.com/oapi-codegen/runtime/types"
 
@@ -40,15 +42,44 @@ import (
 
 // Server is the Microsoft.KeyVault ARM-shaped HTTP frontend.
 type Server struct {
-	mux http.Handler
+	mux         http.Handler
+	vaultURI    string // optional override returned in properties.vaultUri
+	trackVaults bool
+	mu          sync.Mutex
+	vaults      map[string]struct{}
+}
+
+// Options configures the ARM frontend.
+type Options struct {
+	// VaultURI, when non-empty, is returned in every synthetic
+	// Vault's `properties.vaultUri`. The `hashicorp/azurerm`
+	// Terraform provider reads this field to derive the data-plane
+	// URL for `azurerm_key_vault_secret` / `azurerm_key_vault_key`
+	// / etc. Leave empty to fall back to the real-Azure-shaped
+	// `https://<name>.vault.azure.net/` default.
+	VaultURI string
+
+	// TrackVaults, when true, makes the frontend maintain a tiny
+	// in-process set of vault names that have been PUT to this
+	// instance. VaultsGet returns 404 before any PUT, the
+	// synthetic resource after — needed for azurerm's pre-create
+	// idempotency check.
+	TrackVaults bool
 }
 
 // New returns a vault-ARM frontend. The shim is vault-agnostic, so
 // no backend is required at this layer — vault ARM operations are
 // acknowledged synthetically; subsequent secret data-plane calls go
 // through the existing azure_keyvault frontend.
-func New() *Server {
+func New(opts ...Options) *Server {
 	srv := &Server{}
+	if len(opts) > 0 {
+		srv.vaultURI = opts[0].VaultURI
+		srv.trackVaults = opts[0].TrackVaults
+	}
+	if srv.trackVaults {
+		srv.vaults = map[string]struct{}{}
+	}
 	srv.mux = gen.HandlerWithOptions(srv, gen.StdHTTPServerOptions{})
 	return srv
 }
@@ -75,19 +106,25 @@ func (srv *Server) VaultsCreateOrUpdate(w http.ResponseWriter, r *http.Request, 
 	if !decodeJSON(w, r, &body) {
 		return
 	}
-	writeJSON(w, http.StatusCreated, syntheticVault(subscriptionId, resourceGroupName, vaultName, body.Location))
+	srv.recordVault(vaultName)
+	writeJSON(w, http.StatusCreated, srv.syntheticVault(subscriptionId, resourceGroupName, vaultName, body.Location))
 }
 
 func (srv *Server) VaultsGet(w http.ResponseWriter, _ *http.Request, subscriptionId gen.SubscriptionIdParameter, resourceGroupName string, vaultName string, _ gen.VaultsGetParams) {
-	writeJSON(w, http.StatusOK, syntheticVault(subscriptionId, resourceGroupName, vaultName, ""))
+	if srv.trackVaults && !srv.hasVault(vaultName) {
+		writeError(w, http.StatusNotFound, "ResourceNotFound", "The Resource 'Microsoft.KeyVault/vaults/"+vaultName+"' under resource group '"+resourceGroupName+"' was not found.")
+		return
+	}
+	writeJSON(w, http.StatusOK, srv.syntheticVault(subscriptionId, resourceGroupName, vaultName, ""))
 }
 
 func (srv *Server) VaultsUpdate(w http.ResponseWriter, r *http.Request, subscriptionId gen.SubscriptionIdParameter, resourceGroupName string, vaultName string, _ gen.VaultsUpdateParams) {
 	_ = decodeJSON(w, r, &struct{}{})
-	writeJSON(w, http.StatusOK, syntheticVault(subscriptionId, resourceGroupName, vaultName, ""))
+	writeJSON(w, http.StatusOK, srv.syntheticVault(subscriptionId, resourceGroupName, vaultName, ""))
 }
 
-func (srv *Server) VaultsDelete(w http.ResponseWriter, _ *http.Request, _ gen.SubscriptionIdParameter, _ string, _ string, _ gen.VaultsDeleteParams) {
+func (srv *Server) VaultsDelete(w http.ResponseWriter, _ *http.Request, _ gen.SubscriptionIdParameter, _ string, vaultName string, _ gen.VaultsDeleteParams) {
+	srv.forgetVault(vaultName)
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -161,7 +198,7 @@ func (srv *Server) PrivateLinkResourcesListByVault(w http.ResponseWriter, _ *htt
 // Get/Create returns the same baseline derived from the request path.
 // Soft-delete + retention defaults mirror what real Azure emits on
 // vault create.
-func syntheticVault(subId gen.SubscriptionIdParameter, rg, name, location string) *gen.Vault {
+func (srv *Server) syntheticVault(subId gen.SubscriptionIdParameter, rg, name, location string) *gen.Vault {
 	if location == "" {
 		location = "eastus"
 	}
@@ -192,12 +229,51 @@ func syntheticVault(subId gen.SubscriptionIdParameter, rg, name, location string
 			EnabledForTemplateDeployment: &enabledForTemplateDeployment,
 			EnableSoftDelete:             &enableSoftDelete,
 			SoftDeleteRetentionInDays:    &softDeleteRetention,
-			VaultUri:                     ptr(fmt.Sprintf("https://%s.vault.azure.net/", name)),
+			VaultUri:                     ptr(srv.vaultURIFor(name)),
 		},
 	}
 }
 
 func ptr[T any](v T) *T { return &v }
+
+// vaultURIFor returns the data-plane URI to advertise for vault
+// `name`. If Options.VaultURI was set, it overrides the default
+// `https://<name>.vault.azure.net/` shape.
+func (srv *Server) vaultURIFor(name string) string {
+	if srv.vaultURI != "" {
+		if strings.HasSuffix(srv.vaultURI, "/") {
+			return srv.vaultURI
+		}
+		return srv.vaultURI + "/"
+	}
+	return fmt.Sprintf("https://%s.vault.azure.net/", name)
+}
+
+// recordVault notes that VaultsCreateOrUpdate was called for `name`.
+func (srv *Server) recordVault(name string) {
+	if !srv.trackVaults {
+		return
+	}
+	srv.mu.Lock()
+	srv.vaults[name] = struct{}{}
+	srv.mu.Unlock()
+}
+
+func (srv *Server) hasVault(name string) bool {
+	srv.mu.Lock()
+	_, ok := srv.vaults[name]
+	srv.mu.Unlock()
+	return ok
+}
+
+func (srv *Server) forgetVault(name string) {
+	if !srv.trackVaults {
+		return
+	}
+	srv.mu.Lock()
+	delete(srv.vaults, name)
+	srv.mu.Unlock()
+}
 
 // Compile-time guard: gen.ServerInterface must be fully implemented.
 var _ gen.ServerInterface = (*Server)(nil)

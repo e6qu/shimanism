@@ -8,9 +8,9 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 
 - **3-PR plan: 2/3 shipped; PR 3 (Track A) blocked.** PR #46/#47/#48/#49/#50 all landed 2026-05-27.
 - **BUG-24 reverse-direction coverage is now complete** — every service family has both cross-cloud directions (PR #50).
-- **14.E ARM-shimming.** PRs #51 (Microsoft.Storage ARM) + #52 (Microsoft.KeyVault ARM) + #53 (Storage ARM blob-endpoint propagation) shipped. PR 4 in flight: mock-Microsoft-Entra + first through-shim azurerm Terraform Apply test. The remaining workstream after this PR: extend the pattern across the other 7 services that have ARM frontends.
+- **14.E ARM-shimming.** PRs #51–#54 shipped. PR 5 in flight: extend the mock-AAD Terraform Apply pattern from storage to Key Vault. Remaining workstream after PR 5: 6 more services (cache, queue, pubsub, functions, rdbms, apigateway).
 - **Phase 13.A is fully closed.** Every Azure frontend has full `gen.ServerInterface` impl.
-- `make sockerless` reports **45 passing + 0 skipped** locally (unchanged; PR 4 adds a new Terraform test that runs only on Linux/CI — skips on darwin where SSL_CERT_FILE is ignored).
+- `make sockerless` reports **45 passing + 0 skipped** locally (unchanged; PR 5 adds a new Terraform test that runs only on Linux/CI — skips on darwin where SSL_CERT_FILE is ignored).
 - **Storage matrix complete 3×3** — single-shot + multipart + copy across AWS S3 + GCS + Azure Blob.
 - **Service Bus matrix complete** — admin (ATOM XML) + Send/Receive data-plane (raw AMQP/TLS via `azservicebus.ClientOptions.CustomEndpoint`).
 - **Azure ARM lanes complete** for Redis / PG / APIM via custom `arm.ClientOptions.Cloud.ResourceManager.Endpoint`.
@@ -47,8 +47,9 @@ Real-cloud lanes for BUG-8 (hashicorp/google API Gateway TF endpoint/OAuth leg) 
    - **PR 1** — ✅ shipped as PR #51 (Microsoft.Storage/storageAccounts).
    - **PR 2** — ✅ shipped as PR #52 (Microsoft.KeyVault/vaults + workflow fixes).
    - **PR 3** — ✅ shipped as PR #53 (Storage ARM blob-endpoint propagation).
-   - **PR 4 (in flight)** — Mock Microsoft Entra + first through-shim azurerm Terraform Apply test. `internal/mockaad` serves an HTTPS OIDC token endpoint + cloud-metadata document; new `TestCrossCloudApply_Roundtrip_StorageAzureToAWS` runs a real `azurerm_storage_account` + `azurerm_storage_container` apply against the shim, verifies the container lands in the backend. Linux-only (SSL_CERT_FILE platform limitation).
-   - **PR 5 (next)** — Extend the mock-AAD pattern to the other 7 Azure Terraform tests (key vault, cache, queue, pubsub, functions, rdbms, apigateway). Or: Microsoft.ServiceBus/namespaces ARM (blocked on inliner extension for `../../common/v<N>/` ref form).
+   - **PR 4** — ✅ shipped as PR #54 (mock Microsoft Entra + first through-shim azurerm Apply for storage).
+   - **PR 5 (in flight)** — Through-shim azurerm Apply for Key Vault. KV ARM frontend gains `Options{VaultURI, TrackVaults}`; new `TestCrossCloudApply_Roundtrip_KeyVaultAzureToAWS` exercises `azurerm_key_vault` + `azurerm_key_vault_secret`.
+   - **PR 6+ (next)** — Extend the same pattern to cache, queue, pubsub, functions, rdbms, apigateway. Each follows the storage/KV template: ARM-frontend Options for endpoint/tracking + a new `azurerm_apply_test.go`. Service Bus namespaces ARM still blocked on the codegen inliner extension.
 3. ~~Watch sockerless#244.~~ ✅ Done in PR #49.
 
 ### Footnote: why 14.E is not active yet
