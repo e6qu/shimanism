@@ -62,7 +62,6 @@ provider "azurerm" {
   tenant_id                       = "00000000-0000-0000-0000-000000000000"
   client_id                       = "00000000-0000-0000-0000-000000000000"
   client_secret                   = "test-secret-do-not-use-in-prod"
-  skip_provider_registration      = true
   resource_provider_registrations = "none"
   storage_use_azuread             = false
 }
