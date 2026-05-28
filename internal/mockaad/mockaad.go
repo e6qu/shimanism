@@ -111,10 +111,15 @@ func (s *Server) handleMetadata(w http.ResponseWriter, _ *http.Request) {
 			"identityProvider": "AAD",
 		},
 		"resourceManager":          s.opts.ResourceManagerURL,
-		"graphAudience":            "https://graph.windows.net/",
-		"graph":                    "https://graph.windows.net/",
-		"graphEndpoint":            "https://graph.windows.net/",
-		"microsoftGraphResourceId": "https://graph.microsoft.com/",
+		// Point Graph at this mock too — azurerm calls Graph to
+		// discover the authenticated service principal's object ID
+		// post-token-exchange. Real Graph rejects HS256 tokens; the
+		// mock serves a synthetic /v1.0/me + /v1.0/servicePrincipals
+		// response under handleAny.
+		"graphAudience":            s.opts.SelfURL + "/",
+		"graph":                    s.opts.SelfURL + "/",
+		"graphEndpoint":            s.opts.SelfURL + "/",
+		"microsoftGraphResourceId": s.opts.SelfURL + "/",
 
 		// Mirror-the-real-metadata fields. azurerm reads several at
 		// init-time (any of them being nil/missing has been seen to
@@ -156,7 +161,8 @@ func (s *Server) handleMetadata(w http.ResponseWriter, _ *http.Request) {
 }
 
 // handleAny dispatches OIDC discovery + token endpoints under any
-// tenant prefix.
+// tenant prefix, plus the Microsoft Graph endpoints azurerm calls to
+// discover the authenticated service principal's object ID.
 func (s *Server) handleAny(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path
 	switch {
@@ -164,9 +170,41 @@ func (s *Server) handleAny(w http.ResponseWriter, r *http.Request) {
 		s.handleOpenIDConfig(w, r)
 	case strings.HasSuffix(path, "/oauth2/v2.0/token") || strings.HasSuffix(path, "/oauth2/token"):
 		s.handleToken(w, r)
+	case strings.HasPrefix(path, "/v1.0/me"), strings.HasPrefix(path, "/v1.0/servicePrincipals"), strings.HasPrefix(path, "/v1.0/applications"):
+		s.handleGraph(w, r)
 	default:
 		http.NotFound(w, r)
 	}
+}
+
+// handleGraph returns a synthetic Microsoft Graph response. azurerm
+// calls GET /v1.0/me (or /v1.0/servicePrincipals(appId='{client_id}'))
+// post-token-exchange to discover the authenticated service
+// principal's object ID, which it uses internally for some resource
+// lifecycle operations.
+//
+// The real Graph endpoint rejects HS256 tokens with "InvalidAuthenticationToken:
+// Signing key is invalid" — so the mock has to take this over too.
+// We return a fixed object ID (all-zero UUID) regardless of what's
+// being requested. The shim doesn't model service principals, and no
+// downstream operation actually uses the ID for state-of-record.
+func (s *Server) handleGraph(w http.ResponseWriter, _ *http.Request) {
+	syntheticID := "00000000-0000-0000-0000-000000000000"
+	doc := map[string]any{
+		"id":             syntheticID,
+		"appId":          syntheticID,
+		"displayName":    "shim-test-principal",
+		"servicePrincipalType": "Application",
+		"value": []map[string]any{
+			{
+				"id":             syntheticID,
+				"appId":          syntheticID,
+				"displayName":    "shim-test-principal",
+				"servicePrincipalType": "Application",
+			},
+		},
+	}
+	writeJSON(w, http.StatusOK, doc)
 }
 
 func (s *Server) handleOpenIDConfig(w http.ResponseWriter, r *http.Request) {
