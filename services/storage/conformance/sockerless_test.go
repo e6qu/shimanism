@@ -1027,7 +1027,8 @@ func TestSockerless_E2E_AzureBlob_Through_Shim_ApplyTF(t *testing.T) {
 	}
 
 	mustRun("init", "-no-color")
-	mustRun("apply", "-no-color", "-auto-approve")
+	applyOut := mustRun("apply", "-no-color", "-auto-approve")
+	t.Logf("terraform apply stdout:\n%s", applyOut)
 	t.Cleanup(func() { _, _, _ = runTf("destroy", "-no-color", "-auto-approve") })
 
 	// Verify the container landed in the shim's backend.
