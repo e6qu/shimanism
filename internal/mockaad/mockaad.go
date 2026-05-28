@@ -96,24 +96,61 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // against its `environment` setting).
 func (s *Server) handleMetadata(w http.ResponseWriter, _ *http.Request) {
 	doc := map[string]any{
-		"name":                              "AzureCloud",
-		"portal":                            s.opts.SelfURL,
-		"authentication":                    map[string]any{"loginEndpoint": s.opts.SelfURL + "/", "audiences": []string{"https://management.core.windows.net/", "https://management.azure.com/"}, "tenant": "common", "identityProvider": "AAD"},
-		"resourceManager":                   s.opts.ResourceManagerURL,
-		"graphAudience":                     "https://graph.windows.net/",
-		"graph":                             "https://graph.windows.net/",
-		"activeDirectoryDataLakeResourceId": "https://datalake.azure.net/",
-		"batch":                             "https://batch.core.windows.net/",
-		"media":                             "https://rest.media.azure.net",
-		"sqlManagement":                     "https://management.core.windows.net:8443/",
-		"vmImageAliasDoc":                   "https://raw.githubusercontent.com/Azure/azure-rest-api-specs/master/arm-compute/quickstart-templates/aliases.json",
-		"resourceManagerVMDNSSuffix":        "cloudapp.azure.com",
-		"acrLoginServer":                    "azurecr.io",
-		"sqlServerHostname":                 ".database.windows.net",
-		"galleryEndpoint":                   "https://gallery.azure.com/",
-		"keyVaultDns":                       "vault.azure.net",
-		"storageEndpointSuffix":             "core.windows.net",
-		"suffixes":                          map[string]any{"storage": "core.windows.net", "keyVaultDns": "vault.azure.net", "acrLoginServer": "azurecr.io"},
+		// Selector field azurerm matches against its `environment`.
+		"name": "AzureCloud",
+
+		// Endpoints azurerm uses directly. `resourceManager` →
+		// shim's ARM frontend; `authentication.loginEndpoint` →
+		// this mock for token exchange.
+		"portal":         s.opts.SelfURL,
+		"portalEndpoint": s.opts.SelfURL,
+		"authentication": map[string]any{
+			"loginEndpoint":    s.opts.SelfURL + "/",
+			"audiences":        []string{"https://management.core.windows.net/", "https://management.azure.com/"},
+			"tenant":           "common",
+			"identityProvider": "AAD",
+		},
+		"resourceManager":          s.opts.ResourceManagerURL,
+		"graphAudience":            "https://graph.windows.net/",
+		"graph":                    "https://graph.windows.net/",
+		"graphEndpoint":            "https://graph.windows.net/",
+		"microsoftGraphResourceId": "https://graph.microsoft.com/",
+
+		// Mirror-the-real-metadata fields. azurerm reads several at
+		// init-time (any of them being nil/missing has been seen to
+		// trip the metadata parser); we include the canonical Azure
+		// public-cloud values rather than zeroes so the parser
+		// doesn't reject the document.
+		"activeDirectoryDataLakeResourceId":     "https://datalake.azure.net/",
+		"appInsightsResourceId":                 "https://api.applicationinsights.io",
+		"appInsightsTelemetryChannelResourceId": "https://dc.applicationinsights.azure.com/v2/track",
+		"batch":                                 "https://batch.core.windows.net/",
+		"galleryEndpoint":                       "https://gallery.azure.com/",
+		"logAnalyticsResourceId":                "https://api.loganalytics.io",
+		"managedHsmResourceId":                  "https://managedhsm.azure.net",
+		"media":                                 "https://rest.media.azure.net",
+		"mediaResourceId":                       "https://rest.media.azure.net",
+		"ossrDbmsResourceId":                    "https://ossrdbms-aad.database.windows.net",
+		"sqlManagement":                         "https://management.core.windows.net:8443/",
+		"synapseAnalyticsResourceId":            "https://dev.azuresynapse.net",
+		"vmImageAliasDoc":                       "https://raw.githubusercontent.com/Azure/azure-rest-api-specs/master/arm-compute/quickstart-templates/aliases.json",
+
+		// DNS suffixes — azurerm uses these to build derived URLs
+		// (e.g. {account}.blob.core.windows.net). The synthetic
+		// StorageAccount response from the ARM frontend overrides
+		// the blob suffix via PrimaryEndpoints.Blob, but other
+		// services without explicit endpoint fields fall back to
+		// these suffixes.
+		"acrLoginServer":             "azurecr.io",
+		"keyVaultDns":                "vault.azure.net",
+		"resourceManagerVMDNSSuffix": "cloudapp.azure.com",
+		"sqlServerHostname":          ".database.windows.net",
+		"storageEndpointSuffix":      "core.windows.net",
+		"suffixes": map[string]any{
+			"storage":        "core.windows.net",
+			"keyVaultDns":    "vault.azure.net",
+			"acrLoginServer": "azurecr.io",
+		},
 	}
 	writeJSON(w, http.StatusOK, doc)
 }
