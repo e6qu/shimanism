@@ -8,6 +8,34 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 
 PR #21 merged on 2026-05-25 at `45985e7`, landing 14.A, the 14.D simulator audit, and the current 14.B sockerless lane. Phase 14.B and 14.C are now closed (PR #46). Phase 13.A is also closed — PR #47 retired the last ◐ migration (`azure_blob`). What remains in Phase 14: PR 3 (14.D Track A, real-cloud-credentials-gated). 14.E cross-cloud Apply re-opens once shim-side ARM-shimming exists (see PR #46 narrative below).
 
+### 14.E ARM-shimming PR 2 — Microsoft.KeyVault/vaults (in flight 2026-05-28)
+
+Second PR in the ARM-shimming workstream. Unblocks through-shim `azurerm_key_vault` Terraform Apply (the data-plane `azurerm_key_vault_secret` resource already works via the existing `azure_keyvault` data-plane frontend).
+
+Key Vault was sequenced ahead of Service Bus because it's simpler: 17 ARM ops vs SB's 100+, single sibling `$ref` to `common.json` vs SB's `../../common/v<N>/` form, no cross-version chasing.
+
+**Vendored specs.** Two files at `services/secrets/spec/`:
+- `azure-arm-keyvault.json` (67KB) — `specification/keyvault/resource-manager/Microsoft.KeyVault/KeyVault/stable/2024-11-01/keyvault.json`.
+- `common.json` (3KB) — the sibling that defines `SystemData` + `CloudError`. Named after upstream rather than namespaced (the spec directory is service-scoped, so no collision risk).
+
+**Two related infrastructure fixes shipped here:**
+
+1. `scripts/fetch-azure-spec.sh` now auto-appends a new row to SOURCES.md when vendoring a new file (previously it noted "edit by hand" and `inject-provenance` would skip the file on the first pass). PR #51's CI tripped on this exact gap; the fix lands here so PR 2 (and all future ARM-shimming PRs) don't repeat it.
+2. `cmd/azure-codegen`'s `sameVersionPattern` accepts bare-filename `$ref` (no `./` prefix). KV's `keyvault.json` references `common.json` directly without the `./` shorthand; the existing pattern required `./common.json`. One-character regex change (`^\./` → `^(?:\./)?`).
+
+**Codegen.** `services/secrets/azure-arm-codegen.json` manifest. Generated `services/secrets/gen/azure_arm/azure_arm_keyvault.gen.go` (104KB, 17 ServerInterface methods).
+
+**Frontend.** `internal/secrets/frontends/azure_arm_keyvault/` — backend-free (vaults don't map to anything in `domain.Secrets`; the shim is vault-agnostic at the ARM level and the existing `azure_keyvault` data-plane frontend already strips vault URL prefixes):
+
+- **7 in-intersection synthetic acknowledgements:** `VaultsCreateOrUpdate / Get / Update / Delete / ListBySubscription / ListByResourceGroup / CheckNameAvailability`. Returns canonical `Vault` shape with stable defaults (Standard SKU, soft-delete enabled, 90-day retention).
+- **10 stubs:** soft-delete operations (`VaultsListDeleted` / `GetDeleted` / `PurgeDeleted`), access policy patches, private-endpoint connections (4 ops), private-link resources, and the legacy generic `VaultsList` over `/subscriptions/{s}/resources`.
+
+**Harness.** `harness.StartSecretsServerAzureARM(t)` (no backend arg — the ARM frontend doesn't need one). Same `azurebearer` middleware as other ARM frontends.
+
+**Sockerless cell.** `TestSockerless_E2E_AzureARM_KeyVault_Through_Shim` drives `armkeyvault.NewVaultsClient` against the shim: BeginCreateOrUpdate + PollUntilDone + Get + Delete. The cell uses `SOCKERLESS_AWS_ENDPOINT` as a soft lane-presence sentinel — vault ARM operations are pure shim acknowledgements and don't actually need sockerless on the destination side.
+
+End state: `make sockerless` reports **45 passing + 0 skipped** (was 44 after PR #51).
+
 ### 14.E ARM-shimming PR 1 — Microsoft.Storage/storageAccounts (in flight 2026-05-27)
 
 First PR in the multi-PR workstream that grows shim-side ARM-shimming so the `azurerm` Terraform provider can drive cross-cloud Apply through the shim. Today: the shim's Azure frontends (`azure_blob`, `azure_servicebus`, `azure_keyvault`) only speak data planes. This PR adds an ARM frontend for Microsoft.Storage; future PRs follow for Service Bus + Key Vault.

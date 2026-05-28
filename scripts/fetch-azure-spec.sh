@@ -75,7 +75,35 @@ licensed AGPL-3.0 alongside the rest of shimanism (see
 EOF
   echo "Wrote ${sources_md} (new)"
 else
-  echo "NOTE: ${sources_md} exists — review and update the ${local_filename} row by hand if the SHA changed."
+  if grep -q "\`${local_filename}\`" "${sources_md}"; then
+    echo "NOTE: ${sources_md} already references ${local_filename}; update the pinned SHA by hand if it changed."
+  else
+    # New spec — append a row to the table just before the License
+    # section header so inject-provenance (which runs next) picks it
+    # up on first invocation. Without this, the new file slips the
+    # provenance check until the next vendoring run.
+    row="| \`${local_filename}\` | \`${upstream_repo}\` | \`${upstream_path}\` | MIT | \`${resolved_sha}\` | ${fetched_at} |"
+    if grep -q "^## License of vendored files" "${sources_md}"; then
+      # Append the row at the end of the existing table (the line
+      # immediately following the last `| filename | ... |` row).
+      # Falling back to inserting before the License section keeps
+      # tidy tables when the new row is the first one.
+      awk -v row="${row}" '
+        /^\| `/ { last_row = NR }
+        { lines[NR] = $0 }
+        END {
+          for (i = 1; i <= NR; i++) {
+            print lines[i]
+            if (i == last_row) print row
+          }
+        }
+      ' "${sources_md}" > "${sources_md}.tmp"
+      mv "${sources_md}.tmp" "${sources_md}"
+    else
+      printf '\n%s\n' "${row}" >> "${sources_md}"
+    fi
+    echo "Appended ${local_filename} row to ${sources_md}"
+  fi
 fi
 
 go run ./cmd/inject-provenance -sources="${sources_md}" -dir="${service_dir}/spec"

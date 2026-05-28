@@ -8,9 +8,9 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 
 | | |
 |---|---|
-| Active branch | `main` after PR #50 merged 2026-05-27. Phase 14.E shim-side ARM-shimming workstream now started; first PR adds Microsoft.Storage ARM frontend. |
-| In-flight | **14.E ARM-shimming PR 1 — Microsoft.Storage/storageAccounts.** New `internal/storage/frontends/azure_arm_storageaccounts` implements all 120 ARM ops (11 in-intersection bridges, 109 stubs). `make sockerless` 43 → **44 passing** with the new ARM → blob through-shim cell. Storage is the first of 3 missing ARM-shims (Service Bus namespaces + Key Vault vaults still to do). Track A still blocked on real-cloud credentials. |
-| Last merged | PR #50 — BUG-24 reverse-direction expansion (5 new cells; every service family covers both cross-cloud directions), 2026-05-27. |
+| Active branch | `main` after PR #51 merged 2026-05-27 (Phase 14.E.1 Microsoft.Storage ARM frontend). Phase 14.E.2 in flight: Microsoft.KeyVault ARM frontend. |
+| In-flight | **14.E ARM-shimming PR 2 — Microsoft.KeyVault/vaults.** New `internal/secrets/frontends/azure_arm_keyvault` implements all 17 KV ARM ops (7 in-intersection synthetic acknowledgements, 10 stubs). Vaults are routing-fiction at the shim layer; the existing `azure_keyvault` data-plane frontend already strips vault URL prefixes. `make sockerless` 44 → **45 passing** with the new vault ARM through-shim cell. Also fixed `scripts/fetch-azure-spec.sh` to auto-append SOURCES.md rows (the bug that bit PR #51) and extended the codegen inliner to accept bare-sibling `$ref` (KV's `common.json` form). Service Bus namespaces ARM is the remaining ARM-shim. Track A still blocked on real-cloud credentials. |
+| Last merged | PR #51 — 14.E.1: Microsoft.Storage ARM frontend, 2026-05-27. |
 | Phases 1–12 | All closed. PR index in [PLAN.md § Closed phases](PLAN.md#closed-phases-pr-index). |
 | Bugs | **38 filed · 36 fixed · 2 open · 1 false positive.** Open: **BUG-8** (apigateway TF-provider Track A leg, real GCP), **BUG-15** (queue TF state-drift Track A leg, real GCP). BUG-35 closed by sockerless PR #245. |
 | Upstream | **Zero open sockerless issues.** Sockerless PR #245 (merged 2026-05-27) closed #243 + #244 — ACA image platforms derived from manifest, Azure ARM endpoint hosts derived from request host across SB/Redis/APIM/PG/Container Apps. Earlier follow-ons #239/#240/#241 closed via sockerless PR #242. |
