@@ -228,16 +228,16 @@ func (s *Server) handleToken(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid_request", "error_description": err.Error()})
 		return
 	}
-	scope := r.PostForm.Get("scope")
-	if scope == "" {
-		scope = r.PostForm.Get("resource")
-	}
+	// Always issue tokens with aud="https://management.azure.com/" —
+	// the audience the shim's ARM frontend's azurebearer middleware
+	// enforces. azurerm sends scope=<resourceManagerURL>/.default
+	// which would otherwise produce aud=<mock or shim URL> and the
+	// shim verifier would reject.
+	//
+	// For Graph tokens (scope=graphResourceId/.default) the mock's
+	// Graph handler doesn't verify the aud at all, so this fixed
+	// audience is also fine for those.
 	audience := "https://management.azure.com/"
-	if scope != "" {
-		// Azure scopes look like "https://management.azure.com/.default".
-		// Strip the trailing "/.default" suffix if present.
-		audience = strings.TrimSuffix(scope, "/.default")
-	}
 	token := azurebearer.TestJWT(TestKey, s.opts.SelfURL+"/", audience, time.Hour)
 	resp := map[string]any{
 		"token_type":     "Bearer",
