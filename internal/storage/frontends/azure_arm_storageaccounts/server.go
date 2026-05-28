@@ -323,6 +323,35 @@ func (srv *Server) forgetAccount(name string) {
 // Compile-time guard: gen.ServerInterface must be fully implemented.
 var _ gen.ServerInterface = (*Server)(nil)
 
+// StorageAccountsListKeys returns the shim's static SharedKey
+// credentials. azurerm calls this immediately after PUT to obtain
+// the access key it uses for SharedKey auth on the blob data plane.
+// The shim's `azure_blob` data-plane frontend's azuresharedkey
+// verifier is configured with the same base64-encoded key (32 bytes
+// of "k") in the harness — see `StartStorageServerAzureBlob`.
+//
+// Returning synthetic keys is honest: the shim doesn't manage
+// account-level secrets in production; in test mode it serves the
+// static key the data-plane verifier is configured to accept, so
+// the whole Terraform Apply cycle composes.
+func (srv *Server) StorageAccountsListKeys(w http.ResponseWriter, _ *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ gen.StorageAccountsListKeysParams) {
+	// Matches `azuresharedkey.StaticStore{Key: bytes.Repeat([]byte("k"), 32)}`
+	// in StartStorageServerAzureBlob. Base64-encode for the
+	// wire format ARM uses.
+	keyValue := "a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s="
+	keyName := "key1"
+	perm := gen.KeyPermissionFull
+	now := time.Now().UTC()
+	writeJSON(w, http.StatusOK, gen.StorageAccountListKeysResult{
+		Keys: &[]gen.StorageAccountKey{{
+			KeyName:      &keyName,
+			Value:        &keyValue,
+			Permissions:  &perm,
+			CreationTime: &now,
+		}},
+	})
+}
+
 // =====================================================================
 // Out-of-intersection stubs (109)
 // =====================================================================
@@ -557,10 +586,6 @@ func (srv *Server) BlobInventoryPoliciesCreateOrUpdate(w http.ResponseWriter, _ 
 
 func (srv *Server) StorageAccountsListAccountSAS(w http.ResponseWriter, _ *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ gen.StorageAccountsListAccountSASParams) {
 	notImplemented(w, "StorageAccountsListAccountSAS")
-}
-
-func (srv *Server) StorageAccountsListKeys(w http.ResponseWriter, _ *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ gen.StorageAccountsListKeysParams) {
-	notImplemented(w, "StorageAccountsListKeys")
 }
 
 func (srv *Server) StorageAccountsListServiceSAS(w http.ResponseWriter, _ *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ gen.StorageAccountsListServiceSASParams) {
