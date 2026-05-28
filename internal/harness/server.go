@@ -9,14 +9,8 @@
 package harness
 
 import (
-	"crypto/x509"
-	"encoding/json"
-	"encoding/pem"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"path/filepath"
-	"strings"
 	"testing"
 
 	apigatewaydomain "github.com/e6qu/shimanism/internal/apigateway/domain"
@@ -34,7 +28,6 @@ import (
 	azurecafront "github.com/e6qu/shimanism/internal/functions/frontends/azure_containerapps"
 	gcpcrfront "github.com/e6qu/shimanism/internal/functions/frontends/gcp_cloudrun"
 	"github.com/e6qu/shimanism/internal/gcpbearer"
-	"github.com/e6qu/shimanism/internal/mockaad"
 	pubsubdomain "github.com/e6qu/shimanism/internal/pubsub/domain"
 	awssnsfront "github.com/e6qu/shimanism/internal/pubsub/frontends/aws_sns"
 	awssqsreceivefront "github.com/e6qu/shimanism/internal/pubsub/frontends/aws_sqs_receive"
@@ -51,13 +44,11 @@ import (
 	"github.com/e6qu/shimanism/internal/restxml"
 	secretsdomain "github.com/e6qu/shimanism/internal/secrets/domain"
 	awssmfront "github.com/e6qu/shimanism/internal/secrets/frontends/aws_secretsmanager"
-	azurearmkvfront "github.com/e6qu/shimanism/internal/secrets/frontends/azure_arm_keyvault"
 	azurekvfront "github.com/e6qu/shimanism/internal/secrets/frontends/azure_keyvault"
 	gcpsmfront "github.com/e6qu/shimanism/internal/secrets/frontends/gcp_secretmanager"
 	"github.com/e6qu/shimanism/internal/sigv4verifier"
 	"github.com/e6qu/shimanism/internal/storage/domain"
 	awsfront "github.com/e6qu/shimanism/internal/storage/frontends/aws_s3"
-	azurearmstoragefront "github.com/e6qu/shimanism/internal/storage/frontends/azure_arm_storageaccounts"
 	azurefront "github.com/e6qu/shimanism/internal/storage/frontends/azure_blob"
 	gcsfront "github.com/e6qu/shimanism/internal/storage/frontends/gcs"
 	storagegen "github.com/e6qu/shimanism/services/storage/gen"
@@ -163,136 +154,6 @@ func StartStorageServerAzureBlob(t *testing.T, backend domain.Storage) *StorageS
 	return &StorageServer{URL: ts.URL, Close: ts.Close}
 }
 
-// StartStorageServerAzureARM starts a shim instance with the
-// Microsoft.Storage ARM frontend (storage accounts + blob containers
-// at the control plane). Wrapped with the same `azurebearer`
-// middleware all the other ARM-shimmed services use, configured for
-// audience "https://management.azure.com/" + the shared HS256 test
-// key. Phase 14.E unblocks `azurerm_storage_account` +
-// `azurerm_storage_container` through-shim Terraform Apply.
-//
-// `blobEndpoint` (optional) is returned in synthetic StorageAccount
-// `primaryEndpoints.blob` responses. Set it to the URL of a co-running
-// `StartStorageServerAzureBlob` to make the `hashicorp/azurerm`
-// Terraform provider auto-discover the blob data-plane endpoint.
-// Pass "" to fall back to the `https://<account>.blob.core.windows.net/`
-// default (suitable for non-Terraform-driven tests).
-func StartStorageServerAzureARM(t *testing.T, backend domain.Storage, blobEndpoint ...string) *StorageServer {
-	t.Helper()
-	// TrackAccounts: needed for `hashicorp/azurerm` idempotency checks
-	// (pre-create GET must 404 before any PUT). Real-cloud azurerm
-	// expects this; ARM-SDK-driven tests don't care either way.
-	opts := azurearmstoragefront.Options{TrackAccounts: true}
-	if len(blobEndpoint) > 0 {
-		opts.BlobEndpoint = blobEndpoint[0]
-	}
-	srv := azurearmstoragefront.New(backend, opts)
-	verifier := azurebearer.New(azurebearer.Options{Audience: "https://management.azure.com/", TestKey: []byte("test-key-do-not-use-in-prod")})
-	mw := azurebearer.Middleware(verifier)
-	// Wrap with armResourcesStub so generic ARM routes (Microsoft.Resources/*)
-	// that `hashicorp/azurerm` hits at init time don't 404. The storage
-	// frontend itself only handles Microsoft.Storage routes.
-	wrapped := armResourcesStub(srv)
-	ts := httptest.NewServer(&logRoundTrip{t: t, mux: mw(wrapped)})
-	t.Cleanup(ts.Close)
-	return &StorageServer{URL: ts.URL, Close: ts.Close}
-}
-
-// armResourcesStub serves the small subset of Microsoft.Resources
-// ARM routes that hashicorp/azurerm hits at provider init time, then
-// falls through to the wrapped service-specific ARM handler for
-// everything else. azurerm enumerates resource providers + resource
-// groups regardless of `resource_provider_registrations = "none"`,
-// so a service-specific ARM frontend can't 404 on those paths.
-//
-// What it serves:
-//
-//	GET /subscriptions/{sub}/providers
-//	  Empty providers list. azurerm caches the result; with "none"
-//	  registration mode, the cache is referenced only for validation.
-//	GET /subscriptions/{sub}/resourceGroups/{rg}
-//	  Synthetic resource group response. Most azurerm_* resources
-//	  read this to validate the rg exists; returning a generic OK
-//	  is enough since the shim is rg-agnostic.
-//	PUT /subscriptions/{sub}/resourceGroups/{rg}
-//	  Acknowledge resource group create (azurerm_resource_group).
-//
-// All Microsoft.Storage/* (or whichever per-service paths the wrapped
-// handler covers) fall through.
-func armResourcesStub(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		path := r.URL.Path
-		// /subscriptions/{sub}/providers — list resource providers.
-		if matched, _ := matchPath(path, "/subscriptions/+/providers"); matched && r.Method == http.MethodGet {
-			writeARMJSON(w, http.StatusOK, map[string]any{"value": []any{}})
-			return
-		}
-		// /subscriptions/{sub}/resourceGroups/{rg} — get/put a resource
-		// group. The shim is rg-agnostic; treat as opaque routing.
-		if matched, parts := matchPath(path, "/subscriptions/+/resourcegroups/+"); matched {
-			switch r.Method {
-			case http.MethodGet, http.MethodHead:
-				writeARMJSON(w, http.StatusOK, syntheticResourceGroup(parts[0], parts[1]))
-				return
-			case http.MethodPut:
-				writeARMJSON(w, http.StatusCreated, syntheticResourceGroup(parts[0], parts[1]))
-				return
-			case http.MethodDelete:
-				w.WriteHeader(http.StatusOK)
-				return
-			}
-		}
-		next.ServeHTTP(w, r)
-	})
-}
-
-// matchPath matches a slash-delimited template against `path`, with
-// `+` as a wildcard for one URL segment. Returns the captured wildcard
-// values in order. Case-insensitive for the literal segments (Azure
-// is inconsistent — sometimes `resourcegroups`, sometimes `resourceGroups`).
-func matchPath(path, template string) (bool, []string) {
-	tParts := splitARMPath(template)
-	pParts := splitARMPath(path)
-	if len(tParts) != len(pParts) {
-		return false, nil
-	}
-	var captures []string
-	for i := range tParts {
-		if tParts[i] == "+" {
-			captures = append(captures, pParts[i])
-			continue
-		}
-		if !strings.EqualFold(tParts[i], pParts[i]) {
-			return false, nil
-		}
-	}
-	return true, captures
-}
-
-func splitARMPath(p string) []string {
-	p = strings.Trim(p, "/")
-	if p == "" {
-		return nil
-	}
-	return strings.Split(p, "/")
-}
-
-func writeARMJSON(w http.ResponseWriter, status int, body any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(body)
-}
-
-func syntheticResourceGroup(sub, name string) map[string]any {
-	return map[string]any{
-		"id":         "/subscriptions/" + sub + "/resourceGroups/" + name,
-		"name":       name,
-		"type":       "Microsoft.Resources/resourceGroups",
-		"location":   "eastus",
-		"properties": map[string]any{"provisioningState": "Succeeded"},
-	}
-}
-
 // SecretsServer is a started secrets-shim instance with its
 // addressable URL. Same shape as StorageServer; the URL goes to
 // SDK / CLI / Terraform clients via their endpoint-override path.
@@ -351,26 +212,6 @@ func StartSecretsServerAzure(t *testing.T, backend secretsdomain.Secrets) *Secre
 	})
 	mw := azurebearer.Middleware(verifier, azurebearer.WithChallenge("https://vault.azure.net"))
 	ts := httptest.NewTLSServer(&logRoundTrip{t: t, mux: mw(srv)})
-	t.Cleanup(ts.Close)
-	return &SecretsServer{URL: ts.URL, Close: ts.Close}
-}
-
-// StartSecretsServerAzureARM starts a shim instance with the
-// Microsoft.KeyVault ARM frontend (vault create/get/list/delete
-// at the control plane). Wrapped with the same `azurebearer`
-// middleware all the other ARM-shimmed services use, configured for
-// audience "https://management.azure.com/" + the shared HS256 test
-// key. Phase 14.E unblocks `azurerm_key_vault` through-shim
-// Terraform Apply.
-func StartSecretsServerAzureARM(t *testing.T) *SecretsServer {
-	t.Helper()
-	srv := azurearmkvfront.New()
-	verifier := azurebearer.New(azurebearer.Options{
-		Audience: "https://management.azure.com/",
-		TestKey:  []byte("test-key-do-not-use-in-prod"),
-	})
-	mw := azurebearer.Middleware(verifier)
-	ts := httptest.NewServer(&logRoundTrip{t: t, mux: mw(srv)})
 	t.Cleanup(ts.Close)
 	return &SecretsServer{URL: ts.URL, Close: ts.Close}
 }
@@ -648,52 +489,6 @@ func StartAPIGatewayServerAzure(t *testing.T, backend apigatewaydomain.APIGatewa
 	ts := httptest.NewServer(&logRoundTrip{t: t, mux: mw(srv)})
 	t.Cleanup(ts.Close)
 	return &APIGatewayServer{URL: ts.URL, Close: ts.Close}
-}
-
-// MockAADServer is a started mock-Microsoft-Entra HTTPS instance.
-type MockAADServer struct {
-	URL      string
-	CertFile string // path to the PEM-encoded cert; suitable for SSL_CERT_FILE
-	Close    func()
-}
-
-// StartMockAAD starts a mock Microsoft Entra authority that
-// `hashicorp/azurerm` can use to exchange a (fake) client_secret
-// for an HS256-signed bearer token. The mock serves both the cloud-
-// metadata document (consumed via azurerm's `metadata_host`) and
-// the OIDC discovery + token endpoints. Pass the ARM frontend's URL
-// as `resourceManagerURL` so the metadata document routes
-// management.azure.com traffic back to the shim.
-//
-// Returned over HTTPS via httptest.NewTLSServer (azurerm refuses
-// HTTP for metadata_host). The self-signed cert is written to
-// MockAADServer.CertFile so tests can set SSL_CERT_FILE pointing at
-// it; without that the terraform invocation rejects the cert and
-// the apply fails.
-//
-// Phase 14.E.4: the last piece for through-shim `azurerm` Terraform
-// Apply. Real Entra is out-of-scope; this mock only exists so the
-// 7+ skipped azurerm Terraform conformance tests can run.
-func StartMockAAD(t *testing.T, resourceManagerURL string) *MockAADServer {
-	t.Helper()
-	srv := mockaad.NewServer(&mockaad.Options{
-		ResourceManagerURL: resourceManagerURL,
-	})
-	ts := httptest.NewTLSServer(&logRoundTrip{t: t, mux: srv})
-	srv.SetSelfURL(ts.URL)
-	// Write the auto-generated cert to a temp file so the test can
-	// expose it via SSL_CERT_FILE to the terraform subprocess.
-	certFile := filepath.Join(t.TempDir(), "mock-aad-cert.pem")
-	certPEM := certToPEM(ts.Certificate())
-	if err := os.WriteFile(certFile, certPEM, 0o644); err != nil {
-		t.Fatalf("write mock-AAD cert: %v", err)
-	}
-	t.Cleanup(ts.Close)
-	return &MockAADServer{URL: ts.URL, CertFile: certFile, Close: ts.Close}
-}
-
-func certToPEM(cert *x509.Certificate) []byte {
-	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw})
 }
 
 // logRoundTrip logs each request through the harness. Lightweight —

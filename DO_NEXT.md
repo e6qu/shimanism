@@ -8,9 +8,9 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 
 - **3-PR plan: 2/3 shipped; PR 3 (Track A) blocked.** PR #46/#47/#48/#49/#50 all landed 2026-05-27.
 - **BUG-24 reverse-direction coverage is now complete** — every service family has both cross-cloud directions (PR #50).
-- **14.E ARM-shimming.** PRs #51 (Microsoft.Storage ARM) + #52 (Microsoft.KeyVault ARM) + #53 (Storage ARM blob-endpoint propagation) shipped. PR 4 in flight: mock-Microsoft-Entra + first through-shim azurerm Terraform Apply test. The remaining workstream after this PR: extend the pattern across the other 7 services that have ARM frontends.
+- **14.E ARM-shimming — DIRECTION CORRECTION.** PRs #51 / #52 / #53 / #54 introduced ARM-shimming fakes (synthetic vault/account responses, in-process `Track*` state, mock-Microsoft-Entra, hardcoded `listKeys` synthetic) that violate shimanism's "no fakes / stateless shim" rules. The in-flight revert PR removes these. The honest path for cross-cloud Apply: sockerless PR #259 (merged 2026-05-28) added configurable Azure ARM data-plane endpoint emission via `SIM_AZURE_ARM_EXTERNAL_DATA_PLANE_URLS_JSON`; a follow-on PR will wire shimanism's harness to set this env var pointing at the shim's data-plane URLs, letting `azurerm → sockerless real ARM → shim data plane → backend` compose without any shim-side fakes.
 - **Phase 13.A is fully closed.** Every Azure frontend has full `gen.ServerInterface` impl.
-- `make sockerless` reports **45 passing + 0 skipped** locally (unchanged; PR 4 adds a new Terraform test that runs only on Linux/CI — skips on darwin where SSL_CERT_FILE is ignored).
+- `make sockerless` reports **43 passing + 0 skipped** locally after the revert (PR #54's ARM cells removed).
 - **Storage matrix complete 3×3** — single-shot + multipart + copy across AWS S3 + GCS + Azure Blob.
 - **Service Bus matrix complete** — admin (ATOM XML) + Send/Receive data-plane (raw AMQP/TLS via `azservicebus.ClientOptions.CustomEndpoint`).
 - **Azure ARM lanes complete** for Redis / PG / APIM via custom `arm.ClientOptions.Cloud.ResourceManager.Endpoint`.
@@ -43,17 +43,16 @@ Real-cloud lanes for BUG-8 (hashicorp/google API Gateway TF endpoint/OAuth leg) 
 ## Practical next chunks (while Track A is blocked)
 
 1. ~~BUG-24 reverse-direction expansion.~~ ✅ Shipped in PR #50.
-2. **14.E shim-side ARM-shimming.** Multi-PR workstream:
-   - **PR 1** — ✅ shipped as PR #51 (Microsoft.Storage/storageAccounts).
-   - **PR 2** — ✅ shipped as PR #52 (Microsoft.KeyVault/vaults + workflow fixes).
-   - **PR 3** — ✅ shipped as PR #53 (Storage ARM blob-endpoint propagation).
-   - **PR 4 (in flight)** — Mock Microsoft Entra + first through-shim azurerm Terraform Apply test. `internal/mockaad` serves an HTTPS OIDC token endpoint + cloud-metadata document; new `TestCrossCloudApply_Roundtrip_StorageAzureToAWS` runs a real `azurerm_storage_account` + `azurerm_storage_container` apply against the shim, verifies the container lands in the backend. Linux-only (SSL_CERT_FILE platform limitation).
-   - **PR 5 (next)** — Extend the mock-AAD pattern to the other 7 Azure Terraform tests (key vault, cache, queue, pubsub, functions, rdbms, apigateway). Or: Microsoft.ServiceBus/namespaces ARM (blocked on inliner extension for `../../common/v<N>/` ref form).
+2. **14.E cross-cloud Apply via sockerless-driven ARM.** PRs #51–#54 attempted shim-side ARM-shimming but violated the "no fakes / stateless shim" rules; the in-flight revert PR removes that work. The honest architecture:
+   - **Control plane:** sockerless's Azure simulator owns real Azure ARM (storage accounts, vaults, etc. with real state). sockerless PR #259 (merged) added configurable data-plane endpoint emission via `SIM_AZURE_ARM_EXTERNAL_DATA_PLANE_URLS_JSON`.
+   - **Data plane:** shimanism's existing `azure_blob` / `azure_keyvault` / `azure_servicebus` frontends translate Azure-shaped data-plane calls to AWS/GCP backends.
+   - **Composition:** `azurerm → sockerless ARM (real state) → response embeds shim URL in primaryEndpoints.* / vaultUri → shim data plane → AWS/GCP backend`.
+   - **Next PR after the revert:** wire `scripts/run-sockerless-storage.sh` to export `SIM_AZURE_ARM_EXTERNAL_DATA_PLANE_URLS_JSON` pointing at fixed-port shim data-plane URLs; bind the shim to those ports in the cross-cloud Apply tests; add a through-shim `azurerm_storage_account` + `azurerm_storage_container` Apply test that exercises the full path without any shim-side ARM.
 3. ~~Watch sockerless#244.~~ ✅ Done in PR #49.
 
-### Footnote: why 14.E is not active yet
+### Lesson: ARM shimming via fakes was the wrong design
 
-PR #46 originally planned to include 14.E cross-cloud Apply cells. During the work I audited what 14.E actually needs and the audit reframed the problem: sockerless is on the *destination* side of cross-cloud Apply (AWS or GCP), not the Azure source side. The Azure source side is the shim itself, which doesn't yet expose ARM-shimmed routes for `Microsoft.Storage/storageAccounts`, `Microsoft.Cache/Redis`, `Microsoft.DBforPostgreSQL/flexibleServers`, etc. — the shim needs to grow those shape translations before any Azure-source 14.E cell can run end-to-end. sockerless#243 (Azure ARM endpoint emission) is the analogous gap on the sockerless side and the maintainer reframed it to require real data planes too, but it's not on shimanism's critical path. 14.E re-opens once shim-side ARM-shimming exists; that's workstream 2 above.
+PRs #51–#54 built `internal/storage/frontends/azure_arm_storageaccounts/`, `internal/secrets/frontends/azure_arm_keyvault/`, `internal/mockaad/`, an `armResourcesStub` middleware, in-process `Track*` state, synthetic `StorageAccountsListKeys` with hardcoded keys matching the harness verifier, and a synthetic Microsoft Entra OIDC endpoint. Every one of these is a "canned-response path" / "fake HTTP server" / "in-memory stand-in for real cloud state" — violations of the no-fakes rule. The user [stopped the work mid-flight](https://github.com/e6qu/shimanism/pull/55#issuecomment-4564061276) and pointed out the violation. The honest answer was always sockerless: ARM with real state lives there. Filed [sockerless#257](https://github.com/e6qu/sockerless/issues/257), maintainer landed [#259](https://github.com/e6qu/sockerless/pull/259) within hours. Revert PR (this PR) cleans up the shim-side fakes; future PR wires through the honest path.
 
 ## Sockerless rebuild + lane run (when needed)
 
