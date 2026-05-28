@@ -10,12 +10,18 @@ package conformance_test
 import (
 	"bytes"
 	"context"
+	"crypto/sha512"
 	"crypto/tls"
 	"encoding/base64"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
 	"os"
+	"os/exec"
+	"path/filepath"
+	"strconv"
+	"strings"
 	"testing"
 
 	gcsstorage "cloud.google.com/go/storage"
@@ -32,6 +38,7 @@ import (
 	awsbackend "github.com/e6qu/shimanism/services/storage/backends/aws"
 	azurebackend "github.com/e6qu/shimanism/services/storage/backends/azureblob"
 	gcsbackend "github.com/e6qu/shimanism/services/storage/backends/gcs"
+	"github.com/e6qu/shimanism/services/storage/backends/inmem"
 )
 
 // TestSockerless_AWS_S3RoundTrip drives the shim's AWS-shaped
@@ -901,3 +908,215 @@ func TestSockerless_E2E_GCSFrontendToAWSBackend(t *testing.T) {
 		t.Errorf("GCS reader body = %q, want %q", string(data), string(body))
 	}
 }
+
+// TestSockerless_E2E_AzureBlob_Through_Shim_ApplyTF drives a real
+// `hashicorp/azurerm` Terraform Apply end-to-end against the
+// honest cross-cloud path:
+//
+//	azurerm Terraform
+//	  → sockerless Azure ARM (real state, real RS256 OAuth via
+//	    sockerless#262)
+//	  → sockerless emits the shim's blob frontend URL in
+//	    `primaryEndpoints.blob` (sockerless#259's configurable
+//	    endpoint emission, `SIM_AZURE_ARM_EXTERNAL_DATA_PLANE_URLS_JSON`)
+//	  → azurerm follows the URL for data plane
+//	  → shim's azure_blob frontend (existing) handles the request
+//	    with SharedKey verification using the same key sockerless
+//	    emitted via `listKeys` (deterministic per-resource derivation,
+//	    sockerless#260)
+//	  → shim's domain.Storage translates to the inmem backend
+//
+// Account + RG names are fixed so the shim's verifier can derive
+// the exact key sockerless will emit via `listKeys`. Requires:
+//   - sockerless Azure sim running (SOCKERLESS_AZURE_TLS_PORT set)
+//   - SHIM_AZUREBLOB_PORT set (the run script defaults to 14581)
+//   - `SIM_AZURE_ARM_EXTERNAL_DATA_PLANE_URLS_JSON` configured on
+//     sockerless's Azure sim to advertise the shim's blob URL
+//     (`scripts/run-sockerless-storage.sh` sets this).
+//   - Linux system CA bundle (Go honors SSL_CERT_FILE on Unix
+//     only; macOS uses the Security framework and skips).
+//   - `terraform` on PATH.
+func TestSockerless_E2E_AzureBlob_Through_Shim_ApplyTF(t *testing.T) {
+	azurePort := os.Getenv("SOCKERLESS_AZURE_TLS_PORT")
+	if azurePort == "" {
+		t.Skip("SOCKERLESS_AZURE_TLS_PORT not set")
+	}
+	shimPortStr := os.Getenv("SHIM_AZUREBLOB_PORT")
+	if shimPortStr == "" {
+		t.Skip("SHIM_AZUREBLOB_PORT not set (the run script defaults to 14581)")
+	}
+	shimPort, err := strconv.Atoi(shimPortStr)
+	if err != nil {
+		t.Fatalf("SHIM_AZUREBLOB_PORT not numeric: %v", err)
+	}
+	tfBin, err := exec.LookPath("terraform")
+	if err != nil {
+		t.Skipf("terraform not installed: %v", err)
+	}
+	systemCABundle := findSystemCABundle()
+	if systemCABundle == "" {
+		t.Skip("no system CA bundle found at known Unix paths — SSL_CERT_FILE workaround requires Linux")
+	}
+	sockCert := os.Getenv("SOCKERLESS_AZURE_TLS_CERT")
+	if sockCert == "" {
+		t.Skip("SOCKERLESS_AZURE_TLS_CERT not set (the run script exports this)")
+	}
+
+	// Fixed names so both sockerless and the shim derive the same
+	// SharedKey from the same Microsoft.Storage resource ID. azurerm
+	// reads the key from sockerless's `listKeys`; the shim verifies
+	// the SharedKey signature with the same derivation.
+	const (
+		subscriptionID = "00000000-0000-0000-0000-000000000000"
+		resourceGroup  = "shim-rg"
+		accountName    = "shimstorage"
+		containerName  = "applied-container"
+	)
+	resourceID := fmt.Sprintf(
+		"/subscriptions/%s/resourceGroups/%s/providers/Microsoft.Storage/storageAccounts/%s",
+		subscriptionID, resourceGroup, accountName,
+	)
+	key := deriveSockerlessAzureStorageKey64(resourceID, "key1")
+
+	backend := inmem.New()
+	shim := harness.StartStorageServerAzureBlobAtPort(t, backend, shimPort, accountName, key)
+	_ = shim // URL is hardcoded into sockerless's ARM emission via the env var
+
+	dir := t.TempDir()
+	hcl := fmt.Sprintf(terraformAzureBlobApplyConfig, "localhost:"+azurePort, accountName, resourceGroup, containerName)
+	if err := os.WriteFile(filepath.Join(dir, "main.tf"), []byte(hcl), 0o644); err != nil {
+		t.Fatalf("write main.tf: %v", err)
+	}
+
+	combinedCA := filepath.Join(dir, "combined-ca.pem")
+	systemBytes, err := os.ReadFile(systemCABundle)
+	if err != nil {
+		t.Fatalf("read system CA bundle %s: %v", systemCABundle, err)
+	}
+	sockBytes, err := os.ReadFile(sockCert)
+	if err != nil {
+		t.Fatalf("read sockerless cert %s: %v", sockCert, err)
+	}
+	if err := os.WriteFile(combinedCA, append(append(systemBytes, '\n'), sockBytes...), 0o644); err != nil {
+		t.Fatalf("write combined CA: %v", err)
+	}
+
+	runTf := func(args ...string) ([]byte, []byte, error) {
+		cmd := exec.Command(tfBin, args...)
+		cmd.Dir = dir
+		cmd.Env = append(os.Environ(),
+			"TF_IN_AUTOMATION=1",
+			"TF_INPUT=0",
+			"CHECKPOINT_DISABLE=1",
+			"SSL_CERT_FILE="+combinedCA,
+		)
+		var stdout, stderr bytes.Buffer
+		cmd.Stdout = &stdout
+		cmd.Stderr = &stderr
+		err := cmd.Run()
+		return stdout.Bytes(), stderr.Bytes(), err
+	}
+	mustRun := func(args ...string) []byte {
+		t.Helper()
+		stdout, stderr, err := runTf(args...)
+		if err != nil {
+			t.Fatalf("terraform %s\nstdout:\n%s\nstderr:\n%s\nerr: %v",
+				strings.Join(args, " "), stdout, stderr, err)
+		}
+		return stdout
+	}
+
+	mustRun("init", "-no-color")
+	mustRun("apply", "-no-color", "-auto-approve")
+	t.Cleanup(func() { _, _, _ = runTf("destroy", "-no-color", "-auto-approve") })
+
+	// Verify the container landed in the shim's backend.
+	list, err := backend.ListBuckets(context.Background(), domain.ListBucketsOptions{})
+	if err != nil {
+		t.Fatalf("backend.ListBuckets: %v", err)
+	}
+	found := false
+	for _, b := range list.Buckets {
+		if b.Name == containerName {
+			found = true
+			break
+		}
+	}
+	if !found {
+		names := make([]string, 0, len(list.Buckets))
+		for _, b := range list.Buckets {
+			names = append(names, b.Name)
+		}
+		t.Errorf("backend.ListBuckets did not contain %q; got %v", containerName, names)
+	}
+}
+
+// deriveSockerlessAzureStorageKey64 mirrors sockerless's
+// simListKey64 (simulators/azure/listkeys_helper.go): the 64-byte
+// SharedKey for a storage account resource ID + key kind is
+// sha512("sim-listkey-64|" + resourceID + "|" + kind). Returns raw
+// bytes (the SharedKey verifier accepts arbitrary-length byte
+// slices via HMAC). The same derivation runs in sockerless when
+// answering `listKeys`; using identical seed strings keeps both
+// sides aligned without out-of-band coordination.
+func deriveSockerlessAzureStorageKey64(resourceID, kind string) []byte {
+	sum := sha512.Sum512([]byte("sim-listkey-64|" + resourceID + "|" + kind))
+	return sum[:]
+}
+
+// findSystemCABundle returns the path of the OS's installed CA
+// bundle. Returns "" on macOS / non-Linux Unixes that load roots
+// from the system framework rather than a known file.
+func findSystemCABundle() string {
+	for _, p := range []string{
+		"/etc/ssl/certs/ca-certificates.crt", // Debian/Ubuntu/Alpine
+		"/etc/pki/tls/certs/ca-bundle.crt",   // RHEL/CentOS
+		"/etc/ssl/ca-bundle.pem",             // OpenSUSE
+		"/etc/pki/tls/cacert.pem",            // OpenELEC
+	} {
+		if _, err := os.Stat(p); err == nil {
+			return p
+		}
+	}
+	return ""
+}
+
+const terraformAzureBlobApplyConfig = `
+terraform {
+  required_providers {
+    azurerm = {
+      source  = "hashicorp/azurerm"
+      version = "~> 4.0"
+    }
+  }
+}
+
+provider "azurerm" {
+  features {}
+  metadata_host                   = "%s"
+  subscription_id                 = "00000000-0000-0000-0000-000000000000"
+  tenant_id                       = "00000000-0000-0000-0000-000000000000"
+  client_id                       = "00000000-0000-0000-0000-000000000000"
+  client_secret                   = "test-secret-do-not-use-in-prod"
+  resource_provider_registrations = "none"
+}
+
+resource "azurerm_resource_group" "rg" {
+  name     = "%s"
+  location = "eastus"
+}
+
+resource "azurerm_storage_account" "sa" {
+  name                     = "%s"
+  resource_group_name      = azurerm_resource_group.rg.name
+  location                 = azurerm_resource_group.rg.location
+  account_tier             = "Standard"
+  account_replication_type = "LRS"
+}
+
+resource "azurerm_storage_container" "sc" {
+  name                  = "%[4]s"
+  storage_account_id    = azurerm_storage_account.sa.id
+  container_access_type = "private"
+}
+`

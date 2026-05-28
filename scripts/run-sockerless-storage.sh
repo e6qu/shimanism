@@ -33,6 +33,15 @@ AZURE_PORT=${AZURE_PORT:-14569}
 # #231). Used by the SB queue / pubsub Send-Receive lanes via the
 # azservicebus SDK's CustomEndpoint + TLSConfig knobs.
 AZURE_SB_AMQP_PORT=${AZURE_SB_AMQP_PORT:-14570}
+# Fixed port where the shim's Azure Blob data-plane frontend binds
+# when running the through-shim `azurerm` Terraform Apply test
+# (`TestSockerless_E2E_AzureBlob_Through_Shim_ApplyTF`). sockerless's
+# Azure ARM is configured below to emit this URL in
+# `Microsoft.Storage/storageAccounts` `primaryEndpoints.blob` so
+# `azurerm` follows it for data-plane operations. The shim binds the
+# port in-test rather than the harness using a random httptest port,
+# because the URL has to be fixed before sockerless starts.
+SHIM_AZUREBLOB_PORT=${SHIM_AZUREBLOB_PORT:-14581}
 CERT_DIR=${CERT_DIR:-/tmp/sockerless-tls}
 
 if [[ ! -d $SOCKERLESS_DIR ]]; then
@@ -138,10 +147,17 @@ SIM_LISTEN_ADDR=":$GCP_PORT" \
 GCP_PID=$!
 
 echo "start: Azure sim → https://localhost:$AZURE_PORT + Service Bus AMQP/TLS on :$AZURE_SB_AMQP_PORT (self-signed cert)"
+# Configure sockerless's Azure ARM (sockerless#259) to emit the
+# shim's blob frontend URL in storage-account
+# `primaryEndpoints.blob`. The shim's data-plane frontend handles
+# blob/container CRUD over HTTP at this URL; sockerless's
+# `listKeys` returns a deterministic 64-byte key (sockerless#260)
+# the shim's verifier derives the same way from the resource ID.
 SIM_LISTEN_ADDR=":$AZURE_PORT" \
 SIM_TLS_CERT="$CERT_DIR/sim.crt" \
 SIM_TLS_KEY="$CERT_DIR/sim.key" \
 SIM_SERVICEBUS_AMQP_LISTEN_ADDR=":$AZURE_SB_AMQP_PORT" \
+SIM_AZURE_ARM_EXTERNAL_DATA_PLANE_URLS_JSON='{"storage":{"blob":"http://localhost:'"$SHIM_AZUREBLOB_PORT"'/"}}' \
     "$AZURE_BIN" >/tmp/sockerless-azure.log 2>&1 &
 AZURE_PID=$!
 
@@ -157,6 +173,8 @@ SOCKERLESS_AZURE_KV_URL="https://testvault.vault.azure.net" \
 SOCKERLESS_AZURE_TLS_PORT="$AZURE_PORT" \
 SOCKERLESS_AZURE_SB_AMQP_PORT="$AZURE_SB_AMQP_PORT" \
 SOCKERLESS_AZURE_BLOB_ACCOUNT="testacct" \
+SOCKERLESS_AZURE_TLS_CERT="$CERT_DIR/sim.crt" \
+SHIM_AZUREBLOB_PORT="$SHIM_AZUREBLOB_PORT" \
 SOCKERLESS_AZURE_CONTAINERAPPS_IMAGE="$SOCKERLESS_AZURE_CONTAINERAPPS_IMAGE" \
 SOCKERLESS_GCP_CLOUDRUN_IMAGE="$SOCKERLESS_GCP_CLOUDRUN_IMAGE" \
 AWS_S3_CONFORMANCE_INSECURE_TLS=1 \

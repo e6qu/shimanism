@@ -9,6 +9,8 @@
 package harness
 
 import (
+	"fmt"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -150,6 +152,39 @@ func StartStorageServerAzureBlob(t *testing.T, backend domain.Storage) *StorageS
 	})
 	mw := azuresharedkey.Middleware(verifier)
 	ts := httptest.NewServer(&logRoundTrip{t: t, mux: mw(srv)})
+	t.Cleanup(ts.Close)
+	return &StorageServer{URL: ts.URL, Close: ts.Close}
+}
+
+// StartStorageServerAzureBlobAtPort starts the shim's azure_blob
+// frontend on a FIXED TCP port with a caller-supplied SharedKey,
+// for the through-shim `azurerm` Terraform Apply test that needs
+// sockerless's ARM-emitted `primaryEndpoints.blob` URL to match a
+// pre-known shim listener address.
+//
+// `account` is the storage account name (the verifier matches the
+// Host / URL prefix against this). `key` is the raw SharedKey bytes
+// the verifier will use — `azurerm` will have obtained the same
+// bytes (base64-encoded) from sockerless's `listKeys`, derived via
+// sockerless's documented `simListKey64(resourceID, kind)` shape.
+// The test that wires this should derive its expected key from the
+// same resource ID + key kind so both sides see identical bytes.
+//
+// `port` is the TCP port to bind (no randomization). Used to fix
+// the listener address in advance of sockerless emitting it.
+func StartStorageServerAzureBlobAtPort(t *testing.T, backend domain.Storage, port int, account string, key []byte) *StorageServer {
+	t.Helper()
+	srv := azurefront.New(backend)
+	verifier := azuresharedkey.New(azuresharedkey.StaticStore{Account: account, Key: key})
+	mw := azuresharedkey.Middleware(verifier)
+	ln, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
+	if err != nil {
+		t.Fatalf("bind 127.0.0.1:%d: %v", port, err)
+	}
+	ts := httptest.NewUnstartedServer(&logRoundTrip{t: t, mux: mw(srv)})
+	_ = ts.Listener.Close()
+	ts.Listener = ln
+	ts.Start()
 	t.Cleanup(ts.Close)
 	return &StorageServer{URL: ts.URL, Close: ts.Close}
 }
