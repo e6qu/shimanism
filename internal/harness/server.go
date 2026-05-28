@@ -179,7 +179,10 @@ func StartStorageServerAzureBlob(t *testing.T, backend domain.Storage) *StorageS
 // default (suitable for non-Terraform-driven tests).
 func StartStorageServerAzureARM(t *testing.T, backend domain.Storage, blobEndpoint ...string) *StorageServer {
 	t.Helper()
-	opts := azurearmstoragefront.Options{}
+	// TrackAccounts: needed for `hashicorp/azurerm` idempotency checks
+	// (pre-create GET must 404 before any PUT). Real-cloud azurerm
+	// expects this; ARM-SDK-driven tests don't care either way.
+	opts := azurearmstoragefront.Options{TrackAccounts: true}
 	if len(blobEndpoint) > 0 {
 		opts.BlobEndpoint = blobEndpoint[0]
 	}

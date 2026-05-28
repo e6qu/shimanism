@@ -39,6 +39,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/e6qu/shimanism/internal/storage/domain"
@@ -47,9 +48,12 @@ import (
 
 // Server is the Microsoft.Storage ARM-shaped HTTP frontend.
 type Server struct {
-	s            domain.Storage
-	mux          http.Handler
-	blobEndpoint string // optional override returned in PrimaryEndpoints.Blob
+	s             domain.Storage
+	mux           http.Handler
+	blobEndpoint  string // optional override returned in PrimaryEndpoints.Blob
+	trackAccounts bool   // when true, GetProperties returns 404 if no PUT seen
+	mu            sync.Mutex
+	accounts      map[string]struct{} // account names with at least one PUT
 }
 
 // Options configures the ARM frontend.
@@ -63,6 +67,20 @@ type Options struct {
 	// real-Azure-shaped `https://<account>.blob.core.windows.net/`
 	// default.
 	BlobEndpoint string
+
+	// TrackAccounts, when true, makes the frontend maintain a tiny
+	// in-process set of account names that have been PUT to this
+	// instance. GetProperties returns 404 before any PUT, the
+	// synthetic resource after. azurerm does a pre-create existence
+	// check (GET → 404 means "ok to create") and would otherwise
+	// see the always-200 default and refuse to create.
+	//
+	// This is opt-in test-mode state. In production the frontend
+	// stays stateless: TrackAccounts defaults to false, and the
+	// shim's invariant ("no state of record") is preserved. The
+	// `hashicorp/azurerm` Terraform conformance tests opt in via
+	// the harness; SDK-driven tests don't need to.
+	TrackAccounts bool
 }
 
 // New returns a frontend bound to the given backend.
@@ -70,6 +88,10 @@ func New(s domain.Storage, opts ...Options) *Server {
 	srv := &Server{s: s}
 	if len(opts) > 0 {
 		srv.blobEndpoint = opts[0].BlobEndpoint
+		srv.trackAccounts = opts[0].TrackAccounts
+	}
+	if srv.trackAccounts {
+		srv.accounts = map[string]struct{}{}
 	}
 	srv.mux = gen.HandlerWithOptions(srv, gen.StdHTTPServerOptions{})
 	return srv
@@ -97,10 +119,15 @@ func (srv *Server) StorageAccountsCreate(w http.ResponseWriter, r *http.Request,
 	if !decodeJSON(w, r, &body) {
 		return
 	}
+	srv.recordAccount(accountName)
 	writeJSON(w, http.StatusOK, srv.syntheticStorageAccount(subscriptionId, resourceGroupName, accountName, body.Location))
 }
 
 func (srv *Server) StorageAccountsGetProperties(w http.ResponseWriter, _ *http.Request, subscriptionId gen.SubscriptionIdParameter, resourceGroupName gen.ResourceGroupNameParameter, accountName string, _ gen.StorageAccountsGetPropertiesParams) {
+	if srv.trackAccounts && !srv.hasAccount(accountName) {
+		writeError(w, http.StatusNotFound, "ResourceNotFound", "The Resource 'Microsoft.Storage/storageAccounts/"+accountName+"' under resource group '"+string(resourceGroupName)+"' was not found.")
+		return
+	}
 	writeJSON(w, http.StatusOK, srv.syntheticStorageAccount(subscriptionId, resourceGroupName, accountName, ""))
 }
 
@@ -110,7 +137,8 @@ func (srv *Server) StorageAccountsUpdate(w http.ResponseWriter, r *http.Request,
 	writeJSON(w, http.StatusOK, srv.syntheticStorageAccount(subscriptionId, resourceGroupName, accountName, ""))
 }
 
-func (srv *Server) StorageAccountsDelete(w http.ResponseWriter, _ *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ gen.StorageAccountsDeleteParams) {
+func (srv *Server) StorageAccountsDelete(w http.ResponseWriter, _ *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, accountName string, _ gen.StorageAccountsDeleteParams) {
+	srv.forgetAccount(accountName)
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -260,6 +288,37 @@ func syntheticContainerItem(subId gen.SubscriptionIdParameter, rg gen.ResourceGr
 }
 
 func ptr[T any](v T) *T { return &v }
+
+// recordAccount notes that StorageAccountsCreate was called for
+// `name`. No-op when TrackAccounts is false.
+func (srv *Server) recordAccount(name string) {
+	if !srv.trackAccounts {
+		return
+	}
+	srv.mu.Lock()
+	srv.accounts[name] = struct{}{}
+	srv.mu.Unlock()
+}
+
+// hasAccount reports whether `name` has been PUT. Only meaningful
+// when TrackAccounts is true; the caller's check is gated on that.
+func (srv *Server) hasAccount(name string) bool {
+	srv.mu.Lock()
+	_, ok := srv.accounts[name]
+	srv.mu.Unlock()
+	return ok
+}
+
+// forgetAccount removes `name` from the tracked set so subsequent
+// GETs return 404. Called on StorageAccountsDelete.
+func (srv *Server) forgetAccount(name string) {
+	if !srv.trackAccounts {
+		return
+	}
+	srv.mu.Lock()
+	delete(srv.accounts, name)
+	srv.mu.Unlock()
+}
 
 // Compile-time guard: gen.ServerInterface must be fully implemented.
 var _ gen.ServerInterface = (*Server)(nil)
