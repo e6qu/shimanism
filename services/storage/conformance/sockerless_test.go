@@ -983,7 +983,7 @@ func TestSockerless_E2E_AzureBlob_Through_Shim_ApplyTF(t *testing.T) {
 	_ = shim // URL is hardcoded into sockerless's ARM emission via the env var
 
 	dir := t.TempDir()
-	hcl := fmt.Sprintf(terraformAzureBlobApplyConfig, "localhost:"+azurePort, accountName, resourceGroup, containerName)
+	hcl := fmt.Sprintf(terraformAzureBlobApplyConfig, "localhost:"+azurePort, resourceGroup, accountName, containerName)
 	if err := os.WriteFile(filepath.Join(dir, "main.tf"), []byte(hcl), 0o644); err != nil {
 		t.Fatalf("write main.tf: %v", err)
 	}
