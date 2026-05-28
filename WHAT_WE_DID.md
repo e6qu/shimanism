@@ -8,6 +8,30 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 
 PR #21 merged on 2026-05-25 at `45985e7`, landing 14.A, the 14.D simulator audit, and the current 14.B sockerless lane. Phase 14.B and 14.C are now closed (PR #46). Phase 13.A is also closed — PR #47 retired the last ◐ migration (`azure_blob`). What remains in Phase 14: PR 3 (14.D Track A, real-cloud-credentials-gated). 14.E cross-cloud Apply re-opens once shim-side ARM-shimming exists (see PR #46 narrative below).
 
+### 14.E.4 — Mock Microsoft Entra + first through-shim azurerm Terraform Apply (in flight 2026-05-28)
+
+The last barrier between PR #51–#53's ARM-shimming infrastructure and a green `hashicorp/azurerm` Terraform Apply against the shim: the provider routes through Microsoft Entra (Azure AD) to exchange a `client_secret` for a bearer token. The shim doesn't shim Entra in production.
+
+**`internal/mockaad`** — minimal AAD-compatible HTTP surface that serves:
+- `GET /metadata/endpoints` — Azure cloud-metadata document with `authentication.loginEndpoint` pointing at the mock itself + `resourceManager` pointing at the shim's ARM frontend. azurerm fetches this when `metadata_host` is set.
+- `GET /{tenant}/.well-known/openid-configuration` — OIDC discovery.
+- `POST /{tenant}/oauth2/v2.0/token` — accepts any `client_credentials` grant, returns an HS256-signed JWT minted with `azurebearer.TestJWT`. Ignores client_id + client_secret entirely (the mock is permissive — Entra-side rejection isn't its job).
+
+**TLS.** The mock runs over `httptest.NewTLSServer` because azurerm refuses non-HTTPS `metadata_host`. The auto-generated self-signed cert is written to a temp file (`MockAADServer.CertFile`) so tests can pass it to Terraform via a combined CA bundle.
+
+**Linux-only.** Go's TLS stack honors `SSL_CERT_FILE` on Linux/Unix but uses the Security framework directly on macOS (where the env var is ignored). The test skips on darwin and runs only when a system CA bundle is found at one of the known Unix paths. CI runs on Linux so the test validates fully there.
+
+**`TestCrossCloudApply_Roundtrip_StorageAzureToAWS`** drives the first through-shim azurerm Terraform Apply:
+1. Start: shared in-memory backend, blob frontend, ARM frontend (with `blobEndpoint=blobShim.URL`), mock-AAD.
+2. Combined CA bundle: system roots + mock-AAD self-signed cert.
+3. Terraform config: `provider "azurerm"` with `metadata_host` pointing at mock-AAD, static `client_id`/`client_secret`/`tenant_id`/`subscription_id`. Resources: `azurerm_storage_account` + `azurerm_storage_container`.
+4. `terraform init && terraform apply`. azurerm: fetches metadata → fetches OIDC config → POSTs to token endpoint → gets bearer → calls ARM (shim) → calls blob (shim, via PrimaryEndpoints.Blob from PR #53).
+5. Assert `applied-container` lands in the backend's bucket list.
+
+**What this unlocks.** Eight currently-skipped `azurerm_*_terraform_test.go` cells (storage, KV, cache, queue, pubsub, functions, rdbms, apigateway) can now follow the same pattern. PR 5 extends it; this PR proves it works for storage.
+
+End state: `make sockerless` still 45 passing. The new Linux-only test is opt-in via system-CA-bundle presence.
+
 ### 14.E.3 — Storage ARM blob-endpoint propagation (in flight 2026-05-28)
 
 The missing piece between PR #51 (Microsoft.Storage ARM frontend) and a working `hashicorp/azurerm` Terraform Apply through the shim.

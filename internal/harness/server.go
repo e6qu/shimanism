@@ -9,8 +9,12 @@
 package harness
 
 import (
+	"crypto/x509"
+	"encoding/pem"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"testing"
 
 	apigatewaydomain "github.com/e6qu/shimanism/internal/apigateway/domain"
@@ -28,6 +32,7 @@ import (
 	azurecafront "github.com/e6qu/shimanism/internal/functions/frontends/azure_containerapps"
 	gcpcrfront "github.com/e6qu/shimanism/internal/functions/frontends/gcp_cloudrun"
 	"github.com/e6qu/shimanism/internal/gcpbearer"
+	"github.com/e6qu/shimanism/internal/mockaad"
 	pubsubdomain "github.com/e6qu/shimanism/internal/pubsub/domain"
 	awssnsfront "github.com/e6qu/shimanism/internal/pubsub/frontends/aws_sns"
 	awssqsreceivefront "github.com/e6qu/shimanism/internal/pubsub/frontends/aws_sqs_receive"
@@ -539,6 +544,52 @@ func StartAPIGatewayServerAzure(t *testing.T, backend apigatewaydomain.APIGatewa
 	ts := httptest.NewServer(&logRoundTrip{t: t, mux: mw(srv)})
 	t.Cleanup(ts.Close)
 	return &APIGatewayServer{URL: ts.URL, Close: ts.Close}
+}
+
+// MockAADServer is a started mock-Microsoft-Entra HTTPS instance.
+type MockAADServer struct {
+	URL      string
+	CertFile string // path to the PEM-encoded cert; suitable for SSL_CERT_FILE
+	Close    func()
+}
+
+// StartMockAAD starts a mock Microsoft Entra authority that
+// `hashicorp/azurerm` can use to exchange a (fake) client_secret
+// for an HS256-signed bearer token. The mock serves both the cloud-
+// metadata document (consumed via azurerm's `metadata_host`) and
+// the OIDC discovery + token endpoints. Pass the ARM frontend's URL
+// as `resourceManagerURL` so the metadata document routes
+// management.azure.com traffic back to the shim.
+//
+// Returned over HTTPS via httptest.NewTLSServer (azurerm refuses
+// HTTP for metadata_host). The self-signed cert is written to
+// MockAADServer.CertFile so tests can set SSL_CERT_FILE pointing at
+// it; without that the terraform invocation rejects the cert and
+// the apply fails.
+//
+// Phase 14.E.4: the last piece for through-shim `azurerm` Terraform
+// Apply. Real Entra is out-of-scope; this mock only exists so the
+// 7+ skipped azurerm Terraform conformance tests can run.
+func StartMockAAD(t *testing.T, resourceManagerURL string) *MockAADServer {
+	t.Helper()
+	srv := mockaad.NewServer(&mockaad.Options{
+		ResourceManagerURL: resourceManagerURL,
+	})
+	ts := httptest.NewTLSServer(&logRoundTrip{t: t, mux: srv})
+	srv.SetSelfURL(ts.URL)
+	// Write the auto-generated cert to a temp file so the test can
+	// expose it via SSL_CERT_FILE to the terraform subprocess.
+	certFile := filepath.Join(t.TempDir(), "mock-aad-cert.pem")
+	certPEM := certToPEM(ts.Certificate())
+	if err := os.WriteFile(certFile, certPEM, 0o644); err != nil {
+		t.Fatalf("write mock-AAD cert: %v", err)
+	}
+	t.Cleanup(ts.Close)
+	return &MockAADServer{URL: ts.URL, CertFile: certFile, Close: ts.Close}
+}
+
+func certToPEM(cert *x509.Certificate) []byte {
+	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw})
 }
 
 // logRoundTrip logs each request through the harness. Lightweight —
