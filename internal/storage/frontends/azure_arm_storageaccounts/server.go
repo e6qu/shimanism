@@ -254,8 +254,21 @@ func (srv *Server) syntheticStorageAccount(subId gen.SubscriptionIdParameter, rg
 			PrimaryLocation:          &location,
 			AllowBlobPublicAccess:    ptr(false),
 			SupportsHttpsTrafficOnly: ptr(true),
+			// All service endpoints point at the same shim URL.
+			// azurerm waits for all four (Blob/Queue/Table/File) to
+			// become readable on the data-plane health-check path
+			// (`?comp=properties&restype=service`) before declaring
+			// the account ready. The shim's azure_blob frontend
+			// answers that path regardless of which "service" the
+			// caller thinks it's hitting, so pointing all four at
+			// the same URL satisfies the wait.
 			PrimaryEndpoints: &gen.Endpoints{
-				Blob: &blobURL,
+				Blob:  &blobURL,
+				Queue: &blobURL,
+				Table: &blobURL,
+				File:  &blobURL,
+				Dfs:   &blobURL,
+				Web:   &blobURL,
 			},
 		},
 	}
