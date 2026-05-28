@@ -10,11 +10,13 @@ package harness
 
 import (
 	"crypto/x509"
+	"encoding/json"
 	"encoding/pem"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	apigatewaydomain "github.com/e6qu/shimanism/internal/apigateway/domain"
@@ -184,9 +186,108 @@ func StartStorageServerAzureARM(t *testing.T, backend domain.Storage, blobEndpoi
 	srv := azurearmstoragefront.New(backend, opts)
 	verifier := azurebearer.New(azurebearer.Options{Audience: "https://management.azure.com/", TestKey: []byte("test-key-do-not-use-in-prod")})
 	mw := azurebearer.Middleware(verifier)
-	ts := httptest.NewServer(&logRoundTrip{t: t, mux: mw(srv)})
+	// Wrap with armResourcesStub so generic ARM routes (Microsoft.Resources/*)
+	// that `hashicorp/azurerm` hits at init time don't 404. The storage
+	// frontend itself only handles Microsoft.Storage routes.
+	wrapped := armResourcesStub(srv)
+	ts := httptest.NewServer(&logRoundTrip{t: t, mux: mw(wrapped)})
 	t.Cleanup(ts.Close)
 	return &StorageServer{URL: ts.URL, Close: ts.Close}
+}
+
+// armResourcesStub serves the small subset of Microsoft.Resources
+// ARM routes that hashicorp/azurerm hits at provider init time, then
+// falls through to the wrapped service-specific ARM handler for
+// everything else. azurerm enumerates resource providers + resource
+// groups regardless of `resource_provider_registrations = "none"`,
+// so a service-specific ARM frontend can't 404 on those paths.
+//
+// What it serves:
+//
+//	GET /subscriptions/{sub}/providers
+//	  Empty providers list. azurerm caches the result; with "none"
+//	  registration mode, the cache is referenced only for validation.
+//	GET /subscriptions/{sub}/resourceGroups/{rg}
+//	  Synthetic resource group response. Most azurerm_* resources
+//	  read this to validate the rg exists; returning a generic OK
+//	  is enough since the shim is rg-agnostic.
+//	PUT /subscriptions/{sub}/resourceGroups/{rg}
+//	  Acknowledge resource group create (azurerm_resource_group).
+//
+// All Microsoft.Storage/* (or whichever per-service paths the wrapped
+// handler covers) fall through.
+func armResourcesStub(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path := r.URL.Path
+		// /subscriptions/{sub}/providers — list resource providers.
+		if matched, _ := matchPath(path, "/subscriptions/+/providers"); matched && r.Method == http.MethodGet {
+			writeARMJSON(w, http.StatusOK, map[string]any{"value": []any{}})
+			return
+		}
+		// /subscriptions/{sub}/resourceGroups/{rg} — get/put a resource
+		// group. The shim is rg-agnostic; treat as opaque routing.
+		if matched, parts := matchPath(path, "/subscriptions/+/resourcegroups/+"); matched {
+			switch r.Method {
+			case http.MethodGet, http.MethodHead:
+				writeARMJSON(w, http.StatusOK, syntheticResourceGroup(parts[0], parts[1]))
+				return
+			case http.MethodPut:
+				writeARMJSON(w, http.StatusCreated, syntheticResourceGroup(parts[0], parts[1]))
+				return
+			case http.MethodDelete:
+				w.WriteHeader(http.StatusOK)
+				return
+			}
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// matchPath matches a slash-delimited template against `path`, with
+// `+` as a wildcard for one URL segment. Returns the captured wildcard
+// values in order. Case-insensitive for the literal segments (Azure
+// is inconsistent — sometimes `resourcegroups`, sometimes `resourceGroups`).
+func matchPath(path, template string) (bool, []string) {
+	tParts := splitARMPath(template)
+	pParts := splitARMPath(path)
+	if len(tParts) != len(pParts) {
+		return false, nil
+	}
+	var captures []string
+	for i := range tParts {
+		if tParts[i] == "+" {
+			captures = append(captures, pParts[i])
+			continue
+		}
+		if !strings.EqualFold(tParts[i], pParts[i]) {
+			return false, nil
+		}
+	}
+	return true, captures
+}
+
+func splitARMPath(p string) []string {
+	p = strings.Trim(p, "/")
+	if p == "" {
+		return nil
+	}
+	return strings.Split(p, "/")
+}
+
+func writeARMJSON(w http.ResponseWriter, status int, body any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(body)
+}
+
+func syntheticResourceGroup(sub, name string) map[string]any {
+	return map[string]any{
+		"id":         "/subscriptions/" + sub + "/resourceGroups/" + name,
+		"name":       name,
+		"type":       "Microsoft.Resources/resourceGroups",
+		"location":   "eastus",
+		"properties": map[string]any{"provisioningState": "Succeeded"},
+	}
 }
 
 // SecretsServer is a started secrets-shim instance with its
