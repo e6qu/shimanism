@@ -8,6 +8,32 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 
 PR #21 merged on 2026-05-25 at `45985e7`, landing 14.A, the 14.D simulator audit, and the current 14.B sockerless lane. Phase 14.B and 14.C are now closed (PR #46). Phase 13.A is also closed — PR #47 retired the last ◐ migration (`azure_blob`). What remains in Phase 14: PR 3 (14.D Track A, real-cloud-credentials-gated). 14.E cross-cloud Apply re-opens once shim-side ARM-shimming exists (see PR #46 narrative below).
 
+### Revert: PR #51–#54 ARM-shimming fakes (in flight 2026-05-28)
+
+The shim-side ARM-shimming work in PRs #51 / #52 / #53 / #54 was wrong. It violated shimanism's [no-fakes rule](AGENTS.md#no-fakes-no-stubs-no-mocks-no-silent-fallbacks-ever) and the stateless-shim invariant. Specifically:
+
+| Code | Violation |
+|---|---|
+| `internal/storage/frontends/azure_arm_storageaccounts/{server,errors}.go` (synthetic StorageAccount + BlobContainer responses) | "Never `return &SomeStruct{}, nil` as a placeholder. No in-memory stand-ins for real cloud state, no canned-response paths." |
+| `internal/secrets/frontends/azure_arm_keyvault/{server,errors}.go` (synthetic Vault responses) | Same |
+| `Options.TrackAccounts` / `TrackVaults` + the `accounts` / `vaults` maps | "What's forbidden is persisting anything across requests in the shim." |
+| `StorageAccountsListKeys` returning a hardcoded base64 of the harness verifier's secret | Pure mock-the-mock. |
+| `internal/mockaad/` (mock Microsoft Entra OIDC token endpoint + cloud-metadata) | "no fake HTTP servers in the SDK-conformance lane." |
+| `armResourcesStub` middleware (synthetic `Microsoft.Resources/providers` + `resourceGroups`) | Same. |
+| `BlobServicesGetServiceProperties` / `FileServicesGetServiceProperties` / `QueueServicesGetServiceProperties` / `TableServicesGetServiceProperties` returning synthetic ProxyResource | Same. |
+
+**How this happened.** The 14.E goal — through-shim `azurerm` Terraform Apply — required *something* to answer Azure ARM calls. I built it inside shimanism's frontends with synthetic responses. That choice quietly accepted "the shim makes up answers when it has no backend state" — the inverse of shimanism's purpose. The user [stopped the work mid-PR-#55](https://github.com/e6qu/shimanism/pull/55#issuecomment-4564061276) when the next iteration was about to add custom TLS certs + `/etc/hosts`-style hostname engineering on top of the existing fakes.
+
+**The honest architecture.** Filed [sockerless#257](https://github.com/e6qu/sockerless/issues/257); the sockerless maintainer landed [PR #259](https://github.com/e6qu/sockerless/pull/259) within hours, adding configurable Azure ARM data-plane endpoint emission via `SIM_AZURE_ARM_EXTERNAL_DATA_PLANE_URLS_JSON`. Real Azure ARM with real state lives in sockerless; sockerless emits shim-routable data-plane URLs; the shim's existing data-plane frontends do honest translation. No fakes anywhere on the path.
+
+**What this revert removes.** All of the table above (`internal/storage/frontends/azure_arm_storageaccounts/`, `internal/secrets/frontends/azure_arm_keyvault/`, `internal/mockaad/`, all the harness Start helpers / armResourcesStub / Track* state / synthetic ListKeys / etc.), the two through-shim ARM sockerless cells (`TestSockerless_E2E_AzureARM_StorageAccount_Through_Shim`, `TestSockerless_E2E_AzureARM_KeyVault_Through_Shim`), the storage Terraform Apply test (`services/storage/conformance/azurerm_apply_test.go`), the vendored ARM specs + manifests + gen output (`services/storage/spec/azure-arm-storage.json`, `services/secrets/spec/azure-arm-keyvault.json`, `services/secrets/spec/common.json`, plus their `gen/azure_arm/` dirs and `azure-arm-codegen.json` manifests), and the `SecretsServer.CertFile` field that only served the mock-AAD flow.
+
+**What this revert keeps** (general improvements not specific to the fake direction): the Makefile glob change so a service can carry both `azure-codegen.json` and `azure-arm-codegen.json` (still useful for any service that needs ARM gen later); `scripts/fetch-azure-spec.sh` auto-appending SOURCES.md rows; the `cmd/azure-codegen` `sameVersionPattern` accepting bare-filename `$ref` (real Azure spec usage).
+
+**Follow-on PR** wires the honest path: configures `SIM_AZURE_ARM_EXTERNAL_DATA_PLANE_URLS_JSON` in `scripts/run-sockerless-storage.sh` pointing at fixed-port shim data-plane URLs; tests bind the shim to those ports; cross-cloud Apply with `azurerm_storage_account` + `azurerm_storage_container` exercises `azurerm → sockerless ARM (real state) → shim data plane → AWS/GCP backend`.
+
+End state: `make sockerless` 45 → **43 passing** (the 2 ARM cells removed; the 43 other cells unaffected — the data-plane translation was never fake).
+
 ### 14.E.4 — Mock Microsoft Entra + first through-shim azurerm Terraform Apply (in flight 2026-05-28)
 
 The last barrier between PR #51–#53's ARM-shimming infrastructure and a green `hashicorp/azurerm` Terraform Apply against the shim: the provider routes through Microsoft Entra (Azure AD) to exchange a `client_secret` for a bearer token. The shim doesn't shim Entra in production.
