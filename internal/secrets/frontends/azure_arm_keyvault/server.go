@@ -154,11 +154,18 @@ func (srv *Server) VaultsList(w http.ResponseWriter, _ *http.Request, _ gen.Subs
 }
 
 func (srv *Server) VaultsListDeleted(w http.ResponseWriter, _ *http.Request, _ gen.SubscriptionIdParameter, _ gen.VaultsListDeletedParams) {
-	notImplemented(w, "VaultsListDeleted")
+	// Empty list — the shim has no soft-deleted vaults to recover.
+	writeJSON(w, http.StatusOK, gen.DeletedVaultListResult{Value: &[]gen.DeletedVault{}})
 }
 
-func (srv *Server) VaultsGetDeleted(w http.ResponseWriter, _ *http.Request, _ gen.SubscriptionIdParameter, _ string, _ string, _ gen.VaultsGetDeletedParams) {
-	notImplemented(w, "VaultsGetDeleted")
+// VaultsGetDeleted always returns 404 — the shim doesn't model
+// soft-delete, so no vault is ever "soft-deleted from a prior
+// lifetime". azurerm calls this pre-create to check whether the
+// vault name was previously taken and needs recovery; 404 means
+// "go ahead and create fresh".
+func (srv *Server) VaultsGetDeleted(w http.ResponseWriter, _ *http.Request, _ gen.SubscriptionIdParameter, _ string, vaultName string, _ gen.VaultsGetDeletedParams) {
+	writeError(w, http.StatusNotFound, "ResourceNotFound",
+		"The Resource 'Microsoft.KeyVault/locations/.../deletedVaults/"+vaultName+"' was not found.")
 }
 
 func (srv *Server) VaultsPurgeDeleted(w http.ResponseWriter, _ *http.Request, _ gen.SubscriptionIdParameter, _ string, _ string, _ gen.VaultsPurgeDeletedParams) {
