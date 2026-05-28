@@ -118,8 +118,13 @@ ensure_cert() {
     mkdir -p "$CERT_DIR"
     if [[ -s "$CERT_DIR/sim.crt" && -s "$CERT_DIR/sim.key" ]]; then return; fi
     echo "cert: generating self-signed RSA-2048 cert in $CERT_DIR"
+    # Go's TLS stack rejects certs that rely on the deprecated CN
+    # field for hostname matching — modern verifiers require Subject
+    # Alternative Names. Include DNS:localhost + IP:127.0.0.1 so both
+    # name forms validate (azurerm hits https://localhost:.../).
     openssl req -x509 -newkey rsa:2048 -nodes -days 1 \
         -subj "/CN=localhost" \
+        -addext "subjectAltName=DNS:localhost,IP:127.0.0.1" \
         -keyout "$CERT_DIR/sim.key" \
         -out "$CERT_DIR/sim.crt" \
         >/dev/null 2>&1
