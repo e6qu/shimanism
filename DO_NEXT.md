@@ -8,9 +8,9 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 
 - **3-PR plan: 2/3 shipped; PR 3 (Track A) blocked.** PR #46/#47/#48/#49/#50 all landed 2026-05-27.
 - **BUG-24 reverse-direction coverage is now complete** — every service family has both cross-cloud directions (PR #50).
-- **14.E ARM-shimming.** PR #51 (Microsoft.Storage ARM) shipped. PR 2 in flight: Microsoft.KeyVault ARM. Service Bus namespaces ARM still pending (needs codegen inliner extension for `../../common/v<N>/` ref form).
+- **14.E ARM-shimming.** PRs #51 (Microsoft.Storage ARM) + #52 (Microsoft.KeyVault ARM) shipped. PR 3 in flight: storage ARM blob-endpoint propagation — extends PR #51's `syntheticStorageAccount` to advertise the shim's blob URL in `PrimaryEndpoints.Blob`, the field `hashicorp/azurerm` reads to discover the blob data plane. The remaining blocker for the still-skipped azurerm Terraform Apply tests: provider auth flows through Microsoft Entra which the shim doesn't shim. Service Bus namespaces ARM also pending (needs codegen inliner extension for `../../common/v<N>/` ref form).
 - **Phase 13.A is fully closed.** Every Azure frontend has full `gen.ServerInterface` impl.
-- `make sockerless` reports **45 passing + 0 skipped** locally with the KV ARM through-shim cell (was 44 after PR #51).
+- `make sockerless` reports **45 passing + 0 skipped** locally (unchanged; PR 3 extends an existing cell with an extra assertion rather than adding a new cell).
 - **Storage matrix complete 3×3** — single-shot + multipart + copy across AWS S3 + GCS + Azure Blob.
 - **Service Bus matrix complete** — admin (ATOM XML) + Send/Receive data-plane (raw AMQP/TLS via `azservicebus.ClientOptions.CustomEndpoint`).
 - **Azure ARM lanes complete** for Redis / PG / APIM via custom `arm.ClientOptions.Cloud.ResourceManager.Endpoint`.
@@ -45,8 +45,9 @@ Real-cloud lanes for BUG-8 (hashicorp/google API Gateway TF endpoint/OAuth leg) 
 1. ~~BUG-24 reverse-direction expansion.~~ ✅ Shipped in PR #50.
 2. **14.E shim-side ARM-shimming.** Multi-PR workstream:
    - **PR 1** — ✅ shipped as PR #51 (Microsoft.Storage/storageAccounts).
-   - **PR 2 (in flight)** — Microsoft.KeyVault/vaults. Adds `azure_arm_keyvault` frontend (17 ops; 7 bridges + 10 stubs), `StartSecretsServerAzureARM` harness, sockerless cell for vault PUT/GET/DELETE. Also fixes `scripts/fetch-azure-spec.sh` to auto-append SOURCES.md rows and extends codegen inliner to accept bare-sibling `$ref` (KV's `common.json` form, no `./` prefix).
-   - **PR 3 (next)** — Microsoft.ServiceBus/namespaces. **Blocked** on codegen inliner extension: SB's namespace-preview.json uses `../../common/v<N>/definitions.json` refs (parent-dir form) that the current inliner doesn't recognize. Either extend the inliner OR vendor SB's local common file under a discoverable location. Defer until storage/KV ARM are proven in real cross-cloud apply.
+   - **PR 2** — ✅ shipped as PR #52 (Microsoft.KeyVault/vaults + workflow fixes).
+   - **PR 3 (in flight)** — Storage ARM blob-endpoint propagation. Extends PR #51 so the synthetic StorageAccount response advertises the shim's blob URL in `PrimaryEndpoints.Blob`. The mechanism the `hashicorp/azurerm` Terraform provider needs to discover the blob data plane. Verified by extending the existing through-shim sockerless cell with a `PrimaryEndpoints.Blob` assertion.
+   - **PR 4 (next)** — Either (a) mock Microsoft Entra so `hashicorp/azurerm` can exchange a static client_secret for an ARM bearer token (unblocks the still-skipped azurerm Terraform Apply tests across all services); or (b) Microsoft.ServiceBus/namespaces ARM (blocked on inliner extension for `../../common/v<N>/` ref form).
 3. ~~Watch sockerless#244.~~ ✅ Done in PR #49.
 
 ### Footnote: why 14.E is not active yet

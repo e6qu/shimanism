@@ -8,6 +8,20 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 
 PR #21 merged on 2026-05-25 at `45985e7`, landing 14.A, the 14.D simulator audit, and the current 14.B sockerless lane. Phase 14.B and 14.C are now closed (PR #46). Phase 13.A is also closed — PR #47 retired the last ◐ migration (`azure_blob`). What remains in Phase 14: PR 3 (14.D Track A, real-cloud-credentials-gated). 14.E cross-cloud Apply re-opens once shim-side ARM-shimming exists (see PR #46 narrative below).
 
+### 14.E.3 — Storage ARM blob-endpoint propagation (in flight 2026-05-28)
+
+The missing piece between PR #51 (Microsoft.Storage ARM frontend) and a working `hashicorp/azurerm` Terraform Apply through the shim.
+
+**The original constraint** (recorded in the pre-existing `TestTerraform_AzureBlob_ResourceLifecycle` skip message): azurerm 4.x doesn't expose a per-resource blob endpoint override. It derives blob URLs from the ARM `azurerm_storage_account` resource's `primary_blob_endpoint` attribute, which the provider fetches from `https://management.azure.com/.../storageAccounts/{name}?api-version=...` and reads from `properties.primaryEndpoints.blob`.
+
+**The fix.** Extend `azure_arm_storageaccounts.New` to accept an `Options{BlobEndpoint string}` parameter. When set, every synthetic StorageAccount response includes `properties.primaryEndpoints.blob = BlobEndpoint`. The harness `StartStorageServerAzureARM(t, backend, blobShim.URL)` now takes the co-running blob frontend's URL as an optional variadic argument, so tests can wire ARM → Blob discovery in one call.
+
+**Verification.** The existing `TestSockerless_E2E_AzureARM_StorageAccount_Through_Shim` cell now passes `blobShim.URL` to the ARM helper and asserts that `accountProps.Account.Properties.PrimaryEndpoints.Blob == blobShim.URL + "/"` after the ARM GET. Mechanism proven end-to-end via the `armstorage` SDK.
+
+**Remaining gap before the azurerm Terraform Apply test un-skips.** The provider needs to exchange a credential for an ARM bearer token. Standard modes (Azure CLI, service principal client_secret, managed identity, OIDC) all hit Microsoft Entra (Azure AD). The shim doesn't shim Entra. Two paths forward — mock-AAD on the shim that azurerm trusts (substantial), or a provider option for a static bearer (currently doesn't exist). Updated the skip message on `TestTerraform_AzureBlob_ResourceLifecycle` to reflect that the mechanism gap is closed; auth is the last barrier.
+
+End state: `make sockerless` still **45 passing + 0 skipped** (cell extension, not addition).
+
 ### 14.E ARM-shimming PR 2 — Microsoft.KeyVault/vaults (in flight 2026-05-28)
 
 Second PR in the ARM-shimming workstream. Unblocks through-shim `azurerm_key_vault` Terraform Apply (the data-plane `azurerm_key_vault_secret` resource already works via the existing `azure_keyvault` data-plane frontend).

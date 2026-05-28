@@ -1,27 +1,28 @@
 // Phase 1.15 conformance: Azure Blob-shaped frontend exercised by
 // the official `hashicorp/azurerm` Terraform provider.
 //
-// **Known upstream constraint.** azurerm 4.x reads the blob endpoint
-// for `azurerm_storage_blob` (and friends) from the ARM
-// `azurerm_storage_account` resource's `primary_blob_endpoint`
-// attribute, which the provider discovers from the Azure Resource
-// Manager control plane. There is no provider-level option to
-// override the blob endpoint independently — it's derived from the
-// storage account's location and the configured environment.
+// **Mechanism in place (14.E.3, 2026-05-28).** The previous
+// constraint was that azurerm 4.x derives the blob endpoint from
+// `azurerm_storage_account.primary_blob_endpoint`, which is fetched
+// from ARM — and the shim didn't speak ARM. PR #51 + this PR's
+// blob-endpoint-propagation change close that gap: the shim's new
+// Microsoft.Storage ARM frontend now returns the shim's blob
+// frontend URL in `properties.primaryEndpoints.blob`, so an
+// azurerm provider pointed at the shim's ARM endpoint discovers
+// the blob endpoint correctly. The mechanism is verified by
+// `TestSockerless_E2E_AzureARM_StorageAccount_Through_Shim`'s
+// PrimaryEndpoints.Blob assertion.
 //
-// We do not run the ARM control plane through the shim (storage is
-// the data plane; account provisioning is out of scope for the
-// storage shim). That means a pure-azurerm Terraform test cannot
-// point at the shim's blob frontend without first running a full
-// Azure-Resource-Manager-shaped service through the shim — which
-// belongs to a future phase (account / IAM / control-plane shims).
-//
-// The driver-backend cell this would cover is exercised today via:
-//   - the SDK row (TestAzureBlob_SDK_* — green)
-//   - the CLI row (TestAzureBlob_CLI_* — runs when `az` is on PATH)
-//
-// When azurerm exposes a `storage_account_custom_endpoint` (or
-// similar), enable this test.
+// **Remaining gap: azurerm auth.** The provider needs a credential
+// to exchange for an ARM bearer token. The standard modes (CLI,
+// service principal with client secret, managed identity, OIDC)
+// all hit Microsoft Entra (Azure AD), which the shim doesn't
+// shim. To enable this test we either need (a) a mock AAD endpoint
+// the shim serves and azurerm trusts, or (b) a provider option
+// that accepts a static bearer token directly. The SDK row
+// (TestAzureBlob_SDK_* — green) and CLI row (TestAzureBlob_CLI_* —
+// when `az` is on PATH) cover this driver-backend combination via
+// alternative auth.
 package conformance_test
 
 import (
@@ -29,5 +30,5 @@ import (
 )
 
 func TestTerraform_AzureBlob_ResourceLifecycle(t *testing.T) {
-	t.Skip("blocked by hashicorp/azurerm: no provider-level override for the blob data-plane endpoint (derived from azurerm_storage_account.primary_blob_endpoint via ARM). SDK + CLI cells cover this driver-backend combination; enable when azurerm adds storage_account_custom_endpoint.")
+	t.Skip("ARM endpoint discovery mechanism is now in place (PR #51 + the 14.E.3 blob-endpoint propagation) but azurerm auth still routes through Microsoft Entra which the shim doesn't currently shim. SDK + CLI cells cover this driver-backend combination via alternative auth; enable when a mock-AAD or static-bearer mode is wired up.")
 }

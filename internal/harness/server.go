@@ -163,9 +163,20 @@ func StartStorageServerAzureBlob(t *testing.T, backend domain.Storage) *StorageS
 // audience "https://management.azure.com/" + the shared HS256 test
 // key. Phase 14.E unblocks `azurerm_storage_account` +
 // `azurerm_storage_container` through-shim Terraform Apply.
-func StartStorageServerAzureARM(t *testing.T, backend domain.Storage) *StorageServer {
+//
+// `blobEndpoint` (optional) is returned in synthetic StorageAccount
+// `primaryEndpoints.blob` responses. Set it to the URL of a co-running
+// `StartStorageServerAzureBlob` to make the `hashicorp/azurerm`
+// Terraform provider auto-discover the blob data-plane endpoint.
+// Pass "" to fall back to the `https://<account>.blob.core.windows.net/`
+// default (suitable for non-Terraform-driven tests).
+func StartStorageServerAzureARM(t *testing.T, backend domain.Storage, blobEndpoint ...string) *StorageServer {
 	t.Helper()
-	srv := azurearmstoragefront.New(backend)
+	opts := azurearmstoragefront.Options{}
+	if len(blobEndpoint) > 0 {
+		opts.BlobEndpoint = blobEndpoint[0]
+	}
+	srv := azurearmstoragefront.New(backend, opts)
 	verifier := azurebearer.New(azurebearer.Options{Audience: "https://management.azure.com/", TestKey: []byte("test-key-do-not-use-in-prod")})
 	mw := azurebearer.Middleware(verifier)
 	ts := httptest.NewServer(&logRoundTrip{t: t, mux: mw(srv)})
