@@ -985,11 +985,11 @@ func TestSockerless_E2E_AzureARM_StorageAccount_Through_Shim(t *testing.T) {
 	// PrimaryEndpoints.Blob so that azurerm Terraform's storage-
 	// account-driven endpoint discovery routes blob ops to the
 	// shim's data plane.
-	if accountProps.Account.Properties == nil || accountProps.Account.Properties.PrimaryEndpoints == nil || accountProps.Account.Properties.PrimaryEndpoints.Blob == nil {
+	if accountProps.Properties == nil || accountProps.Properties.PrimaryEndpoints == nil || accountProps.Properties.PrimaryEndpoints.Blob == nil {
 		t.Fatalf("ARM GetProperties: PrimaryEndpoints.Blob missing")
 	}
 	wantBlob := blobShim.URL + "/"
-	if gotBlob := *accountProps.Account.Properties.PrimaryEndpoints.Blob; gotBlob != wantBlob {
+	if gotBlob := *accountProps.Properties.PrimaryEndpoints.Blob; gotBlob != wantBlob {
 		t.Errorf("PrimaryEndpoints.Blob = %q, want %q", gotBlob, wantBlob)
 	}
 
