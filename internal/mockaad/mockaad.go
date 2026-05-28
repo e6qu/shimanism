@@ -110,7 +110,7 @@ func (s *Server) handleMetadata(w http.ResponseWriter, _ *http.Request) {
 			"tenant":           "common",
 			"identityProvider": "AAD",
 		},
-		"resourceManager":          s.opts.ResourceManagerURL,
+		"resourceManager": s.opts.ResourceManagerURL,
 		// Point Graph at this mock too — azurerm calls Graph to
 		// discover the authenticated service principal's object ID
 		// post-token-exchange. Real Graph rejects HS256 tokens; the
@@ -191,15 +191,15 @@ func (s *Server) handleAny(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleGraph(w http.ResponseWriter, _ *http.Request) {
 	syntheticID := "00000000-0000-0000-0000-000000000000"
 	doc := map[string]any{
-		"id":             syntheticID,
-		"appId":          syntheticID,
-		"displayName":    "shim-test-principal",
+		"id":                   syntheticID,
+		"appId":                syntheticID,
+		"displayName":          "shim-test-principal",
 		"servicePrincipalType": "Application",
 		"value": []map[string]any{
 			{
-				"id":             syntheticID,
-				"appId":          syntheticID,
-				"displayName":    "shim-test-principal",
+				"id":                   syntheticID,
+				"appId":                syntheticID,
+				"displayName":          "shim-test-principal",
 				"servicePrincipalType": "Application",
 			},
 		},
