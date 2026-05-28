@@ -228,16 +228,25 @@ func (s *Server) handleToken(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid_request", "error_description": err.Error()})
 		return
 	}
-	// Always issue tokens with aud="https://management.azure.com/" —
-	// the audience the shim's ARM frontend's azurebearer middleware
-	// enforces. azurerm sends scope=<resourceManagerURL>/.default
-	// which would otherwise produce aud=<mock or shim URL> and the
-	// shim verifier would reject.
+	// Derive aud from the requested scope so per-service verifiers
+	// see the audience their config expects. azurerm sends a
+	// distinct token per resource; the resource URI is encoded as
+	// `<resource>/.default` in the scope form-field.
 	//
-	// For Graph tokens (scope=graphResourceId/.default) the mock's
-	// Graph handler doesn't verify the aud at all, so this fixed
-	// audience is also fine for those.
-	audience := "https://management.azure.com/"
+	// Verifier-side configurations the shim wires up today:
+	//   - ARM:     "https://management.azure.com/" (trailing slash)
+	//   - KV data: "https://vault.azure.net"       (no trailing slash)
+	// azurerm asks for them as:
+	//   - ARM scope: "https://management.azure.com//.default" (extra /
+	//                because the shim's resourceManager URL ends in /)
+	//   - KV scope:  "https://vault.azure.net/.default"
+	// Stripping "/.default" then normalising trailing slashes
+	// produces the form the verifier expects.
+	scope := r.PostForm.Get("scope")
+	if scope == "" {
+		scope = r.PostForm.Get("resource")
+	}
+	audience := audienceFromScope(scope)
 	token := azurebearer.TestJWT(TestKey, s.opts.SelfURL+"/", audience, time.Hour)
 	resp := map[string]any{
 		"token_type":     "Bearer",
@@ -252,4 +261,34 @@ func writeJSON(w http.ResponseWriter, status int, body any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(body)
+}
+
+// audienceFromScope maps an OAuth2 scope form-field to the JWT `aud`
+// claim the shim's per-service azurebearer verifier expects.
+//
+// Strips a trailing `/.default` (the canonical Azure scope suffix
+// for client-credentials), then normalises:
+//   - "https://management.azure.com/" → keep the trailing slash
+//     (the ARM verifier is configured with the slash).
+//   - "https://vault.azure.net" → no trailing slash (the KV verifier
+//     is configured without).
+//
+// Defaults to "https://management.azure.com/" when scope is empty
+// (legacy callers that don't set scope at all).
+func audienceFromScope(scope string) string {
+	if scope == "" {
+		return "https://management.azure.com/"
+	}
+	aud := scope
+	aud = strings.TrimSuffix(aud, "/.default")
+	aud = strings.TrimSuffix(aud, "//.default") // azurerm sometimes joins resource + scope with double-slash
+	// ARM's verifier needs the trailing slash; KV's doesn't.
+	// Recognise the specific public-cloud hosts the shim wires.
+	switch {
+	case strings.HasPrefix(aud, "https://management.azure.com"):
+		return "https://management.azure.com/"
+	case strings.HasPrefix(aud, "https://vault.azure.net"):
+		return "https://vault.azure.net"
+	}
+	return aud
 }
