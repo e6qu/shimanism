@@ -246,7 +246,7 @@ func (s *Server) handleToken(w http.ResponseWriter, r *http.Request) {
 	if scope == "" {
 		scope = r.PostForm.Get("resource")
 	}
-	audience := audienceFromScope(scope)
+	audience := s.audienceFromScope(scope)
 	token := azurebearer.TestJWT(TestKey, s.opts.SelfURL+"/", audience, time.Hour)
 	resp := map[string]any{
 		"token_type":     "Bearer",
@@ -266,29 +266,40 @@ func writeJSON(w http.ResponseWriter, status int, body any) {
 // audienceFromScope maps an OAuth2 scope form-field to the JWT `aud`
 // claim the shim's per-service azurebearer verifier expects.
 //
-// Strips a trailing `/.default` (the canonical Azure scope suffix
-// for client-credentials), then normalises:
-//   - "https://management.azure.com/" → keep the trailing slash
-//     (the ARM verifier is configured with the slash).
-//   - "https://vault.azure.net" → no trailing slash (the KV verifier
-//     is configured without).
+// Strips trailing `/.default` (the canonical Azure scope suffix for
+// client-credentials), then normalises to the audience the
+// per-service verifier was wired with:
+//   - ARM verifier:  "https://management.azure.com/"   (trailing /)
+//   - KV verifier:   "https://vault.azure.net"          (no trailing /)
 //
-// Defaults to "https://management.azure.com/" when scope is empty
-// (legacy callers that don't set scope at all).
-func audienceFromScope(scope string) string {
+// Test environments use dynamic httptest URLs as the resource URI
+// (e.g. http://127.0.0.1:35371 — the ARM-shim's address from
+// `ResourceManagerURL`), so the dispatcher matches scopes against
+// the configured `ResourceManagerURL` too, falling back to the
+// canonical public-cloud hosts. Empty scope defaults to ARM.
+func (s *Server) audienceFromScope(scope string) string {
 	if scope == "" {
 		return "https://management.azure.com/"
 	}
 	aud := scope
 	aud = strings.TrimSuffix(aud, "/.default")
 	aud = strings.TrimSuffix(aud, "//.default") // azurerm sometimes joins resource + scope with double-slash
-	// ARM's verifier needs the trailing slash; KV's doesn't.
-	// Recognise the specific public-cloud hosts the shim wires.
+	aud = strings.TrimSuffix(aud, "/")          // normalise trailing slash for comparison
+	// Dynamic test URL: ARM shim address from the metadata document.
+	if s.opts.ResourceManagerURL != "" {
+		armURL := strings.TrimSuffix(s.opts.ResourceManagerURL, "/")
+		if aud == armURL {
+			return "https://management.azure.com/"
+		}
+	}
 	switch {
 	case strings.HasPrefix(aud, "https://management.azure.com"):
 		return "https://management.azure.com/"
 	case strings.HasPrefix(aud, "https://vault.azure.net"):
 		return "https://vault.azure.net"
 	}
+	// Unknown scope — return as-is (caller's responsibility to make
+	// the verifier match). Tests for new services will need a new
+	// branch here.
 	return aud
 }
