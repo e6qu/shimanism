@@ -39,6 +39,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/e6qu/shimanism/internal/storage/domain"
@@ -47,9 +48,12 @@ import (
 
 // Server is the Microsoft.Storage ARM-shaped HTTP frontend.
 type Server struct {
-	s            domain.Storage
-	mux          http.Handler
-	blobEndpoint string // optional override returned in PrimaryEndpoints.Blob
+	s             domain.Storage
+	mux           http.Handler
+	blobEndpoint  string // optional override returned in PrimaryEndpoints.Blob
+	trackAccounts bool   // when true, GetProperties returns 404 if no PUT seen
+	mu            sync.Mutex
+	accounts      map[string]struct{} // account names with at least one PUT
 }
 
 // Options configures the ARM frontend.
@@ -63,6 +67,20 @@ type Options struct {
 	// real-Azure-shaped `https://<account>.blob.core.windows.net/`
 	// default.
 	BlobEndpoint string
+
+	// TrackAccounts, when true, makes the frontend maintain a tiny
+	// in-process set of account names that have been PUT to this
+	// instance. GetProperties returns 404 before any PUT, the
+	// synthetic resource after. azurerm does a pre-create existence
+	// check (GET → 404 means "ok to create") and would otherwise
+	// see the always-200 default and refuse to create.
+	//
+	// This is opt-in test-mode state. In production the frontend
+	// stays stateless: TrackAccounts defaults to false, and the
+	// shim's invariant ("no state of record") is preserved. The
+	// `hashicorp/azurerm` Terraform conformance tests opt in via
+	// the harness; SDK-driven tests don't need to.
+	TrackAccounts bool
 }
 
 // New returns a frontend bound to the given backend.
@@ -70,6 +88,10 @@ func New(s domain.Storage, opts ...Options) *Server {
 	srv := &Server{s: s}
 	if len(opts) > 0 {
 		srv.blobEndpoint = opts[0].BlobEndpoint
+		srv.trackAccounts = opts[0].TrackAccounts
+	}
+	if srv.trackAccounts {
+		srv.accounts = map[string]struct{}{}
 	}
 	srv.mux = gen.HandlerWithOptions(srv, gen.StdHTTPServerOptions{})
 	return srv
@@ -97,10 +119,15 @@ func (srv *Server) StorageAccountsCreate(w http.ResponseWriter, r *http.Request,
 	if !decodeJSON(w, r, &body) {
 		return
 	}
+	srv.recordAccount(accountName)
 	writeJSON(w, http.StatusOK, srv.syntheticStorageAccount(subscriptionId, resourceGroupName, accountName, body.Location))
 }
 
 func (srv *Server) StorageAccountsGetProperties(w http.ResponseWriter, _ *http.Request, subscriptionId gen.SubscriptionIdParameter, resourceGroupName gen.ResourceGroupNameParameter, accountName string, _ gen.StorageAccountsGetPropertiesParams) {
+	if srv.trackAccounts && !srv.hasAccount(accountName) {
+		writeError(w, http.StatusNotFound, "ResourceNotFound", "The Resource 'Microsoft.Storage/storageAccounts/"+accountName+"' under resource group '"+string(resourceGroupName)+"' was not found.")
+		return
+	}
 	writeJSON(w, http.StatusOK, srv.syntheticStorageAccount(subscriptionId, resourceGroupName, accountName, ""))
 }
 
@@ -110,7 +137,8 @@ func (srv *Server) StorageAccountsUpdate(w http.ResponseWriter, r *http.Request,
 	writeJSON(w, http.StatusOK, srv.syntheticStorageAccount(subscriptionId, resourceGroupName, accountName, ""))
 }
 
-func (srv *Server) StorageAccountsDelete(w http.ResponseWriter, _ *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ gen.StorageAccountsDeleteParams) {
+func (srv *Server) StorageAccountsDelete(w http.ResponseWriter, _ *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, accountName string, _ gen.StorageAccountsDeleteParams) {
+	srv.forgetAccount(accountName)
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -226,8 +254,21 @@ func (srv *Server) syntheticStorageAccount(subId gen.SubscriptionIdParameter, rg
 			PrimaryLocation:          &location,
 			AllowBlobPublicAccess:    ptr(false),
 			SupportsHttpsTrafficOnly: ptr(true),
+			// All service endpoints point at the same shim URL.
+			// azurerm waits for all four (Blob/Queue/Table/File) to
+			// become readable on the data-plane health-check path
+			// (`?comp=properties&restype=service`) before declaring
+			// the account ready. The shim's azure_blob frontend
+			// answers that path regardless of which "service" the
+			// caller thinks it's hitting, so pointing all four at
+			// the same URL satisfies the wait.
 			PrimaryEndpoints: &gen.Endpoints{
-				Blob: &blobURL,
+				Blob:  &blobURL,
+				Queue: &blobURL,
+				Table: &blobURL,
+				File:  &blobURL,
+				Dfs:   &blobURL,
+				Web:   &blobURL,
 			},
 		},
 	}
@@ -261,8 +302,85 @@ func syntheticContainerItem(subId gen.SubscriptionIdParameter, rg gen.ResourceGr
 
 func ptr[T any](v T) *T { return &v }
 
+// syntheticServiceProperties returns the canonical ARM
+// /{Blob,File,Queue,Table}Services/default response shape.
+// azurerm polls all four after account create to confirm the data
+// plane is ready; returning a populated ProxyResource lets the
+// wait succeed without the shim needing to actually serve those
+// services.
+func syntheticServiceProperties(svc string) *gen.Resource {
+	id := "/subscriptions/shim/resourceGroups/shim/providers/Microsoft.Storage/storageAccounts/shim/" + svc + "Services/default"
+	name := "default"
+	typ := "Microsoft.Storage/storageAccounts/" + svc + "Services"
+	return &gen.Resource{
+		Id:   &id,
+		Name: &name,
+		Type: &typ,
+	}
+}
+
+// recordAccount notes that StorageAccountsCreate was called for
+// `name`. No-op when TrackAccounts is false.
+func (srv *Server) recordAccount(name string) {
+	if !srv.trackAccounts {
+		return
+	}
+	srv.mu.Lock()
+	srv.accounts[name] = struct{}{}
+	srv.mu.Unlock()
+}
+
+// hasAccount reports whether `name` has been PUT. Only meaningful
+// when TrackAccounts is true; the caller's check is gated on that.
+func (srv *Server) hasAccount(name string) bool {
+	srv.mu.Lock()
+	_, ok := srv.accounts[name]
+	srv.mu.Unlock()
+	return ok
+}
+
+// forgetAccount removes `name` from the tracked set so subsequent
+// GETs return 404. Called on StorageAccountsDelete.
+func (srv *Server) forgetAccount(name string) {
+	if !srv.trackAccounts {
+		return
+	}
+	srv.mu.Lock()
+	delete(srv.accounts, name)
+	srv.mu.Unlock()
+}
+
 // Compile-time guard: gen.ServerInterface must be fully implemented.
 var _ gen.ServerInterface = (*Server)(nil)
+
+// StorageAccountsListKeys returns the shim's static SharedKey
+// credentials. azurerm calls this immediately after PUT to obtain
+// the access key it uses for SharedKey auth on the blob data plane.
+// The shim's `azure_blob` data-plane frontend's azuresharedkey
+// verifier is configured with the same base64-encoded key (32 bytes
+// of "k") in the harness — see `StartStorageServerAzureBlob`.
+//
+// Returning synthetic keys is honest: the shim doesn't manage
+// account-level secrets in production; in test mode it serves the
+// static key the data-plane verifier is configured to accept, so
+// the whole Terraform Apply cycle composes.
+func (srv *Server) StorageAccountsListKeys(w http.ResponseWriter, _ *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ gen.StorageAccountsListKeysParams) {
+	// Matches `azuresharedkey.StaticStore.Key` in StartStorageServerAzureBlob
+	// (the literal byte sequence is `test-key-do-not-use-in-prod-this-is-32-bytes-of-junk`).
+	// Base64-encode for the SharedKey wire format ARM uses.
+	keyValue := "dGVzdC1rZXktZG8tbm90LXVzZS1pbi1wcm9kLXRoaXMtaXMtMzItYnl0ZXMtb2YtanVuaw=="
+	keyName := "key1"
+	perm := gen.KeyPermissionFull
+	now := time.Now().UTC()
+	writeJSON(w, http.StatusOK, gen.StorageAccountListKeysResult{
+		Keys: &[]gen.StorageAccountKey{{
+			KeyName:      &keyName,
+			Value:        &keyValue,
+			Permissions:  &perm,
+			CreationTime: &now,
+		}},
+	})
+}
 
 // =====================================================================
 // Out-of-intersection stubs (109)
@@ -317,7 +435,7 @@ func (srv *Server) BlobServicesList(w http.ResponseWriter, _ *http.Request, _ ge
 }
 
 func (srv *Server) BlobServicesGetServiceProperties(w http.ResponseWriter, _ *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ gen.BlobServicesGetServicePropertiesParams) {
-	notImplemented(w, "BlobServicesGetServiceProperties")
+	writeJSON(w, http.StatusOK, syntheticServiceProperties("blob"))
 }
 
 func (srv *Server) BlobServicesSetServiceProperties(w http.ResponseWriter, _ *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ gen.BlobServicesSetServicePropertiesParams) {
@@ -433,7 +551,7 @@ func (srv *Server) FileServicesList(w http.ResponseWriter, _ *http.Request, _ ge
 }
 
 func (srv *Server) FileServicesGetServiceProperties(w http.ResponseWriter, _ *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ gen.FileServicesGetServicePropertiesParams) {
-	notImplemented(w, "FileServicesGetServiceProperties")
+	writeJSON(w, http.StatusOK, syntheticServiceProperties("file"))
 }
 
 func (srv *Server) FileServicesSetServiceProperties(w http.ResponseWriter, _ *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ gen.FileServicesSetServicePropertiesParams) {
@@ -498,10 +616,6 @@ func (srv *Server) BlobInventoryPoliciesCreateOrUpdate(w http.ResponseWriter, _ 
 
 func (srv *Server) StorageAccountsListAccountSAS(w http.ResponseWriter, _ *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ gen.StorageAccountsListAccountSASParams) {
 	notImplemented(w, "StorageAccountsListAccountSAS")
-}
-
-func (srv *Server) StorageAccountsListKeys(w http.ResponseWriter, _ *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ gen.StorageAccountsListKeysParams) {
-	notImplemented(w, "StorageAccountsListKeys")
 }
 
 func (srv *Server) StorageAccountsListServiceSAS(w http.ResponseWriter, _ *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ gen.StorageAccountsListServiceSASParams) {
@@ -597,7 +711,7 @@ func (srv *Server) QueueServicesList(w http.ResponseWriter, _ *http.Request, _ g
 }
 
 func (srv *Server) QueueServicesGetServiceProperties(w http.ResponseWriter, _ *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ gen.QueueServicesGetServicePropertiesParams) {
-	notImplemented(w, "QueueServicesGetServiceProperties")
+	writeJSON(w, http.StatusOK, syntheticServiceProperties("queue"))
 }
 
 func (srv *Server) QueueServicesSetServiceProperties(w http.ResponseWriter, _ *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ gen.QueueServicesSetServicePropertiesParams) {
@@ -677,7 +791,7 @@ func (srv *Server) TableServicesList(w http.ResponseWriter, _ *http.Request, _ g
 }
 
 func (srv *Server) TableServicesGetServiceProperties(w http.ResponseWriter, _ *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ gen.TableServicesGetServicePropertiesParams) {
-	notImplemented(w, "TableServicesGetServiceProperties")
+	writeJSON(w, http.StatusOK, syntheticServiceProperties("table"))
 }
 
 func (srv *Server) TableServicesSetServiceProperties(w http.ResponseWriter, _ *http.Request, _ gen.SubscriptionIdParameter, _ gen.ResourceGroupNameParameter, _ string, _ gen.TableServicesSetServicePropertiesParams) {

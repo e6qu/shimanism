@@ -8,9 +8,9 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 
 - **3-PR plan: 2/3 shipped; PR 3 (Track A) blocked.** PR #46/#47/#48/#49/#50 all landed 2026-05-27.
 - **BUG-24 reverse-direction coverage is now complete** — every service family has both cross-cloud directions (PR #50).
-- **14.E ARM-shimming.** PRs #51 (Microsoft.Storage ARM) + #52 (Microsoft.KeyVault ARM) shipped. PR 3 in flight: storage ARM blob-endpoint propagation — extends PR #51's `syntheticStorageAccount` to advertise the shim's blob URL in `PrimaryEndpoints.Blob`, the field `hashicorp/azurerm` reads to discover the blob data plane. The remaining blocker for the still-skipped azurerm Terraform Apply tests: provider auth flows through Microsoft Entra which the shim doesn't shim. Service Bus namespaces ARM also pending (needs codegen inliner extension for `../../common/v<N>/` ref form).
+- **14.E ARM-shimming.** PRs #51 (Microsoft.Storage ARM) + #52 (Microsoft.KeyVault ARM) + #53 (Storage ARM blob-endpoint propagation) shipped. PR 4 in flight: mock-Microsoft-Entra + first through-shim azurerm Terraform Apply test. The remaining workstream after this PR: extend the pattern across the other 7 services that have ARM frontends.
 - **Phase 13.A is fully closed.** Every Azure frontend has full `gen.ServerInterface` impl.
-- `make sockerless` reports **45 passing + 0 skipped** locally (unchanged; PR 3 extends an existing cell with an extra assertion rather than adding a new cell).
+- `make sockerless` reports **45 passing + 0 skipped** locally (unchanged; PR 4 adds a new Terraform test that runs only on Linux/CI — skips on darwin where SSL_CERT_FILE is ignored).
 - **Storage matrix complete 3×3** — single-shot + multipart + copy across AWS S3 + GCS + Azure Blob.
 - **Service Bus matrix complete** — admin (ATOM XML) + Send/Receive data-plane (raw AMQP/TLS via `azservicebus.ClientOptions.CustomEndpoint`).
 - **Azure ARM lanes complete** for Redis / PG / APIM via custom `arm.ClientOptions.Cloud.ResourceManager.Endpoint`.
@@ -46,8 +46,9 @@ Real-cloud lanes for BUG-8 (hashicorp/google API Gateway TF endpoint/OAuth leg) 
 2. **14.E shim-side ARM-shimming.** Multi-PR workstream:
    - **PR 1** — ✅ shipped as PR #51 (Microsoft.Storage/storageAccounts).
    - **PR 2** — ✅ shipped as PR #52 (Microsoft.KeyVault/vaults + workflow fixes).
-   - **PR 3 (in flight)** — Storage ARM blob-endpoint propagation. Extends PR #51 so the synthetic StorageAccount response advertises the shim's blob URL in `PrimaryEndpoints.Blob`. The mechanism the `hashicorp/azurerm` Terraform provider needs to discover the blob data plane. Verified by extending the existing through-shim sockerless cell with a `PrimaryEndpoints.Blob` assertion.
-   - **PR 4 (next)** — Either (a) mock Microsoft Entra so `hashicorp/azurerm` can exchange a static client_secret for an ARM bearer token (unblocks the still-skipped azurerm Terraform Apply tests across all services); or (b) Microsoft.ServiceBus/namespaces ARM (blocked on inliner extension for `../../common/v<N>/` ref form).
+   - **PR 3** — ✅ shipped as PR #53 (Storage ARM blob-endpoint propagation).
+   - **PR 4 (in flight)** — Mock Microsoft Entra + first through-shim azurerm Terraform Apply test. `internal/mockaad` serves an HTTPS OIDC token endpoint + cloud-metadata document; new `TestCrossCloudApply_Roundtrip_StorageAzureToAWS` runs a real `azurerm_storage_account` + `azurerm_storage_container` apply against the shim, verifies the container lands in the backend. Linux-only (SSL_CERT_FILE platform limitation).
+   - **PR 5 (next)** — Extend the mock-AAD pattern to the other 7 Azure Terraform tests (key vault, cache, queue, pubsub, functions, rdbms, apigateway). Or: Microsoft.ServiceBus/namespaces ARM (blocked on inliner extension for `../../common/v<N>/` ref form).
 3. ~~Watch sockerless#244.~~ ✅ Done in PR #49.
 
 ### Footnote: why 14.E is not active yet
