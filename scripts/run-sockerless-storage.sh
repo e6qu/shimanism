@@ -154,15 +154,21 @@ GCP_PID=$!
 echo "start: Azure sim → https://localhost:$AZURE_PORT + Service Bus AMQP/TLS on :$AZURE_SB_AMQP_PORT (self-signed cert)"
 # Configure sockerless's Azure ARM (sockerless#259) to emit the
 # shim's blob frontend URL in storage-account
-# `primaryEndpoints.blob`. The shim's data-plane frontend handles
-# blob/container CRUD over HTTP at this URL; sockerless's
-# `listKeys` returns a deterministic 64-byte key (sockerless#260)
-# the shim's verifier derives the same way from the resource ID.
+# `primaryEndpoints.blob`. The `{account}` placeholder is
+# interpolated per-storage-account by sockerless#269/#271, which
+# also derives `suffixes.storage` in `/metadata/endpoints` from the
+# emitted URL's suffix. `azurerm`'s endpoint parser accepts the
+# resulting `https://<account>.blob.<suffix>/...` shape; the
+# `.localhost` TLD resolves to 127.0.0.1 per RFC 6761, so the
+# data-plane PUTs land on whatever the shim binds at this port
+# without DNS or /etc/hosts edits. sockerless's `listKeys` returns
+# a deterministic 64-byte key (sockerless#260) the shim's verifier
+# derives the same way from the resource ID.
 SIM_LISTEN_ADDR=":$AZURE_PORT" \
 SIM_TLS_CERT="$CERT_DIR/sim.crt" \
 SIM_TLS_KEY="$CERT_DIR/sim.key" \
 SIM_SERVICEBUS_AMQP_LISTEN_ADDR=":$AZURE_SB_AMQP_PORT" \
-SIM_AZURE_ARM_EXTERNAL_DATA_PLANE_URLS_JSON='{"storage":{"blob":"http://localhost:'"$SHIM_AZUREBLOB_PORT"'/"}}' \
+SIM_AZURE_ARM_EXTERNAL_DATA_PLANE_URLS_JSON='{"storage":{"blob":"http://{account}.blob.localhost:'"$SHIM_AZUREBLOB_PORT"'/"}}' \
     "$AZURE_BIN" >/tmp/sockerless-azure.log 2>&1 &
 AZURE_PID=$!
 
