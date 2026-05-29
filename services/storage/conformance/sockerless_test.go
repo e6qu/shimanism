@@ -1117,7 +1117,7 @@ resource "azurerm_storage_account" "sa" {
 
 resource "azurerm_storage_container" "sc" {
   name                  = "%[4]s"
-  storage_account_id    = azurerm_storage_account.sa.id
+  storage_account_name  = azurerm_storage_account.sa.name
   container_access_type = "private"
 }
 `
