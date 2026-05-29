@@ -448,6 +448,7 @@ func TestSockerless_E2E_AzureKV_Through_Shim_ApplyTF(t *testing.T) {
 	)
 
 	jwks := fetchSockerlessJWKS(t, azurePort, tenantID, sockCertPEM)
+	kvAudience := fetchSockerlessKVAudience(t, azurePort, sockCertPEM)
 
 	backend := inmem.New()
 	shim := harness.StartSecretsServerAzureKVAtPort(
@@ -457,7 +458,7 @@ func TestSockerless_E2E_AzureKV_Through_Shim_ApplyTF(t *testing.T) {
 		sockCertPEM,
 		sockKeyPEM,
 		jwks,
-		"https://vault.azure.net",
+		kvAudience,
 		fmt.Sprintf("https://sts.windows.net/%s/", tenantID),
 	)
 	_ = shim // URL embedded in sockerless ARM emission via env var
@@ -585,6 +586,58 @@ func fetchSockerlessJWKS(t *testing.T, azurePort, tenantID string, certPEM []byt
 		t.Fatalf("JWKS at %s is empty", url)
 	}
 	return &jwks
+}
+
+// fetchSockerlessKVAudience reads sockerless's `/metadata/endpoints`
+// document and derives the Key Vault data-plane audience the
+// `hashicorp/go-azure-sdk` provider will request a token for. The
+// provider constructs the KV scope from `suffixes.keyVaultDns` —
+// real Azure returns `vault.azure.net` there and the token audience
+// becomes `https://vault.azure.net`; sockerless's metadata-suffix
+// derivation produces whatever maps to the configured emitted URL
+// (e.g. `localhost:14582` when the shim's KV port is 14582), and
+// the audience becomes `https://localhost:14582` accordingly. The
+// shim's `azurebearer` verifier expects whatever audience the
+// deployed environment publishes — wiring the test side from the
+// same source keeps the shim's configuration honest rather than
+// hardcoding a value that only happens to match one deployment.
+func fetchSockerlessKVAudience(t *testing.T, azurePort string, certPEM []byte) string {
+	t.Helper()
+	pool := x509.NewCertPool()
+	if !pool.AppendCertsFromPEM(certPEM) {
+		t.Fatal("AppendCertsFromPEM: no certs parsed")
+	}
+	client := &http.Client{
+		Timeout: 10 * time.Second,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{RootCAs: pool},
+		},
+	}
+	url := fmt.Sprintf("https://localhost:%s/metadata/endpoints?api-version=2022-09-01", azurePort)
+	resp, err := client.Get(url)
+	if err != nil {
+		t.Fatalf("GET %s: %v", url, err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("GET %s: HTTP %d", url, resp.StatusCode)
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("read metadata body: %v", err)
+	}
+	var env struct {
+		Suffixes struct {
+			KeyVaultDns string `json:"keyVaultDns"`
+		} `json:"suffixes"`
+	}
+	if err := json.Unmarshal(body, &env); err != nil {
+		t.Fatalf("parse metadata JSON: %v\nbody: %s", err, body)
+	}
+	if env.Suffixes.KeyVaultDns == "" {
+		t.Fatalf("metadata response missing suffixes.keyVaultDns; body: %s", body)
+	}
+	return "https://" + env.Suffixes.KeyVaultDns
 }
 
 // findSystemCABundleForKV mirrors the helper in the storage sockerless
