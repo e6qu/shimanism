@@ -440,7 +440,7 @@ func TestSockerless_E2E_AzureKV_Through_Shim_ApplyTF(t *testing.T) {
 		subscriptionID = "00000000-0000-0000-0000-000000000000"
 		tenantID       = "00000000-0000-0000-0000-000000000000"
 		clientID       = "00000000-0000-0000-0000-000000000000"
-		resourceGroup  = "shim-rg"
+		resourceGroup  = "shim-kv-rg"
 		vaultName      = "shimvault"
 		secretName     = "applied-secret"
 		secretValue    = "hunter2-through-shim"
