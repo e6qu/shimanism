@@ -2,16 +2,25 @@
 package conformance_test
 
 import (
+	"bytes"
 	"context"
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
+	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"os"
+	"os/exec"
+	"path/filepath"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -26,11 +35,13 @@ import (
 	"golang.org/x/oauth2"
 	"google.golang.org/api/option"
 
+	"github.com/e6qu/shimanism/internal/azurebearer"
 	"github.com/e6qu/shimanism/internal/harness"
 	"github.com/e6qu/shimanism/internal/secrets/domain"
 	awsbackend "github.com/e6qu/shimanism/services/secrets/backends/aws"
 	azurebackend "github.com/e6qu/shimanism/services/secrets/backends/azure"
 	gcpbackend "github.com/e6qu/shimanism/services/secrets/backends/gcp"
+	"github.com/e6qu/shimanism/services/secrets/backends/inmem"
 )
 
 // TestSockerless_AWSSecretsManager_RoundTrip exercises the shim's
@@ -375,6 +386,328 @@ func TestSockerless_Azure_KeyVault_SecretRoundTrip(t *testing.T) {
 		t.Errorf("GetSecretValue.Value = %q, want %q", string(got.Value), "kv-v1")
 	}
 }
+
+// TestSockerless_E2E_AzureKV_Through_Shim_ApplyTF drives the honest
+// cross-cloud Apply path for Key Vault: `azurerm` Terraform provider
+// → sockerless's real Microsoft.KeyVault ARM (which emits the shim's
+// data-plane URL in `properties.vaultUri`) → azurerm follows the URL
+// for secret PUT with a Microsoft Entra Bearer token sockerless's
+// mock token endpoint mints (RS256, sockerless#262) for the
+// `https://vault.azure.net/.default` scope (sockerless#272/#274) →
+// shim's azure_keyvault frontend verifies the JWT against the JWKS
+// the test pre-fetches from sockerless's discovery endpoint → shim
+// translates SetSecret onto the in-memory secrets backend.
+//
+// No shim-side fakes — the same compositional pattern PR #58 landed
+// for storage. Linux-only because azurerm reads the system CA via
+// SSL_CERT_FILE which Go honors on Unix but not on macOS.
+func TestSockerless_E2E_AzureKV_Through_Shim_ApplyTF(t *testing.T) {
+	azurePort := os.Getenv("SOCKERLESS_AZURE_TLS_PORT")
+	if azurePort == "" {
+		t.Skip("SOCKERLESS_AZURE_TLS_PORT not set")
+	}
+	shimPortStr := os.Getenv("SHIM_AZUREKV_PORT")
+	if shimPortStr == "" {
+		t.Skip("SHIM_AZUREKV_PORT not set (the run script defaults to 14582)")
+	}
+	shimPort, err := strconv.Atoi(shimPortStr)
+	if err != nil {
+		t.Fatalf("SHIM_AZUREKV_PORT not numeric: %v", err)
+	}
+	tfBin, err := exec.LookPath("terraform")
+	if err != nil {
+		t.Skipf("terraform not installed: %v", err)
+	}
+	systemCABundle := findSystemCABundleForKV()
+	if systemCABundle == "" {
+		t.Skip("no system CA bundle found at known Unix paths — SSL_CERT_FILE workaround requires Linux")
+	}
+	sockCertPath := os.Getenv("SOCKERLESS_AZURE_TLS_CERT")
+	sockKeyPath := os.Getenv("SOCKERLESS_AZURE_TLS_KEY")
+	if sockCertPath == "" || sockKeyPath == "" {
+		t.Skip("SOCKERLESS_AZURE_TLS_CERT / SOCKERLESS_AZURE_TLS_KEY not set (the run script exports these)")
+	}
+	sockCertPEM, err := os.ReadFile(sockCertPath)
+	if err != nil {
+		t.Fatalf("read sockerless cert: %v", err)
+	}
+	sockKeyPEM, err := os.ReadFile(sockKeyPath)
+	if err != nil {
+		t.Fatalf("read sockerless key: %v", err)
+	}
+
+	const (
+		subscriptionID = "00000000-0000-0000-0000-000000000000"
+		tenantID       = "00000000-0000-0000-0000-000000000000"
+		clientID       = "00000000-0000-0000-0000-000000000000"
+		resourceGroup  = "shim-kv-rg"
+		vaultName      = "shimvault"
+		secretName     = "applied-secret"
+		secretValue    = "hunter2-through-shim"
+		objectID       = "22222222-2222-2222-2222-222222222222"
+	)
+
+	jwks := fetchSockerlessJWKS(t, azurePort, tenantID, sockCertPEM)
+	kvAudience := fetchSockerlessKVAudience(t, azurePort, sockCertPEM)
+
+	backend := inmem.New()
+	shim := harness.StartSecretsServerAzureKVAtPort(
+		t,
+		backend,
+		shimPort,
+		sockCertPEM,
+		sockKeyPEM,
+		jwks,
+		kvAudience,
+		fmt.Sprintf("https://sts.windows.net/%s/", tenantID),
+	)
+	_ = shim // URL embedded in sockerless ARM emission via env var
+
+	dir := t.TempDir()
+	hcl := fmt.Sprintf(
+		terraformAzureKVApplyConfig,
+		"localhost:"+azurePort, // %[1]s metadata_host
+		subscriptionID,         // %[2]s
+		tenantID,               // %[3]s
+		clientID,               // %[4]s
+		resourceGroup,          // %[5]s
+		vaultName,              // %[6]s
+		objectID,               // %[7]s
+		secretName,             // %[8]s
+		secretValue,            // %[9]s
+	)
+	if err := os.WriteFile(filepath.Join(dir, "main.tf"), []byte(hcl), 0o644); err != nil {
+		t.Fatalf("write main.tf: %v", err)
+	}
+
+	combinedCA := filepath.Join(dir, "combined-ca.pem")
+	systemBytes, err := os.ReadFile(systemCABundle)
+	if err != nil {
+		t.Fatalf("read system CA bundle %s: %v", systemCABundle, err)
+	}
+	if err := os.WriteFile(combinedCA, append(append(systemBytes, '\n'), sockCertPEM...), 0o644); err != nil {
+		t.Fatalf("write combined CA: %v", err)
+	}
+
+	runTf := func(args ...string) ([]byte, []byte, error) {
+		cmd := exec.Command(tfBin, args...)
+		cmd.Dir = dir
+		cmd.Env = append(os.Environ(),
+			"TF_IN_AUTOMATION=1",
+			"TF_INPUT=0",
+			"CHECKPOINT_DISABLE=1",
+			"SSL_CERT_FILE="+combinedCA,
+		)
+		var stdout, stderr bytes.Buffer
+		cmd.Stdout = &stdout
+		cmd.Stderr = &stderr
+		err := cmd.Run()
+		return stdout.Bytes(), stderr.Bytes(), err
+	}
+	mustRun := func(args ...string) []byte {
+		t.Helper()
+		stdout, stderr, err := runTf(args...)
+		if err != nil {
+			t.Fatalf("terraform %s\nstdout:\n%s\nstderr:\n%s\nerr: %v",
+				strings.Join(args, " "), stdout, stderr, err)
+		}
+		return stdout
+	}
+
+	mustRun("init", "-no-color")
+	applyOut := mustRun("apply", "-no-color", "-auto-approve")
+	t.Logf("terraform apply stdout:\n%s", applyOut)
+	t.Cleanup(func() { _, _, _ = runTf("destroy", "-no-color", "-auto-approve") })
+
+	list, err := backend.ListSecrets(context.Background(), domain.ListSecretsOptions{})
+	if err != nil {
+		t.Fatalf("backend.ListSecrets: %v", err)
+	}
+	var found *domain.Secret
+	for i, s := range list.Secrets {
+		if s.Name == secretName {
+			found = &list.Secrets[i]
+			break
+		}
+	}
+	if found == nil {
+		names := make([]string, 0, len(list.Secrets))
+		for _, s := range list.Secrets {
+			names = append(names, s.Name)
+		}
+		t.Fatalf("backend.ListSecrets did not contain %q; got %v", secretName, names)
+	}
+
+	val, err := backend.GetSecretValue(context.Background(), secretName, 0)
+	if err != nil {
+		t.Fatalf("backend.GetSecretValue: %v", err)
+	}
+	if string(val.Value) != secretValue {
+		t.Errorf("backend.GetSecretValue.Value = %q, want %q", string(val.Value), secretValue)
+	}
+}
+
+// fetchSockerlessJWKS GETs the JWKS sockerless publishes at
+// `/{tenant}/discovery/v2.0/keys` using an http.Client that trusts
+// the simulator's self-signed TLS cert. Returns the parsed key set
+// the shim's azurebearer verifier consumes via Options.JWKS. Doing
+// the fetch out-of-band keeps the shim's in-process verifier free of
+// any custom TLS-trust plumbing — the JWKS is just static input.
+func fetchSockerlessJWKS(t *testing.T, azurePort, tenantID string, certPEM []byte) *azurebearer.JWKS {
+	t.Helper()
+	pool := x509.NewCertPool()
+	if !pool.AppendCertsFromPEM(certPEM) {
+		t.Fatal("AppendCertsFromPEM: no certs parsed")
+	}
+	client := &http.Client{
+		Timeout: 10 * time.Second,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{RootCAs: pool},
+		},
+	}
+	url := fmt.Sprintf("https://localhost:%s/%s/discovery/v2.0/keys", azurePort, tenantID)
+	resp, err := client.Get(url)
+	if err != nil {
+		t.Fatalf("GET %s: %v", url, err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("GET %s: HTTP %d", url, resp.StatusCode)
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("read JWKS body: %v", err)
+	}
+	var jwks azurebearer.JWKS
+	if err := json.Unmarshal(body, &jwks); err != nil {
+		t.Fatalf("parse JWKS JSON: %v\nbody: %s", err, body)
+	}
+	if len(jwks.Keys) == 0 {
+		t.Fatalf("JWKS at %s is empty", url)
+	}
+	return &jwks
+}
+
+// fetchSockerlessKVAudience reads sockerless's `/metadata/endpoints`
+// document and derives the Key Vault data-plane audience the
+// `hashicorp/go-azure-sdk` provider will request a token for. The
+// provider constructs the KV scope from `suffixes.keyVaultDns` —
+// real Azure returns `vault.azure.net` there and the token audience
+// becomes `https://vault.azure.net`; sockerless's metadata-suffix
+// derivation produces whatever maps to the configured emitted URL
+// (e.g. `localhost:14582` when the shim's KV port is 14582), and
+// the audience becomes `https://localhost:14582` accordingly. The
+// shim's `azurebearer` verifier expects whatever audience the
+// deployed environment publishes — wiring the test side from the
+// same source keeps the shim's configuration honest rather than
+// hardcoding a value that only happens to match one deployment.
+func fetchSockerlessKVAudience(t *testing.T, azurePort string, certPEM []byte) string {
+	t.Helper()
+	pool := x509.NewCertPool()
+	if !pool.AppendCertsFromPEM(certPEM) {
+		t.Fatal("AppendCertsFromPEM: no certs parsed")
+	}
+	client := &http.Client{
+		Timeout: 10 * time.Second,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{RootCAs: pool},
+		},
+	}
+	url := fmt.Sprintf("https://localhost:%s/metadata/endpoints?api-version=2022-09-01", azurePort)
+	resp, err := client.Get(url)
+	if err != nil {
+		t.Fatalf("GET %s: %v", url, err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("GET %s: HTTP %d", url, resp.StatusCode)
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("read metadata body: %v", err)
+	}
+	var env struct {
+		Suffixes struct {
+			KeyVaultDns string `json:"keyVaultDns"`
+		} `json:"suffixes"`
+	}
+	if err := json.Unmarshal(body, &env); err != nil {
+		t.Fatalf("parse metadata JSON: %v\nbody: %s", err, body)
+	}
+	if env.Suffixes.KeyVaultDns == "" {
+		t.Fatalf("metadata response missing suffixes.keyVaultDns; body: %s", body)
+	}
+	return "https://" + env.Suffixes.KeyVaultDns
+}
+
+// findSystemCABundleForKV mirrors the helper in the storage sockerless
+// test — duplicated because each conformance package compiles
+// independently. Returns "" on macOS.
+func findSystemCABundleForKV() string {
+	for _, p := range []string{
+		"/etc/ssl/certs/ca-certificates.crt",
+		"/etc/pki/tls/certs/ca-bundle.crt",
+		"/etc/ssl/ca-bundle.pem",
+		"/etc/pki/tls/cacert.pem",
+	} {
+		if _, err := os.Stat(p); err == nil {
+			return p
+		}
+	}
+	return ""
+}
+
+const terraformAzureKVApplyConfig = `
+terraform {
+  required_providers {
+    azurerm = {
+      source  = "hashicorp/azurerm"
+      version = "~> 4.0"
+    }
+  }
+}
+
+provider "azurerm" {
+  features {}
+  metadata_host                   = "%[1]s"
+  subscription_id                 = "%[2]s"
+  tenant_id                       = "%[3]s"
+  client_id                       = "%[4]s"
+  client_secret                   = "test-secret-do-not-use-in-prod"
+  resource_provider_registrations = "none"
+}
+
+resource "azurerm_resource_group" "rg" {
+  name     = "%[5]s"
+  location = "eastus"
+}
+
+resource "azurerm_key_vault" "kv" {
+  name                       = "%[6]s"
+  resource_group_name        = azurerm_resource_group.rg.name
+  location                   = azurerm_resource_group.rg.location
+  tenant_id                  = "%[3]s"
+  sku_name                   = "standard"
+  purge_protection_enabled   = false
+  soft_delete_retention_days = 7
+}
+
+resource "azurerm_key_vault_access_policy" "policy" {
+  key_vault_id = azurerm_key_vault.kv.id
+  tenant_id    = "%[3]s"
+  object_id    = "%[7]s"
+
+  secret_permissions = ["Get", "List", "Set", "Delete"]
+}
+
+resource "azurerm_key_vault_secret" "sec" {
+  name         = "%[8]s"
+  value        = "%[9]s"
+  key_vault_id = azurerm_key_vault.kv.id
+
+  depends_on = [azurerm_key_vault_access_policy.policy]
+}
+`
 
 // localhostDialTransport returns an *http.Transport that routes every
 // outbound TCP connection to 127.0.0.1:port, regardless of the

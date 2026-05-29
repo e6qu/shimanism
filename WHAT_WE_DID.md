@@ -6,9 +6,38 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 
 ## Phase 14 — In flight
 
-PR #21 merged on 2026-05-25 at `45985e7`, landing 14.A, the 14.D simulator audit, and the current 14.B sockerless lane. Phase 14.B and 14.C are now closed (PR #46). Phase 13.A is also closed — PR #47 retired the last ◐ migration (`azure_blob`). What remains in Phase 14: PR 3 (14.D Track A, real-cloud-credentials-gated). 14.E cross-cloud Apply re-opens once shim-side ARM-shimming exists (see PR #46 narrative below).
+PR #21 merged on 2026-05-25 at `45985e7`, landing 14.A, the 14.D simulator audit, and the current 14.B sockerless lane. Phase 14.B and 14.C are now closed (PR #46). Phase 13.A is also closed — PR #47 retired the last ◐ migration (`azure_blob`). What remains in Phase 14: PR 3 (14.D Track A, real-cloud-credentials-gated). 14.E first cell shipped honestly via sockerless-driven ARM (PR #58, 2026-05-29) — see below.
 
-### Revert: PR #51–#54 ARM-shimming fakes (in flight 2026-05-28)
+### 14.E first through-shim azurerm Apply, honestly (PR #58, 2026-05-29)
+
+The replacement for the reverted fakes-based ARM-shimming. `TestSockerless_E2E_AzureBlob_Through_Shim_ApplyTF` drives `hashicorp/azurerm` Terraform Apply through sockerless's real Azure ARM, then through the shim's existing azure_blob data-plane frontend, then into the inmem backend. No fakes anywhere on the path.
+
+**Composition.** azurerm hits sockerless's ARM endpoint at `https://localhost:14569` (via `metadata_host`); sockerless creates a real `Microsoft.Storage/storageAccounts` resource and returns a response whose `primaryEndpoints.blob` points at `http://shimstorage.blob.localhost:14581/` — i.e. the shim's azure_blob frontend, addressed virtual-hosted-style. azurerm calls `listKeys` for the SharedKey, gets sockerless's deterministic `simListKey64(resourceID, "key1")` 64-byte derivation, and PUTs the container to the shim. The shim's SharedKey verifier knows the same derivation (the harness seeds it from the same resource ID) and accepts the request. The shim's blob handler creates the container in the inmem backend. azurerm sees `Created` and reports Apply complete.
+
+**Four sockerless gates had to land before this composed.** Filed by us, fixed by the sockerless maintainer in close-to-real-time:
+
+| Gate | Issue | Closed by |
+|---|---|---|
+| Real Azure ARM with state-of-record + configurable shim-routable data-plane endpoint emission | sockerless#257 | sockerless#259 |
+| Deterministic 64-byte SharedKey from `listKeys` per resource ID | sockerless#260 | sockerless#262 |
+| RS256-signed Azure AD tokens with JWKS published at `/{tenant}/discovery/v2.0/keys` | sockerless#261 | sockerless#262 |
+| `{account}` interpolation in storage endpoint template + auto-derived `suffixes.storage` in `/metadata/endpoints` | sockerless#269 | sockerless#271 |
+
+The fourth gate (#269) surfaced only after CI got past TLS and ARM and hit azurerm's storage-endpoint parser: azurerm validates that `primary_blob_endpoint` parses as `<account>.blob.<suffix>` where the suffix is one published by the metadata environment. A literal `http://localhost:14581/` doesn't match any Azure-shaped pattern, so azurerm bails with `unknown storage account domain type` before issuing the data-plane PUT.
+
+**Why `.localhost`.** RFC 6761 reserves `.localhost` for loopback; mainstream OS resolvers return 127.0.0.1 for every `*.localhost` host without `/etc/hosts` edits. Emitting `http://<account>.blob.localhost:<port>/` gets us azurerm-parseable shape *and* DNS-resolvable host *without* hostname engineering. The shim binds on `127.0.0.1:14581` and answers everything.
+
+**Why a fixed port.** The endpoint URL has to be in sockerless's env vars *before* sockerless starts, but the shim binds *during* the test. `httptest.NewServer`'s random port doesn't compose with that order, so `harness.StartStorageServerAzureBlobAtPort` accepts a fixed port and uses `httptest.NewUnstartedServer` + replacement listener.
+
+**What didn't need to change in the shim.** The azure_blob frontend already handles vhost-style addressing (the heuristic that strips an account-name path segment is skipped when there's no such segment; the dispatch falls through to container-level routing on `/<container>?restype=container`). The SharedKey verifier reads the account name from the `Authorization: SharedKey <account>:<sig>` header rather than the Host, so canonicalization is independent of the URL shape on the wire. Zero shim code changes between the reverted fakes-based attempt and the honest cell.
+
+**Linux-only.** Go's TLS stack honors `SSL_CERT_FILE` on Linux/Unix only; macOS uses the Security framework. The test skips on darwin and exercises fully on CI's ubuntu-24.04 runners.
+
+**Lessons that survived from PR #51–#54.** The TLS-cert-via-SSL_CERT_FILE pattern, the `metadata_host`-driven azurerm provider config, the resource-ID-to-SharedKey derivation — these were all correct ideas built on the wrong substrate (fakes). They composed cleanly once the substrate became sockerless's real ARM.
+
+**Follow-on cells** — Key Vault data-plane Apply, in flight after PR #58. Briefly paused on [sockerless#272](https://github.com/e6qu/sockerless/issues/272) — the mock token endpoint minted every token with `aud=https://management.azure.com/` regardless of the OAuth `scope`/`resource` form param, so azurerm's KV data-plane Bearer (expects `aud=https://vault.azure.net`) failed the shim's audience verification. Maintainer landed [sockerless#274](https://github.com/e6qu/sockerless/pull/274) the same day, deriving `aud` from the OAuth scope/resource form param. With that gate cleared the cell composes the same way storage did — `harness.StartSecretsServerAzureKVAtPort` binds the shim's azure_keyvault frontend at a fixed TLS port using sockerless's self-signed cert (SAN updated to cover `*.vault.localhost`), the `azurebearer` verifier validates against a JWKS the test pre-fetches out-of-band from sockerless's `/{tenant}/discovery/v2.0/keys` (keeping the in-process verifier free of TLS-trust plumbing), and `TestSockerless_E2E_AzureKV_Through_Shim_ApplyTF` drives `azurerm_key_vault` + `azurerm_key_vault_access_policy` + `azurerm_key_vault_secret` end-to-end against the inmem secrets backend. The same `SIM_AZURE_ARM_EXTERNAL_DATA_PLANE_URLS_JSON` env var now carries both the storage `{account}.blob.localhost` template and the keyVault `{vault}.vault.localhost` template. Service Bus admin + SAS-driven data plane is the next concrete chunk — smaller scope (no JWKS, no new TLS port for the SAS auth path).
+
+### Revert: PR #51–#54 ARM-shimming fakes (PR #56, 2026-05-28)
 
 The shim-side ARM-shimming work in PRs #51 / #52 / #53 / #54 was wrong. It violated shimanism's [no-fakes rule](AGENTS.md#no-fakes-no-stubs-no-mocks-no-silent-fallbacks-ever) and the stateless-shim invariant. Specifically:
 

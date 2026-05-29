@@ -9,6 +9,7 @@
 package harness
 
 import (
+	"crypto/tls"
 	"fmt"
 	"net"
 	"net/http"
@@ -247,6 +248,51 @@ func StartSecretsServerAzure(t *testing.T, backend secretsdomain.Secrets) *Secre
 	})
 	mw := azurebearer.Middleware(verifier, azurebearer.WithChallenge("https://vault.azure.net"))
 	ts := httptest.NewTLSServer(&logRoundTrip{t: t, mux: mw(srv)})
+	t.Cleanup(ts.Close)
+	return &SecretsServer{URL: ts.URL, Close: ts.Close}
+}
+
+// StartSecretsServerAzureKVAtPort starts the Azure Key Vault
+// secrets-surface frontend on a caller-chosen TCP port with TLS.
+// Mirror of StartStorageServerAzureBlobAtPort for the data-plane
+// `azurerm_key_vault_secret` Terraform Apply path: sockerless's
+// real Microsoft.KeyVault ARM emits `properties.vaultUri` as
+// `https://{vault}.vault.localhost:<port>/`, azurerm follows that
+// URL with a Microsoft Entra Bearer token, and this server verifies
+// the token against the caller-provided JWKS before letting the
+// gen-generated handlers translate the SetSecret call onto the
+// chosen secrets backend.
+//
+// Callers pass a TLS cert + key whose SAN covers `*.vault.localhost`
+// (the test typically reuses sockerless's own self-signed cert,
+// which is also trusted by the terraform process via SSL_CERT_FILE).
+// `jwks` must already contain the RS256 public key sockerless
+// publishes at `/{tenant}/discovery/v2.0/keys`; the caller fetches
+// it out-of-band with a TLS client that trusts the same cert, then
+// hands the parsed JWKS in — that keeps the in-process JWKS lookup
+// purely local with no TLS-trust complications.
+func StartSecretsServerAzureKVAtPort(t *testing.T, backend secretsdomain.Secrets, port int, tlsCertPEM, tlsKeyPEM []byte, jwks *azurebearer.JWKS, audience, issuer string) *SecretsServer {
+	t.Helper()
+	cert, err := tls.X509KeyPair(tlsCertPEM, tlsKeyPEM)
+	if err != nil {
+		t.Fatalf("load TLS cert/key: %v", err)
+	}
+	srv := azurekvfront.New(backend)
+	verifier := azurebearer.New(azurebearer.Options{
+		Audience: audience,
+		Issuer:   issuer,
+		JWKS:     jwks,
+	})
+	mw := azurebearer.Middleware(verifier, azurebearer.WithChallenge(audience))
+	ln, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
+	if err != nil {
+		t.Fatalf("bind 127.0.0.1:%d: %v", port, err)
+	}
+	ts := httptest.NewUnstartedServer(&logRoundTrip{t: t, mux: mw(srv)})
+	_ = ts.Listener.Close()
+	ts.Listener = ln
+	ts.TLS = &tls.Config{Certificates: []tls.Certificate{cert}}
+	ts.StartTLS()
 	t.Cleanup(ts.Close)
 	return &SecretsServer{URL: ts.URL, Close: ts.Close}
 }
