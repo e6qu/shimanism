@@ -33,6 +33,15 @@ AZURE_PORT=${AZURE_PORT:-14569}
 # #231). Used by the SB queue / pubsub Send-Receive lanes via the
 # azservicebus SDK's CustomEndpoint + TLSConfig knobs.
 AZURE_SB_AMQP_PORT=${AZURE_SB_AMQP_PORT:-14570}
+# Fixed port where the shim's Azure Blob data-plane frontend binds
+# when running the through-shim `azurerm` Terraform Apply test
+# (`TestSockerless_E2E_AzureBlob_Through_Shim_ApplyTF`). sockerless's
+# Azure ARM is configured below to emit this URL in
+# `Microsoft.Storage/storageAccounts` `primaryEndpoints.blob` so
+# `azurerm` follows it for data-plane operations. The shim binds the
+# port in-test rather than the harness using a random httptest port,
+# because the URL has to be fixed before sockerless starts.
+SHIM_AZUREBLOB_PORT=${SHIM_AZUREBLOB_PORT:-14581}
 CERT_DIR=${CERT_DIR:-/tmp/sockerless-tls}
 
 if [[ ! -d $SOCKERLESS_DIR ]]; then
@@ -109,8 +118,13 @@ ensure_cert() {
     mkdir -p "$CERT_DIR"
     if [[ -s "$CERT_DIR/sim.crt" && -s "$CERT_DIR/sim.key" ]]; then return; fi
     echo "cert: generating self-signed RSA-2048 cert in $CERT_DIR"
+    # Go's TLS stack rejects certs that rely on the deprecated CN
+    # field for hostname matching — modern verifiers require Subject
+    # Alternative Names. Include DNS:localhost + IP:127.0.0.1 so both
+    # name forms validate (azurerm hits https://localhost:.../).
     openssl req -x509 -newkey rsa:2048 -nodes -days 1 \
         -subj "/CN=localhost" \
+        -addext "subjectAltName=DNS:localhost,IP:127.0.0.1" \
         -keyout "$CERT_DIR/sim.key" \
         -out "$CERT_DIR/sim.crt" \
         >/dev/null 2>&1
@@ -138,10 +152,23 @@ SIM_LISTEN_ADDR=":$GCP_PORT" \
 GCP_PID=$!
 
 echo "start: Azure sim → https://localhost:$AZURE_PORT + Service Bus AMQP/TLS on :$AZURE_SB_AMQP_PORT (self-signed cert)"
+# Configure sockerless's Azure ARM (sockerless#259) to emit the
+# shim's blob frontend URL in storage-account
+# `primaryEndpoints.blob`. The `{account}` placeholder is
+# interpolated per-storage-account by sockerless#269/#271, which
+# also derives `suffixes.storage` in `/metadata/endpoints` from the
+# emitted URL's suffix. `azurerm`'s endpoint parser accepts the
+# resulting `https://<account>.blob.<suffix>/...` shape; the
+# `.localhost` TLD resolves to 127.0.0.1 per RFC 6761, so the
+# data-plane PUTs land on whatever the shim binds at this port
+# without DNS or /etc/hosts edits. sockerless's `listKeys` returns
+# a deterministic 64-byte key (sockerless#260) the shim's verifier
+# derives the same way from the resource ID.
 SIM_LISTEN_ADDR=":$AZURE_PORT" \
 SIM_TLS_CERT="$CERT_DIR/sim.crt" \
 SIM_TLS_KEY="$CERT_DIR/sim.key" \
 SIM_SERVICEBUS_AMQP_LISTEN_ADDR=":$AZURE_SB_AMQP_PORT" \
+SIM_AZURE_ARM_EXTERNAL_DATA_PLANE_URLS_JSON='{"storage":{"blob":"http://{account}.blob.localhost:'"$SHIM_AZUREBLOB_PORT"'/"}}' \
     "$AZURE_BIN" >/tmp/sockerless-azure.log 2>&1 &
 AZURE_PID=$!
 
@@ -157,6 +184,8 @@ SOCKERLESS_AZURE_KV_URL="https://testvault.vault.azure.net" \
 SOCKERLESS_AZURE_TLS_PORT="$AZURE_PORT" \
 SOCKERLESS_AZURE_SB_AMQP_PORT="$AZURE_SB_AMQP_PORT" \
 SOCKERLESS_AZURE_BLOB_ACCOUNT="testacct" \
+SOCKERLESS_AZURE_TLS_CERT="$CERT_DIR/sim.crt" \
+SHIM_AZUREBLOB_PORT="$SHIM_AZUREBLOB_PORT" \
 SOCKERLESS_AZURE_CONTAINERAPPS_IMAGE="$SOCKERLESS_AZURE_CONTAINERAPPS_IMAGE" \
 SOCKERLESS_GCP_CLOUDRUN_IMAGE="$SOCKERLESS_GCP_CLOUDRUN_IMAGE" \
 AWS_S3_CONFORMANCE_INSECURE_TLS=1 \

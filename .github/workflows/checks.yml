@@ -194,6 +194,11 @@ jobs:
         with:
           go-version: '1.26'
           cache: true
+      # Terraform CLI for the through-shim azurerm Apply cell
+      # (TestSockerless_E2E_AzureBlob_Through_Shim_ApplyTF). The lane
+      # also runs other Terraform-driven through-shim cells over time;
+      # installing it here covers all of them.
+      - uses: hashicorp/setup-terraform@v3
       - name: Clone sockerless
         run: git clone --depth=1 https://github.com/e6qu/sockerless.git /tmp/sockerless
       - name: Run through-shim sockerless E2E lane
