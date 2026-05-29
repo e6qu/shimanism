@@ -42,6 +42,15 @@ AZURE_SB_AMQP_PORT=${AZURE_SB_AMQP_PORT:-14570}
 # port in-test rather than the harness using a random httptest port,
 # because the URL has to be fixed before sockerless starts.
 SHIM_AZUREBLOB_PORT=${SHIM_AZUREBLOB_PORT:-14581}
+# Fixed port where the shim's Azure Key Vault data-plane frontend
+# binds when running the through-shim `azurerm` KV Apply test
+# (`TestSockerless_E2E_AzureKV_Through_Shim_ApplyTF`). Mirror of the
+# blob slot: sockerless emits this URL in
+# `Microsoft.KeyVault/vaults` `properties.vaultUri` so `azurerm`
+# follows it for data-plane secret PUT, the shim verifies the
+# RS256 Bearer token against sockerless's published JWKS, then
+# translates onto the chosen secrets backend.
+SHIM_AZUREKV_PORT=${SHIM_AZUREKV_PORT:-14582}
 CERT_DIR=${CERT_DIR:-/tmp/sockerless-tls}
 
 if [[ ! -d $SOCKERLESS_DIR ]]; then
@@ -116,15 +125,27 @@ build_sim() {
 
 ensure_cert() {
     mkdir -p "$CERT_DIR"
-    if [[ -s "$CERT_DIR/sim.crt" && -s "$CERT_DIR/sim.key" ]]; then return; fi
+    # Cached cert is reused only if it already carries the SAN list
+    # the test needs (covers `*.vault.localhost` for the KV cell).
+    # Older cached certs from prior runs without that SAN must be
+    # regenerated, else the shim's KV TLS handshake fails.
+    if [[ -s "$CERT_DIR/sim.crt" && -s "$CERT_DIR/sim.key" ]] \
+        && openssl x509 -in "$CERT_DIR/sim.crt" -noout -ext subjectAltName 2>/dev/null \
+            | grep -q "DNS:\*\.vault\.localhost"; then
+        return
+    fi
     echo "cert: generating self-signed RSA-2048 cert in $CERT_DIR"
     # Go's TLS stack rejects certs that rely on the deprecated CN
     # field for hostname matching — modern verifiers require Subject
-    # Alternative Names. Include DNS:localhost + IP:127.0.0.1 so both
-    # name forms validate (azurerm hits https://localhost:.../).
+    # Alternative Names. Cover every host the test process talks to:
+    #   - `localhost` + 127.0.0.1 — sockerless itself.
+    #   - `*.vault.localhost` — the shim's KV data-plane endpoint
+    #     when sockerless emits `https://{vault}.vault.localhost:.../`
+    #     as `properties.vaultUri`. (Blob doesn't need the cert: it
+    #     runs over plain HTTP since SharedKey is the auth path.)
     openssl req -x509 -newkey rsa:2048 -nodes -days 1 \
         -subj "/CN=localhost" \
-        -addext "subjectAltName=DNS:localhost,IP:127.0.0.1" \
+        -addext "subjectAltName=DNS:localhost,DNS:*.vault.localhost,IP:127.0.0.1" \
         -keyout "$CERT_DIR/sim.key" \
         -out "$CERT_DIR/sim.crt" \
         >/dev/null 2>&1
@@ -168,7 +189,7 @@ SIM_LISTEN_ADDR=":$AZURE_PORT" \
 SIM_TLS_CERT="$CERT_DIR/sim.crt" \
 SIM_TLS_KEY="$CERT_DIR/sim.key" \
 SIM_SERVICEBUS_AMQP_LISTEN_ADDR=":$AZURE_SB_AMQP_PORT" \
-SIM_AZURE_ARM_EXTERNAL_DATA_PLANE_URLS_JSON='{"storage":{"blob":"http://{account}.blob.localhost:'"$SHIM_AZUREBLOB_PORT"'/"}}' \
+SIM_AZURE_ARM_EXTERNAL_DATA_PLANE_URLS_JSON='{"storage":{"blob":"http://{account}.blob.localhost:'"$SHIM_AZUREBLOB_PORT"'/"},"keyVault":"https://{vault}.vault.localhost:'"$SHIM_AZUREKV_PORT"'/"}' \
     "$AZURE_BIN" >/tmp/sockerless-azure.log 2>&1 &
 AZURE_PID=$!
 
@@ -185,7 +206,9 @@ SOCKERLESS_AZURE_TLS_PORT="$AZURE_PORT" \
 SOCKERLESS_AZURE_SB_AMQP_PORT="$AZURE_SB_AMQP_PORT" \
 SOCKERLESS_AZURE_BLOB_ACCOUNT="testacct" \
 SOCKERLESS_AZURE_TLS_CERT="$CERT_DIR/sim.crt" \
+SOCKERLESS_AZURE_TLS_KEY="$CERT_DIR/sim.key" \
 SHIM_AZUREBLOB_PORT="$SHIM_AZUREBLOB_PORT" \
+SHIM_AZUREKV_PORT="$SHIM_AZUREKV_PORT" \
 SOCKERLESS_AZURE_CONTAINERAPPS_IMAGE="$SOCKERLESS_AZURE_CONTAINERAPPS_IMAGE" \
 SOCKERLESS_GCP_CLOUDRUN_IMAGE="$SOCKERLESS_GCP_CLOUDRUN_IMAGE" \
 AWS_S3_CONFORMANCE_INSECURE_TLS=1 \
