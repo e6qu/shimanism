@@ -937,6 +937,13 @@ func TestSockerless_E2E_GCSFrontendToAWSBackend(t *testing.T) {
 //     only; macOS uses the Security framework and skips).
 //   - `terraform` on PATH.
 func TestSockerless_E2E_AzureBlob_Through_Shim_ApplyTF(t *testing.T) {
+	// Blocked on sockerless#269: the literal `primary_blob_endpoint`
+	// emitted by sockerless#259 (e.g. `http://localhost:14581/`) is
+	// rejected by azurerm's parser, which requires the endpoint to
+	// match `{account}.blob.{suffix}` and the suffix to be published
+	// by the metadata environment. Re-enable when sockerless#269
+	// lands the interpolated emission + matching `storage` suffix.
+	t.Skip("blocked on sockerless#269: external data-plane URL must follow {account}.blob.{suffix} shape with matching metadata suffix before azurerm accepts it")
 	azurePort := os.Getenv("SOCKERLESS_AZURE_TLS_PORT")
 	if azurePort == "" {
 		t.Skip("SOCKERLESS_AZURE_TLS_PORT not set")

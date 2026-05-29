@@ -43,11 +43,9 @@ Real-cloud lanes for BUG-8 (hashicorp/google API Gateway TF endpoint/OAuth leg) 
 ## Practical next chunks (while Track A is blocked)
 
 1. ~~BUG-24 reverse-direction expansion.~~ ✅ Shipped in PR #50.
-2. **14.E cross-cloud Apply via sockerless-driven ARM.** All three sockerless prerequisites landed (#259 endpoint emission, #260 deterministic 64-byte storage keys, #262 RS256 JWKS-published Azure AD tokens). The in-flight PR wires shimanism's honest path:
-   - `scripts/run-sockerless-storage.sh` exports `SIM_AZURE_ARM_EXTERNAL_DATA_PLANE_URLS_JSON` pointing at the shim's blob frontend at fixed port 14581.
-   - `harness.StartStorageServerAzureBlobAtPort` binds the shim to 14581 with a SharedKey verifier seeded from sockerless's documented `simListKey64` derivation.
-   - `TestSockerless_E2E_AzureBlob_Through_Shim_ApplyTF` exercises `azurerm → sockerless ARM → shim blob → inmem backend` end-to-end. Linux-only (SSL_CERT_FILE platform limit).
-   - **Next services:** Key Vault (sockerless#262 RS256 makes Bearer verification feasible; the shim's `azurebearer` already supports JWKS). Service Bus admin + queues + topics (sockerless already emits SAS connection strings; the shim's existing data-plane frontend handles raw AMQP/TLS).
+2. **14.E cross-cloud Apply via sockerless-driven ARM.** Three of four sockerless prerequisites landed (#259 endpoint emission, #260 deterministic 64-byte storage keys, #262 RS256 JWKS-published Azure AD tokens). PR #58 wires the honest path end-to-end through the data plane, but exposed a fourth gap: the literal `primary_blob_endpoint` emitted by #259 (e.g. `http://localhost:14581/`) is rejected by the `azurerm` provider parser, which requires `{account}.blob.{suffix}` with a matching suffix published by `/metadata/endpoints`. **Filed [sockerless#269](https://github.com/e6qu/sockerless/issues/269)** for interpolated emission (`http://{account}.blob.localhost:14581/`) + metadata-side suffix advertisement. `TestSockerless_E2E_AzureBlob_Through_Shim_ApplyTF` is currently skipped pointing at that issue; re-enable once it lands.
+   - Pre-#269, the upstream composition already verified: TLS path, sockerless ARM resource lifecycle, shim's harness URL emission, listKeys/key derivation alignment. The remaining gap is purely endpoint shape.
+   - **Next services (after #269):** Key Vault (sockerless#262 RS256 makes Bearer verification feasible). Service Bus admin + queues + topics (sockerless already emits SAS connection strings).
 3. ~~Watch sockerless#244.~~ ✅ Done in PR #49.
 
 ### Lesson: ARM shimming via fakes was the wrong design
