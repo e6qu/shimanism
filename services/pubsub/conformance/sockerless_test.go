@@ -2,6 +2,7 @@
 package conformance_test
 
 import (
+	"bytes"
 	"context"
 	"crypto/hmac"
 	"crypto/rand"
@@ -9,9 +10,13 @@ import (
 	"crypto/tls"
 	"encoding/base64"
 	"encoding/hex"
+	"fmt"
 	"net"
 	"net/http"
 	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
@@ -457,3 +462,213 @@ func TestSockerless_Azure_ServiceBus_Topic_PublishReceive(t *testing.T) {
 		t.Errorf("Receive body = %q, want %q", got, string(body))
 	}
 }
+
+// TestSockerless_E2E_AzureServiceBus_Topic_Through_Shim_ApplyTF is
+// the pubsub analog of `TestSockerless_E2E_AzureServiceBus_Through_Shim_ApplyTF`
+// (PR #60, queue side). azurerm Terraform Apply creates the
+// namespace + topic + subscription via sockerless's real
+// Microsoft.ServiceBus ARM (with the networkRuleSet / disasterRecovery
+// / migrationConfig reads from sockerless#277 in place); the
+// namespace's `default_primary_connection_string` (Terraform output)
+// then drives the shim's azure_servicebus *pubsub* backend through
+// Publish/Receive against sockerless's AMQP listener.
+//
+// Same shape rationale as the queue cell: the shim's frontend isn't
+// on the SB data-plane path (AMQP listening lives in sockerless),
+// so through-shim coverage lives on the backend translation layer.
+//
+// Linux-only (SSL_CERT_FILE platform limit); skips on darwin.
+func TestSockerless_E2E_AzureServiceBus_Topic_Through_Shim_ApplyTF(t *testing.T) {
+	azurePort := os.Getenv("SOCKERLESS_AZURE_TLS_PORT")
+	if azurePort == "" {
+		t.Skip("SOCKERLESS_AZURE_TLS_PORT not set")
+	}
+	amqpPort := os.Getenv("SOCKERLESS_AZURE_SB_AMQP_PORT")
+	if amqpPort == "" {
+		t.Skip("SOCKERLESS_AZURE_SB_AMQP_PORT not set")
+	}
+	tfBin, err := exec.LookPath("terraform")
+	if err != nil {
+		t.Skipf("terraform not installed: %v", err)
+	}
+	systemCABundle := findSystemCABundleForSBTopic()
+	if systemCABundle == "" {
+		t.Skip("no system CA bundle found at known Unix paths — SSL_CERT_FILE workaround requires Linux")
+	}
+	sockCertPath := os.Getenv("SOCKERLESS_AZURE_TLS_CERT")
+	if sockCertPath == "" {
+		t.Skip("SOCKERLESS_AZURE_TLS_CERT not set (the run script exports this)")
+	}
+
+	const (
+		subscriptionID   = "00000000-0000-0000-0000-000000000000"
+		tenantID         = "00000000-0000-0000-0000-000000000000"
+		clientID         = "00000000-0000-0000-0000-000000000000"
+		resourceGroup    = "shim-sbt-rg"
+		namespaceName    = "shimsbtns"
+		topicName        = "applied-topic"
+		subscriptionName = "applied-subscription"
+	)
+
+	dir := t.TempDir()
+	hcl := fmt.Sprintf(terraformAzureSBTopicApplyConfig,
+		"localhost:"+azurePort, // %[1]s metadata_host
+		subscriptionID,         // %[2]s
+		tenantID,               // %[3]s
+		clientID,               // %[4]s
+		resourceGroup,          // %[5]s
+		namespaceName,          // %[6]s
+		topicName,              // %[7]s
+		subscriptionName,       // %[8]s
+	)
+	if err := os.WriteFile(filepath.Join(dir, "main.tf"), []byte(hcl), 0o644); err != nil {
+		t.Fatalf("write main.tf: %v", err)
+	}
+
+	systemBytes, err := os.ReadFile(systemCABundle)
+	if err != nil {
+		t.Fatalf("read system CA bundle %s: %v", systemCABundle, err)
+	}
+	sockBytes, err := os.ReadFile(sockCertPath)
+	if err != nil {
+		t.Fatalf("read sockerless cert %s: %v", sockCertPath, err)
+	}
+	combinedCA := filepath.Join(dir, "combined-ca.pem")
+	if err := os.WriteFile(combinedCA, append(append(systemBytes, '\n'), sockBytes...), 0o644); err != nil {
+		t.Fatalf("write combined CA: %v", err)
+	}
+
+	runTf := func(args ...string) ([]byte, []byte, error) {
+		cmd := exec.Command(tfBin, args...)
+		cmd.Dir = dir
+		cmd.Env = append(os.Environ(),
+			"TF_IN_AUTOMATION=1",
+			"TF_INPUT=0",
+			"CHECKPOINT_DISABLE=1",
+			"SSL_CERT_FILE="+combinedCA,
+		)
+		var stdout, stderr bytes.Buffer
+		cmd.Stdout = &stdout
+		cmd.Stderr = &stderr
+		err := cmd.Run()
+		return stdout.Bytes(), stderr.Bytes(), err
+	}
+	mustRun := func(args ...string) []byte {
+		t.Helper()
+		stdout, stderr, err := runTf(args...)
+		if err != nil {
+			t.Fatalf("terraform %s\nstdout:\n%s\nstderr:\n%s\nerr: %v",
+				strings.Join(args, " "), stdout, stderr, err)
+		}
+		return stdout
+	}
+
+	mustRun("init", "-no-color")
+	applyOut := mustRun("apply", "-no-color", "-auto-approve")
+	t.Logf("terraform apply stdout:\n%s", applyOut)
+	t.Cleanup(func() { _, _, _ = runTf("destroy", "-no-color", "-auto-approve") })
+
+	connStrOut := mustRun("output", "-raw", "primary_connection_string")
+	connStr := strings.TrimSpace(string(connStrOut))
+	if connStr == "" {
+		t.Fatal("terraform output primary_connection_string was empty")
+	}
+	t.Logf("connection string from azurerm: %s", connStr)
+
+	backend, err := azurepubsub.New(azurepubsub.Config{
+		ConnectionString:   connStr,
+		AdminClientOptions: sockerlessSBAdminClientOptionsPubsub(azurePort),
+		DataClientOptions: &azservicebus.ClientOptions{
+			CustomEndpoint: "localhost:" + amqpPort,
+			TLSConfig:      &tls.Config{InsecureSkipVerify: true},
+		},
+	})
+	if err != nil {
+		t.Fatalf("azurepubsub.New with terraform-emitted connection string: %v", err)
+	}
+	ctx := context.Background()
+
+	body := []byte("apply-driven SB topic publish/receive body")
+	if _, err := backend.Publish(ctx, topicName, domain.PublishOptions{Body: body}); err != nil {
+		t.Fatalf("Publish: %v", err)
+	}
+	msgs, err := backend.Receive(ctx, subscriptionName, domain.ReceiveOptions{
+		MaxMessages: 1,
+		WaitTime:    5,
+	})
+	if err != nil {
+		t.Fatalf("Receive: %v", err)
+	}
+	if len(msgs) == 0 {
+		t.Fatalf("Receive returned no messages")
+	}
+	if got := string(msgs[0].Body); got != string(body) {
+		t.Errorf("Receive body = %q, want %q", got, string(body))
+	}
+}
+
+// findSystemCABundleForSBTopic mirrors the helper in the storage /
+// KV / SB-queue sockerless tests; each conformance package compiles
+// independently.
+func findSystemCABundleForSBTopic() string {
+	for _, p := range []string{
+		"/etc/ssl/certs/ca-certificates.crt",
+		"/etc/pki/tls/certs/ca-bundle.crt",
+		"/etc/ssl/ca-bundle.pem",
+		"/etc/pki/tls/cacert.pem",
+	} {
+		if _, err := os.Stat(p); err == nil {
+			return p
+		}
+	}
+	return ""
+}
+
+const terraformAzureSBTopicApplyConfig = `
+terraform {
+  required_providers {
+    azurerm = {
+      source  = "hashicorp/azurerm"
+      version = "~> 4.0"
+    }
+  }
+}
+
+provider "azurerm" {
+  features {}
+  metadata_host                   = "%[1]s"
+  subscription_id                 = "%[2]s"
+  tenant_id                       = "%[3]s"
+  client_id                       = "%[4]s"
+  client_secret                   = "test-secret-do-not-use-in-prod"
+  resource_provider_registrations = "none"
+}
+
+resource "azurerm_resource_group" "rg" {
+  name     = "%[5]s"
+  location = "eastus"
+}
+
+resource "azurerm_servicebus_namespace" "ns" {
+  name                = "%[6]s"
+  resource_group_name = azurerm_resource_group.rg.name
+  location            = azurerm_resource_group.rg.location
+  sku                 = "Standard"
+}
+
+resource "azurerm_servicebus_topic" "t" {
+  name         = "%[7]s"
+  namespace_id = azurerm_servicebus_namespace.ns.id
+}
+
+resource "azurerm_servicebus_subscription" "s" {
+  name               = "%[8]s"
+  topic_id           = azurerm_servicebus_topic.t.id
+  max_delivery_count = 10
+}
+
+output "primary_connection_string" {
+  value     = azurerm_servicebus_namespace.ns.default_primary_connection_string
+  sensitive = true
+}
+`
