@@ -8,7 +8,7 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 
 - **3-PR plan: 2/3 shipped; PR 3 (Track A) blocked.** PR #46/#47/#48/#49/#50 all landed 2026-05-27.
 - **BUG-24 reverse-direction coverage is now complete** — every service family has both cross-cloud directions (PR #50).
-- **14.E ARM-shimming — DIRECTION CORRECTION.** PRs #51 / #52 / #53 / #54 introduced ARM-shimming fakes (synthetic vault/account responses, in-process `Track*` state, mock-Microsoft-Entra, hardcoded `listKeys` synthetic) that violate shimanism's "no fakes / stateless shim" rules. The in-flight revert PR removes these. The honest path for cross-cloud Apply: sockerless PR #259 (merged 2026-05-28) added configurable Azure ARM data-plane endpoint emission via `SIM_AZURE_ARM_EXTERNAL_DATA_PLANE_URLS_JSON`; a follow-on PR will wire shimanism's harness to set this env var pointing at the shim's data-plane URLs, letting `azurerm → sockerless real ARM → shim data plane → backend` compose without any shim-side fakes.
+- **14.E first through-shim azurerm Apply shipped (PR #58, 2026-05-29).** `TestSockerless_E2E_AzureBlob_Through_Shim_ApplyTF` drives `azurerm → sockerless real ARM → primaryEndpoints.blob → shim azure_blob frontend → inmem backend` end-to-end with no shim-side fakes. The fakes-laden PRs #51–#54 are fully reverted (PR #56). All four upstream sockerless gates landed: #259 endpoint emission, #260 64-byte deterministic listKeys, #262 RS256 JWKS-published Azure AD tokens, #269/#271 `{account}` interpolation + auto-derived `storage` suffix. The shim's existing azure_blob frontend accepts vhost-style addressing without modification; the SharedKey verifier reads the account from the Authorization header.
 - **Phase 13.A is fully closed.** Every Azure frontend has full `gen.ServerInterface` impl.
 - `make sockerless` reports **43 passing + 0 skipped** locally after the revert (PR #54's ARM cells removed).
 - **Storage matrix complete 3×3** — single-shot + multipart + copy across AWS S3 + GCS + Azure Blob.
@@ -19,8 +19,8 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 - **All 7 GCP frontends migrated** from `regexp` tables to `strings.CutPrefix` + `strings.Split` + `segs[N]` dispatch. `regexp` import retired from all per-frontend GCP handlers.
 - **All Azure frontends carry full `gen.ServerInterface` impls** with the `var _ gen.ServerInterface = (*Server)(nil)` compile-time gate.
 - **Open BUGs (2):** BUG-8 + BUG-15 (Track A, real GCP needed). BUG-35 closed in PR #48 after sockerless PR #245 derived ACA image platforms from the resolved manifest.
-- **Upstream watch:** zero open sockerless issues. PR #245 closed #243 + #244.
-- **Last merged:** PR #47 — Phase 13.A.6 `azure_blob` full handler migration, 2026-05-27.
+- **Upstream watch:** zero open sockerless issues — #257 / #260 / #261 / #269 all closed via #259 / #262 / #271.
+- **Last merged:** PR #58 — 14.E through-shim azurerm Terraform Apply via sockerless real ARM (no fakes), 2026-05-29.
 
 ## Session-start checklist
 
@@ -43,9 +43,10 @@ Real-cloud lanes for BUG-8 (hashicorp/google API Gateway TF endpoint/OAuth leg) 
 ## Practical next chunks (while Track A is blocked)
 
 1. ~~BUG-24 reverse-direction expansion.~~ ✅ Shipped in PR #50.
-2. **14.E cross-cloud Apply via sockerless-driven ARM.** All four sockerless prerequisites landed (#259 endpoint emission, #260 deterministic 64-byte storage keys, #262 RS256 JWKS-published Azure AD tokens, #269/#271 `{account}` interpolation + auto-derived `storage` suffix). PR #58 wires `azurerm → sockerless ARM → primaryEndpoints.blob → shim azure_blob frontend → inmem backend` end-to-end. The emitted URL uses `<account>.blob.localhost:<port>` (RFC 6761 `.localhost` → 127.0.0.1) so no DNS or /etc/hosts edits are needed. The shim's azure_blob frontend already accepts vhost-style addressing and the SharedKey verifier reads the account from the `Authorization` header, so no shim code changes were required after upstream landed.
-   - **Next services:** Key Vault (sockerless#262 RS256 makes Bearer verification feasible). Service Bus admin + queues + topics (sockerless already emits SAS connection strings).
-3. ~~Watch sockerless#244.~~ ✅ Done in PR #49.
+2. ~~14.E first through-shim azurerm Apply.~~ ✅ Shipped in PR #58 (storage / azure_blob / `azurerm_storage_container` data plane).
+3. **14.E expansion: Key Vault Apply via sockerless ARM — blocked on [sockerless#272](https://github.com/e6qu/sockerless/issues/272).** `azurerm_key_vault` + `azurerm_key_vault_secret` should compose the same way the storage cell does, but the sockerless mock token endpoint (`handleMockToken` in `simulators/azure/auth.go`) currently mints every token with a fixed `aud=https://management.azure.com/` regardless of the `scope` / `resource` form param. azurerm's KV data-plane client requests `scope=https://vault.azure.net/.default` and expects `aud=https://vault.azure.net` back; the shim's `azurebearer` verifier validates `aud` against the configured audience and would reject the ARM-audience token. Filed sockerless#272 asking the token endpoint to vary `aud` from the requested scope/resource. The shim side is ready (azurebearer already supports remote JWKS + configurable audience); resume the cell once #272 lands. Other resources behind Microsoft Entra (Service Bus AAD path, storage AAD path) are gated on the same fix.
+4. **14.E expansion: Service Bus admin + Send/Receive Apply.** After KV. The admin path uses ATOM XML; the data plane is raw AMQP/TLS. azurerm's `azurerm_servicebus_namespace` + `..._queue` + `..._topic` should compose against sockerless's Service Bus front (which already emits SAS connection strings). The shim's existing data-plane frontend handles AMQP/TLS via `CustomEndpoint`. Likely fewer new bits than KV.
+5. ~~Watch sockerless#244.~~ ✅ Done in PR #49.
 
 ### Lesson: ARM shimming via fakes was the wrong design
 
