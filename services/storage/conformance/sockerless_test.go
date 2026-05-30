@@ -1326,6 +1326,138 @@ func TestSockerless_E2E_AzureBlob_Through_Shim_ApplyTF_BackendGCS(t *testing.T) 
 	}
 }
 
+// TestSockerless_E2E_AWSS3_Through_Shim_ApplyTF_BackendGCS opens
+// the second source row of the cross-cloud Apply matrix:
+// `hashicorp/aws` Terraform Apply drives the shim's aws_s3
+// frontend (SigV4-verified), the shim's GCS backend translates
+// to sockerless's GCP simulator, and the bucket the
+// `aws_s3_bucket` resource declared lands in the GCS-shaped
+// store at sockerless.
+//
+// AWS source is simpler than Azure source: no separate ARM step
+// (S3 is one-tier), no TLS-cert plumbing for the shim's listener
+// (the SigV4 path verifies signed HTTP, no TLS needed), no fixed
+// port (a random httptest port is fine since the URL is read
+// after-the-fact for the provider endpoint override).
+func TestSockerless_E2E_AWSS3_Through_Shim_ApplyTF_BackendGCS(t *testing.T) {
+	gcpEndpoint := os.Getenv("SOCKERLESS_GCP_ENDPOINT")
+	if gcpEndpoint == "" {
+		t.Skip("SOCKERLESS_GCP_ENDPOINT not set")
+	}
+	tfBin, err := exec.LookPath("terraform")
+	if err != nil {
+		t.Skipf("terraform not installed: %v", err)
+	}
+
+	t.Setenv("STORAGE_EMULATOR_HOST", gcpEndpoint)
+	ctx := context.Background()
+	gcsClient, err := gcsstorage.NewClient(ctx, option.WithoutAuthentication())
+	if err != nil {
+		t.Fatalf("gcs client: %v", err)
+	}
+	project := os.Getenv("SOCKERLESS_GCP_PROJECT")
+	if project == "" {
+		project = "shim-sockerless"
+	}
+	backend := gcsbackend.New(gcsClient, gcsbackend.Config{ProjectID: project})
+	shim := harness.StartStorageServer(t, backend)
+
+	bucketName := "shim-aws-gcs-applied-" + randomNamespace("b")
+
+	dir := t.TempDir()
+	hcl := fmt.Sprintf(terraformAWSS3ApplyConfig, shim.URL, bucketName)
+	if err := os.WriteFile(filepath.Join(dir, "main.tf"), []byte(hcl), 0o644); err != nil {
+		t.Fatalf("write main.tf: %v", err)
+	}
+
+	runTf := func(args ...string) ([]byte, []byte, error) {
+		cmd := exec.Command(tfBin, args...)
+		cmd.Dir = dir
+		cmd.Env = append(os.Environ(),
+			"TF_IN_AUTOMATION=1",
+			"TF_INPUT=0",
+			"CHECKPOINT_DISABLE=1",
+		)
+		var stdout, stderr bytes.Buffer
+		cmd.Stdout = &stdout
+		cmd.Stderr = &stderr
+		err := cmd.Run()
+		return stdout.Bytes(), stderr.Bytes(), err
+	}
+	mustRun := func(args ...string) []byte {
+		t.Helper()
+		stdout, stderr, err := runTf(args...)
+		if err != nil {
+			t.Fatalf("terraform %s\nstdout:\n%s\nstderr:\n%s\nerr: %v",
+				strings.Join(args, " "), stdout, stderr, err)
+		}
+		return stdout
+	}
+
+	mustRun("init", "-no-color")
+	applyOut := mustRun("apply", "-no-color", "-auto-approve")
+	t.Logf("terraform apply stdout:\n%s", applyOut)
+	t.Cleanup(func() { _, _, _ = runTf("destroy", "-no-color", "-auto-approve") })
+
+	list, err := backend.ListBuckets(ctx, domain.ListBucketsOptions{})
+	if err != nil {
+		t.Fatalf("backend.ListBuckets (GCS): %v", err)
+	}
+	found := false
+	for _, b := range list.Buckets {
+		if b.Name == bucketName {
+			found = true
+			break
+		}
+	}
+	if !found {
+		names := make([]string, 0, len(list.Buckets))
+		for _, b := range list.Buckets {
+			names = append(names, b.Name)
+		}
+		t.Errorf("sockerless GCS bucket list did not contain %q; got %v", bucketName, names)
+	}
+}
+
+// terraformAWSS3ApplyConfig is the `hashicorp/aws` Terraform
+// configuration that drives the AWS-source through-shim Apply
+// cells. The provider's `endpoints { s3 = ... }` block reroutes
+// S3 calls at the shim; SigV4 credentials match the shim's
+// harness static-store. Path-style addressing avoids virtual-host
+// (`<bucket>.<endpoint>`) lookups against the loopback host.
+//
+// %[1]s = shim S3 frontend URL
+// %[2]s = bucket name
+const terraformAWSS3ApplyConfig = `
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+  }
+}
+
+provider "aws" {
+  region                      = "us-east-1"
+  access_key                  = "AKIAIOSFODNN7EXAMPLE"
+  secret_key                  = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+  skip_credentials_validation = true
+  skip_metadata_api_check     = true
+  skip_requesting_account_id  = true
+  s3_use_path_style           = true
+
+  endpoints {
+    s3 = "%[1]s"
+  }
+}
+
+resource "aws_s3_bucket" "applied" {
+  bucket = "%[2]s"
+  tags   = {}
+}
+`
+
 // deriveSockerlessAzureStorageKey64 mirrors sockerless's
 // simListKey64 (simulators/azure/listkeys_helper.go): the 64-byte
 // SharedKey for a storage account resource ID + key kind is
