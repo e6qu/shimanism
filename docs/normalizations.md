@@ -125,6 +125,49 @@ Users who care about specific retention windows configure them at the **destinat
 
 **Reference.** `services/secrets/backends/{aws,azure,gcp,inmem,vault}/{aws,azure,gcp,inmem,vault}.go::DeleteSecret`. Domain interface in `internal/secrets/domain/domain.go`.
 
+### N10 — Queue visibility timeout vs lock duration vs ack deadline
+
+**Asymmetry.** All three clouds have a "time before an in-flight message becomes redeliverable" concept, but the bounds + names differ wildly:
+
+- **AWS SQS:** `VisibilityTimeout` — 0 s to **12 hours** (43 200 s). Default 30 s.
+- **GCP Pub/Sub:** `ackDeadlineSeconds` on subscription — **10 s to 600 s** (10 min). Default 10 s.
+- **Azure Service Bus:** `LockDuration` — 5 s to **5 minutes** (300 s), passed as ISO 8601 duration. Default 60 s.
+
+**Rule.** The domain layer carries `VisibilityTimeoutSeconds` (int seconds). Backends translate as follows:
+
+- **AWS** backend passes the value through to the SQS `VisibilityTimeout` attribute. SQS rejects values > 43 200 with `InvalidAttributeValue`.
+- **GCP** backend **clamps** to `[10, 600]`: values below 10 are raised, values above 600 are lowered. This is the only backend that mutates the value silently.
+- **Azure** backend formats the value as ISO 8601 and passes it to `LockDuration`. Service Bus rejects values > 300 with its own validation error.
+
+**Trade-off.** The GCP backend's silent clamping is the consequential one — a user who configures `VisibilityTimeoutSeconds = 3600` (1 hour) and points the shim at GCP will see effective behaviour at 600 s with no warning. AWS and Azure backends pass through and let the cloud API reject; that error surfaces to the caller in the source cloud's error envelope.
+
+This inconsistency is **deliberate today** (GCP's hard 600 s limit means many real-world AWS-shape configurations would otherwise fail at the backend layer), but it's an open audit point: the alternative would be to fail the call with the source cloud's "invalid attribute" error so the user knows their cross-cloud config doesn't fit. Tracked at the bottom of this file under "Rules under audit".
+
+**Reference.** `services/queue/backends/{aws,gcp,azure}/{aws,gcp,azure}.go::CreateQueue`. GCP clamping at `services/queue/backends/gcp/gcp.go:80-86`.
+
+### N11 — RDBMS engine version naming
+
+**Asymmetry.** Each cloud has its own naming convention for database engine versions:
+
+- **AWS RDS:** `engine = "postgres"`, `engine_version = "16.1"` (major.minor decimal).
+- **GCP Cloud SQL:** `database_version = "POSTGRES_16"` (uppercase + underscore + major-only).
+- **Azure Database for PostgreSQL Flexible Server:** `version = "16"` (major-only integer).
+
+**Rule.** The domain layer (`internal/rdbms/domain`) carries `Engine` as a canonical enum (`EnginePostgres`, `EngineMySQL`, ...) and `EngineVersion` as an opaque string. Backends translate:
+
+- **GCP** backend has an explicit `gcpEngineVersion(engine, version)` helper that adds the `POSTGRES_` / `MYSQL_` prefix if not already present. Default version if empty: `POSTGRES_15` / `MYSQL_8_0`.
+- **AWS** and **Azure** backends pass the version string through to their respective API fields; the cloud's own validation rejects unsupported values.
+
+**Trade-off.** Cross-cloud version-string portability is lossy:
+
+- AWS-shape `engine_version = "16.1"` cross-cloud-applied against GCP becomes `POSTGRES_16.1`, which Cloud SQL rejects (GCP only accepts major-version strings like `POSTGRES_16`).
+- Azure-shape `version = "16"` cross-cloud-applied against AWS works (AWS accepts `"16"` as a valid major version).
+- GCP-shape `database_version = "POSTGRES_16"` cross-cloud-applied against AWS/Azure: the shim's GCP frontend translates this to domain `Engine=Postgres, EngineVersion="POSTGRES_16"` → AWS backend passes through `"POSTGRES_16"` as engine_version → RDS rejects.
+
+For portable cross-cloud Apply, users should use **major-version-only** version strings (`"16"`) — that's the form that round-trips losslessly across all three clouds. The shim doesn't transform user-supplied minor versions to/from major-only; that would silently change semantics.
+
+**Reference.** `services/rdbms/backends/gcp/gcp.go::gcpEngineVersion` + `domainEngineFromGCP`. AWS / Azure backends pass through directly.
+
 ## How rules are added
 
 When 14.E-style cross-cloud work surfaces a new asymmetry:
@@ -141,8 +184,6 @@ The contract: every cross-cloud translation rule is published, named, and exerci
 
 Items still pending audit + rule documentation:
 
-- **Queue visibility timeout vs lock duration vs ack deadline** — semantic alignment needed. AWS SQS `VisibilityTimeout` (≤ 12 h), GCP Pub/Sub `ackDeadlineSeconds` (≤ 10 min), Azure Service Bus lock duration (≤ 5 min). Per-cloud bounds differ; rule must document caller-side clamping or destination-cloud-bound surfacing.
-- **RDBMS engine version naming** — AWS `postgres 16.1` vs GCP `POSTGRES_16` vs Azure `16`.
 - **RDBMS connection string format** — per-cloud emission shape.
 - **Cache cluster mode** — sharded vs single-node across clouds.
 - **Functions runtime → container image mapping** — Lambda runtime translates to Cloud Run / Container Apps container; mapping table.
@@ -150,6 +191,10 @@ Items still pending audit + rule documentation:
 
 Each will land as a follow-on 15.A PR as the rule is audited + documented.
 
+**Open audit question on N10:** GCP backend's silent clamping of `VisibilityTimeoutSeconds` to `[10, 600]` is the only mutation across the queue backends; AWS / Azure pass through and let the cloud API reject. Decide whether to align by failing the call instead (preserves the source cloud's error vocabulary on cross-cloud config that doesn't fit GCP's hard limit) or document the clamping as the rule.
+
 Closed audit items:
 
 - ~~Soft-delete grace period~~ — covered by **N9** (cloud-deployment property, not call-level).
+- ~~Queue visibility timeout~~ — covered by **N10** (with an open sub-question on GCP-side clamping vs failing).
+- ~~RDBMS engine version naming~~ — covered by **N11** (major-version-only is the portable form).

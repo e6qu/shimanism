@@ -8,9 +8,9 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 
 | | |
 |---|---|
-| Active branch | `main` after PR #70 merged (15.A first cut, N1–N8 documented). Phase 15.A audit-extension PR in flight: adds N9 (soft-delete grace period). |
-| In-flight | **15.A N9: secrets soft-delete grace period.** New normalization rule documenting that the grace-period duration is a **cloud-deployment property**, not a per-call argument. Domain takes `force bool`; per-cloud retention differs (AWS configurable per-call to AWS, Azure vault-level, GCP no soft-delete). Documented in `docs/normalizations.md` § N9 with full audit of all 5 secrets backends (aws/azure/gcp/inmem/vault). Open audit items remaining: queue visibility timeout, RDBMS engine versions, RDBMS connection strings, cache cluster mode, functions runtime mapping, API Gateway stages. Track A blocked on real-cloud credentials. |
-| Last merged | PR #70 — 15.A first cut: normalisations contract doc (N1–N8). |
+| Active branch | `main` after PR #71 merged (15.A N9 soft-delete grace period). Phase 15.A audit-extension PR in flight: adds N10 (queue visibility timeout) and N11 (RDBMS engine version naming). |
+| In-flight | **15.A N10 + N11.** Two more normalisation rules. **N10**: queue visibility timeout / ack deadline / lock duration — per-cloud bounds differ (AWS ≤ 12 h, GCP ≤ 10 min, Azure ≤ 5 min); GCP backend silently clamps to [10, 600], AWS and Azure pass through. Flagged as an open sub-question (clamp vs fail). **N11**: RDBMS engine version naming — AWS `postgres 16.1` vs GCP `POSTGRES_16` vs Azure `16`. GCP backend translates `POSTGRES_` prefix; major-version-only is the portable form. Open audit items remaining: RDBMS connection strings, cache cluster mode, functions runtime mapping, API Gateway stages. Track A blocked on real-cloud credentials. |
+| Last merged | PR #71 — 15.A N9: secrets soft-delete grace period. |
 | Phases 1–13 | All closed (Phase 13 closed by PR #20). PR index in [PLAN.md § Closed phases](PLAN.md#closed-phases-pr-index). |
 | Phase 14 | 14.A ✅ · 14.B ✅ · 14.C ✅ · 14.D ✅ (simulator audit) / Track A blocked · 14.E ✅. Remaining residuals (terraform-aws `_wo` drift, SB cross-cloud scoping) carried into Phase 15.B. |
 | Phase 15 | Just opened. Sub-phases: 15.A normalisations contract doc · 15.B 14.E cleanups · 15.C NoSQL key-value · 15.D DNS public+private. 15.A ships first. See [PLAN.md § Phase 15](PLAN.md#phase-15--cross-cloud-normalization-standard--new-service-expansion). |

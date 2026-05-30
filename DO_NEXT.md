@@ -45,7 +45,7 @@ Phase 14 closed; 14.E shipped 11 PRs (#58–#67 + this PR's secrets matrix). Pha
 
 Phase 15 sub-phase order:
 
-1. **15.A — Normalisations contract doc.** PR #70 landed the first cut (N1–N8). This PR adds **N9: secrets soft-delete grace period** (cloud-deployment property, not call-level). Remaining audit items at the bottom of `normalizations.md` for follow-on 15.A PRs: queue visibility timeout vs lock duration vs ack deadline, RDBMS engine version naming, RDBMS connection string format, cache cluster mode, functions runtime → container image mapping, API Gateway stages vs configs vs products.
+1. **15.A — Normalisations contract doc.** PR #70 landed N1–N8; PR #71 added N9 (soft-delete grace period). This PR adds **N10: queue visibility timeout / lock duration / ack deadline** (per-cloud bounds differ; GCP backend silently clamps — flagged as open sub-question) and **N11: RDBMS engine version naming** (GCP backend translates `POSTGRES_` prefix; major-version-only is the portable form). Remaining audit items: RDBMS connection string format, cache cluster mode, functions runtime → container image mapping, API Gateway stages vs configs vs products.
 2. **15.B — 14.E residual cleanups.** Investigate `terraform-aws v5` `has_secret_string_wo` drift on `TestCrossCloudApply_Roundtrip_SecretsAWStoAzure` (skipped today). Scope SB cross-cloud (decide: build shim AMQP listener / file sockerless / formally close as out-of-intersection).
 3. **15.C — NoSQL key-value service.** DynamoDB + Firestore Native + Cosmos DB Table API + K8s peer (etcd-based). Get / Put / Delete / Scan on partition key. Multi-PR.
 4. **15.D — DNS service.** Route 53 + Cloud DNS + Azure DNS + K8s peer (CoreDNS). Public + private zones; standard record types. Multi-PR.
