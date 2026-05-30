@@ -1,0 +1,16 @@
+{
+  "_comment": "The intersection operation set for the DNS shim's AWS Route 53 frontend. See services/dns/INTERSECTION.md for the per-cloud equivalence table and services/dns/APPLY_INTERSECTION.md for the Terraform contract.",
+  "spec": "services/dns/spec/aws-route-53.smithy.json",
+  "package": "gen",
+  "out": "services/dns/gen/aws_route53.gen.go",
+  "operations": [
+    "CreateHostedZone",
+    "DeleteHostedZone",
+    "GetHostedZone",
+    "ListHostedZones",
+    "ChangeResourceRecordSets",
+    "ListResourceRecordSets",
+    "ChangeTagsForResource",
+    "ListTagsForResource"
+  ]
+}

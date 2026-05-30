@@ -32,7 +32,20 @@ Cross-referenced from `PHILOSOPHY.md` (operational footnote on "The Circle"), `A
 
 Open audit items captured at the bottom of `normalizations.md` for follow-on 15.A PRs: soft-delete grace period, queue visibility-timeout semantics, RDBMS engine version naming + connection string, cache cluster mode, functions runtime → container image mapping, API Gateway stages-vs-configs-vs-products. Each becomes a rule entry once audited.
 
-### 15.D foundational: domain + inmem + N17 (this PR, after PR #78)
+### 15.D AWS Route 53 backend (this PR, after PR #79)
+
+Second 15.D chunk. The first frontend's destination-side translation layer.
+
+- `services/dns/spec/aws-route-53.smithy.json` — Smithy spec vendored from `aws/aws-sdk-go-v2`@`13bee3c72e77d68d6180fb633a7ce1c8714d53c0`. Replaces the README.md placeholder PR #79 used to bypass the inject-provenance gate.
+- `services/dns/codegen.json` — manifest naming the in-intersection ops (CreateHostedZone / DeleteHostedZone / GetHostedZone / ListHostedZones / ChangeResourceRecordSets / ListResourceRecordSets / ChangeTagsForResource / ListTagsForResource). `make codegen` emits `services/dns/gen/aws_route53.gen.go` (~39 KB; rest-xml protocol, same template as S3).
+- `services/dns/backends/aws/aws.go` — `domain.DNS` implemented against `aws-sdk-go-v2/service/route53`. Name → HostedZoneId resolved per request via `ListHostedZonesByName` (no shim-side mapping table). N17 dispatch: `Visibility=Private` passes the first `PrivateVPCs` entry as the `VPC` field on `CreateHostedZone`; `Visibility=Public` omits it. TXT records are double-quoted on write and stripped on read (Route 53 wire format). `DeleteZone(force=true)` enumerates record sets and batches `ChangeResourceRecordSets` DELETE actions, skipping cloud-managed SOA + apex NS records.
+- `services/dns/backends/aws/aws_test.go` — pure-Go unit tests for the helper layer (canonicalize, TXT encode/decode round-trip, AWS↔domain record-set translation, zone visibility decode from `HostedZoneConfig.PrivateZone`).
+
+**Conformance lives in the follow-on PR.** This PR is backend-only; no frontend handler is registered yet, so the AGENTS.md "conformance in same commit" gate doesn't fire. The frontend PR will land `internal/dns/frontends/aws_route53/` plus SDK + CLI + Terraform conformance against the sockerless AWS sim (which already implements Route 53 — `/Users/zardoz/projects/sockerless/simulators/aws/route53.go`).
+
+**Same-name public+private zone is a known caveat.** Route 53 lets you create both; the shim's `GetZone(name)` resolves to whichever `ListHostedZonesByName` surfaces first. Disambiguation requires `ListZones(Visibility=...)` for now. A follow-on normalisation rule (N17 expansion or N18) can carry the discriminator into the domain if the user-visible value justifies.
+
+### 15.D foundational: domain + inmem + N17 (PR #79, after PR #78)
 
 First chunk of 15.D implementation. Establishes the skeleton:
 
