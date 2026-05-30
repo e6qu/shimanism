@@ -12,15 +12,17 @@ PR #21 (2026-05-25) landed 14.A, the 14.D simulator audit, and the 14.B sockerle
 
 Mirrors PR #67's storage batch on the secrets matrix. Four cells in one PR — `TestSockerless_E2E_AWSSecrets_Through_Shim_ApplyTF_BackendAzure` / `_BackendGCP` and `TestSockerless_E2E_GCPSecrets_Through_Shim_ApplyTF_BackendAWS` / `_BackendAzure`. Factored helpers (`sockerlessAzureKVBackend`, `sockerlessAWSSMBackend`, `sockerlessGCPSMBackend`, `terraformSecretsRunner`, `expectSecretValueInBackend`, `secretsGCSBearerJWT`) keep per-cell code under 40 lines.
 
-Combined with PRs #59 / #64 / #65 this closes the secrets cross-cloud Apply matrix across every source / backend permutation the shim covers:
+Combined with PRs #59 / #64 / #65 the secrets cross-cloud Apply matrix is closed on every source / backend permutation the shim can compose honestly:
 
 | Source ↓ / Backend → | inmem | AWS | GCP | Azure |
 |---|---|---|---|---|
 | Azure | ✓ #59 | ✓ #64 | ✓ #65 | self |
-| AWS | TF-only | self | this PR | this PR |
-| GCP | TF-only | this PR | self | this PR |
+| AWS | TF-only | self | this PR | inherent mismatch (skip) |
+| GCP | TF-only | this PR | self | inherent mismatch (skip) |
 
-End-to-end: write AWS-shape or GCP-shape Terraform; the secret lands in whichever of AWS Secrets Manager / Azure Key Vault / GCP Secret Manager the shim's backend points at, regardless of which cloud's Terraform provider you started from.
+**The AWS/GCP→Azure cells are skipped on purpose.** AWS's `aws_secretsmanager_secret` and GCP's `google_secret_manager_secret` resources are name-only at creation, with a separate `_secret_version` resource carrying the value (split into two Terraform resources). Azure Key Vault's data plane rejects empty creates: `400 InvalidParameterException: Azure Key Vault requires an initial value when creating a secret`. The shim's `azurebackend.CreateSecret` surfaces that honestly — adding a "synthesise an empty value" workaround would violate the no-fakes rule, and buffering the empty Create until the version resource arrives would require holding state of record (which violates the stateless-shim invariant). So the cells are `t.Skip`'d with the explanation in tree as a documented incompatibility marker.
+
+End-to-end on the composable corners: write AWS-shape or GCP-shape Terraform with both resources; the secret lands in either AWS Secrets Manager (from GCP source) or GCP Secret Manager (from AWS source).
 
 ### 14.E closure narrative (PRs #58–#67, 2026-05-29 to 2026-05-30)
 
