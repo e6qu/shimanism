@@ -43,7 +43,7 @@ Real-cloud lanes for BUG-8 (hashicorp/google API Gateway TF endpoint/OAuth leg) 
 
 Phase 14.E shipped 10 PRs (#58–#67) — see WHAT_WE_DID.md § 14.E closure narrative. Remaining work in priority order:
 
-1. **Secrets cross-cloud closure (mechanical).** AWS-source secrets Apply + GCS-source secrets Apply, 4 cells total mirroring PR #67's storage batch. Helpers from PR #67 (`terraformRunner`, `expectBucketInBackend`, `gcsBearerJWT`) reuse cleanly. Pick this up if 14.E full-matrix completeness matters for a Phase-14 sign-off; otherwise defer to Phase 15.
+1. **Secrets cross-cloud closure — implemented (this PR).** 4 cells: AWS-source → Azure / GCP backends; GCS-source → AWS / Azure backends. Combined with PRs #59 / #64 / #65 this closes the secrets cross-cloud Apply matrix across every source / backend permutation the shim covers.
 2. **SB cross-cloud cells.** Blocked on missing shim-side AMQP listener in `internal/queue/frontends/azure_servicebus` (file header explicitly says AMQP tier is deferred). Substantial new shim work — AMQP frame parsing, SASL ANONYMOUS, link / session lifecycle. Phase 15 scoping question.
 3. **Track A real-cloud Apply.** BUG-8 + BUG-15 + real-signed verifier conformance. Still blocked on real AWS / GCP / Azure credentials.
 4. **Phase 15 design.** What's the next shape — broader service coverage (Event Hubs, Cosmos DB, Event Grid)? Multi-tenant deployment model? Real-cloud Track A bring-up? Open question.

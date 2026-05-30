@@ -6,7 +6,21 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 
 ## Phase 14 — Closing
 
-PR #21 (2026-05-25) landed 14.A, the 14.D simulator audit, and the 14.B sockerless lane skeleton. PR #46 closed 14.B/C narrowly; PR #47 retired the last Phase-13 ◐ migration (`azure_blob`). 14.E shipped as **10 PRs (#58–#67)** over 2026-05-29 / 2026-05-30, walking the through-shim Apply pattern from the first honest cell up through the storage cross-cloud matrix's closure. What remains under Phase 14: 14.D Track A (real-cloud credentials), captured as Phase-15 carryover. 14.E residuals (secrets AWS / GCS-source rows, SB cross-cloud) are also Phase-15 candidates.
+PR #21 (2026-05-25) landed 14.A, the 14.D simulator audit, and the 14.B sockerless lane skeleton. PR #46 closed 14.B/C narrowly; PR #47 retired the last Phase-13 ◐ migration (`azure_blob`). 14.E shipped as **11 PRs (#58–#67, plus the secrets-matrix closure this PR adds)** over 2026-05-29 / 2026-05-30, walking the through-shim Apply pattern from the first honest cell up through full storage + secrets cross-cloud matrix coverage. What remains under Phase 14: 14.D Track A (real-cloud credentials), captured as Phase-15 carryover. SB cross-cloud (blocked on missing shim-side AMQP listener) is also a Phase-15 candidate.
+
+### 14.E secrets cross-cloud matrix closure (this PR, after PR #68)
+
+Mirrors PR #67's storage batch on the secrets matrix. Four cells in one PR — `TestSockerless_E2E_AWSSecrets_Through_Shim_ApplyTF_BackendAzure` / `_BackendGCP` and `TestSockerless_E2E_GCPSecrets_Through_Shim_ApplyTF_BackendAWS` / `_BackendAzure`. Factored helpers (`sockerlessAzureKVBackend`, `sockerlessAWSSMBackend`, `sockerlessGCPSMBackend`, `terraformSecretsRunner`, `expectSecretValueInBackend`, `secretsGCSBearerJWT`) keep per-cell code under 40 lines.
+
+Combined with PRs #59 / #64 / #65 this closes the secrets cross-cloud Apply matrix across every source / backend permutation the shim covers:
+
+| Source ↓ / Backend → | inmem | AWS | GCP | Azure |
+|---|---|---|---|---|
+| Azure | ✓ #59 | ✓ #64 | ✓ #65 | self |
+| AWS | TF-only | self | this PR | this PR |
+| GCP | TF-only | this PR | self | this PR |
+
+End-to-end: write AWS-shape or GCP-shape Terraform; the secret lands in whichever of AWS Secrets Manager / Azure Key Vault / GCP Secret Manager the shim's backend points at, regardless of which cloud's Terraform provider you started from.
 
 ### 14.E closure narrative (PRs #58–#67, 2026-05-29 to 2026-05-30)
 

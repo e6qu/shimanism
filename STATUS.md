@@ -8,9 +8,9 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 
 | | |
 |---|---|
-| Active branch | `main` after PR #67 merged (storage cross-cloud Apply matrix closure). Phase 14.E **closing**; this PR rolls the closure narrative forward. |
-| In-flight | **Phase 14.E closure.** 10 PRs (#58–#67) landed the through-shim Apply pattern across the entire storage matrix and the Azure-source row of the secrets matrix. Surfaced 6 sockerless gaps (#257 / #260 / #261 / #269 / #272 / #276), all closed upstream. **Deferred to Phase 15:** secrets AWS / GCS-source rows (mechanically identical to PR #67's storage batch), SB cross-cloud cells (blocked on missing shim-side AMQP listener), Track A real-cloud Apply (still blocked on credentials). |
-| Last merged | PR #67 — 14.E storage cross-cloud Apply matrix closure (3 cells in one PR). |
+| Active branch | `main` after PR #68 merged (14.E closure docs). Phase 14.E secrets-matrix closure PR in flight (one of the deferred residuals named in #68's narrative). |
+| In-flight | **14.E secrets cross-cloud Apply matrix closure.** Four cells in one PR: AWS-source → Azure backend, AWS-source → GCP backend, GCS-source → AWS backend, GCS-source → Azure backend. Combined with PRs #59 / #64 / #65 this closes the secrets cross-cloud Apply matrix across every source / backend permutation the shim covers. Factored helpers (`sockerlessAzureKVBackend`, `sockerlessAWSSMBackend`, `sockerlessGCPSMBackend`, `terraformSecretsRunner`, `expectSecretValueInBackend`) keep per-cell code small. Track A blocked on real-cloud credentials. |
+| Last merged | PR #68 — Phase 14.E closure: continuity docs roll forward. |
 | Phases 1–13 | All closed (Phase 13 closed by PR #20). PR index in [PLAN.md § Closed phases](PLAN.md#closed-phases-pr-index). |
 | Phase 14 | 14.A ✅ · 14.B ✅ · 14.C ✅ · 14.D ✅ (simulator audit) / Track A blocked · 14.E ✅ with deferred residuals (secrets AWS / GCS-source rows, SB cross-cloud). |
 | Bugs | **38 filed · 36 fixed · 2 open · 1 false positive.** Open: **BUG-8** (apigateway TF-provider Track A leg, real GCP), **BUG-15** (queue TF state-drift Track A leg, real GCP). BUG-35 closed by sockerless PR #245. |
