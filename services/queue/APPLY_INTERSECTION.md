@@ -70,6 +70,7 @@ No async polling. Synchronous everywhere.
 - `google_pubsub_subscription` push-config (handled in services/pubsub).
 - Azure session-enabled queues + duplicate-detection windows.
 - All encryption-at-rest config.
+- **Cross-cloud Service Bus Apply via a shim AMQP frontend.** The shim's `internal/queue/frontends/azure_servicebus` is REST/ATOM-only by design (file header explicitly defers AMQP). Cross-cloud Apply where the source-cloud Terraform sends messages through a shim AMQP endpoint cannot compose. The Apply path that DOES compose — through the shim's `azurequeue` *backend* against sockerless's AMQP listener — is exercised by PRs #60 / #61. Documented as **N16** in [`docs/normalizations.md`](../../docs/normalizations.md#n16--azure-service-bus-amqp-frontend-deliberately-out-of-intersection); building the AMQP listener is multi-PR Phase-16+ work, not in shimanism's current roadmap.
 
 ## What this contract commits the shim to
 

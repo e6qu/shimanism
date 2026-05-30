@@ -32,7 +32,17 @@ Cross-referenced from `PHILOSOPHY.md` (operational footnote on "The Circle"), `A
 
 Open audit items captured at the bottom of `normalizations.md` for follow-on 15.A PRs: soft-delete grace period, queue visibility-timeout semantics, RDBMS engine version naming + connection string, cache cluster mode, functions runtime → container image mapping, API Gateway stages-vs-configs-vs-products. Each becomes a rule entry once audited.
 
-### 15.B N10 decision: fail instead of silently clamp (this PR, after PR #75)
+### 15.B closing: N13 stays opaque, N16 SB cross-cloud out-of-intersection (this PR, after PR #76)
+
+The final two 15.B audit items resolved.
+
+**N13 — Cache `NodeType` stays opaque pass-through.** A normalised `small`/`medium`/`large` enum with per-cloud mapping would require three mapping tables (one per cloud) that need updating whenever a cloud changes SKUs / pricing tiers / regional availability. The ergonomic gain — letting users write `tier = "small"` portably — is real but small (sizing isn't fully portable anyway: memory, IOPS, network bandwidth, and price differ across `cache.t3.micro` / `BASIC m=1GB` / `Basic C0 250MB`). The honest current behaviour ("your value didn't fit the destination cloud" surfaced as a backend error) is better than approximating sizes. Deferred until cross-cloud Cache Apply becomes a common scenario.
+
+**N16 (new) — Azure Service Bus AMQP frontend deliberately out-of-intersection.** Cross-cloud Apply where the source-cloud Terraform sends messages through a shim AMQP endpoint cannot compose: `internal/queue/frontends/azure_servicebus` is REST/ATOM-only by design (file header explicitly defers AMQP). Building the AMQP listener — frame parsing + SASL ANONYMOUS + link / session lifecycle + security model — is multi-PR Phase-16+ scope work, doesn't match user-visible value today (no real-world cross-cloud SB migration pressure surfaced). Documented as N16 in `normalizations.md` and as an "out of contract" entry in `services/queue/APPLY_INTERSECTION.md`. The Apply path that DOES compose — through the shim's `azurequeue` backend against sockerless's AMQP listener — remains supported by PRs #60 / #61.
+
+**Phase 15.B closes with this PR.** Three sub-phases of 15.B shipped (PR #75 `_wo` investigation, PR #76 N10 clamp-vs-fail, this PR N13 + N16). All 14.E residuals now have published rules or formal out-of-intersection notes.
+
+### 15.B N10 decision: fail instead of silently clamp (PR #76, after PR #75)
 
 Sub-question from N10 resolved. The GCP queue backend had been silently clamping `VisibilityTimeoutSeconds` to `[10, 600]` (GCP Pub/Sub's `ackDeadlineSeconds` bounds). Per shimanism's "never lie" rule + "fidelity to source cloud's API" rule, that was the wrong default — silent mutation of user-set values violates both.
 

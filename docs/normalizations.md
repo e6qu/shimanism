@@ -230,6 +230,20 @@ For these use cases users either go to the destination-cloud's native API direct
 
 **Reference.** `internal/apigateway/domain/domain.go::Gateway` + `DeployGateway`. Per-cloud `DeployGateway` implementations in `services/apigateway/backends/{aws,gcp,azure}/`.
 
+### N16 — Azure Service Bus AMQP frontend: deliberately out of intersection
+
+**Asymmetry.** Azure Service Bus's data plane is AMQP/TLS. Source-cloud Terraform that drives SB queues / topics (e.g. `azurerm_servicebus_queue` + an `azservicebus.Client` Send/Receive) needs an AMQP-speaking endpoint at the shim. The shim's `internal/queue/frontends/azure_servicebus` is **REST/ATOM-only** — the file header explicitly says "AMQP tier is deferred." That means cross-cloud Apply for Service Bus where the source-cloud Terraform sends messages through the shim's frontend cannot compose: there's no AMQP listener for the SDK to talk to.
+
+**Rule.** Cross-cloud Service Bus Apply *via the shim's frontend* is **out of intersection**. The shim returns no AMQP listener; calls into the missing surface fail at the connection layer. This is not a sockerless gap — sockerless faithfully provides the AMQP server on the destination side; what's missing is the shim being a faithful AMQP receiver.
+
+For the Apply path the shim DOES support, see PRs #60 / #61: through-shim Service Bus Apply where azurerm targets sockerless's real ARM, sockerless emits the SAS connection string, and the shim's *backend* (not frontend) drives `azservicebus.Client` Send/Receive against sockerless's AMQP listener. That cell exercises the shim's backend translation layer; the frontend remains REST/ATOM-only.
+
+**Trade-off.** Users who want full source-cloud-Terraform → shim AMQP front → destination-cloud-AMQP-backend cross-cloud Apply for SB queues / topics don't have a path through the shim today. Workarounds: use the shim's backend translation directly (without going through a shim AMQP frontend), or migrate to a non-AMQP queue service (SQS / Pub/Sub) where the shim's frontends are HTTP and cross-cloud Apply already works.
+
+**Why not build the AMQP listener?** AMQP frame parsing + SASL ANONYMOUS + link / session lifecycle + security model is multi-PR Phase-16+ scope work. The cost doesn't match the user-visible value today (no real-world cross-cloud SB migration pressure surfaced in shimanism's roadmap). Building it stays as a deferred Phase-16+ consideration.
+
+**Reference.** `internal/queue/frontends/azure_servicebus/server.go` file header (explicitly defers AMQP). PRs #60 / #61 (the backend-layer SB through-shim Apply that DOES work). `services/queue/APPLY_INTERSECTION.md` for the service-level closure note.
+
 ## How rules are added
 
 When 14.E-style cross-cloud work surfaces a new asymmetry:
@@ -248,7 +262,7 @@ The first-pass audit is complete: every implicit normalisation the shim implemen
 
 ~~**Open sub-question on N10:**~~ Resolved in 15.B (the GCP queue backend now fails with `domain.InvalidArgument` on `VisibilityTimeoutSeconds > 600` instead of silently clamping). N10 above documents the final rule.
 
-**Open sub-question on N13:** consider whether a normalised "tier" enum (`small`/`medium`/`large` with documented per-cloud mapping) would help cross-cloud Apply, even though sizing isn't fully portable. Today's rule is opaque pass-through; the alternative is a domain enum with a published mapping table. Worth pursuing if cross-cloud Apply for Cache becomes a common scenario.
+~~**Open sub-question on N13:**~~ Resolved in 15.B: **keep opaque pass-through**. Adding a normalised `small`/`medium`/`large` enum with per-cloud mapping would require maintaining three mapping tables (one per cloud) that need updating whenever a cloud changes SKUs / pricing tiers / regional availability. The ergonomic gain — letting users write `tier = "small"` portably — is real but small (sizing isn't fully portable anyway: memory, IOPS, network bandwidth, and price differ across `cache.t3.micro` / `BASIC m=1GB` / `Basic C0 250MB`). Defer building the enum until cross-cloud Apply for Cache becomes a common scenario; today's opaque pass-through honestly tells the user "your value didn't fit the destination cloud" rather than mapping to something approximate. The shim's `domain.cache.NodeType` stays an opaque string.
 
 ### Phase 15.B investigation: terraform-aws `has_secret_string_wo` drift
 
@@ -272,6 +286,7 @@ Closed audit items:
 - ~~Queue visibility timeout~~ — covered by **N10** (with an open sub-question on GCP-side clamping vs failing).
 - ~~RDBMS engine version naming~~ — covered by **N11** (major-version-only is the portable form).
 - ~~RDBMS connection string format~~ — covered by **N12** (host + port at domain; no shim-side connection-string synthesis).
-- ~~Cache cluster mode~~ — covered by **N13** (opaque `NodeType` pass-through; open sub-question on a normalised tier enum).
+- ~~Cache cluster mode~~ — covered by **N13** (opaque `NodeType` pass-through; sub-question resolved in 15.B in favour of keeping it opaque).
+- ~~Service Bus cross-cloud via AMQP frontend~~ — covered by **N16** (deliberately out-of-intersection; AMQP listener at the shim is multi-PR Phase-16+ work, not built).
 - ~~Functions runtime → container image~~ — covered by **N14** (container-image canonical form; language-runtime Lambdas are out of intersection).
 - ~~API Gateway stages vs configs vs products~~ — covered by **N15** (deliberate flattening into a declarative-replace routing table; stages / configs / products are implementation detail that doesn't escape the domain).
