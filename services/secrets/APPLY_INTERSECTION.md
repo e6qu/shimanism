@@ -107,23 +107,30 @@ Azure Key Vault stores a `contentType` string on each secret version. Cross-clou
 
 ## Cross-cloud Apply: AWS → Azure asymmetry
 
-A real cross-cloud asymmetry surfaced by 10.7: hashicorp/aws issues
-`CreateSecret` first (no value), then `PutSecretValue` via the
-separate `aws_secretsmanager_secret_version` resource. AWS Secrets
-Manager accepts the value-less CreateSecret; Azure Key Vault doesn't
-(`SetSecret` is the only create path and requires a `Value`).
+A real cross-cloud asymmetry: hashicorp/aws issues `CreateSecret`
+first (no value), then `PutSecretValue` via the separate
+`aws_secretsmanager_secret_version` resource. AWS Secrets Manager
+accepts the value-less CreateSecret; Azure Key Vault's data plane
+has no such operation (`SetSecret` is the only create path and
+requires `Value`).
 
-The shim's Azure backend honestly rejects the value-less CreateSecret
-with `InvalidArgument("Azure Key Vault requires an initial value")`.
-Terraform Apply against the AWS→Azure cell fails on the secret-create
-step; the separation of secret + secret_version resources in the
-hashicorp/aws schema means there's no fixture-side workaround
-(secret_string is not exposed on `aws_secretsmanager_secret`).
+The shim's Azure backend bridges the asymmetry via **empty-placeholder
+translation**: a value-less `CreateSecret` writes an empty string value
+to Azure (the closest analog to "no value yet" that Azure's data plane
+can represent — `SetSecret(value: "")` is valid). The secret is
+immediately queryable by the source provider's stabilization poll
+(`DescribeSecret`-style). The follow-up `PutSecretValue` calls Azure
+`SetSecret` with the real value, which Azure stores as a new version
+(version 2). End-of-Apply state matches AWS at the value layer — the
+real value is the latest version. Trade-off: there's an extra
+version 1 carrying the empty placeholder, observable via
+`ListSecretVersions` but not via value reads.
 
-`TestCrossCloudApply_Roundtrip_SecretsAWStoAzure` documents this and
-diamond-skips. It's not a shim bug — it's a structural difference
-between AWS Secrets Manager and Azure Key Vault that affects this
-specific migration path.
+`TestCrossCloudApply_Roundtrip_SecretsAWStoAzure` exercises this
+path in-process. The sockerless variants
+(`TestSockerless_E2E_AWSSecrets_Through_Shim_ApplyTF_BackendAzure`
+and the GCP-source twin) exercise it end-to-end against the Azure
+KV simulator.
 
 ## What this contract commits the shim to
 

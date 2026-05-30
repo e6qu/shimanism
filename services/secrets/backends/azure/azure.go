@@ -76,10 +76,32 @@ func (b *Backend) CreateSecret(ctx context.Context, name string, opt domain.Crea
 	}
 
 	if opt.InitialValue == nil {
-		// Azure can't create a secret without a value. Return
-		// InvalidArgument with the source-cloud-shaped vocabulary.
-		return domain.CreateSecretResult{}, domain.InvalidArgument(
-			"Azure Key Vault requires an initial value when creating a secret")
+		// Cross-cloud migration translation. AWS Secrets Manager
+		// and GCP Secret Manager support value-less creates (their
+		// terraform providers split into `_secret` + `_secret_version`
+		// for this reason). Azure Key Vault's data plane doesn't —
+		// `SetSecret` is the only create operation and requires
+		// `value`. The closest Azure-native representation of
+		// "secret exists, no real value yet" is the empty-string
+		// value, which Azure accepts.
+		//
+		// The shim writes that empty placeholder so the secret is
+		// immediately queryable (matching the source provider's
+		// expectation after a successful Create), then the
+		// follow-up `PutSecretValue` stores the real value as a
+		// new Azure version. End-of-Apply state at the value
+		// layer matches AWS (latest version = real value). The
+		// observable trade-off in Azure: an extra version-1
+		// carrying the empty placeholder. This is the convention
+		// for `AWS / GCP → Azure KV` secret migrations.
+		empty := ""
+		if _, err := b.c.SetSecret(ctx, name, azsecrets.SetSecretParameters{
+			Value: &empty,
+			Tags:  azureTags(opt.Tags, opt.Description),
+		}, nil); err != nil {
+			return domain.CreateSecretResult{}, translateErr(err, name)
+		}
+		return domain.CreateSecretResult{Version: 1}, nil
 	}
 	val := string(opt.InitialValue)
 	tags := azureTags(opt.Tags, opt.Description)

@@ -1295,20 +1295,6 @@ func secretsGCSBearerJWT() string {
 // Secrets Manager frontend, then through the shim's Azure Key Vault
 // backend, then to sockerless's Azure simulator.
 func TestSockerless_E2E_AWSSecrets_Through_Shim_ApplyTF_BackendAzure(t *testing.T) {
-	// Inherent source-vs-destination semantic mismatch: AWS / GCP
-	// secrets resources split creation into `aws_secretsmanager_secret`
-	// (name only, no value) + `aws_secretsmanager_secret_version`
-	// (value). The shim faithfully forwards the value-less Create
-	// to its Azure Key Vault backend, but Azure KV's data plane
-	// rejects empty secrets: `400 InvalidParameterException: Azure
-	// Key Vault requires an initial value when creating a secret`.
-	// The shim must surface this honestly — degrading to a
-	// "synthesise an empty value" workaround would violate the
-	// no-fakes rule. The cell stays in tree as a documented
-	// incompatibility marker; revisit if a future shim adapter
-	// can buffer the empty Create until the first version arrives
-	// without holding state of record.
-	t.Skip("Azure KV data plane requires an initial value; AWS terraform's _secret + _secret_version split can't compose against this backend honestly")
 	tfBin, err := exec.LookPath("terraform")
 	if err != nil {
 		t.Skipf("terraform not installed: %v", err)
@@ -1397,12 +1383,6 @@ func TestSockerless_E2E_GCPSecrets_Through_Shim_ApplyTF_BackendAWS(t *testing.T)
 // drives `hashicorp/google` Terraform Apply → shim GCP frontend →
 // shim Azure Key Vault backend → sockerless Azure simulator.
 func TestSockerless_E2E_GCPSecrets_Through_Shim_ApplyTF_BackendAzure(t *testing.T) {
-	// Same incompatibility as the AWS-source variant: GCP's
-	// `google_secret_manager_secret` + `_secret_version` split
-	// can't compose against Azure KV's data plane, which rejects
-	// empty Create calls. See the BackendAzure twin's comment for
-	// the architectural rationale.
-	t.Skip("Azure KV data plane requires an initial value; GCP terraform's _secret + _secret_version split can't compose against this backend honestly")
 	tfBin, err := exec.LookPath("terraform")
 	if err != nil {
 		t.Skipf("terraform not installed: %v", err)
