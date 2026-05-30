@@ -36,6 +36,7 @@ import (
 	"google.golang.org/api/option"
 
 	"github.com/e6qu/shimanism/internal/azurebearer"
+	"github.com/e6qu/shimanism/internal/gcpbearer"
 	"github.com/e6qu/shimanism/internal/harness"
 	"github.com/e6qu/shimanism/internal/secrets/domain"
 	awsbackend "github.com/e6qu/shimanism/services/secrets/backends/aws"
@@ -1140,3 +1141,349 @@ func TestSockerless_GCPSecretManagerFrontendToAWSBackend_RoundTrip(t *testing.T)
 		t.Errorf("GetSecretValue = %q, want %q", string(v.Value), "rev-source-payload")
 	}
 }
+
+// =====================================================================
+// Cross-cloud Apply matrix closure for secrets (PR 68 follow-up).
+//
+// Mirrors PR #67's storage batch on the secrets matrix. Four cells:
+// AWS-source → Azure/GCP backend, GCS-source → AWS/Azure backend.
+// Combined with PRs #59/#64/#65 (Azure-source row) this closes the
+// secrets cross-cloud Apply matrix across every source/backend
+// permutation the shim covers.
+// =====================================================================
+
+// sockerlessAzureKVBackend wires the shim's Azure Key Vault backend
+// to sockerless's Azure simulator. Used by cells whose destination
+// is the Azure-shape secrets store.
+func sockerlessAzureKVBackend(t *testing.T) *azurebackend.Backend {
+	t.Helper()
+	vaultURL := os.Getenv("SOCKERLESS_AZURE_KV_URL")
+	if vaultURL == "" {
+		t.Skip("SOCKERLESS_AZURE_KV_URL not set")
+	}
+	port := os.Getenv("SOCKERLESS_AZURE_TLS_PORT")
+	if port == "" {
+		t.Skip("SOCKERLESS_AZURE_TLS_PORT not set")
+	}
+	httpClient := &http.Client{Transport: localhostDialTransport(port)}
+	c, err := azsecrets.NewClient(vaultURL, noOpCredential{}, &azsecrets.ClientOptions{
+		ClientOptions: azcore.ClientOptions{Transport: httpClient},
+	})
+	if err != nil {
+		t.Fatalf("kv secrets client: %v", err)
+	}
+	return azurebackend.New(c)
+}
+
+// sockerlessAWSSMBackend wires the shim's AWS Secrets Manager
+// backend to sockerless's AWS simulator. Mirrors the setup in
+// TestSockerless_AWSSecretsManager_RoundTrip.
+func sockerlessAWSSMBackend(t *testing.T) *awsbackend.Backend {
+	t.Helper()
+	endpoint := os.Getenv("SOCKERLESS_AWS_SM_ENDPOINT")
+	if endpoint == "" {
+		t.Skip("SOCKERLESS_AWS_SM_ENDPOINT not set")
+	}
+	if os.Getenv("AWS_ACCESS_KEY_ID") == "" {
+		t.Setenv("AWS_ACCESS_KEY_ID", "test")
+	}
+	if os.Getenv("AWS_SECRET_ACCESS_KEY") == "" {
+		t.Setenv("AWS_SECRET_ACCESS_KEY", "test")
+	}
+	if os.Getenv("AWS_REGION") == "" {
+		t.Setenv("AWS_REGION", "us-east-1")
+	}
+	cfg, err := config.LoadDefaultConfig(context.Background())
+	if err != nil {
+		t.Fatalf("aws config: %v", err)
+	}
+	if os.Getenv("AWS_S3_CONFORMANCE_INSECURE_TLS") == "1" {
+		cfg.HTTPClient = awshttp.NewBuildableClient().WithTransportOptions(func(tr *http.Transport) {
+			tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+		})
+	}
+	smClient := awssm.NewFromConfig(cfg, func(o *awssm.Options) {
+		o.BaseEndpoint = awsapi.String(endpoint)
+	})
+	return awsbackend.New(smClient)
+}
+
+// sockerlessGCPSMBackend wires the shim's GCP Secret Manager
+// backend to sockerless's GCP simulator. Mirrors the setup in
+// TestSockerless_GCPSecretManager_RoundTrip.
+func sockerlessGCPSMBackend(t *testing.T) *gcpbackend.Backend {
+	t.Helper()
+	endpoint := os.Getenv("SOCKERLESS_GCP_ENDPOINT")
+	if endpoint == "" {
+		t.Skip("SOCKERLESS_GCP_ENDPOINT not set")
+	}
+	ctx := context.Background()
+	c, err := gcpsm.NewRESTClient(ctx,
+		option.WithEndpoint("http://"+endpoint+"/"),
+		option.WithoutAuthentication(),
+	)
+	if err != nil {
+		t.Fatalf("gcp secretmanager client: %v", err)
+	}
+	t.Cleanup(func() { _ = c.Close() })
+	project := os.Getenv("SOCKERLESS_GCP_PROJECT")
+	if project == "" {
+		project = "shim-sockerless"
+	}
+	return gcpbackend.New(c, gcpbackend.Config{ProjectID: project})
+}
+
+// expectSecretValueInBackend asserts that the named secret in the
+// given backend's view has the expected value.
+func expectSecretValueInBackend(t *testing.T, backend domain.Secrets, name, want, storeName string) {
+	t.Helper()
+	val, err := backend.GetSecretValue(context.Background(), name, 0)
+	if err != nil {
+		t.Fatalf("backend.GetSecretValue (%s) for %q: %v", storeName, name, err)
+	}
+	if string(val.Value) != want {
+		t.Errorf("backend.GetSecretValue (%s) %q = %q, want %q", storeName, name, string(val.Value), want)
+	}
+}
+
+// terraformSecretsRunner wraps the cmd.Run dance the cross-cloud
+// secrets Apply cells share. `extraEnv` is appended to os.Environ()
+// for cells that need SSL_CERT_FILE etc.
+func terraformSecretsRunner(t *testing.T, tfBin, dir string, extraEnv []string) (runFn func(args ...string) ([]byte, []byte, error), mustRunFn func(args ...string) []byte) {
+	runFn = func(args ...string) ([]byte, []byte, error) {
+		cmd := exec.Command(tfBin, args...)
+		cmd.Dir = dir
+		env := append(os.Environ(),
+			"TF_IN_AUTOMATION=1",
+			"TF_INPUT=0",
+			"CHECKPOINT_DISABLE=1",
+		)
+		env = append(env, extraEnv...)
+		cmd.Env = env
+		var stdout, stderr bytes.Buffer
+		cmd.Stdout = &stdout
+		cmd.Stderr = &stderr
+		err := cmd.Run()
+		return stdout.Bytes(), stderr.Bytes(), err
+	}
+	mustRunFn = func(args ...string) []byte {
+		t.Helper()
+		stdout, stderr, err := runFn(args...)
+		if err != nil {
+			t.Fatalf("terraform %s\nstdout:\n%s\nstderr:\n%s\nerr: %v",
+				strings.Join(args, " "), stdout, stderr, err)
+		}
+		return stdout
+	}
+	return runFn, mustRunFn
+}
+
+// secretsGCSBearerJWT mints the HS256 test JWT the shim's
+// gcpbearer middleware accepts on the secretmanager.googleapis.com
+// audience.
+func secretsGCSBearerJWT() string {
+	return gcpbearer.TestJWT(
+		[]byte("test-key-do-not-use-in-prod"),
+		"https://shim.test/",
+		"https://secretmanager.googleapis.com/",
+		15*time.Minute,
+	)
+}
+
+// TestSockerless_E2E_AWSSecrets_Through_Shim_ApplyTF_BackendAzure
+// drives `hashicorp/aws` Terraform Apply through the shim's AWS
+// Secrets Manager frontend, then through the shim's Azure Key Vault
+// backend, then to sockerless's Azure simulator.
+func TestSockerless_E2E_AWSSecrets_Through_Shim_ApplyTF_BackendAzure(t *testing.T) {
+	tfBin, err := exec.LookPath("terraform")
+	if err != nil {
+		t.Skipf("terraform not installed: %v", err)
+	}
+	backend := sockerlessAzureKVBackend(t)
+	shim := harness.StartSecretsServerAWS(t, backend)
+
+	secretName := "shim-aws-az-applied-" + randomHex(4)
+	secretValue := "aws-source-azure-backend-payload"
+
+	dir := t.TempDir()
+	hcl := fmt.Sprintf(terraformAWSSecretsCrossCloudApplyConfig, shim.URL, secretName, secretValue)
+	if err := os.WriteFile(filepath.Join(dir, "main.tf"), []byte(hcl), 0o644); err != nil {
+		t.Fatalf("write main.tf: %v", err)
+	}
+
+	runTf, mustRun := terraformSecretsRunner(t, tfBin, dir, nil)
+	mustRun("init", "-no-color")
+	applyOut := mustRun("apply", "-no-color", "-auto-approve")
+	t.Logf("terraform apply stdout:\n%s", applyOut)
+	t.Cleanup(func() { _, _, _ = runTf("destroy", "-no-color", "-auto-approve") })
+
+	expectSecretValueInBackend(t, backend, secretName, secretValue, "sockerless Azure KV")
+}
+
+// TestSockerless_E2E_AWSSecrets_Through_Shim_ApplyTF_BackendGCP
+// drives `hashicorp/aws` Terraform Apply → shim AWS frontend →
+// shim GCP Secret Manager backend → sockerless GCP simulator.
+func TestSockerless_E2E_AWSSecrets_Through_Shim_ApplyTF_BackendGCP(t *testing.T) {
+	tfBin, err := exec.LookPath("terraform")
+	if err != nil {
+		t.Skipf("terraform not installed: %v", err)
+	}
+	backend := sockerlessGCPSMBackend(t)
+	shim := harness.StartSecretsServerAWS(t, backend)
+
+	secretName := "shim-aws-gcp-applied-" + randomHex(4)
+	secretValue := "aws-source-gcp-backend-payload"
+
+	dir := t.TempDir()
+	hcl := fmt.Sprintf(terraformAWSSecretsCrossCloudApplyConfig, shim.URL, secretName, secretValue)
+	if err := os.WriteFile(filepath.Join(dir, "main.tf"), []byte(hcl), 0o644); err != nil {
+		t.Fatalf("write main.tf: %v", err)
+	}
+
+	runTf, mustRun := terraformSecretsRunner(t, tfBin, dir, nil)
+	mustRun("init", "-no-color")
+	applyOut := mustRun("apply", "-no-color", "-auto-approve")
+	t.Logf("terraform apply stdout:\n%s", applyOut)
+	t.Cleanup(func() { _, _, _ = runTf("destroy", "-no-color", "-auto-approve") })
+
+	expectSecretValueInBackend(t, backend, secretName, secretValue, "sockerless GCP SM")
+}
+
+// TestSockerless_E2E_GCPSecrets_Through_Shim_ApplyTF_BackendAWS
+// drives `hashicorp/google` Terraform Apply → shim GCP frontend →
+// shim AWS Secrets Manager backend → sockerless AWS simulator.
+func TestSockerless_E2E_GCPSecrets_Through_Shim_ApplyTF_BackendAWS(t *testing.T) {
+	tfBin, err := exec.LookPath("terraform")
+	if err != nil {
+		t.Skipf("terraform not installed: %v", err)
+	}
+	backend := sockerlessAWSSMBackend(t)
+	shim := harness.StartSecretsServerGCP(t, backend)
+
+	secretName := "shim-gcp-aws-applied-" + randomHex(4)
+	secretValue := "gcp-source-aws-backend-payload"
+
+	dir := t.TempDir()
+	jwt := secretsGCSBearerJWT()
+	hcl := fmt.Sprintf(terraformGCPSecretsCrossCloudApplyConfig, jwt, shim.URL, secretName, secretValue)
+	if err := os.WriteFile(filepath.Join(dir, "main.tf"), []byte(hcl), 0o644); err != nil {
+		t.Fatalf("write main.tf: %v", err)
+	}
+
+	runTf, mustRun := terraformSecretsRunner(t, tfBin, dir, nil)
+	mustRun("init", "-no-color")
+	applyOut := mustRun("apply", "-no-color", "-auto-approve")
+	t.Logf("terraform apply stdout:\n%s", applyOut)
+	t.Cleanup(func() { _, _, _ = runTf("destroy", "-no-color", "-auto-approve") })
+
+	expectSecretValueInBackend(t, backend, secretName, secretValue, "sockerless AWS SM")
+}
+
+// TestSockerless_E2E_GCPSecrets_Through_Shim_ApplyTF_BackendAzure
+// drives `hashicorp/google` Terraform Apply → shim GCP frontend →
+// shim Azure Key Vault backend → sockerless Azure simulator.
+func TestSockerless_E2E_GCPSecrets_Through_Shim_ApplyTF_BackendAzure(t *testing.T) {
+	tfBin, err := exec.LookPath("terraform")
+	if err != nil {
+		t.Skipf("terraform not installed: %v", err)
+	}
+	backend := sockerlessAzureKVBackend(t)
+	shim := harness.StartSecretsServerGCP(t, backend)
+
+	secretName := "shim-gcp-az-applied-" + randomHex(4)
+	secretValue := "gcp-source-azure-backend-payload"
+
+	dir := t.TempDir()
+	jwt := secretsGCSBearerJWT()
+	hcl := fmt.Sprintf(terraformGCPSecretsCrossCloudApplyConfig, jwt, shim.URL, secretName, secretValue)
+	if err := os.WriteFile(filepath.Join(dir, "main.tf"), []byte(hcl), 0o644); err != nil {
+		t.Fatalf("write main.tf: %v", err)
+	}
+
+	runTf, mustRun := terraformSecretsRunner(t, tfBin, dir, nil)
+	mustRun("init", "-no-color")
+	applyOut := mustRun("apply", "-no-color", "-auto-approve")
+	t.Logf("terraform apply stdout:\n%s", applyOut)
+	t.Cleanup(func() { _, _, _ = runTf("destroy", "-no-color", "-auto-approve") })
+
+	expectSecretValueInBackend(t, backend, secretName, secretValue, "sockerless Azure KV")
+}
+
+// terraformAWSSecretsCrossCloudApplyConfig is the `hashicorp/aws`
+// Terraform config driving the AWS-source through-shim secrets
+// Apply cells.
+//
+// %[1]s = shim Secrets Manager frontend URL
+// %[2]s = secret name
+// %[3]s = secret value
+const terraformAWSSecretsCrossCloudApplyConfig = `
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+  }
+}
+
+provider "aws" {
+  region                      = "us-east-1"
+  access_key                  = "AKIAIOSFODNN7EXAMPLE"
+  secret_key                  = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+  skip_credentials_validation = true
+  skip_metadata_api_check     = true
+  skip_requesting_account_id  = true
+
+  endpoints {
+    secretsmanager = "%[1]s"
+  }
+}
+
+resource "aws_secretsmanager_secret" "applied" {
+  name                    = "%[2]s"
+  recovery_window_in_days = 0
+}
+
+resource "aws_secretsmanager_secret_version" "applied" {
+  secret_id     = aws_secretsmanager_secret.applied.id
+  secret_string = "%[3]s"
+}
+`
+
+// terraformGCPSecretsCrossCloudApplyConfig is the `hashicorp/google`
+// Terraform config driving the GCS-source through-shim secrets
+// Apply cells.
+//
+// %[1]s = access token (HS256 JWT)
+// %[2]s = shim Secret Manager frontend URL
+// %[3]s = secret id
+// %[4]s = secret value
+const terraformGCPSecretsCrossCloudApplyConfig = `
+terraform {
+  required_providers {
+    google = {
+      source  = "hashicorp/google"
+      version = "~> 5.0"
+    }
+  }
+}
+
+provider "google" {
+  project                        = "shim-sockerless"
+  region                         = "us-central1"
+  access_token                   = "%[1]s"
+  secret_manager_custom_endpoint = "%[2]s/v1/"
+}
+
+resource "google_secret_manager_secret" "applied" {
+  secret_id = "%[3]s"
+  replication {
+    auto {}
+  }
+}
+
+resource "google_secret_manager_secret_version" "applied" {
+  secret      = google_secret_manager_secret.applied.id
+  secret_data = "%[4]s"
+}
+`

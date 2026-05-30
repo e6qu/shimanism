@@ -216,6 +216,12 @@ When a needed dep doesn't fit, file a BUG with the rationale before proposing an
 
 Create PRs with `gh pr create`. Never run `gh pr merge`. The user merges every PR.
 
+## Never file external issues without explicit approval
+
+Do not create issues, file bug reports, or open PRs against any repository outside this one (sockerless, hashicorp/terraform-provider-aws, upstream SDKs, etc.) without **explicitly asking the user first** and getting their go-ahead for that specific issue. Same rule for re-opening closed issues or adding comments that materially change scope on external projects. Reading external repos / fetching context is fine; *writing* to them requires a confirmation.
+
+The intent: every external touch is intentional, with the user in the loop. If shim work surfaces an upstream gap, the right move is to first describe the gap to the user (what you'd file, where, why) and let them decide whether to file, defer, or absorb. Filing first and asking forgiveness later is not acceptable.
+
 ## Always fix CI failures
 
 If CI fails on your branch, fix it in the same PR — even if the failure is "pre-existing." Broken CI on any branch is not tolerated. If adding lint or expanding test coverage reveals old issues, fix them in the same PR.

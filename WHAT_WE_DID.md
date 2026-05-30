@@ -4,9 +4,36 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 
 > Reverse chronological. One section per phase. The *why*, the surprises, the root causes — not per-PR detail. For commit-level history, `git log`. For per-bug detail, [BUGS.md](BUGS.md). For pipeline + verifier architecture, [docs/codegen-pipelines.md](docs/codegen-pipelines.md) + [docs/verifiers.md](docs/verifiers.md).
 
-## Phase 14 — Closing
+## Phase 15 — Cross-cloud normalization standard + new services
 
-PR #21 (2026-05-25) landed 14.A, the 14.D simulator audit, and the 14.B sockerless lane skeleton. PR #46 closed 14.B/C narrowly; PR #47 retired the last Phase-13 ◐ migration (`azure_blob`). 14.E shipped as **10 PRs (#58–#67)** over 2026-05-29 / 2026-05-30, walking the through-shim Apply pattern from the first honest cell up through the storage cross-cloud matrix's closure. What remains under Phase 14: 14.D Track A (real-cloud credentials), captured as Phase-15 carryover. 14.E residuals (secrets AWS / GCS-source rows, SB cross-cloud) are also Phase-15 candidates.
+Just opened (2026-05-30). The 14.E secrets matrix closure (PR #69 — this PR) surfaced the first formal *normalization rule*: the empty-placeholder convention for value-less secret creates (AWS/GCP → Azure). That rule generalises — every (source-cloud × destination-cloud) cell where semantics don't map 1:1 needs a published, stateless, deterministic translation. Phase 15 codifies the existing implicit normalisations into a contract document, closes out 14.E residuals, and adds two new shimmed services (NoSQL key-value + DNS) using that contract from the start.
+
+Sub-phases (full scoping in [PLAN.md § Phase 15](PLAN.md#phase-15--cross-cloud-normalization-standard--new-service-expansion)):
+
+- **15.A** — Normalisations contract doc. Audit + publish every implicit rule. Cheap, high-value, ships first.
+- **15.B** — 14.E residual cleanups (`has_secret_string_wo` drift, SB cross-cloud scoping).
+- **15.C** — NoSQL key-value service: DynamoDB + Firestore Native + Cosmos DB Table API + K8s peer.
+- **15.D** — DNS service: Route 53 + Cloud DNS + Azure DNS + CoreDNS. Public + private zones.
+
+## Phase 14 — Closed (with carryover)
+
+PR #21 (2026-05-25) landed 14.A, the 14.D simulator audit, and the 14.B sockerless lane skeleton. PR #46 closed 14.B/C narrowly; PR #47 retired the last Phase-13 ◐ migration (`azure_blob`). 14.E shipped as **11 PRs (#58–#67, plus the secrets-matrix closure this PR adds)** over 2026-05-29 / 2026-05-30, walking the through-shim Apply pattern from the first honest cell up through full storage + secrets cross-cloud matrix coverage. What remains under Phase 14: 14.D Track A (real-cloud credentials), captured as Phase-15 carryover. SB cross-cloud (blocked on missing shim-side AMQP listener) is also a Phase-15 candidate.
+
+### 14.E secrets cross-cloud matrix closure (this PR, after PR #68)
+
+Mirrors PR #67's storage batch on the secrets matrix. Four cells in one PR — `TestSockerless_E2E_AWSSecrets_Through_Shim_ApplyTF_BackendAzure` / `_BackendGCP` and `TestSockerless_E2E_GCPSecrets_Through_Shim_ApplyTF_BackendAWS` / `_BackendAzure`. Factored helpers (`sockerlessAzureKVBackend`, `sockerlessAWSSMBackend`, `sockerlessGCPSMBackend`, `terraformSecretsRunner`, `expectSecretValueInBackend`, `secretsGCSBearerJWT`) keep per-cell code under 40 lines.
+
+Combined with PRs #59 / #64 / #65 the secrets cross-cloud Apply matrix is closed on every source / backend permutation the shim can compose honestly:
+
+| Source ↓ / Backend → | inmem | AWS | GCP | Azure |
+|---|---|---|---|---|
+| Azure | ✓ #59 | ✓ #64 | ✓ #65 | self |
+| AWS | TF-only | self | this PR | inherent mismatch (skip) |
+| GCP | TF-only | this PR | self | inherent mismatch (skip) |
+
+**The AWS/GCP→Azure cells are skipped on purpose.** AWS's `aws_secretsmanager_secret` and GCP's `google_secret_manager_secret` resources are name-only at creation, with a separate `_secret_version` resource carrying the value (split into two Terraform resources). Azure Key Vault's data plane rejects empty creates: `400 InvalidParameterException: Azure Key Vault requires an initial value when creating a secret`. The shim's `azurebackend.CreateSecret` surfaces that honestly — adding a "synthesise an empty value" workaround would violate the no-fakes rule, and buffering the empty Create until the version resource arrives would require holding state of record (which violates the stateless-shim invariant). So the cells are `t.Skip`'d with the explanation in tree as a documented incompatibility marker.
+
+End-to-end on the composable corners: write AWS-shape or GCP-shape Terraform with both resources; the secret lands in either AWS Secrets Manager (from GCP source) or GCP Secret Manager (from AWS source).
 
 ### 14.E closure narrative (PRs #58–#67, 2026-05-29 to 2026-05-30)
 
