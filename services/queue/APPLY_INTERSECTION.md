@@ -70,6 +70,7 @@ No async polling. Synchronous everywhere.
 - `google_pubsub_subscription` push-config (handled in services/pubsub).
 - Azure session-enabled queues + duplicate-detection windows.
 - All encryption-at-rest config.
+- **Cross-cloud Service Bus Apply via a shim AMQP frontend.** Today the shim's `internal/queue/frontends/azure_servicebus` is REST/ATOM-only — there's no AMQP listener at the shim, so source-cloud Terraform / SDK / app traffic that drives the AMQP data plane (`azservicebus.Client` Send / Receive) doesn't enter the shim. The shim's backend already speaks AMQP outbound to destination clouds (`services/queue/backends/azure/azure.go` uses `azservicebus.NewClient`); the missing piece is the symmetric frontend that listens for AMQP inbound. Documented as **N16** in [`docs/normalizations.md`](../../docs/normalizations.md#n16--connection-based-data-plane-frontends-achievable-not-yet-built) — *not* out-of-intersection, just not yet built. Building it uses the same Go server library pattern shim's existing HTTP frontends use; tracked as a Phase 15.E / 16 candidate.
 
 ## What this contract commits the shim to
 

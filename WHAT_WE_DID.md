@@ -32,7 +32,21 @@ Cross-referenced from `PHILOSOPHY.md` (operational footnote on "The Circle"), `A
 
 Open audit items captured at the bottom of `normalizations.md` for follow-on 15.A PRs: soft-delete grace period, queue visibility-timeout semantics, RDBMS engine version naming + connection string, cache cluster mode, functions runtime → container image mapping, API Gateway stages-vs-configs-vs-products. Each becomes a rule entry once audited.
 
-### 15.B N10 decision: fail instead of silently clamp (this PR, after PR #75)
+### 15.B closing: N13 stays opaque, N16 records the wire-protocol frontend pattern (this PR, after PR #76)
+
+The final two 15.B audit items resolved.
+
+**N13 — Cache `NodeType` stays opaque pass-through.** A normalised `small`/`medium`/`large` enum with per-cloud mapping would require three mapping tables (one per cloud) that need updating whenever a cloud changes SKUs / pricing tiers / regional availability. The ergonomic gain — letting users write `tier = "small"` portably — is real but small (sizing isn't fully portable anyway: memory, IOPS, network bandwidth, and price differ across `cache.t3.micro` / `BASIC m=1GB` / `Basic C0 250MB`). The honest current behaviour ("your value didn't fit the destination cloud" surfaced as a backend error) is better than approximating sizes.
+
+**N16 — Connection-based data-plane frontends: achievable, not yet built.** Five shimmed services have non-HTTP data planes: Azure Service Bus (AMQP 1.0), Redis (RESP), PostgreSQL (PG wire), MySQL (MySQL wire), Kafka (Kafka wire). Today the shim handles the control plane for all of them but **not the data plane**. The user's app connects directly to the destination cloud's data-plane endpoint; the shim is bypassed for actual messages / queries / cache operations.
+
+The clarifying realisation (from a deeper conversation): the pattern is **already half-shipped**. The shim's backends for connection-based destinations already use cloud-native client libraries — `services/queue/backends/azure/azure.go` uses `azservicebus.NewClient` (an AMQP 1.0 client), `services/secrets/backends/gcp/gcp.go` uses gRPC via Google's SDK, etc. The shim doesn't reimplement these protocols; it consumes them via the cloud's published Go SDK. Adding a *frontend* for one of these protocols is the mirror image: pick a Go server-side library (`go-amqp` server mode for AMQP, `pgproto3` for PG wire, `tidwall/redcon` for RESP, etc.), wire it up to the existing `domain.*` interface, and the rest of the stack composes unchanged. **Not "implement a protocol from scratch."** Listed as Phase 15.E / 16 candidate, weighed against demand vs. effort per protocol.
+
+`docs/architecture.md` adds a new subsection "Wire-protocol libraries (both sides)" codifying this rule: frontends and backends both reuse cloud-native / third-party wire-protocol libraries rather than reimplementing protocols. This is the architectural principle behind the existing pattern; documenting it explicitly so future agents apply it uniformly.
+
+**Phase 15.B closes with this PR.** Three sub-phases shipped (PR #75 `_wo` investigation, PR #76 N10 clamp-vs-fail, this PR N13 + N16). All 14.E residuals now have published rules or formal achievability notes.
+
+### 15.B N10 decision: fail instead of silently clamp (PR #76, after PR #75)
 
 Sub-question from N10 resolved. The GCP queue backend had been silently clamping `VisibilityTimeoutSeconds` to `[10, 600]` (GCP Pub/Sub's `ackDeadlineSeconds` bounds). Per shimanism's "never lie" rule + "fidelity to source cloud's API" rule, that was the wrong default — silent mutation of user-set values violates both.
 

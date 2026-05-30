@@ -230,6 +230,40 @@ For these use cases users either go to the destination-cloud's native API direct
 
 **Reference.** `internal/apigateway/domain/domain.go::Gateway` + `DeployGateway`. Per-cloud `DeployGateway` implementations in `services/apigateway/backends/{aws,gcp,azure}/`.
 
+### N16 — Connection-based data-plane frontends: achievable, not yet built
+
+**Asymmetry.** Several shimmed services have data planes that aren't HTTP — they're persistent-connection protocols with their own wire formats and state machines:
+
+| Service | Wire protocol | Server-side Go library examples |
+|---|---|---|
+| Azure Service Bus | AMQP 1.0 / TLS | `github.com/Azure/go-amqp` (used by sockerless's Azure sim) |
+| Redis / ElastiCache / Memorystore | RESP | several Go libraries (e.g. `tidwall/redcon`) |
+| PostgreSQL / RDS / Cloud SQL | PG wire | `github.com/jackc/pgx/v5/pgproto3` (server-side framing) |
+| MySQL / RDS / Cloud SQL | MySQL wire | `github.com/go-mysql-org/go-mysql/server` |
+| Kafka / MSK | Kafka wire | `github.com/twmb/franz-go` server primitives |
+
+Today the shim handles the **control plane** (admin / lifecycle / CreateInstance / CreateNamespace) for all of these, but **not the data plane**. The user's app connects directly to the destination cloud's data-plane endpoint (e.g. Redis IP:port, AMQP host:port) — the shim is bypassed for actual messages / queries / cache operations.
+
+**Rule.** Connection-based data-plane shimming is **in-intersection by design but not built today**. Architecturally these frontends are the same shape as HTTP frontends (e.g. `azure_blob` / `azure_keyvault`): receive in the source cloud's wire protocol, translate to `domain.*` operations, let the existing backend layer dispatch to whichever destination cloud.
+
+**The pattern is already half-shipped.** The shim's *backends* for connection-based destinations already use cloud-native client libraries — `services/queue/backends/azure/azure.go` uses `azservicebus.NewClient` (an AMQP 1.0 client), `services/secrets/backends/gcp/gcp.go` uses the gRPC `cloud.google.com/go/secretmanager/apiv1` client, etc. The shim doesn't reimplement these wire formats; it consumes them via the cloud's published Go SDK. Adding a *frontend* for a connection-based protocol is the mirror image: pick a Go server-side library for the wire format (server-mode of `go-amqp` for AMQP, `pgproto3` for PG wire, etc.), wire it up to the existing `domain.*` interface, and the rest of the stack (backend dispatch, normalization rules, conformance) composes unchanged.
+
+The work is therefore "plug in a Go server library for the wire format" + "map decoded ops to `domain.*` calls" — **not** "implement a wire protocol from scratch."
+
+What's blocking each protocol:
+- **AMQP 1.0** — `go-amqp` supports server mode; sockerless already runs it. Effort comparable to adding an HTTP frontend.
+- **RESP** — simplest of the bunch; text-based; multiple Go libs.
+- **PG / MySQL wire** — protocols documented; server-side libs exist but auth flows (SCRAM, TLS, password-based) need careful matching to per-cloud expectations.
+- **Kafka** — substantial state machine, but franz-go primitives carry most of it.
+
+The shim doesn't have these frontends because the admin-plane scope has been the priority. Building any of them is a Phase 15.E (or 16) candidate, weighed against demand vs. effort.
+
+**Trade-off (today).** Cross-cloud Apply via a shim data-plane frontend doesn't exist for any connection-based service today. Users either keep app code on the destination cloud's native protocol, or wait for the data-plane frontend to land. The Apply paths that DO compose — through the shim's backend translation, with the user's app talking the destination cloud's protocol via the connection string — are exercised by PRs #60 / #61 for Service Bus and by the existing direct-connection lanes for cache / rdbms.
+
+**Rule when one of these frontends lands.** Same rule as HTTP frontends: receive in source-cloud shape, translate to `domain.*`, dispatch through backend translation, surface errors in the source cloud's error envelope. Cross-protocol cells (e.g. AMQP → SQS HTTP) follow the standard `domain.*` round-trip. Same-protocol same-cloud cells (e.g. AMQP source → AMQP destination at sockerless / real Azure) could be implemented as TCP-level proxies with auth-handshake interception if richer translation isn't needed — that's a per-frontend choice when one is built.
+
+**Reference.** Sockerless's Azure SB AMQP server (`/tmp/sockerless/simulators/azure/servicebus_amqp.go`) is the concrete proof-of-concept that AMQP 1.0 in Go server-side is straightforward. The shim's existing HTTP frontends are the structural template.
+
 ## How rules are added
 
 When 14.E-style cross-cloud work surfaces a new asymmetry:
@@ -248,7 +282,7 @@ The first-pass audit is complete: every implicit normalisation the shim implemen
 
 ~~**Open sub-question on N10:**~~ Resolved in 15.B (the GCP queue backend now fails with `domain.InvalidArgument` on `VisibilityTimeoutSeconds > 600` instead of silently clamping). N10 above documents the final rule.
 
-**Open sub-question on N13:** consider whether a normalised "tier" enum (`small`/`medium`/`large` with documented per-cloud mapping) would help cross-cloud Apply, even though sizing isn't fully portable. Today's rule is opaque pass-through; the alternative is a domain enum with a published mapping table. Worth pursuing if cross-cloud Apply for Cache becomes a common scenario.
+~~**Open sub-question on N13:**~~ Resolved in 15.B: **keep opaque pass-through**. Adding a normalised `small`/`medium`/`large` enum with per-cloud mapping would require maintaining three mapping tables (one per cloud) that need updating whenever a cloud changes SKUs / pricing tiers / regional availability. The ergonomic gain — letting users write `tier = "small"` portably — is real but small (sizing isn't fully portable anyway: memory, IOPS, network bandwidth, and price differ across `cache.t3.micro` / `BASIC m=1GB` / `Basic C0 250MB`). Defer building the enum until cross-cloud Apply for Cache becomes a common scenario; today's opaque pass-through honestly tells the user "your value didn't fit the destination cloud" rather than mapping to something approximate. The shim's `domain.cache.NodeType` stays an opaque string.
 
 ### Phase 15.B investigation: terraform-aws `has_secret_string_wo` drift
 
@@ -272,6 +306,7 @@ Closed audit items:
 - ~~Queue visibility timeout~~ — covered by **N10** (with an open sub-question on GCP-side clamping vs failing).
 - ~~RDBMS engine version naming~~ — covered by **N11** (major-version-only is the portable form).
 - ~~RDBMS connection string format~~ — covered by **N12** (host + port at domain; no shim-side connection-string synthesis).
-- ~~Cache cluster mode~~ — covered by **N13** (opaque `NodeType` pass-through; open sub-question on a normalised tier enum).
+- ~~Cache cluster mode~~ — covered by **N13** (opaque `NodeType` pass-through; sub-question resolved in 15.B in favour of keeping it opaque).
+- ~~Service Bus cross-cloud via AMQP frontend~~ — covered by **N16** (deliberately out-of-intersection; AMQP listener at the shim is multi-PR Phase-16+ work, not built).
 - ~~Functions runtime → container image~~ — covered by **N14** (container-image canonical form; language-runtime Lambdas are out of intersection).
 - ~~API Gateway stages vs configs vs products~~ — covered by **N15** (deliberate flattening into a declarative-replace routing table; stages / configs / products are implementation detail that doesn't escape the domain).
