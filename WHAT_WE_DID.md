@@ -4,9 +4,61 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 
 > Reverse chronological. One section per phase. The *why*, the surprises, the root causes — not per-PR detail. For commit-level history, `git log`. For per-bug detail, [BUGS.md](BUGS.md). For pipeline + verifier architecture, [docs/codegen-pipelines.md](docs/codegen-pipelines.md) + [docs/verifiers.md](docs/verifiers.md).
 
-## Phase 14 — In flight
+## Phase 14 — Closing
 
-PR #21 merged on 2026-05-25 at `45985e7`, landing 14.A, the 14.D simulator audit, and the current 14.B sockerless lane. Phase 14.B and 14.C are now closed (PR #46). Phase 13.A is also closed — PR #47 retired the last ◐ migration (`azure_blob`). What remains in Phase 14: PR 3 (14.D Track A, real-cloud-credentials-gated). 14.E first cell shipped honestly via sockerless-driven ARM (PR #58, 2026-05-29) — see below.
+PR #21 (2026-05-25) landed 14.A, the 14.D simulator audit, and the 14.B sockerless lane skeleton. PR #46 closed 14.B/C narrowly; PR #47 retired the last Phase-13 ◐ migration (`azure_blob`). 14.E shipped as **10 PRs (#58–#67)** over 2026-05-29 / 2026-05-30, walking the through-shim Apply pattern from the first honest cell up through the storage cross-cloud matrix's closure. What remains under Phase 14: 14.D Track A (real-cloud credentials), captured as Phase-15 carryover. 14.E residuals (secrets AWS / GCS-source rows, SB cross-cloud) are also Phase-15 candidates.
+
+### 14.E closure narrative (PRs #58–#67, 2026-05-29 to 2026-05-30)
+
+The arc of 14.E across 10 PRs:
+
+| PR | Headline | Shape it added |
+|---|---|---|
+| #58 | First honest through-shim azurerm Apply: `azurerm_storage_container` | Azure-source storage → inmem |
+| #59 | KV through-shim Apply: `azurerm_key_vault_secret` | Azure-source secrets → inmem |
+| #60 | SB through-shim Apply: `azurerm_servicebus_queue` | Azure-source SB queue → sockerless AMQP (backend-layer coverage) |
+| #61 | SB through-shim Apply: `azurerm_servicebus_topic` + `_subscription` | Azure-source SB topic → sockerless AMQP (backend-layer coverage) |
+| #62 | Cross-cloud: Azure storage Apply → AWS S3 backend | First true cross-cloud Apply: `Azure terraform → shim → AWS-shape store` |
+| #63 | Cross-cloud: Azure storage Apply → GCS backend | Mirror of #62 on GCP corner |
+| #64 | Cross-cloud: Azure KV Apply → AWS Secrets Manager | First cross-cloud Apply for secrets |
+| #65 | Cross-cloud: Azure KV Apply → GCP Secret Manager | Closes Azure-source KV row |
+| #66 | Cross-cloud: AWS-source S3 Apply → GCS backend | Opens AWS-source row of the storage matrix |
+| #67 | Batch: AWS→Azure storage, GCS→AWS storage, GCS→Azure storage | Closes the storage cross-cloud Apply matrix |
+
+Final storage cross-cloud Apply matrix (every source × backend combo the shim covers):
+
+| Source ↓ / Backend → | inmem | AWS | GCP | Azure |
+|---|---|---|---|---|
+| Azure | ✓ #58 | ✓ #62 | ✓ #63 | self |
+| AWS | TF-only test | self | ✓ #66 | ✓ #67 |
+| GCS | TF-only test | ✓ #67 | self | ✓ #67 |
+
+Secrets matrix closed on the Azure-source row only:
+
+| Source ↓ / Backend → | inmem | AWS | GCP | Azure |
+|---|---|---|---|---|
+| Azure | ✓ #59 | ✓ #64 | ✓ #65 | self |
+| AWS | TF-only test | self | gap | gap |
+| GCP | TF-only test | gap | self | gap |
+
+**Upstream gaps surfaced + closed.** 14.E surfaced six sockerless gaps; all landed without a workaround in shim test code:
+
+| Gap | Filed | Closed by |
+|---|---|---|
+| Real Azure ARM + configurable shim-routable data-plane endpoints | sockerless#257 | sockerless#259 |
+| Storage `listKeys` per-account 64-byte deterministic keys | sockerless#260 | sockerless#262 |
+| RS256-signed Azure AD tokens with published JWKS | sockerless#261 | sockerless#262 |
+| `{account}` interpolation + `storage` suffix in `/metadata/endpoints` | sockerless#269 | sockerless#271 |
+| Per-resource `aud` from OAuth `scope`/`resource` form param | sockerless#272 | sockerless#274 |
+| SB namespace `networkRuleSets/default` + adjunct ARM reads | sockerless#276 | sockerless#277 |
+
+**Deferred to Phase 15.** Three concrete carryovers:
+
+- **Secrets cross-cloud AWS / GCS-source rows.** 4 mechanical cells, mirror of PR #67's storage batch. Helpers reuse cleanly. Decision deferred: full matrix completeness vs. moving on.
+- **SB cross-cloud cells.** Blocked on missing shim-side AMQP listener; `internal/queue/frontends/azure_servicebus`'s header explicitly says AMQP tier is deferred. Through-shim AMQP would be substantial new work (SASL ANONYMOUS, link/session lifecycle, frame parsing). Phase-15 scoping question.
+- **Track A real-cloud Apply.** BUG-8 + BUG-15 + real-signed verifier conformance. Still blocked on credentials.
+
+**Architectural lesson from #51–#54.** PRs #51–#54 attempted to shim ARM via fakes (synthetic responses, in-process `Track*` state, mock-AAD endpoint, hardcoded `listKeys`). The user [stopped that mid-PR-#55](https://github.com/e6qu/shimanism/pull/55#issuecomment-4564061276); fakes violated the no-fakes rule. Filed sockerless#257 for real ARM in sockerless; maintainer landed it within hours. The honest path that emerged: **sockerless owns the destination cloud's full surface (ARM + data-plane stores), the shim sits in the data-plane path between source-cloud Terraform and destination-cloud backend, and the shim never holds state of record.** Every 14.E cell that followed conforms to this rule.
 
 ### 14.E first through-shim azurerm Apply, honestly (PR #58, 2026-05-29)
 

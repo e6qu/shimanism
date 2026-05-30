@@ -8,10 +8,11 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 
 | | |
 |---|---|
-| Active branch | `main` after PR #66 merged (AWS→GCS storage). Phase 14.E expansion PR in flight: batch closing the remaining storage cross-cloud Apply cells (AWS→Azure, GCS→AWS, GCS→Azure). |
-| In-flight | **14.E storage cross-cloud Apply matrix closure.** Three new cells in one PR: `TestSockerless_E2E_AWSS3_Through_Shim_ApplyTF_BackendAzure` (AWS→Azure), `TestSockerless_E2E_GCS_Through_Shim_ApplyTF_BackendAWS` (GCS→AWS, opens GCS-source row), `TestSockerless_E2E_GCS_Through_Shim_ApplyTF_BackendAzure` (GCS→Azure). Factored helpers — `sockerlessAzureBlobBackend`, `terraformRunner`, `expectBucketInBackend`, `gcsBearerJWT`, `terraformGCSCrossCloudApplyConfig` — keep the per-cell code under 40 lines. After this PR, storage's cross-cloud Apply matrix is closed across all source / backend combinations the shim covers; SB cross-cloud still blocked on missing shim AMQP. Track A blocked on real-cloud credentials. |
-| Last merged | PR #66 — 14.E cross-cloud: AWS-source S3 Apply → GCS backend via sockerless. |
-| Phases 1–12 | All closed. PR index in [PLAN.md § Closed phases](PLAN.md#closed-phases-pr-index). |
+| Active branch | `main` after PR #67 merged (storage cross-cloud Apply matrix closure). Phase 14.E **closing**; this PR rolls the closure narrative forward. |
+| In-flight | **Phase 14.E closure.** 10 PRs (#58–#67) landed the through-shim Apply pattern across the entire storage matrix and the Azure-source row of the secrets matrix. Surfaced 6 sockerless gaps (#257 / #260 / #261 / #269 / #272 / #276), all closed upstream. **Deferred to Phase 15:** secrets AWS / GCS-source rows (mechanically identical to PR #67's storage batch), SB cross-cloud cells (blocked on missing shim-side AMQP listener), Track A real-cloud Apply (still blocked on credentials). |
+| Last merged | PR #67 — 14.E storage cross-cloud Apply matrix closure (3 cells in one PR). |
+| Phases 1–13 | All closed (Phase 13 closed by PR #20). PR index in [PLAN.md § Closed phases](PLAN.md#closed-phases-pr-index). |
+| Phase 14 | 14.A ✅ · 14.B ✅ · 14.C ✅ · 14.D ✅ (simulator audit) / Track A blocked · 14.E ✅ with deferred residuals (secrets AWS / GCS-source rows, SB cross-cloud). |
 | Bugs | **38 filed · 36 fixed · 2 open · 1 false positive.** Open: **BUG-8** (apigateway TF-provider Track A leg, real GCP), **BUG-15** (queue TF state-drift Track A leg, real GCP). BUG-35 closed by sockerless PR #245. |
 | Upstream | sockerless #257 / #260 / #261 / #269 / #272 / #276 all closed (via #259 / #262 / #271 / #274 / #277). Zero open sockerless issues for the shimanism roadmap. |
 | CI | 18 required checks. Real-cloud lanes wait on Track A. |
