@@ -8,9 +8,9 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 
 | | |
 |---|---|
-| Active branch | `main` after PR #69 merged (secrets cross-cloud matrix closure + Phase 15 plan opened). Phase 15.A normalisations-doc PR in flight. |
-| In-flight | **15.A normalisations contract doc.** New `docs/normalizations.md` codifying every cross-cloud translation rule the shim implements: secret value-less create (empty-placeholder, from PR #69), secret version identity (GUID ↔ monotonic), tags-vs-labels (GCP constraints), description-as-label (GCP), queue ↔ topic+subscription (GCP), region/location naming, storage version identity, storage metadata-vs-tags split. Cross-references from PHILOSOPHY.md / AGENTS.md / docs/architecture.md so future agents land on the rule registry. Open items listed for follow-on 15.A PRs (soft-delete grace, RDBMS engine versions, functions runtime mapping, etc). Track A blocked on real-cloud credentials. |
-| Last merged | PR #69 — 14.E secrets cross-cloud Apply matrix closure (4 cells + empty-placeholder normalisation rule + Phase 15 plan). |
+| Active branch | `main` after PR #70 merged (15.A first cut, N1–N8 documented). Phase 15.A audit-extension PR in flight: adds N9 (soft-delete grace period). |
+| In-flight | **15.A N9: secrets soft-delete grace period.** New normalization rule documenting that the grace-period duration is a **cloud-deployment property**, not a per-call argument. Domain takes `force bool`; per-cloud retention differs (AWS configurable per-call to AWS, Azure vault-level, GCP no soft-delete). Documented in `docs/normalizations.md` § N9 with full audit of all 5 secrets backends (aws/azure/gcp/inmem/vault). Open audit items remaining: queue visibility timeout, RDBMS engine versions, RDBMS connection strings, cache cluster mode, functions runtime mapping, API Gateway stages. Track A blocked on real-cloud credentials. |
+| Last merged | PR #70 — 15.A first cut: normalisations contract doc (N1–N8). |
 | Phases 1–13 | All closed (Phase 13 closed by PR #20). PR index in [PLAN.md § Closed phases](PLAN.md#closed-phases-pr-index). |
 | Phase 14 | 14.A ✅ · 14.B ✅ · 14.C ✅ · 14.D ✅ (simulator audit) / Track A blocked · 14.E ✅. Remaining residuals (terraform-aws `_wo` drift, SB cross-cloud scoping) carried into Phase 15.B. |
 | Phase 15 | Just opened. Sub-phases: 15.A normalisations contract doc · 15.B 14.E cleanups · 15.C NoSQL key-value · 15.D DNS public+private. 15.A ships first. See [PLAN.md § Phase 15](PLAN.md#phase-15--cross-cloud-normalization-standard--new-service-expansion). |

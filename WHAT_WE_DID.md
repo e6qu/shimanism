@@ -32,6 +32,17 @@ Cross-referenced from `PHILOSOPHY.md` (operational footnote on "The Circle"), `A
 
 Open audit items captured at the bottom of `normalizations.md` for follow-on 15.A PRs: soft-delete grace period, queue visibility-timeout semantics, RDBMS engine version naming + connection string, cache cluster mode, functions runtime → container image mapping, API Gateway stages-vs-configs-vs-products. Each becomes a rule entry once audited.
 
+### 15.A N9: secrets soft-delete grace period (this PR, after PR #70)
+
+Audit of the first open item. The five secrets backends differ in how they handle `DeleteSecret`'s `force bool`:
+
+- **AWS** — `force=true` sets `ForceDeleteWithoutRecovery=true`; default goes through Secrets Manager's recovery window (7–30 days, configurable per-call on the AWS API but not exposed at the shim's domain interface).
+- **Azure** — `force=true` calls `DeleteSecret` + polls `PurgeDeletedSecret` to bypass the vault's soft-delete retention (a **vault-level** property set at vault creation, not per-call).
+- **GCP** — no soft-delete; both `force=true` and `force=false` hard-delete immediately. The `force` boolean is ignored.
+- **Vault** — KV v2 semantics; `force=true` destroys versions + metadata.
+
+The rule: **grace-period duration is a cloud-deployment property, not a per-call argument.** Domain stays simple (`DeleteSecret(ctx, name, force bool)`); per-cloud backends translate `force` to whatever the destination cloud's recovery mechanism is. Cross-cloud users who care about retention durations configure them at the destination-cloud level (vault config on Azure; not configurable via shim on AWS) and document the difference for their Apply scenarios.
+
 ## Phase 14 — Closed (with carryover)
 
 PR #21 (2026-05-25) landed 14.A, the 14.D simulator audit, and the 14.B sockerless lane skeleton. PR #46 closed 14.B/C narrowly; PR #47 retired the last Phase-13 ◐ migration (`azure_blob`). 14.E shipped as **11 PRs (#58–#67, plus the secrets-matrix closure this PR adds)** over 2026-05-29 / 2026-05-30, walking the through-shim Apply pattern from the first honest cell up through full storage + secrets cross-cloud matrix coverage. What remains under Phase 14: 14.D Track A (real-cloud credentials), captured as Phase-15 carryover. SB cross-cloud (blocked on missing shim-side AMQP listener) is also a Phase-15 candidate.

@@ -102,6 +102,29 @@ If a rule can't be made deterministic + stateless, the asymmetry stays *out of i
 
 **Reference.** `internal/storage/domain/domain.go` (Metadata + Tags fields); per-cloud backends.
 
+### N9 — Secrets soft-delete grace period (cloud-property, not call-level)
+
+**Asymmetry.** AWS Secrets Manager and Azure Key Vault both implement *soft delete* — a deleted secret enters a recovery window before permanent removal. The semantics + configuration differ:
+
+- **AWS Secrets Manager:** `DeleteSecret` takes `RecoveryWindowInDays` (7–30 days, default 30). `DeleteSecret(ForceDeleteWithoutRecovery=true)` purges immediately.
+- **Azure Key Vault:** soft-delete retention is a **vault-level property** (`soft_delete_retention_days`), set at vault creation and applied to every secret in the vault. `DeleteSecret` initiates the recovery window; `PurgeDeletedSecret` performs the immediate hard delete.
+- **GCP Secret Manager:** no soft-delete. `DeleteSecret` is permanent.
+- **Vault (KV v2):** soft-delete at the version level; the secret itself can be metadata-deleted with `force`.
+
+**Rule.** The domain interface (`domain.Secrets.DeleteSecret(ctx, name, force bool)`) takes a **boolean force** — no per-call grace period. The two clouds' soft-delete retention is treated as a **cloud-deployment property**, not a per-call argument:
+
+- `force=false` → invoke the destination cloud's native soft-delete (whatever its retention is). On GCP this is identical to `force=true` because no soft-delete exists.
+- `force=true` → immediate hard delete. AWS sets `ForceDeleteWithoutRecovery`; Azure calls `DeleteSecret` then polls `PurgeDeletedSecret`; GCP / inmem delete directly.
+
+**Trade-off.** The grace-period **duration** isn't portable across clouds:
+
+- AWS users who relied on `recovery_window_in_days = 7` get whatever the Azure vault was configured with on Azure-backend deployments.
+- GCP-backend deployments never have a recovery window; a deleted secret can't be undeleted via the shim.
+
+Users who care about specific retention windows configure them at the **destination cloud** level (vault config on Azure; not configurable per-call on AWS through the shim) and document the difference for their cross-cloud Apply scenarios.
+
+**Reference.** `services/secrets/backends/{aws,azure,gcp,inmem,vault}/{aws,azure,gcp,inmem,vault}.go::DeleteSecret`. Domain interface in `internal/secrets/domain/domain.go`.
+
 ## How rules are added
 
 When 14.E-style cross-cloud work surfaces a new asymmetry:
@@ -116,14 +139,17 @@ The contract: every cross-cloud translation rule is published, named, and exerci
 
 ## Rules under audit (open items for Phase 15)
 
-This first cut of `normalizations.md` lands the rules already implemented in code. Further audit work:
+Items still pending audit + rule documentation:
 
-- **Soft-delete grace period** — AWS `recovery_window_in_days`, Azure `soft_delete_retention_days`, GCP no equivalent. Domain field exists; needs explicit per-cloud rule + canonical bounds documented.
-- **Queue visibility timeout vs lock duration vs ack deadline** — semantic alignment needed.
+- **Queue visibility timeout vs lock duration vs ack deadline** — semantic alignment needed. AWS SQS `VisibilityTimeout` (≤ 12 h), GCP Pub/Sub `ackDeadlineSeconds` (≤ 10 min), Azure Service Bus lock duration (≤ 5 min). Per-cloud bounds differ; rule must document caller-side clamping or destination-cloud-bound surfacing.
 - **RDBMS engine version naming** — AWS `postgres 16.1` vs GCP `POSTGRES_16` vs Azure `16`.
-- **RDBMS connection string format** — per-cloud emission.
+- **RDBMS connection string format** — per-cloud emission shape.
 - **Cache cluster mode** — sharded vs single-node across clouds.
 - **Functions runtime → container image mapping** — Lambda runtime translates to Cloud Run / Container Apps container; mapping table.
 - **API Gateway stages vs configs vs products** — semantic alignment.
 
-These will land as follow-on PRs under 15.A as each rule is audited + documented.
+Each will land as a follow-on 15.A PR as the rule is audited + documented.
+
+Closed audit items:
+
+- ~~Soft-delete grace period~~ — covered by **N9** (cloud-deployment property, not call-level).
