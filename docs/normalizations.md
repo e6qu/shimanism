@@ -250,6 +250,22 @@ The first-pass audit is complete: every implicit normalisation the shim implemen
 
 **Open sub-question on N13:** consider whether a normalised "tier" enum (`small`/`medium`/`large` with documented per-cloud mapping) would help cross-cloud Apply, even though sizing isn't fully portable. Today's rule is opaque pass-through; the alternative is a domain enum with a published mapping table. Worth pursuing if cross-cloud Apply for Cache becomes a common scenario.
 
+### Phase 15.B investigation: terraform-aws `has_secret_string_wo` drift
+
+`TestCrossCloudApply_Roundtrip_SecretsAWStoAzure` (the in-process variant of N1's translation) is `t.Skip`'d. Root cause investigation:
+
+- **Schema (verified via `terraform providers schema -json` on `hashicorp/aws` v5.100.0):** `aws_secretsmanager_secret_version` declares both `secret_string` (optional + sensitive, stored in state) and `secret_string_wo` (write-only) with companions `secret_string_wo_version` + `has_secret_string_wo` (computed bool).
+- **Drift mechanism:** When the resource is created using the regular `secret_string` path (no `_wo`), the provider's Read function doesn't populate `has_secret_string_wo` from the cloud API. Terraform then computes the indicator as `(known after apply)` on every refresh, which surfaces as `+ has_secret_string_wo = (known after apply) # forces replacement` on the `_secret_version` resource — the resource appears to need replacement on every plan-after-apply.
+- **`lifecycle.ignore_changes` doesn't work** — terraform explicitly warns "the attribute `has_secret_string_wo` is decided by the provider alone and therefore there can be no configured value to compare with. Including this attribute in ignore_changes has no effect."
+- **Sockerless variants are unaffected** — they use the same HCL but pass because they check the value in the destination cloud's store directly, not via a second `terraform plan` exit-code check.
+- **Shim is innocent** — the translation rule N1 round-trips the value correctly. The drift is entirely in terraform-aws's schema + Read implementation.
+
+Workaround options considered:
+
+1. Switch HCL to `secret_string_wo` (write-only path). Changes the test scenario; doesn't validate the regular `secret_string` round-trip that real users would write.
+2. File upstream at `hashicorp/terraform-provider-aws` asking that Read populate `has_secret_string_wo` correctly. **Pending user approval per [AGENTS.md § Never file external issues without explicit approval](../AGENTS.md#never-file-external-issues-without-explicit-approval).**
+3. Keep the test skipped + rely on the sockerless variants for authoritative validation. Current state.
+
 Closed audit items:
 
 - ~~Soft-delete grace period~~ — covered by **N9** (cloud-deployment property, not call-level).

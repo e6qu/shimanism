@@ -77,19 +77,23 @@ func (fakeAzureCredCCApply) GetToken(_ context.Context, _ policy.TokenRequestOpt
 }
 
 func TestCrossCloudApply_Roundtrip_SecretsAWStoAzure(t *testing.T) {
-	// The cross-cloud translation (empty-placeholder on
-	// value-less CreateSecret) lives in the shim's azurebackend
-	// and is exercised end-to-end by the sockerless variants
-	// (`TestSockerless_E2E_AWSSecrets_Through_Shim_ApplyTF_BackendAzure`
-	// and the GCP-source twin). This in-process variant currently
-	// shows post-apply drift on `secret_string`, which appears to
-	// be a terraform-aws v5 write-only-attribute quirk
-	// (`has_secret_string_wo` is computed-on-refresh, forcing
-	// the version resource to plan as needing replacement) rather
-	// than a translation issue. Keep skipped pending separate
-	// investigation; the sockerless cells are the authoritative
-	// validators.
-	t.Skip("terraform-aws v5 write-only-attribute drift on secret_string after apply; the sockerless variant is the authoritative test for the translation")
+	// Skipped: terraform-aws v5.100+ has a write-only-attribute
+	// drift bug. The `aws_secretsmanager_secret_version` resource
+	// schema declares `secret_string_wo` (write-only) with a
+	// `has_secret_string_wo` computed indicator. The provider's
+	// Read function doesn't populate that indicator when the
+	// resource was created via the regular `secret_string` path,
+	// so terraform sees `has_secret_string_wo = null → (known
+	// after apply)` and reports drift on every plan-after-apply
+	// run. `lifecycle.ignore_changes` doesn't help (terraform
+	// warns it's a no-op for computed-only attributes). The
+	// translation under test (N1: empty-placeholder for value-less
+	// CreateSecret) IS exercised end-to-end by the sockerless
+	// variants `TestSockerless_E2E_AWSSecrets_Through_Shim_ApplyTF_BackendAzure`
+	// and the GCP-source twin — those are the authoritative
+	// validators. See 15.B investigation notes in
+	// `docs/normalizations.md` (under "Open sub-questions").
+	t.Skip("terraform-aws v5.100+ has_secret_string_wo computed-attribute drift; sockerless variant is the authoritative validator. See docs/normalizations.md § 15.B.")
 	if _, err := exec.LookPath("terraform"); err != nil {
 		t.Skipf("terraform not installed: %v", err)
 	}
