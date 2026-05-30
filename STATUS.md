@@ -8,9 +8,9 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 
 | | |
 |---|---|
-| Active branch | `main` after PR #72 merged (15.A N10 queue timeout + N11 RDBMS engine version). Phase 15.A audit-extension PR in flight: adds N12 (RDBMS connection identity), N13 (cache node tier), N14 (functions container image). |
-| In-flight | **15.A N12 + N13 + N14.** Three more normalisation rules in one batch. **N12**: RDBMS connection identity — domain carries `Host` + `Port`; no shim-side connection-string synthesis. **N13**: cache node tier — opaque per-cloud `NodeType` pass-through. **N14**: functions container image — domain represents only container-image-packaged functions; language-runtime Lambdas are out of intersection. Only **API Gateway stages-vs-configs-vs-products** remains as a pending audit item; two open sub-questions (N10 clamp-vs-fail, N13 tier-enum-vs-opaque) noted. Track A blocked on real-cloud credentials. |
-| Last merged | PR #72 — 15.A N10 + N11: queue visibility timeout + RDBMS engine version. |
+| Active branch | `main` after PR #73 merged (15.A N12 + N13 + N14). Phase 15.A audit-closure PR in flight: adds **N15 (API Gateway declarative-replace routing table)** — the last open audit item. |
+| In-flight | **15.A N15: API Gateway flattening.** The shim's API Gateway domain deliberately collapses AWS stages, GCP API configs, and Azure APIM products / subscriptions into a single `Gateway` + `Routes` abstraction with `DeployGateway` as an atomic routing-table swap. Strong opinion: per-cloud mid-tier resources are implementation detail and don't escape the domain. After this PR the first-pass 15.A audit is complete (N1–N15 documented); two open sub-questions (N10 clamp-vs-fail, N13 tier-enum-vs-opaque) remain as explicit decision points. Track A blocked on real-cloud credentials. |
+| Last merged | PR #73 — 15.A N12 + N13 + N14: RDBMS connection + cache tier + functions image. |
 | Phases 1–13 | All closed (Phase 13 closed by PR #20). PR index in [PLAN.md § Closed phases](PLAN.md#closed-phases-pr-index). |
 | Phase 14 | 14.A ✅ · 14.B ✅ · 14.C ✅ · 14.D ✅ (simulator audit) / Track A blocked · 14.E ✅. Remaining residuals (terraform-aws `_wo` drift, SB cross-cloud scoping) carried into Phase 15.B. |
 | Phase 15 | Just opened. Sub-phases: 15.A normalisations contract doc · 15.B 14.E cleanups · 15.C NoSQL key-value · 15.D DNS public+private. 15.A ships first. See [PLAN.md § Phase 15](PLAN.md#phase-15--cross-cloud-normalization-standard--new-service-expansion). |

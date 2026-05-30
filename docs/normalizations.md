@@ -206,6 +206,30 @@ For portable cross-cloud Apply, users should use **major-version-only** version 
 
 **Reference.** `internal/functions/domain/domain.go::CreateOptions.Image`; `services/functions/backends/{aws,azure,knative}/...`.
 
+### N15 — API Gateway declarative-replace routing table (collapses stages / configs / products)
+
+**Asymmetry.** Each cloud's API Gateway has a different mid-level abstraction between "the gateway resource" and "the routes":
+
+- **AWS API Gateway:** stages (`$default`, `dev`, `prod`, …) — each stage carries its own deployment with the route set frozen at deploy time.
+- **GCP API Gateway:** API configs — versioned route specs that get attached to a gateway. Deploying a new config replaces the route table atomically.
+- **Azure API Management:** products + subscriptions — products group APIs for billing / access control; the route table is the union of APIs in active products.
+
+These mechanisms exist for *different reasons* (AWS stages = environment separation, GCP configs = versioned rollback, Azure products = access control), and don't translate cleanly to each other.
+
+**Rule.** The shim's API Gateway domain (`internal/apigateway/domain/domain.go`) collapses all three into a single abstraction: a **`Gateway` with a `Routes` slice**, mutated by the **`DeployGateway(spec)`** operation that **atomically swaps the routing table**. Each backend implements "atomically" differently — AWS by creating a new stage + deployment, GCP by creating a new config + redirect, Azure by patching the product/API associations — but the visible behaviour is consistent: all-or-nothing route swap.
+
+This is a **deliberate flattening**, not an opaque pass-through. The shim takes a strong opinion that the user-visible cross-cloud API Gateway abstraction is just a routing table; the cloud-specific mid-tier resources are implementation detail that doesn't escape the domain layer.
+
+**Trade-off.** Three meaningful features become out-of-intersection:
+
+- **Environment separation via stages.** AWS users who run `dev` + `prod` stages on one Gateway resource can't express the same shape against GCP / Azure backends through the shim. Workaround: separate Gateway resources per environment.
+- **Versioned rollback via GCP configs.** GCP users who roll back to a prior config via the API can't do so through the shim's domain. The shim treats every `DeployGateway` as the new ground truth.
+- **Access control via APIM products.** Azure users who organise APIs into billable products lose that grouping; the shim presents a flat route table.
+
+For these use cases users either go to the destination-cloud's native API directly (bypassing the shim) or model the access control / environment separation at a higher layer.
+
+**Reference.** `internal/apigateway/domain/domain.go::Gateway` + `DeployGateway`. Per-cloud `DeployGateway` implementations in `services/apigateway/backends/{aws,gcp,azure}/`.
+
 ## How rules are added
 
 When 14.E-style cross-cloud work surfaces a new asymmetry:
@@ -220,13 +244,11 @@ The contract: every cross-cloud translation rule is published, named, and exerci
 
 ## Rules under audit (open items for Phase 15)
 
-Items still pending audit + rule documentation:
+The first-pass audit is complete: every implicit normalisation the shim implements today has a published rule (N1–N15). New asymmetries surfaced by Phase 15.C (NoSQL key-value) and 15.D (DNS) will add rules to this file as they land.
 
-- **API Gateway stages vs configs vs products** — semantic alignment across AWS API Gateway stages, GCP API Gateway API configs, and Azure API Management products / subscriptions.
+**Open sub-question on N10:** GCP backend's silent clamping of `VisibilityTimeoutSeconds` to `[10, 600]` is the only mutation across the queue backends; AWS / Azure pass through and let the cloud API reject. Decide whether to align by failing the call instead (preserves the source cloud's error vocabulary on cross-cloud config that doesn't fit GCP's hard limit) or document the clamping as the rule. Each direction has trade-offs — needs an explicit decision PR.
 
-**Open sub-question on N10:** GCP backend's silent clamping of `VisibilityTimeoutSeconds` to `[10, 600]` is the only mutation across the queue backends; AWS / Azure pass through and let the cloud API reject. Decide whether to align by failing the call instead (preserves the source cloud's error vocabulary on cross-cloud config that doesn't fit GCP's hard limit) or document the clamping as the rule.
-
-**Open sub-question on N13:** consider whether a normalised "tier" enum (`small`/`medium`/`large` with documented per-cloud mapping) would help cross-cloud Apply, even though sizing isn't fully portable. Today's rule is opaque pass-through; the alternative is a domain enum with a published mapping table.
+**Open sub-question on N13:** consider whether a normalised "tier" enum (`small`/`medium`/`large` with documented per-cloud mapping) would help cross-cloud Apply, even though sizing isn't fully portable. Today's rule is opaque pass-through; the alternative is a domain enum with a published mapping table. Worth pursuing if cross-cloud Apply for Cache becomes a common scenario.
 
 Closed audit items:
 
@@ -236,3 +258,4 @@ Closed audit items:
 - ~~RDBMS connection string format~~ — covered by **N12** (host + port at domain; no shim-side connection-string synthesis).
 - ~~Cache cluster mode~~ — covered by **N13** (opaque `NodeType` pass-through; open sub-question on a normalised tier enum).
 - ~~Functions runtime → container image~~ — covered by **N14** (container-image canonical form; language-runtime Lambdas are out of intersection).
+- ~~API Gateway stages vs configs vs products~~ — covered by **N15** (deliberate flattening into a declarative-replace routing table; stages / configs / products are implementation detail that doesn't escape the domain).

@@ -32,7 +32,15 @@ Cross-referenced from `PHILOSOPHY.md` (operational footnote on "The Circle"), `A
 
 Open audit items captured at the bottom of `normalizations.md` for follow-on 15.A PRs: soft-delete grace period, queue visibility-timeout semantics, RDBMS engine version naming + connection string, cache cluster mode, functions runtime → container image mapping, API Gateway stages-vs-configs-vs-products. Each becomes a rule entry once audited.
 
-### 15.A N12 + N13 + N14: RDBMS connection identity + cache node tier + functions container image (this PR, after PR #72)
+### 15.A N15: API Gateway declarative-replace routing table — first-pass audit closes (this PR, after PR #73)
+
+The last open audit item from PR #70's list. The shim's API Gateway domain (`internal/apigateway/domain/domain.go`) deliberately **flattens** the three clouds' mid-tier abstractions — AWS stages, GCP API configs, Azure APIM products / subscriptions — into a single `Gateway` + `Routes` abstraction. `DeployGateway(spec)` atomically swaps the routing table; each backend implements "atomically" differently but the visible behaviour is consistent: all-or-nothing route swap.
+
+This is a **deliberate flattening**, not opaque pass-through. The shim takes a strong opinion that the user-visible cross-cloud API Gateway abstraction is just a routing table; per-cloud mid-tier resources are implementation detail that doesn't escape the domain. Three real features become out-of-intersection: AWS stage-based environment separation, GCP config-based rollback, Azure product-based access control. Users who need those go to the destination-cloud's native API directly.
+
+**First-pass 15.A audit complete.** N1–N15 cover every implicit normalisation the shim implements today. Two open sub-questions remain as explicit decision points: N10 clamp-vs-fail on GCP queue visibility-timeout, N13 tier-enum-vs-opaque on cache node sizing. New asymmetries surfaced by 15.C (NoSQL key-value) and 15.D (DNS) will add fresh rule entries as they land.
+
+### 15.A N12 + N13 + N14: RDBMS connection identity + cache node tier + functions container image (PR #73, after PR #72)
 
 Three rules batched. Pattern across all three: **opaque pass-through with documented per-cloud asymmetry**, not transformation.
 
