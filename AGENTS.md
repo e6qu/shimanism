@@ -88,6 +88,8 @@ The shim's front door speaks the cloud's published API. The contract is:
 
 Where the chosen backend can't honor a call honestly, the shim returns the source cloud's own error vocabulary for that situation: `NotImplementedException`, `OperationNotSupported`, `InvalidParameterValue`, etc. **Never fabricate success. Never substitute a generic 500.** This is the [PHILOSOPHY.md](PHILOSOPHY.md) "never lie" rule, made testable.
 
+Where the asymmetry CAN be bridged by a deterministic + stateless translation, that translation is a **published normalization rule** under [docs/normalizations.md](docs/normalizations.md). Every cross-cloud rule has an entry with asymmetry / rule / trade-off / reference. When new cross-cloud work surfaces an asymmetry, either add a rule there or declare the case out-of-intersection — never bridge with a hidden translation.
+
 ## The conformance contract
 
 Every shimmed operation must be exercisable, in the same commit that registers the handler, via the matching cloud's official client surfaces — **for every frontend × every backend in scope.** Per [PLAN.md principle 11](PLAN.md#guiding-principles) each phase carries the full 3 frontends × 3 driver types × 4 backends = 36 driver-backend matrix.

@@ -166,6 +166,8 @@ This is the [PHILOSOPHY.md § The Intersection](../PHILOSOPHY.md#the-circle) con
 
 A fourth implicit category — "returns something plausible without doing real work" — is by definition a fake and either gets removed or filed as a [BUGS.md](../BUGS.md) entry.
 
+A fifth category — "in intersection, but the destination cloud represents the semantic differently" — gets a *published normalization rule* under [normalizations.md](normalizations.md). Each rule is deterministic, stateless, and exercised by a named test. New cross-cloud asymmetries either get a rule or get classified as category 3 (out of intersection).
+
 ## Kubernetes is the fourth backend
 
 Every shimmed service has a K8s peer on equal footing with AWS / GCP / Azure. When a suitable open-source K8s-native peer exists (MinIO for storage, Vault for secrets, NATS JetStream for queue/pubsub, CloudNativePG for Postgres, Redis Operator for cache, Knative for functions, Envoy Gateway for API gateway), the shim uses it.

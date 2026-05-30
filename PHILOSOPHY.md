@@ -80,6 +80,8 @@ The grasshopper drew four rings, crossing. The master stood on the small shared 
 
 The grasshopper understood.
 
+> Operational: the small shared place is the intersection. Where the rings overlap but the floor tilts, the shim levels it with a *published rule* — one normalization, stateless, deterministic, named upfront. The rule registry is [docs/normalizations.md](docs/normalizations.md). Every cross-cloud translation lives there. No hidden translations; no fakes (see [AGENTS.md § No fakes](AGENTS.md#no-fakes-no-stubs-no-mocks-no-silent-fallbacks-ever)).
+
 ## The Fourth Wall
 
 "The shim has three back doors," said the grasshopper. "One per cloud."
