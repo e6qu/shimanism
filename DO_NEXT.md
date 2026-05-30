@@ -45,7 +45,7 @@ Phase 14 closed; 14.E shipped 11 PRs (#58–#67 + this PR's secrets matrix). Pha
 
 Phase 15 sub-phase order:
 
-1. **15.A — Normalisations contract doc.** PR #70 landed N1–N8; PR #71 added N9; PR #72 added N10 + N11. This PR adds **N12 (RDBMS connection identity — host + port, no shim-side connection-string synthesis), N13 (cache node tier — opaque per-cloud `NodeType`), N14 (functions container image — domain represents only container-image-packaged functions)**. Only **API Gateway stages-vs-configs-vs-products** remains as an audit item, plus two open sub-questions (N10 clamp-vs-fail, N13 tier-enum-vs-opaque).
+1. **15.A — Normalisations contract doc.** First-pass audit completes with this PR. PR #70 landed N1–N8; PR #71 added N9; PR #72 added N10 + N11; PR #73 added N12 + N13 + N14; **this PR adds N15 (API Gateway declarative-replace routing table)**. After this PR the only open items are two explicit-decision sub-questions: N10 clamp-vs-fail on GCP queue visibility-timeout, and N13 tier-enum-vs-opaque on cache node sizing. New asymmetries surfaced by 15.C / 15.D will add fresh rule entries as they land.
 2. **15.B — 14.E residual cleanups.** Investigate `terraform-aws v5` `has_secret_string_wo` drift on `TestCrossCloudApply_Roundtrip_SecretsAWStoAzure` (skipped today). Scope SB cross-cloud (decide: build shim AMQP listener / file sockerless / formally close as out-of-intersection).
 3. **15.C — NoSQL key-value service.** DynamoDB + Firestore Native + Cosmos DB Table API + K8s peer (etcd-based). Get / Put / Delete / Scan on partition key. Multi-PR.
 4. **15.D — DNS service.** Route 53 + Cloud DNS + Azure DNS + K8s peer (CoreDNS). Public + private zones; standard record types. Multi-PR.
