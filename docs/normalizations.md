@@ -168,6 +168,44 @@ For portable cross-cloud Apply, users should use **major-version-only** version 
 
 **Reference.** `services/rdbms/backends/gcp/gcp.go::gcpEngineVersion` + `domainEngineFromGCP`. AWS / Azure backends pass through directly.
 
+### N12 — RDBMS connection identity (host + port, not connection string)
+
+**Asymmetry.** Each cloud's RDBMS service exposes connection details differently:
+
+- **AWS RDS:** hostname (e.g. `mydb.abc123.us-east-1.rds.amazonaws.com`) + port.
+- **GCP Cloud SQL:** connection name (`project:region:instance`) used by Cloud SQL Auth Proxy, **plus** IP address(es) + port for direct connections.
+- **Azure Database for PostgreSQL Flexible Server:** FQDN (`mydb.postgres.database.azure.com`) + port.
+
+**Rule.** The domain layer carries `Host` and `Port` as separate fields. Backends extract them from the cloud-native API response (AWS `Endpoint.Address` / `Endpoint.Port`, GCP `ipAddresses[]`, Azure `fullyQualifiedDomainName`) and present them via `domain.Instance`. The shim does **not** synthesize a connection string. Each cloud's Terraform provider / SDK constructs the connection format from host + port + auth credentials in its own way.
+
+**Trade-off.** Cross-cloud users who copy a hand-built connection string verbatim across cloud-shape providers will hit mismatches (e.g. AWS-shape state recording `host:port` and GCP-shape state expecting `project:region:instance`). The shim publishes host + port; users adapt the connection-string assembly in their downstream apps.
+
+**Reference.** `internal/rdbms/domain/domain.go` (Host + Port fields); per-cloud backends extract from each API's native response.
+
+### N13 — Cache node tier (opaque per-cloud)
+
+**Asymmetry.** Cache sizing varies by cloud both in vocabulary and in shape:
+
+- **AWS ElastiCache:** node types like `cache.t3.micro`, `cache.r6g.large`.
+- **GCP Memorystore:** tier enum (`BASIC`, `STANDARD_HA`) plus `memorySizeGb`.
+- **Azure Cache for Redis:** SKU family + capacity (`Basic C0`, `Standard C1`, `Premium P3`).
+
+**Rule.** The domain layer treats `NodeType` as an opaque string. Each backend passes through to its native API field; the cloud's own validation rejects unrecognized values with its own error envelope. The shim does not attempt to map sizing across cloud schemes — sizing is too tightly coupled to per-cloud pricing, performance characteristics, and feature gating to normalise meaningfully.
+
+**Trade-off.** Cross-cloud Apply with a hard-coded `node_type = "cache.t3.micro"` against a GCP backend fails with GCP's "invalid tier" error. Users have to adapt the size string per target.
+
+**Reference.** `internal/cache/domain/domain.go::NodeType`; per-cloud backends pass through.
+
+### N14 — Functions: container-image canonical form
+
+**Asymmetry.** AWS Lambda historically supports two packaging modes: **language runtimes** (`runtime = "python3.12"`, etc.) and **container images** (`package_type = "Image"`). GCP Cloud Run is container-image-only. Azure Container Apps is container-image-only.
+
+**Rule.** The shim's functions domain layer represents only **container images** (`domain.CreateOptions.Image` carries the image URI). Lambda backend uses `PackageType = Image` with `ImageUri`. Cloud Run + Container Apps backends use the image natively. A user who wants to run a "language runtime" Lambda must wrap their code as a container image (Lambda's `Image` package type accepts user-built or AWS-provided base images — `public.ecr.aws/lambda/python:3.12` etc.).
+
+**Trade-off.** Lambdas using language-runtime packaging (`runtime = "python3.12"` without `image_uri`) can't be expressed in the cross-cloud domain. The shim's Lambda backend creates only `PackageType = Image` functions; users with existing language-runtime Lambdas convert them by switching to the AWS-provided runtime base images before migrating.
+
+**Reference.** `internal/functions/domain/domain.go::CreateOptions.Image`; `services/functions/backends/{aws,azure,knative}/...`.
+
 ## How rules are added
 
 When 14.E-style cross-cloud work surfaces a new asymmetry:
@@ -184,17 +222,17 @@ The contract: every cross-cloud translation rule is published, named, and exerci
 
 Items still pending audit + rule documentation:
 
-- **RDBMS connection string format** — per-cloud emission shape.
-- **Cache cluster mode** — sharded vs single-node across clouds.
-- **Functions runtime → container image mapping** — Lambda runtime translates to Cloud Run / Container Apps container; mapping table.
-- **API Gateway stages vs configs vs products** — semantic alignment.
+- **API Gateway stages vs configs vs products** — semantic alignment across AWS API Gateway stages, GCP API Gateway API configs, and Azure API Management products / subscriptions.
 
-Each will land as a follow-on 15.A PR as the rule is audited + documented.
+**Open sub-question on N10:** GCP backend's silent clamping of `VisibilityTimeoutSeconds` to `[10, 600]` is the only mutation across the queue backends; AWS / Azure pass through and let the cloud API reject. Decide whether to align by failing the call instead (preserves the source cloud's error vocabulary on cross-cloud config that doesn't fit GCP's hard limit) or document the clamping as the rule.
 
-**Open audit question on N10:** GCP backend's silent clamping of `VisibilityTimeoutSeconds` to `[10, 600]` is the only mutation across the queue backends; AWS / Azure pass through and let the cloud API reject. Decide whether to align by failing the call instead (preserves the source cloud's error vocabulary on cross-cloud config that doesn't fit GCP's hard limit) or document the clamping as the rule.
+**Open sub-question on N13:** consider whether a normalised "tier" enum (`small`/`medium`/`large` with documented per-cloud mapping) would help cross-cloud Apply, even though sizing isn't fully portable. Today's rule is opaque pass-through; the alternative is a domain enum with a published mapping table.
 
 Closed audit items:
 
 - ~~Soft-delete grace period~~ — covered by **N9** (cloud-deployment property, not call-level).
 - ~~Queue visibility timeout~~ — covered by **N10** (with an open sub-question on GCP-side clamping vs failing).
 - ~~RDBMS engine version naming~~ — covered by **N11** (major-version-only is the portable form).
+- ~~RDBMS connection string format~~ — covered by **N12** (host + port at domain; no shim-side connection-string synthesis).
+- ~~Cache cluster mode~~ — covered by **N13** (opaque `NodeType` pass-through; open sub-question on a normalised tier enum).
+- ~~Functions runtime → container image~~ — covered by **N14** (container-image canonical form; language-runtime Lambdas are out of intersection).
