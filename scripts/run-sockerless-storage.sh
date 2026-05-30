@@ -220,4 +220,5 @@ go test -run '^TestSockerless_' -count=1 -v \
     ./services/rdbms/conformance/... \
     ./services/cache/conformance/... \
     ./services/functions/conformance/... \
-    ./services/apigateway/conformance/...
+    ./services/apigateway/conformance/... \
+    ./services/dns/conformance/...

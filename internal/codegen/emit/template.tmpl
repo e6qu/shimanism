@@ -128,7 +128,7 @@ func {{ .GoName }}Handler(b {{ .GoName }}Backend) http.Handler {
 		in := &{{ .InputType }}{}
 		labels, ok := restxml.MatchURI(r.URL.Path, {{ .GoName }}URITemplate)
 		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
+			{{ if $.NoErrorWrapping }}restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template"){{ else }}restxml.WriteErrorWrapped(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template"){{ end }}
 			return
 		}
 		_ = labels
@@ -177,7 +177,7 @@ func {{ .GoName }}Handler(b {{ .GoName }}Backend) http.Handler {
 {{- end }}
 		out, err := b.{{ .GoName }}(ctx{{ if .InputType }}, in{{ end }})
 		if err != nil {
-			restxml.WriteBackendError(w, err)
+			{{ if $.NoErrorWrapping }}restxml.WriteBackendError(w, err){{ else }}restxml.WriteBackendErrorWrapped(w, err){{ end }}
 			return
 		}
 		_ = out

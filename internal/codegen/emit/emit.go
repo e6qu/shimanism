@@ -125,6 +125,32 @@ func (g *gen) serviceGoName() string {
 	return g.serviceShortName()
 }
 
+// restXmlNoErrorWrapping returns the `noErrorWrapping` flag on the
+// service's `aws.protocols#restXml` trait. S3 sets it to true (bare
+// `<Error>` envelope); Route 53 and CloudFront leave it unset
+// (wrapped `<ErrorResponse>`). Returns false for non-rest-xml
+// services; the emitter only consults it on the rest-xml template
+// path.
+func (g *gen) restXmlNoErrorWrapping() bool {
+	for _, sh := range g.model.Shapes {
+		if sh.Type != "service" {
+			continue
+		}
+		raw := sh.TraitJSON("aws.protocols#restXml")
+		if raw == nil {
+			return false
+		}
+		var t struct {
+			NoErrorWrapping bool `json:"noErrorWrapping"`
+		}
+		if err := json.Unmarshal(raw, &t); err != nil {
+			return false
+		}
+		return t.NoErrorWrapping
+	}
+	return false
+}
+
 // serviceProtocol returns the wire-protocol identifier for the
 // service: one of "rest-xml" (default, S3), "aws-json-1.1" (Secrets
 // Manager, DynamoDB), "aws-json-1.0" (SQS), "aws-query" (SNS / RDS /
@@ -261,6 +287,13 @@ type fileData struct {
 	// Protocol is the service-level wire protocol — "rest-xml",
 	// "aws-json-1.1", etc. Selects the rendering template.
 	Protocol string
+	// NoErrorWrapping is the `aws.protocols#restXml.noErrorWrapping`
+	// trait value. S3 sets it to true → bare `<Error>...</Error>`
+	// envelope. Other rest-xml services (Route 53, CloudFront) leave
+	// it unset → wrapped `<ErrorResponse><Error>...</Error></ErrorResponse>`.
+	// Selects between `restxml.WriteBackendError` and
+	// `restxml.WriteBackendErrorWrapped` in the rendered handlers.
+	NoErrorWrapping bool
 }
 
 type enumView struct {
@@ -383,12 +416,13 @@ type errorView struct {
 
 func (g *gen) render() ([]byte, error) {
 	data := fileData{
-		Pkg:           g.opts.PackageName,
-		Source:        g.opts.SourceFile,
-		Commit:        g.opts.SourceCommit,
-		Service:       g.serviceShortName(),
-		ServiceGoName: g.serviceGoName(),
-		Protocol:      g.serviceProtocol(),
+		Pkg:             g.opts.PackageName,
+		Source:          g.opts.SourceFile,
+		Commit:          g.opts.SourceCommit,
+		Service:         g.serviceShortName(),
+		ServiceGoName:   g.serviceGoName(),
+		Protocol:        g.serviceProtocol(),
+		NoErrorWrapping: g.restXmlNoErrorWrapping(),
 	}
 
 	for _, id := range g.shapeOrder {

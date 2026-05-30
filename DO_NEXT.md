@@ -19,7 +19,7 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 - **All Azure frontends carry full `gen.ServerInterface` impls** with the `var _ gen.ServerInterface = (*Server)(nil)` compile-time gate.
 - **Open BUGs (2):** BUG-8 + BUG-15 (Track A, real GCP needed). BUG-35 closed in PR #48 after sockerless PR #245 derived ACA image platforms from the resolved manifest.
 - **Upstream watch:** zero open sockerless issues for the shimanism roadmap (six gaps surfaced during 14.E all closed: #257/#260/#261/#269/#272/#276 via #259/#262/#271/#274/#277).
-- **Last merged:** PR #79 — 15.D foundational (DNS domain + inmem backend + N17 normalisation rule).
+- **Last merged:** PR #80 — 15.D AWS Route 53 backend (Smithy spec + codegen + passthrough adapter).
 
 ## Session-start checklist
 
@@ -49,8 +49,9 @@ Phase 15 sub-phase order:
 2. **15.B — 14.E residual cleanups (closing).** PR #75 documented the `_wo` drift; PR #76 tightened N10 (fail instead of clamp). This PR closes the remaining two: **N13 stays opaque** (the ergonomic gain doesn't justify the three-cloud mapping-table maintenance burden) and **N16 records connection-based data-plane frontends as achievable-but-not-yet-built**. AMQP / RESP / PG-wire / MySQL-wire / Kafka frontends would use Go server-side wire-protocol libraries (the shim's backends already use the cloud-native client libs for these outbound; frontends are the symmetric pattern). Listed as Phase 15.E / 16 candidate. `docs/architecture.md` adds a "Wire-protocol libraries (both sides)" subsection codifying the rule. After this PR, Phase 15.B is closed.
 3. ~~15.C + 15.D scoping doc.~~ ✅ Shipped in PR #78.
 4. ~~15.D foundational~~ — ✅ shipped in PR #79.
-5. **15.D AWS Route 53 backend — implemented (this PR).** Vendored Route 53 Smithy spec (`13bee3c72`), wired `services/dns/codegen.json` with the 8 intersection ops, ran `make codegen` to emit `services/dns/gen/aws_route53.gen.go`. `services/dns/backends/aws/aws.go` implements `domain.DNS` against `aws-sdk-go-v2/service/route53` — N17 dispatch on `Visibility`, name→HostedZoneId resolved per request (stateless), TXT double-quoting per Route 53 wire format. Pure-Go helper tests pass.
-6. **15.D — next chunks (in order):** (a) AWS Route 53 frontend + SDK/CLI/Terraform conformance against sockerless; (b) GCP Cloud DNS frontend + backend with vendored Discovery doc; (c) Azure DNS + Private DNS frontend + backend with vendored OpenAPI (one backend, `Visibility` dispatch); (d) CoreDNS K8s peer (file-based); (e) cross-cloud Apply cells.
+5. ~~15.D AWS Route 53 backend~~ — ✅ shipped in PR #80.
+6. **15.D AWS Route 53 frontend + conformance — implemented (this PR).** `internal/dns/frontends/aws_route53/adapter.go` translates Route 53 wire ↔ `domain.DNS`. Codegen now emits `restxml.WriteBackendErrorWrapped` for rest-xml services that don't set `noErrorWrapping=true` (Route 53, CloudFront); S3's gen output is unchanged. SDK + CLI + Terraform conformance tests all green against the inmem backend; sockerless through-shim test added behind `SOCKERLESS_AWS_ENDPOINT`. Added `GetChange` to the intersection (terraform-aws polls it post-create).
+7. **15.D — next chunks (in order):** (a) GCP Cloud DNS frontend + backend with vendored Discovery doc; (b) Azure DNS + Private DNS frontend + backend with vendored OpenAPI (one backend, `Visibility` dispatch); (c) CoreDNS K8s peer (file-based); (d) cross-cloud Apply cells.
 6. **15.C — NoSQL key-value service** (after 15.D). Per scoping doc: DynamoDB + Firestore Native + Cosmos DB Table API + etcd K8s peer. ~3-4 PRs.
 
 Track A (BUG-8 + BUG-15) still blocked on real-cloud credentials.
