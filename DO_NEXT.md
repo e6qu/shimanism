@@ -48,8 +48,9 @@ Real-cloud lanes for BUG-8 (hashicorp/google API Gateway TF endpoint/OAuth leg) 
 4. ~~14.E expansion: Service Bus Apply.~~ ✅ Shipped in PR #60 (queue side).
 5. ~~14.E SB Topics + Subscriptions Apply.~~ ✅ Shipped in PR #61.
 6. ~~14.E cross-cloud Azure→AWS Apply for storage.~~ ✅ Shipped in PR #62.
-7. **14.E cross-cloud Azure→GCP Apply for storage — implemented (this PR).** Mirror of PR #62 on the GCP side. `TestSockerless_E2E_AzureBlob_Through_Shim_ApplyTF_BackendGCS` runs the same azurerm Apply, but the shim's azure_blob backend is GCS talking to sockerless's GCP sim. Closes the cross-cloud Apply matrix on the Azure→GCP corner for storage.
-8. **14.E expansion (next concrete chunk):** KV cross-cloud Apply (`Azure terraform → shim azure_keyvault → AWS Secrets Manager backend → sockerless AWS sim`). Closes the cross-cloud loop for secrets.
+7. ~~14.E cross-cloud Azure→GCP Apply for storage.~~ ✅ Shipped in PR #63.
+8. **14.E cross-cloud Azure→AWS Apply for secrets — implemented (this PR).** Mirror of PR #62 for secrets. `TestSockerless_E2E_AzureKV_Through_Shim_ApplyTF_BackendAWS` runs the same azurerm KV Apply as PR #59, but the shim's azure_keyvault frontend is backed by AWS Secrets Manager talking to sockerless's AWS sim. First cross-cloud Apply for the secrets service.
+9. **14.E expansion (next concrete chunk):** KV cross-cloud Apply with **GCP Secret Manager** backend (mirror of this PR on the GCP corner). After that: SB queue/topic cross-cloud variants OR AWS-source / GCP-source Apply lanes.
 5. ~~Watch sockerless#244.~~ ✅ Done in PR #49.
 
 ### Lesson: ARM shimming via fakes was the wrong design
