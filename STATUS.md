@@ -8,9 +8,9 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 
 | | |
 |---|---|
-| Active branch | `main` after PR #77 merged (15.B closed). Phase 15.C + 15.D scoping PR in flight. |
-| In-flight | **15.C + 15.D scoping doc.** New `docs/phase-15-cd-scoping.md` audits the two upcoming new-service sub-phases before any code lands. 15.C NoSQL key-value: DynamoDB / Firestore Native / Cosmos DB Table API / etcd K8s peer, intersection on Get/Put/Delete/Scan/Query against partition key, ~3-4 PRs. 15.D DNS: Route 53 / Cloud DNS / Azure DNS (public) / Azure Private DNS / CoreDNS peer, intersection on zones + record sets (A/AAAA/CNAME/MX/TXT/NS/SOA/SRV), ~2-3 PRs. Recommended order: 15.D first (smaller, fewer open questions). Open scoping questions tracked in the doc. Track A blocked on real-cloud credentials. |
-| Last merged | PR #77 — 15.B closing: N13 stays opaque, N16 records the wire-protocol frontend pattern. |
+| Active branch | `main` after PR #78 merged (15.C + 15.D scoping doc). Phase 15.D foundational PR in flight. |
+| In-flight | **15.D foundational: domain + inmem + N17.** New `internal/dns/domain/` (interface, types, errors), `services/dns/backends/inmem/` (in-memory backend with zone + record set CRUD), `services/dns/INTERSECTION.md` + `APPLY_INTERSECTION.md` + `spec/SOURCES.md` placeholder. `docs/normalizations.md` adds **N17: DNS zone visibility** — one `Zone.Visibility = Public \| Private` enum collapses the Azure DNS / Private DNS resource-type split + Route 53's VPC-list-determines-private + Cloud DNS's `visibility` field into a single domain abstraction; backends dispatch on it. Decisions: Azure DNS + Private DNS as **one backend** with `Visibility` dispatch (matches N5 / N8 patterns), CoreDNS peer via file-based zone config (deferred to follow-on PR). Frontends (AWS Route 53 / GCP Cloud DNS / Azure DNS) land in follow-on PRs with spec vendoring. Track A blocked on real-cloud credentials. |
+| Last merged | PR #78 — 15.C + 15.D scoping doc. |
 | Upstream watch | sockerless #288 merged (AWS API Gateway client-surface coverage). Zero open sockerless issues for shimanism's current work. |
 | Phases 1–13 | All closed (Phase 13 closed by PR #20). PR index in [PLAN.md § Closed phases](PLAN.md#closed-phases-pr-index). |
 | Phase 14 | 14.A ✅ · 14.B ✅ · 14.C ✅ · 14.D ✅ (simulator audit) / Track A blocked · 14.E ✅. Remaining residuals (terraform-aws `_wo` drift, SB cross-cloud scoping) carried into Phase 15.B. |

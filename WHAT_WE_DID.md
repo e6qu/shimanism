@@ -32,7 +32,21 @@ Cross-referenced from `PHILOSOPHY.md` (operational footnote on "The Circle"), `A
 
 Open audit items captured at the bottom of `normalizations.md` for follow-on 15.A PRs: soft-delete grace period, queue visibility-timeout semantics, RDBMS engine version naming + connection string, cache cluster mode, functions runtime → container image mapping, API Gateway stages-vs-configs-vs-products. Each becomes a rule entry once audited.
 
-### 15.C + 15.D scoping doc (this PR, after PR #77)
+### 15.D foundational: domain + inmem + N17 (this PR, after PR #78)
+
+First chunk of 15.D implementation. Establishes the skeleton:
+
+- `internal/dns/domain/domain.go` — `DNS` interface with `CreateZone` / `GetZone` / `DeleteZone(force)` / `ListZones` / `PutRecordSet` / `GetRecordSet` / `DeleteRecordSet` / `ListRecordSets`. Domain types: `Zone` (with `Visibility = Public | Private`), `RecordSet` (with `Type` enum covering A / AAAA / CNAME / MX / NS / SOA / SRV / TXT), `CreateZoneOptions` (with `PrivateVPCs` for private-zone VPC associations).
+- `internal/dns/domain/errors.go` — typed errors.
+- `services/dns/backends/inmem/inmem.go` — in-memory backend with zone-name canonicalisation, atomic CRUD, fabricated NameServers for public zones, pre-seeded SOA + NS record sets on Create, force semantics on Delete.
+- `services/dns/backends/inmem/inmem_test.go` — unit tests for zone lifecycle, record-set CRUD, private-zone behaviour.
+- `services/dns/INTERSECTION.md` + `APPLY_INTERSECTION.md` + `spec/SOURCES.md` placeholder.
+
+**N17 lands in `docs/normalizations.md`.** Each cloud splits public-vs-private DNS zones differently — Route 53 uses opt-in VPC list, Cloud DNS uses `visibility` field, Azure DNS uses two distinct ARM resource types. The shim's domain collapses all three into one `Zone.Visibility` enum; backends dispatch on it. The Azure backend (when it lands) is one backend with internal dispatch, not two — same pattern as N5 (queue↔topic+subscription) and N8 (storage metadata-vs-tags split).
+
+**What's next:** 15.D follow-ons land per-cloud frontends + backends (Route 53 → Cloud DNS → Azure DNS+Private DNS) and the CoreDNS peer. Cross-cloud Apply cells follow.
+
+### 15.C + 15.D scoping doc (PR #78, after PR #77)
 
 Pre-implementation audit for the two new-service sub-phases. `docs/phase-15-cd-scoping.md` lands with:
 
