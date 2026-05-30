@@ -8,9 +8,9 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 
 | | |
 |---|---|
-| Active branch | `main` after PR #76 merged (15.B N10 clamp-vs-fail resolved). Phase 15.B PR in flight: N13 + SB cross-cloud decisions. |
-| In-flight | **15.B N13 + N16 (final two 15.B audit items).** N13: keep `domain.cache.NodeType` as opaque pass-through; the ergonomic gain of a normalised small/medium/large enum doesn't yet justify maintaining three per-cloud mapping tables. N16: connection-based data-plane frontends (AMQP / RESP / PG-wire / MySQL-wire / Kafka) are **achievable, not yet built** — architecturally same shape as HTTP frontends, using Go server-side wire-protocol libraries (the shim's backends already use the cloud-native client libraries for these protocols outbound). Documented in `docs/normalizations.md` (§ N13 closing note + new § N16), `services/queue/APPLY_INTERSECTION.md`, and `docs/architecture.md` (new "Wire-protocol libraries (both sides)" subsection). Track A blocked on real-cloud credentials. |
-| Last merged | PR #76 — 15.B N10 decision: GCP queue VisibilityTimeout fails instead of clamps. |
+| Active branch | `main` after PR #77 merged (15.B closed). Phase 15.C + 15.D scoping PR in flight. |
+| In-flight | **15.C + 15.D scoping doc.** New `docs/phase-15-cd-scoping.md` audits the two upcoming new-service sub-phases before any code lands. 15.C NoSQL key-value: DynamoDB / Firestore Native / Cosmos DB Table API / etcd K8s peer, intersection on Get/Put/Delete/Scan/Query against partition key, ~3-4 PRs. 15.D DNS: Route 53 / Cloud DNS / Azure DNS (public) / Azure Private DNS / CoreDNS peer, intersection on zones + record sets (A/AAAA/CNAME/MX/TXT/NS/SOA/SRV), ~2-3 PRs. Recommended order: 15.D first (smaller, fewer open questions). Open scoping questions tracked in the doc. Track A blocked on real-cloud credentials. |
+| Last merged | PR #77 — 15.B closing: N13 stays opaque, N16 records the wire-protocol frontend pattern. |
 | Upstream watch | sockerless #288 merged (AWS API Gateway client-surface coverage). Zero open sockerless issues for shimanism's current work. |
 | Phases 1–13 | All closed (Phase 13 closed by PR #20). PR index in [PLAN.md § Closed phases](PLAN.md#closed-phases-pr-index). |
 | Phase 14 | 14.A ✅ · 14.B ✅ · 14.C ✅ · 14.D ✅ (simulator audit) / Track A blocked · 14.E ✅. Remaining residuals (terraform-aws `_wo` drift, SB cross-cloud scoping) carried into Phase 15.B. |
