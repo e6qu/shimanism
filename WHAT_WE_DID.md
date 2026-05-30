@@ -32,7 +32,17 @@ Cross-referenced from `PHILOSOPHY.md` (operational footnote on "The Circle"), `A
 
 Open audit items captured at the bottom of `normalizations.md` for follow-on 15.A PRs: soft-delete grace period, queue visibility-timeout semantics, RDBMS engine version naming + connection string, cache cluster mode, functions runtime → container image mapping, API Gateway stages-vs-configs-vs-products. Each becomes a rule entry once audited.
 
-### 15.B closing: N13 stays opaque, N16 records the wire-protocol frontend pattern (this PR, after PR #76)
+### 15.C + 15.D scoping doc (this PR, after PR #77)
+
+Pre-implementation audit for the two new-service sub-phases. `docs/phase-15-cd-scoping.md` lands with:
+
+**15.C — NoSQL key-value:** DynamoDB + Firestore Native + Cosmos DB Table API + etcd K8s peer. Per-cloud surface table (wire protocols, auth, spec sources), intersection matrix on Get/Put/Delete/Scan/Query against partition key, domain interface sketch, frontend/backend layout, codegen lane assignment (smithy → `cmd/codegen`, Discovery → `cmd/gcp-codegen`, OpenAPI → `cmd/azure-codegen`). Open questions: Firestore "no table" semantics (N17 candidate), Cosmos Tables vs Core SQL choice, partition-key naming, etcd peer integration shape.
+
+**15.D — DNS:** Route 53 + Cloud DNS + Azure DNS (public) + Azure Private DNS + CoreDNS K8s peer. Intersection on zones + standard record types (A/AAAA/CNAME/MX/TXT/NS/SOA/SRV). Public + private zones via a `ZoneVisibility` enum in the domain. Sockerless coverage audit pending for Cloud DNS / Azure DNS. Open questions: CoreDNS peer integration shape, Azure DNS vs Private DNS as one backend or two, cross-cloud NS delegation (N18 candidate).
+
+**Recommended order:** 15.D first (smaller scope, fewer open questions) — ~2-3 PRs. Then 15.C — ~3-4 PRs.
+
+### 15.B closing: N13 stays opaque, N16 records the wire-protocol frontend pattern (PR #77, after PR #76)
 
 The final two 15.B audit items resolved.
 
