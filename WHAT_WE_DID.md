@@ -15,6 +15,23 @@ Sub-phases (full scoping in [PLAN.md § Phase 15](PLAN.md#phase-15--cross-cloud-
 - **15.C** — NoSQL key-value service: DynamoDB + Firestore Native + Cosmos DB Table API + K8s peer.
 - **15.D** — DNS service: Route 53 + Cloud DNS + Azure DNS + CoreDNS. Public + private zones.
 
+### 15.A first cut: normalisations contract doc (this PR)
+
+`docs/normalizations.md` lands with eight rules already implemented in the codebase, each documented with a fixed shape: **asymmetry / rule / trade-off / reference**.
+
+- **N1** — Secret value-less create → empty-placeholder in Azure (the rule that opened Phase 15, from PR #69).
+- **N2** — Secret version identity (GUID ↔ monotonic). Domain uses `uint64`; per-cloud frontend emits source-cloud-shaped IDs.
+- **N3** — Tags-vs-labels. GCP label constraints surfaced to caller via GCP API error rather than silent transformation.
+- **N4** — Description encoding. GCP backend stores `description` as reserved `shim-description` label (GCP has no native description field).
+- **N5** — Queue ↔ topic+subscription. GCP queue backend creates a topic + subscription pair per domain queue.
+- **N6** — Region / location naming. Opaque string at domain; no shim-side region translation.
+- **N7** — Storage version identity. Opaque string round-trip; cross-cloud version-specific reads fail with NotFound (documented).
+- **N8** — Storage metadata-vs-tags split. Domain carries both maps; per-cloud backends translate.
+
+Cross-referenced from `PHILOSOPHY.md` (operational footnote on "The Circle"), `AGENTS.md` (after the fidelity-to-source-API section), and `docs/architecture.md` (adds a fifth classification category for "in intersection but represented differently").
+
+Open audit items captured at the bottom of `normalizations.md` for follow-on 15.A PRs: soft-delete grace period, queue visibility-timeout semantics, RDBMS engine version naming + connection string, cache cluster mode, functions runtime → container image mapping, API Gateway stages-vs-configs-vs-products. Each becomes a rule entry once audited.
+
 ## Phase 14 — Closed (with carryover)
 
 PR #21 (2026-05-25) landed 14.A, the 14.D simulator audit, and the 14.B sockerless lane skeleton. PR #46 closed 14.B/C narrowly; PR #47 retired the last Phase-13 ◐ migration (`azure_blob`). 14.E shipped as **11 PRs (#58–#67, plus the secrets-matrix closure this PR adds)** over 2026-05-29 / 2026-05-30, walking the through-shim Apply pattern from the first honest cell up through full storage + secrets cross-cloud matrix coverage. What remains under Phase 14: 14.D Track A (real-cloud credentials), captured as Phase-15 carryover. SB cross-cloud (blocked on missing shim-side AMQP listener) is also a Phase-15 candidate.
