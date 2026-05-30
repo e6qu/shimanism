@@ -23,6 +23,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	gcsstorage "cloud.google.com/go/storage"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
@@ -33,6 +34,7 @@ import (
 	awss3 "github.com/aws/aws-sdk-go-v2/service/s3"
 	"google.golang.org/api/option"
 
+	"github.com/e6qu/shimanism/internal/gcpbearer"
 	"github.com/e6qu/shimanism/internal/harness"
 	"github.com/e6qu/shimanism/internal/storage/domain"
 	awsbackend "github.com/e6qu/shimanism/services/storage/backends/aws"
@@ -1457,6 +1459,252 @@ resource "aws_s3_bucket" "applied" {
   tags   = {}
 }
 `
+
+// sockerlessAzureBlobBackend wires the shim's Azure Blob backend
+// to sockerless's Azure simulator over TLS. Used by the cross-cloud
+// Apply cells whose destination is an Azure-shaped store. Returns
+// the constructed backend; bucket-level assertions can be made
+// against `backend.ListBuckets` (which calls into the same azblob
+// client and so sees what sockerless holds).
+func sockerlessAzureBlobBackend(t *testing.T) *azurebackend.Backend {
+	t.Helper()
+	account := os.Getenv("SOCKERLESS_AZURE_BLOB_ACCOUNT")
+	if account == "" {
+		t.Skip("SOCKERLESS_AZURE_BLOB_ACCOUNT not set")
+	}
+	port := os.Getenv("SOCKERLESS_AZURE_TLS_PORT")
+	if port == "" {
+		t.Skip("SOCKERLESS_AZURE_TLS_PORT not set")
+	}
+	keyMaterial := bytes.Repeat([]byte("k"), 32)
+	encodedKey := base64.StdEncoding.EncodeToString(keyMaterial)
+	cred, err := azblob.NewSharedKeyCredential(account, encodedKey)
+	if err != nil {
+		t.Fatalf("shared-key credential: %v", err)
+	}
+	blobURL := "https://" + account + ".blob.localhost:" + port + "/"
+	c, err := azblob.NewClientWithSharedKeyCredential(blobURL, cred, &azblob.ClientOptions{
+		ClientOptions: azcore.ClientOptions{Transport: &http.Client{Transport: storageLocalhostDial(port)}},
+	})
+	if err != nil {
+		t.Fatalf("blob client: %v", err)
+	}
+	return azurebackend.New(c, "eastus")
+}
+
+// TestSockerless_E2E_AWSS3_Through_Shim_ApplyTF_BackendAzure mirrors
+// the BackendGCS variant on the Azure-blob corner. AWS-shape
+// Terraform → shim's aws_s3 frontend → Azure Blob backend →
+// sockerless Azure sim.
+func TestSockerless_E2E_AWSS3_Through_Shim_ApplyTF_BackendAzure(t *testing.T) {
+	tfBin, err := exec.LookPath("terraform")
+	if err != nil {
+		t.Skipf("terraform not installed: %v", err)
+	}
+	backend := sockerlessAzureBlobBackend(t)
+	shim := harness.StartStorageServer(t, backend)
+
+	// Azure container names must be lowercase letters / digits /
+	// hyphens, 3-63 chars; the SDK enforces this client-side.
+	bucketName := "shim-aws-az-applied-" + randomNamespace("b")
+
+	dir := t.TempDir()
+	hcl := fmt.Sprintf(terraformAWSS3ApplyConfig, shim.URL, bucketName)
+	if err := os.WriteFile(filepath.Join(dir, "main.tf"), []byte(hcl), 0o644); err != nil {
+		t.Fatalf("write main.tf: %v", err)
+	}
+
+	runTf, mustRun := terraformRunner(t, tfBin, dir, nil)
+	mustRun("init", "-no-color")
+	applyOut := mustRun("apply", "-no-color", "-auto-approve")
+	t.Logf("terraform apply stdout:\n%s", applyOut)
+	t.Cleanup(func() { _, _, _ = runTf("destroy", "-no-color", "-auto-approve") })
+
+	expectBucketInBackend(t, backend, bucketName, "sockerless Azure Blob")
+}
+
+// TestSockerless_E2E_GCS_Through_Shim_ApplyTF_BackendAWS opens the
+// GCS-source row of the cross-cloud matrix: `hashicorp/google`
+// Terraform Apply drives the shim's GCS frontend (gcpbearer-verified),
+// the shim's AWS S3 backend translates to sockerless's AWS sim,
+// and the bucket the `google_storage_bucket` resource declared
+// lands as an S3 bucket in sockerless's AWS-shaped store.
+func TestSockerless_E2E_GCS_Through_Shim_ApplyTF_BackendAWS(t *testing.T) {
+	awsEndpoint := os.Getenv("SOCKERLESS_AWS_ENDPOINT")
+	if awsEndpoint == "" {
+		t.Skip("SOCKERLESS_AWS_ENDPOINT not set")
+	}
+	tfBin, err := exec.LookPath("terraform")
+	if err != nil {
+		t.Skipf("terraform not installed: %v", err)
+	}
+	awsClient := newSockerlessAWSClient(t, awsEndpoint)
+	backend := awsbackend.New(awsClient)
+	shim := harness.StartStorageServerGCS(t, backend)
+
+	bucketName := "shim-gcs-aws-applied-" + randomNamespace("b")
+
+	dir := t.TempDir()
+	jwt := gcsBearerJWT()
+	hcl := fmt.Sprintf(terraformGCSCrossCloudApplyConfig, jwt, shim.URL, bucketName)
+	if err := os.WriteFile(filepath.Join(dir, "main.tf"), []byte(hcl), 0o644); err != nil {
+		t.Fatalf("write main.tf: %v", err)
+	}
+
+	runTf, mustRun := terraformRunner(t, tfBin, dir, nil)
+	mustRun("init", "-no-color")
+	applyOut := mustRun("apply", "-no-color", "-auto-approve")
+	t.Logf("terraform apply stdout:\n%s", applyOut)
+	t.Cleanup(func() { _, _, _ = runTf("destroy", "-no-color", "-auto-approve") })
+
+	ctx := context.Background()
+	list, err := awsClient.ListBuckets(ctx, &awss3.ListBucketsInput{})
+	if err != nil {
+		t.Fatalf("sockerless AWS ListBuckets: %v", err)
+	}
+	found := false
+	for _, b := range list.Buckets {
+		if b.Name != nil && *b.Name == bucketName {
+			found = true
+			break
+		}
+	}
+	if !found {
+		names := make([]string, 0, len(list.Buckets))
+		for _, b := range list.Buckets {
+			if b.Name != nil {
+				names = append(names, *b.Name)
+			}
+		}
+		t.Errorf("sockerless AWS bucket list did not contain %q; got %v", bucketName, names)
+	}
+}
+
+// TestSockerless_E2E_GCS_Through_Shim_ApplyTF_BackendAzure mirrors
+// the BackendAWS variant on the Azure-blob corner.
+func TestSockerless_E2E_GCS_Through_Shim_ApplyTF_BackendAzure(t *testing.T) {
+	tfBin, err := exec.LookPath("terraform")
+	if err != nil {
+		t.Skipf("terraform not installed: %v", err)
+	}
+	backend := sockerlessAzureBlobBackend(t)
+	shim := harness.StartStorageServerGCS(t, backend)
+
+	bucketName := "shim-gcs-az-applied-" + randomNamespace("b")
+
+	dir := t.TempDir()
+	jwt := gcsBearerJWT()
+	hcl := fmt.Sprintf(terraformGCSCrossCloudApplyConfig, jwt, shim.URL, bucketName)
+	if err := os.WriteFile(filepath.Join(dir, "main.tf"), []byte(hcl), 0o644); err != nil {
+		t.Fatalf("write main.tf: %v", err)
+	}
+
+	runTf, mustRun := terraformRunner(t, tfBin, dir, nil)
+	mustRun("init", "-no-color")
+	applyOut := mustRun("apply", "-no-color", "-auto-approve")
+	t.Logf("terraform apply stdout:\n%s", applyOut)
+	t.Cleanup(func() { _, _, _ = runTf("destroy", "-no-color", "-auto-approve") })
+
+	expectBucketInBackend(t, backend, bucketName, "sockerless Azure Blob")
+}
+
+// terraformGCSCrossCloudApplyConfig drives the GCS-source through-
+// shim Apply cells. The `storage_custom_endpoint` knob is the
+// `hashicorp/google` provider's redirection point; the access_token
+// is the HS256 test JWT the shim's gcpbearer middleware accepts.
+//
+// %[1]s = access token (HS256 JWT)
+// %[2]s = shim GCS frontend URL
+// %[3]s = bucket name
+const terraformGCSCrossCloudApplyConfig = `
+terraform {
+  required_providers {
+    google = {
+      source  = "hashicorp/google"
+      version = "~> 5.0"
+    }
+  }
+}
+
+provider "google" {
+  project                 = "shim-conformance"
+  region                  = "us-central1"
+  access_token            = "%[1]s"
+  storage_custom_endpoint = "%[2]s/storage/v1/"
+}
+
+resource "google_storage_bucket" "applied" {
+  name          = "%[3]s"
+  location      = "US"
+  force_destroy = true
+}
+`
+
+// gcsBearerJWT mints the HS256 test JWT the shim's gcpbearer
+// middleware accepts on the `https://storage.googleapis.com/`
+// audience.
+func gcsBearerJWT() string {
+	return gcpbearer.TestJWT(
+		[]byte("test-key-do-not-use-in-prod"),
+		"https://shim.test/",
+		"https://storage.googleapis.com/",
+		15*time.Minute,
+	)
+}
+
+// terraformRunner wraps the cmd.Run dance the cross-cloud Apply
+// cells share. `extraEnv` is appended to os.Environ() so cells
+// that need SSL_CERT_FILE / STORAGE_EMULATOR_HOST / etc. can
+// add their entries.
+func terraformRunner(t *testing.T, tfBin, dir string, extraEnv []string) (runFn func(args ...string) ([]byte, []byte, error), mustRunFn func(args ...string) []byte) {
+	runFn = func(args ...string) ([]byte, []byte, error) {
+		cmd := exec.Command(tfBin, args...)
+		cmd.Dir = dir
+		env := append(os.Environ(),
+			"TF_IN_AUTOMATION=1",
+			"TF_INPUT=0",
+			"CHECKPOINT_DISABLE=1",
+		)
+		env = append(env, extraEnv...)
+		cmd.Env = env
+		var stdout, stderr bytes.Buffer
+		cmd.Stdout = &stdout
+		cmd.Stderr = &stderr
+		err := cmd.Run()
+		return stdout.Bytes(), stderr.Bytes(), err
+	}
+	mustRunFn = func(args ...string) []byte {
+		t.Helper()
+		stdout, stderr, err := runFn(args...)
+		if err != nil {
+			t.Fatalf("terraform %s\nstdout:\n%s\nstderr:\n%s\nerr: %v",
+				strings.Join(args, " "), stdout, stderr, err)
+		}
+		return stdout
+	}
+	return runFn, mustRunFn
+}
+
+// expectBucketInBackend asserts that the named bucket exists in the
+// given backend's view of the underlying store. Used by the
+// cross-cloud Apply cells.
+func expectBucketInBackend(t *testing.T, backend domain.Storage, bucketName, storeName string) {
+	t.Helper()
+	list, err := backend.ListBuckets(context.Background(), domain.ListBucketsOptions{})
+	if err != nil {
+		t.Fatalf("backend.ListBuckets (%s): %v", storeName, err)
+	}
+	for _, b := range list.Buckets {
+		if b.Name == bucketName {
+			return
+		}
+	}
+	names := make([]string, 0, len(list.Buckets))
+	for _, b := range list.Buckets {
+		names = append(names, b.Name)
+	}
+	t.Errorf("%s bucket list did not contain %q; got %v", storeName, bucketName, names)
+}
 
 // deriveSockerlessAzureStorageKey64 mirrors sockerless's
 // simListKey64 (simulators/azure/listkeys_helper.go): the 64-byte

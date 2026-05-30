@@ -51,8 +51,9 @@ Real-cloud lanes for BUG-8 (hashicorp/google API Gateway TF endpoint/OAuth leg) 
 7. ~~14.E cross-cloud Azure→GCP Apply for storage.~~ ✅ Shipped in PR #63.
 8. ~~14.E cross-cloud Azure→AWS Apply for secrets.~~ ✅ Shipped in PR #64.
 9. ~~14.E cross-cloud Azure→GCP Apply for secrets.~~ ✅ Shipped in PR #65.
-10. **14.E cross-cloud AWS→GCP Apply for storage — implemented (this PR).** Opens the AWS-source row of the matrix. `TestSockerless_E2E_AWSS3_Through_Shim_ApplyTF_BackendGCS` drives `hashicorp/aws` terraform → shim aws_s3 frontend → shim GCS backend → sockerless GCP sim. AWS source path is simpler than Azure source (no ARM step, no TLS plumbing, no fixed port).
-11. **14.E expansion (next concrete chunk):** AWS→Azure storage Apply (mirror of #62 on the source/backend axes); then GCP-source storage Apply. **SB cross-cloud is blocked** on missing shim-side AMQP listener (the shim's azure_servicebus frontend is REST/ATOM-only).
+10. ~~14.E cross-cloud AWS→GCP Apply for storage.~~ ✅ Shipped in PR #66.
+11. **14.E storage cross-cloud Apply matrix closure — implemented (this PR).** Three cells: AWS→Azure, GCS→AWS, GCS→Azure. Closes the storage Apply matrix across all source / backend permutations the shim covers. Factored helpers (`sockerlessAzureBlobBackend`, `terraformRunner`, `expectBucketInBackend`, `gcsBearerJWT`) keep per-cell code small.
+12. **14.E expansion (next concrete chunk):** KV cross-cloud Apply expansion — AWS-source / GCS-source rows for secrets (mirror of #66 on the secrets service). **SB cross-cloud is blocked** on shim AMQP. Or: audit + close 14.E, write the Phase-14 closure narrative.
 5. ~~Watch sockerless#244.~~ ✅ Done in PR #49.
 
 ### Lesson: ARM shimming via fakes was the wrong design
