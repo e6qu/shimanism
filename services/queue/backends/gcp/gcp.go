@@ -79,10 +79,19 @@ func (b *Backend) CreateQueue(ctx context.Context, name string, opt domain.Creat
 	}
 	ack := opt.Attributes.VisibilityTimeoutSeconds
 	if ack <= 0 {
+		// Default unset → GCP minimum. Defaulting an absent value
+		// is allowed; silently clamping a user-set value is not.
 		ack = 10
 	}
 	if ack > 600 {
-		ack = 600
+		// Honest fail per N10 (docs/normalizations.md). GCP Pub/Sub's
+		// `ackDeadlineSeconds` caps at 600 s; silently clamping would
+		// mask a real cross-cloud semantic mismatch. Roll back the
+		// topic we just created and surface the asymmetry to the
+		// caller in the source cloud's error envelope.
+		_, _ = b.svc.Projects.Topics.Delete(b.topicName(name)).Context(ctx).Do()
+		return domain.Queue{}, domain.InvalidArgument(
+			fmt.Sprintf("VisibilityTimeoutSeconds=%d exceeds GCP Pub/Sub ackDeadlineSeconds maximum of 600", ack))
 	}
 	sub := &pubsubraw.Subscription{
 		Topic:              b.topicName(name),
@@ -124,7 +133,12 @@ func (b *Backend) SetQueueAttributes(ctx context.Context, name string, attrs dom
 	if attrs.VisibilityTimeoutSeconds > 0 {
 		ack := attrs.VisibilityTimeoutSeconds
 		if ack > 600 {
-			ack = 600
+			// Honest fail per N10 (docs/normalizations.md). GCP's
+			// hard 600 s ceiling on ackDeadlineSeconds is a real
+			// cross-cloud semantic mismatch; surface it rather than
+			// silently mutating the value.
+			return domain.InvalidArgument(
+				fmt.Sprintf("VisibilityTimeoutSeconds=%d exceeds GCP Pub/Sub ackDeadlineSeconds maximum of 600", ack))
 		}
 		sub.AckDeadlineSeconds = int64(ack)
 		mask = append(mask, "ackDeadlineSeconds")

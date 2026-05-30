@@ -133,17 +133,17 @@ Users who care about specific retention windows configure them at the **destinat
 - **GCP Pub/Sub:** `ackDeadlineSeconds` on subscription — **10 s to 600 s** (10 min). Default 10 s.
 - **Azure Service Bus:** `LockDuration` — 5 s to **5 minutes** (300 s), passed as ISO 8601 duration. Default 60 s.
 
-**Rule.** The domain layer carries `VisibilityTimeoutSeconds` (int seconds). Backends translate as follows:
+**Rule.** The domain layer carries `VisibilityTimeoutSeconds` (int seconds). Backends:
 
 - **AWS** backend passes the value through to the SQS `VisibilityTimeout` attribute. SQS rejects values > 43 200 with `InvalidAttributeValue`.
-- **GCP** backend **clamps** to `[10, 600]`: values below 10 are raised, values above 600 are lowered. This is the only backend that mutates the value silently.
+- **GCP** backend defaults `0 → 10` (GCP's minimum, treated as defaulting unset, not as silent mutation) and **fails** on user-set values > 600 with `domain.InvalidArgument` — surfaced through the source cloud's error envelope. The Pub/Sub topic created during the failed `CreateQueue` is rolled back so the user doesn't see a half-created resource.
 - **Azure** backend formats the value as ISO 8601 and passes it to `LockDuration`. Service Bus rejects values > 300 with its own validation error.
 
-**Trade-off.** The GCP backend's silent clamping is the consequential one — a user who configures `VisibilityTimeoutSeconds = 3600` (1 hour) and points the shim at GCP will see effective behaviour at 600 s with no warning. AWS and Azure backends pass through and let the cloud API reject; that error surfaces to the caller in the source cloud's error envelope.
+**Trade-off.** Cross-cloud Apply with AWS-shape `VisibilityTimeout = 3600` against a GCP backend fails fast with a clear error rather than silently running at 600 s. Users adapt their config (lower the timeout to ≤ 600 s for portability) or accept that the cell is out-of-intersection at that value.
 
-This inconsistency is **deliberate today** (GCP's hard 600 s limit means many real-world AWS-shape configurations would otherwise fail at the backend layer), but it's an open audit point: the alternative would be to fail the call with the source cloud's "invalid attribute" error so the user knows their cross-cloud config doesn't fit. Tracked at the bottom of this file under "Rules under audit".
+**Why not clamp?** Earlier code did clamp silently. That fits the source cloud's "always succeed" semantics on its own API but violates [PHILOSOPHY.md](../PHILOSOPHY.md) "never lie" and [AGENTS.md § Fidelity to the source cloud's API](../AGENTS.md#fidelity-to-the-source-clouds-api-is-p0): the shim must surface real cross-cloud semantic mismatches in the source cloud's error vocabulary, not silently fix them. This rule was tightened in 15.B (the N10 clamp-vs-fail decision).
 
-**Reference.** `services/queue/backends/{aws,gcp,azure}/{aws,gcp,azure}.go::CreateQueue`. GCP clamping at `services/queue/backends/gcp/gcp.go:80-86`.
+**Reference.** `services/queue/backends/gcp/gcp.go::CreateQueue` + `SetQueueAttributes` (the `ack > 600` branches return `domain.InvalidArgument`).
 
 ### N11 — RDBMS engine version naming
 
@@ -246,7 +246,7 @@ The contract: every cross-cloud translation rule is published, named, and exerci
 
 The first-pass audit is complete: every implicit normalisation the shim implements today has a published rule (N1–N15). New asymmetries surfaced by Phase 15.C (NoSQL key-value) and 15.D (DNS) will add rules to this file as they land.
 
-**Open sub-question on N10:** GCP backend's silent clamping of `VisibilityTimeoutSeconds` to `[10, 600]` is the only mutation across the queue backends; AWS / Azure pass through and let the cloud API reject. Decide whether to align by failing the call instead (preserves the source cloud's error vocabulary on cross-cloud config that doesn't fit GCP's hard limit) or document the clamping as the rule. Each direction has trade-offs — needs an explicit decision PR.
+~~**Open sub-question on N10:**~~ Resolved in 15.B (the GCP queue backend now fails with `domain.InvalidArgument` on `VisibilityTimeoutSeconds > 600` instead of silently clamping). N10 above documents the final rule.
 
 **Open sub-question on N13:** consider whether a normalised "tier" enum (`small`/`medium`/`large` with documented per-cloud mapping) would help cross-cloud Apply, even though sizing isn't fully portable. Today's rule is opaque pass-through; the alternative is a domain enum with a published mapping table. Worth pursuing if cross-cloud Apply for Cache becomes a common scenario.
 

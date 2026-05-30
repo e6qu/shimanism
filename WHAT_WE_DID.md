@@ -32,7 +32,27 @@ Cross-referenced from `PHILOSOPHY.md` (operational footnote on "The Circle"), `A
 
 Open audit items captured at the bottom of `normalizations.md` for follow-on 15.A PRs: soft-delete grace period, queue visibility-timeout semantics, RDBMS engine version naming + connection string, cache cluster mode, functions runtime → container image mapping, API Gateway stages-vs-configs-vs-products. Each becomes a rule entry once audited.
 
-### 15.A N15: API Gateway declarative-replace routing table — first-pass audit closes (this PR, after PR #73)
+### 15.B N10 decision: fail instead of silently clamp (this PR, after PR #75)
+
+Sub-question from N10 resolved. The GCP queue backend had been silently clamping `VisibilityTimeoutSeconds` to `[10, 600]` (GCP Pub/Sub's `ackDeadlineSeconds` bounds). Per shimanism's "never lie" rule + "fidelity to source cloud's API" rule, that was the wrong default — silent mutation of user-set values violates both.
+
+Tightened in code:
+
+- `services/queue/backends/gcp/gcp.go::CreateQueue` now returns `domain.InvalidArgument` when `VisibilityTimeoutSeconds > 600`. The Pub/Sub topic created before the subscription attempt is rolled back so the user doesn't see a half-created resource.
+- `services/queue/backends/gcp/gcp.go::SetQueueAttributes` returns the same error on update.
+- The defaulting `ack <= 0 → 10` stays (defaulting an unset value to GCP's minimum is fine; mutating a user-set value isn't).
+
+Cross-cloud Apply with AWS-shape `VisibilityTimeout = 3600` against GCP backend now fails fast with a clear `InvalidArgument` error rather than silently running at 600 s. Users adapt the timeout (lower it for portability) or accept that cell is out-of-intersection at that value.
+
+`docs/normalizations.md` § N10 rewritten; the open sub-question entry struck out. Existing queue conformance tests (which use 30 / 60 s values, well under 600) continue to pass.
+
+### 15.B `_wo` drift investigation (PR #75, after PR #74)
+
+Investigated the `TestCrossCloudApply_Roundtrip_SecretsAWStoAzure` post-apply drift. Root cause: `terraform-aws` v5.100+ adds a write-only `secret_string_wo` companion with a computed `has_secret_string_wo` indicator that the provider's Read function doesn't populate when the resource is created via the regular `secret_string` path. Drift surfaces as `+ has_secret_string_wo = (known after apply) # forces replacement` on every plan-after-apply. `lifecycle.ignore_changes` doesn't help (terraform explicitly warns it's a no-op for computed-only attributes).
+
+The shim's N1 translation rule round-trips the value correctly; sockerless variants of the cell pass. Decision: keep the in-process test `t.Skip`'d with the clearer rationale; user chose not to file upstream at `hashicorp/terraform-provider-aws`. Documented in `docs/normalizations.md` under "Phase 15.B investigation".
+
+### 15.A N15: API Gateway declarative-replace routing table — first-pass audit closes (PR #74, after PR #73)
 
 The last open audit item from PR #70's list. The shim's API Gateway domain (`internal/apigateway/domain/domain.go`) deliberately **flattens** the three clouds' mid-tier abstractions — AWS stages, GCP API configs, Azure APIM products / subscriptions — into a single `Gateway` + `Routes` abstraction. `DeployGateway(spec)` atomically swaps the routing table; each backend implements "atomically" differently but the visible behaviour is consistent: all-or-nothing route swap.
 
