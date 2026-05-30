@@ -714,6 +714,164 @@ func TestSockerless_E2E_AzureKV_Through_Shim_ApplyTF_BackendAWS(t *testing.T) {
 	}
 }
 
+// TestSockerless_E2E_AzureKV_Through_Shim_ApplyTF_BackendGCP mirrors
+// the AWS Secrets Manager cell above on the GCP corner: same
+// azurerm KV Apply, same shim azure_keyvault frontend, but the
+// secrets backend is GCP Secret Manager talking to sockerless's
+// GCP simulator. Closes the cross-cloud Apply matrix on the
+// Azure-source KV row.
+//
+// Linux-only (SSL_CERT_FILE platform limit); skips on darwin.
+func TestSockerless_E2E_AzureKV_Through_Shim_ApplyTF_BackendGCP(t *testing.T) {
+	azurePort := os.Getenv("SOCKERLESS_AZURE_TLS_PORT")
+	if azurePort == "" {
+		t.Skip("SOCKERLESS_AZURE_TLS_PORT not set")
+	}
+	gcpEndpoint := os.Getenv("SOCKERLESS_GCP_ENDPOINT")
+	if gcpEndpoint == "" {
+		t.Skip("SOCKERLESS_GCP_ENDPOINT not set")
+	}
+	shimPortStr := os.Getenv("SHIM_AZUREKV_PORT")
+	if shimPortStr == "" {
+		t.Skip("SHIM_AZUREKV_PORT not set (the run script defaults to 14582)")
+	}
+	shimPort, err := strconv.Atoi(shimPortStr)
+	if err != nil {
+		t.Fatalf("SHIM_AZUREKV_PORT not numeric: %v", err)
+	}
+	tfBin, err := exec.LookPath("terraform")
+	if err != nil {
+		t.Skipf("terraform not installed: %v", err)
+	}
+	systemCABundle := findSystemCABundleForKV()
+	if systemCABundle == "" {
+		t.Skip("no system CA bundle found at known Unix paths — SSL_CERT_FILE workaround requires Linux")
+	}
+	sockCertPath := os.Getenv("SOCKERLESS_AZURE_TLS_CERT")
+	sockKeyPath := os.Getenv("SOCKERLESS_AZURE_TLS_KEY")
+	if sockCertPath == "" || sockKeyPath == "" {
+		t.Skip("SOCKERLESS_AZURE_TLS_CERT / SOCKERLESS_AZURE_TLS_KEY not set")
+	}
+	sockCertPEM, err := os.ReadFile(sockCertPath)
+	if err != nil {
+		t.Fatalf("read sockerless cert: %v", err)
+	}
+	sockKeyPEM, err := os.ReadFile(sockKeyPath)
+	if err != nil {
+		t.Fatalf("read sockerless key: %v", err)
+	}
+
+	const (
+		subscriptionID = "00000000-0000-0000-0000-000000000000"
+		tenantID       = "00000000-0000-0000-0000-000000000000"
+		clientID       = "00000000-0000-0000-0000-000000000000"
+		resourceGroup  = "shim-kv-gcp-rg"
+		vaultName      = "shimvaultgcp"
+		secretName     = "applied-secret-gcp"
+		secretValue    = "hunter2-cross-cloud-gcp"
+		objectID       = "22222222-2222-2222-2222-222222222222"
+	)
+
+	jwks := fetchSockerlessJWKS(t, azurePort, tenantID, sockCertPEM)
+	kvAudience := fetchSockerlessKVAudience(t, azurePort, sockCertPEM)
+
+	// Backend: GCP Secret Manager talking to sockerless's GCP sim
+	// via the REST client. Mirrors `TestSockerless_GCPSecretManager_RoundTrip`'s
+	// setup.
+	ctx := context.Background()
+	gcpClient, err := gcpsm.NewRESTClient(ctx,
+		option.WithEndpoint("http://"+gcpEndpoint+"/"),
+		option.WithoutAuthentication(),
+	)
+	if err != nil {
+		t.Fatalf("gcp secretmanager client: %v", err)
+	}
+	t.Cleanup(func() { _ = gcpClient.Close() })
+
+	project := os.Getenv("SOCKERLESS_GCP_PROJECT")
+	if project == "" {
+		project = "shim-sockerless"
+	}
+	backend := gcpbackend.New(gcpClient, gcpbackend.Config{ProjectID: project})
+	shim := harness.StartSecretsServerAzureKVAtPort(
+		t,
+		backend,
+		shimPort,
+		sockCertPEM,
+		sockKeyPEM,
+		jwks,
+		kvAudience,
+		fmt.Sprintf("https://sts.windows.net/%s/", tenantID),
+	)
+	_ = shim
+
+	dir := t.TempDir()
+	hcl := fmt.Sprintf(
+		terraformAzureKVApplyConfig,
+		"localhost:"+azurePort,
+		subscriptionID,
+		tenantID,
+		clientID,
+		resourceGroup,
+		vaultName,
+		objectID,
+		secretName,
+		secretValue,
+	)
+	if err := os.WriteFile(filepath.Join(dir, "main.tf"), []byte(hcl), 0o644); err != nil {
+		t.Fatalf("write main.tf: %v", err)
+	}
+
+	combinedCA := filepath.Join(dir, "combined-ca.pem")
+	systemBytes, err := os.ReadFile(systemCABundle)
+	if err != nil {
+		t.Fatalf("read system CA bundle %s: %v", systemCABundle, err)
+	}
+	if err := os.WriteFile(combinedCA, append(append(systemBytes, '\n'), sockCertPEM...), 0o644); err != nil {
+		t.Fatalf("write combined CA: %v", err)
+	}
+
+	runTf := func(args ...string) ([]byte, []byte, error) {
+		cmd := exec.Command(tfBin, args...)
+		cmd.Dir = dir
+		cmd.Env = append(os.Environ(),
+			"TF_IN_AUTOMATION=1",
+			"TF_INPUT=0",
+			"CHECKPOINT_DISABLE=1",
+			"SSL_CERT_FILE="+combinedCA,
+		)
+		var stdout, stderr bytes.Buffer
+		cmd.Stdout = &stdout
+		cmd.Stderr = &stderr
+		err := cmd.Run()
+		return stdout.Bytes(), stderr.Bytes(), err
+	}
+	mustRun := func(args ...string) []byte {
+		t.Helper()
+		stdout, stderr, err := runTf(args...)
+		if err != nil {
+			t.Fatalf("terraform %s\nstdout:\n%s\nstderr:\n%s\nerr: %v",
+				strings.Join(args, " "), stdout, stderr, err)
+		}
+		return stdout
+	}
+
+	mustRun("init", "-no-color")
+	applyOut := mustRun("apply", "-no-color", "-auto-approve")
+	t.Logf("terraform apply stdout:\n%s", applyOut)
+	t.Cleanup(func() { _, _, _ = runTf("destroy", "-no-color", "-auto-approve") })
+
+	// Verify the secret landed in sockerless's GCP Secret Manager
+	// store via the same shim backend the apply went through.
+	val, err := backend.GetSecretValue(ctx, secretName, 0)
+	if err != nil {
+		t.Fatalf("backend.GetSecretValue (GCP SM): %v", err)
+	}
+	if string(val.Value) != secretValue {
+		t.Errorf("backend.GetSecretValue.Value = %q, want %q", string(val.Value), secretValue)
+	}
+}
+
 // fetchSockerlessJWKS GETs the JWKS sockerless publishes at
 // `/{tenant}/discovery/v2.0/keys` using an http.Client that trusts
 // the simulator's self-signed TLS cert. Returns the parsed key set
