@@ -19,7 +19,7 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 - **All Azure frontends carry full `gen.ServerInterface` impls** with the `var _ gen.ServerInterface = (*Server)(nil)` compile-time gate.
 - **Open BUGs (2):** BUG-8 + BUG-15 (Track A, real GCP needed). BUG-35 closed in PR #48 after sockerless PR #245 derived ACA image platforms from the resolved manifest.
 - **Upstream watch:** zero open sockerless issues for the shimanism roadmap (six gaps surfaced during 14.E all closed: #257/#260/#261/#269/#272/#276 via #259/#262/#271/#274/#277).
-- **Last merged:** PR #67 — 14.E storage cross-cloud Apply matrix closure (3 cells in one PR).
+- **Last merged:** PR #79 — 15.D foundational (DNS domain + inmem backend + N17 normalisation rule).
 
 ## Session-start checklist
 
@@ -48,8 +48,9 @@ Phase 15 sub-phase order:
 1. **15.A — Normalisations contract doc.** First-pass audit completes with this PR. PR #70 landed N1–N8; PR #71 added N9; PR #72 added N10 + N11; PR #73 added N12 + N13 + N14; **this PR adds N15 (API Gateway declarative-replace routing table)**. After this PR the only open items are two explicit-decision sub-questions: N10 clamp-vs-fail on GCP queue visibility-timeout, and N13 tier-enum-vs-opaque on cache node sizing. New asymmetries surfaced by 15.C / 15.D will add fresh rule entries as they land.
 2. **15.B — 14.E residual cleanups (closing).** PR #75 documented the `_wo` drift; PR #76 tightened N10 (fail instead of clamp). This PR closes the remaining two: **N13 stays opaque** (the ergonomic gain doesn't justify the three-cloud mapping-table maintenance burden) and **N16 records connection-based data-plane frontends as achievable-but-not-yet-built**. AMQP / RESP / PG-wire / MySQL-wire / Kafka frontends would use Go server-side wire-protocol libraries (the shim's backends already use the cloud-native client libs for these outbound; frontends are the symmetric pattern). Listed as Phase 15.E / 16 candidate. `docs/architecture.md` adds a "Wire-protocol libraries (both sides)" subsection codifying the rule. After this PR, Phase 15.B is closed.
 3. ~~15.C + 15.D scoping doc.~~ ✅ Shipped in PR #78.
-4. **15.D foundational — implemented (this PR).** `internal/dns/domain/` (interface, types, errors) + `services/dns/backends/inmem/` (in-memory backend with zone + record set CRUD + unit tests) + service docs (INTERSECTION / APPLY_INTERSECTION / SOURCES placeholder). New normalisation rule **N17 (DNS zone visibility)** in `docs/normalizations.md`. Architectural decisions baked in: Azure DNS + Private DNS as one backend with `Visibility` dispatch, CoreDNS peer via file-based config (follow-on).
-5. **15.D — next implementation chunks (in order):** (a) AWS Route 53 frontend + backend with vendored Smithy spec; (b) GCP Cloud DNS frontend + backend with vendored Discovery doc; (c) Azure DNS + Private DNS frontend + backend with vendored OpenAPI; (d) CoreDNS K8s peer (file-based); (e) cross-cloud Apply cells.
+4. ~~15.D foundational~~ — ✅ shipped in PR #79.
+5. **15.D AWS Route 53 backend — implemented (this PR).** Vendored Route 53 Smithy spec (`13bee3c72`), wired `services/dns/codegen.json` with the 8 intersection ops, ran `make codegen` to emit `services/dns/gen/aws_route53.gen.go`. `services/dns/backends/aws/aws.go` implements `domain.DNS` against `aws-sdk-go-v2/service/route53` — N17 dispatch on `Visibility`, name→HostedZoneId resolved per request (stateless), TXT double-quoting per Route 53 wire format. Pure-Go helper tests pass.
+6. **15.D — next chunks (in order):** (a) AWS Route 53 frontend + SDK/CLI/Terraform conformance against sockerless; (b) GCP Cloud DNS frontend + backend with vendored Discovery doc; (c) Azure DNS + Private DNS frontend + backend with vendored OpenAPI (one backend, `Visibility` dispatch); (d) CoreDNS K8s peer (file-based); (e) cross-cloud Apply cells.
 6. **15.C — NoSQL key-value service** (after 15.D). Per scoping doc: DynamoDB + Firestore Native + Cosmos DB Table API + etcd K8s peer. ~3-4 PRs.
 
 Track A (BUG-8 + BUG-15) still blocked on real-cloud credentials.
