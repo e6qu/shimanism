@@ -8,9 +8,9 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 
 | | |
 |---|---|
-| Active branch | `main` after PR #63 merged (cross-cloud Azure→GCS Apply for storage). Phase 14.E expansion PR in flight: KV cross-cloud Apply with AWS Secrets Manager backend. |
-| In-flight | **14.E cross-cloud Azure→AWS Apply for secrets.** Mirror of PR #62 / PR #63 for the secrets service. `TestSockerless_E2E_AzureKV_Through_Shim_ApplyTF_BackendAWS` runs the same azurerm KV Apply as PR #59, but the shim's azure_keyvault frontend is backed by the AWS Secrets Manager backend talking to sockerless's AWS sim. First cross-cloud Apply for secrets — verifies the secret value the Azure-shaped Terraform put through the shim lands in AWS Secrets Manager. Track A blocked on real-cloud credentials. |
-| Last merged | PR #63 — 14.E cross-cloud: Azure storage Apply → GCS backend via sockerless. |
+| Active branch | `main` after PR #64 merged (cross-cloud Azure→AWS Apply for KV). Phase 14.E expansion PR in flight: KV → GCP Secret Manager (closes Azure-source KV row). |
+| In-flight | **14.E cross-cloud Azure→GCP Apply for secrets.** Mirror of PR #64 on the GCP corner. `TestSockerless_E2E_AzureKV_Through_Shim_ApplyTF_BackendGCP` runs the same azurerm KV Apply, but the shim's azure_keyvault frontend is backed by GCP Secret Manager talking to sockerless's GCP sim. Closes the cross-cloud Apply matrix on the Azure-source KV row (alongside PR #59 inmem + PR #64 AWS). Track A blocked on real-cloud credentials. |
+| Last merged | PR #64 — 14.E cross-cloud: Azure KV Apply → AWS Secrets Manager backend via sockerless. |
 | Phases 1–12 | All closed. PR index in [PLAN.md § Closed phases](PLAN.md#closed-phases-pr-index). |
 | Bugs | **38 filed · 36 fixed · 2 open · 1 false positive.** Open: **BUG-8** (apigateway TF-provider Track A leg, real GCP), **BUG-15** (queue TF state-drift Track A leg, real GCP). BUG-35 closed by sockerless PR #245. |
 | Upstream | sockerless #257 / #260 / #261 / #269 / #272 / #276 all closed (via #259 / #262 / #271 / #274 / #277). Zero open sockerless issues for the shimanism roadmap. |
