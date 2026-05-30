@@ -1052,6 +1052,142 @@ func TestSockerless_E2E_AzureBlob_Through_Shim_ApplyTF(t *testing.T) {
 	}
 }
 
+// TestSockerless_E2E_AzureBlob_Through_Shim_ApplyTF_BackendAWS is the
+// cross-cloud variant of TestSockerless_E2E_AzureBlob_Through_Shim_ApplyTF.
+// Same azurerm Terraform Apply (storage account + container), same
+// shim azure_blob frontend, but the backend is the shim's AWS S3
+// backend talking to sockerless's AWS simulator. End-to-end this
+// realises shimanism's cross-cloud Apply promise: Azure-shaped
+// Terraform → shim → AWS-shaped backend → AWS-shaped store.
+//
+// Linux-only (SSL_CERT_FILE platform limit); skips on darwin.
+func TestSockerless_E2E_AzureBlob_Through_Shim_ApplyTF_BackendAWS(t *testing.T) {
+	azurePort := os.Getenv("SOCKERLESS_AZURE_TLS_PORT")
+	if azurePort == "" {
+		t.Skip("SOCKERLESS_AZURE_TLS_PORT not set")
+	}
+	awsEndpoint := os.Getenv("SOCKERLESS_AWS_ENDPOINT")
+	if awsEndpoint == "" {
+		t.Skip("SOCKERLESS_AWS_ENDPOINT not set")
+	}
+	shimPortStr := os.Getenv("SHIM_AZUREBLOB_PORT")
+	if shimPortStr == "" {
+		t.Skip("SHIM_AZUREBLOB_PORT not set (the run script defaults to 14581)")
+	}
+	shimPort, err := strconv.Atoi(shimPortStr)
+	if err != nil {
+		t.Fatalf("SHIM_AZUREBLOB_PORT not numeric: %v", err)
+	}
+	tfBin, err := exec.LookPath("terraform")
+	if err != nil {
+		t.Skipf("terraform not installed: %v", err)
+	}
+	systemCABundle := findSystemCABundle()
+	if systemCABundle == "" {
+		t.Skip("no system CA bundle found at known Unix paths — SSL_CERT_FILE workaround requires Linux")
+	}
+	sockCert := os.Getenv("SOCKERLESS_AZURE_TLS_CERT")
+	if sockCert == "" {
+		t.Skip("SOCKERLESS_AZURE_TLS_CERT not set (the run script exports this)")
+	}
+
+	// Distinct names from the inmem-backed cell so the two tests
+	// don't collide on sockerless's ARM state.
+	const (
+		subscriptionID = "00000000-0000-0000-0000-000000000000"
+		resourceGroup  = "shim-storage-aws-rg"
+		accountName    = "shimstorageaws"
+		containerName  = "applied-container-aws"
+	)
+	resourceID := fmt.Sprintf(
+		"/subscriptions/%s/resourceGroups/%s/providers/Microsoft.Storage/storageAccounts/%s",
+		subscriptionID, resourceGroup, accountName,
+	)
+	key := deriveSockerlessAzureStorageKey64(resourceID, "key1")
+
+	// Backend: AWS S3 frontend translation against sockerless's AWS
+	// sim. The shim's azure_blob frontend's CreateContainer maps to
+	// the AWS S3 backend's CreateBucket — sockerless ends up holding
+	// an S3 bucket named "applied-container-aws".
+	awsClient := newSockerlessAWSClient(t, awsEndpoint)
+	backend := awsbackend.New(awsClient)
+	shim := harness.StartStorageServerAzureBlobAtPort(t, backend, shimPort, accountName, key)
+	_ = shim
+
+	dir := t.TempDir()
+	hcl := fmt.Sprintf(terraformAzureBlobApplyConfig, "localhost:"+azurePort, resourceGroup, accountName, containerName)
+	if err := os.WriteFile(filepath.Join(dir, "main.tf"), []byte(hcl), 0o644); err != nil {
+		t.Fatalf("write main.tf: %v", err)
+	}
+
+	combinedCA := filepath.Join(dir, "combined-ca.pem")
+	systemBytes, err := os.ReadFile(systemCABundle)
+	if err != nil {
+		t.Fatalf("read system CA bundle %s: %v", systemCABundle, err)
+	}
+	sockBytes, err := os.ReadFile(sockCert)
+	if err != nil {
+		t.Fatalf("read sockerless cert %s: %v", sockCert, err)
+	}
+	if err := os.WriteFile(combinedCA, append(append(systemBytes, '\n'), sockBytes...), 0o644); err != nil {
+		t.Fatalf("write combined CA: %v", err)
+	}
+
+	runTf := func(args ...string) ([]byte, []byte, error) {
+		cmd := exec.Command(tfBin, args...)
+		cmd.Dir = dir
+		cmd.Env = append(os.Environ(),
+			"TF_IN_AUTOMATION=1",
+			"TF_INPUT=0",
+			"CHECKPOINT_DISABLE=1",
+			"SSL_CERT_FILE="+combinedCA,
+		)
+		var stdout, stderr bytes.Buffer
+		cmd.Stdout = &stdout
+		cmd.Stderr = &stderr
+		err := cmd.Run()
+		return stdout.Bytes(), stderr.Bytes(), err
+	}
+	mustRun := func(args ...string) []byte {
+		t.Helper()
+		stdout, stderr, err := runTf(args...)
+		if err != nil {
+			t.Fatalf("terraform %s\nstdout:\n%s\nstderr:\n%s\nerr: %v",
+				strings.Join(args, " "), stdout, stderr, err)
+		}
+		return stdout
+	}
+
+	mustRun("init", "-no-color")
+	applyOut := mustRun("apply", "-no-color", "-auto-approve")
+	t.Logf("terraform apply stdout:\n%s", applyOut)
+	t.Cleanup(func() { _, _, _ = runTf("destroy", "-no-color", "-auto-approve") })
+
+	// Verify the container landed in sockerless's AWS sim as an S3
+	// bucket — confirms the through-shim cross-cloud path.
+	ctx := context.Background()
+	list, err := awsClient.ListBuckets(ctx, &awss3.ListBucketsInput{})
+	if err != nil {
+		t.Fatalf("sockerless AWS ListBuckets: %v", err)
+	}
+	found := false
+	for _, b := range list.Buckets {
+		if b.Name != nil && *b.Name == containerName {
+			found = true
+			break
+		}
+	}
+	if !found {
+		names := make([]string, 0, len(list.Buckets))
+		for _, b := range list.Buckets {
+			if b.Name != nil {
+				names = append(names, *b.Name)
+			}
+		}
+		t.Errorf("sockerless AWS bucket list did not contain %q; got %v", containerName, names)
+	}
+}
+
 // deriveSockerlessAzureStorageKey64 mirrors sockerless's
 // simListKey64 (simulators/azure/listkeys_helper.go): the 64-byte
 // SharedKey for a storage account resource ID + key kind is
