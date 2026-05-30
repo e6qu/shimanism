@@ -13,7 +13,7 @@ const (
 	KindUnknown Kind = iota
 	KindNoSuchZone
 	KindZoneAlreadyExists
-	KindZoneNotEmpty   // DeleteZone(force=false) on a zone with user-managed record sets
+	KindZoneNotEmpty // DeleteZone(force=false) on a zone with user-managed record sets
 	KindNoSuchRecordSet
 	KindInvalidArgument
 	KindUnsupported // out-of-intersection (e.g. ALIAS records, vendor-specific routing policies)
