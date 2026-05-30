@@ -249,6 +249,36 @@ Remaining 14.B/C/E shim-side work is bundled into 3 PRs (full task lists in [DO_
 - BUG-8 and BUG-15 are closed or have a documented absorbed-into-future-phase status.
 - The sockerless validation lane covers ≥ 1 cell per shimmed service (storage, secrets, functions, queue, pubsub, rdbms, cache, apigateway) for at least one of the three clouds.
 
+## Phase 15 — Cross-cloud normalization standard + new-service expansion
+
+> **Premise.** Phase 14.E closed the cross-cloud Apply matrix for storage and secrets and surfaced the first formal *normalization rule* (the empty-placeholder convention for value-less secret creates, PR #69). That rule generalises: every (source-cloud × destination-cloud) cell where semantics don't map 1:1 needs a published, stateless, deterministic translation. Phase 15 codifies the existing implicit normalisations into a contract document, closes out 14.E residuals, and adds two new shimmed services (NoSQL key-value + DNS) using that contract from the start.
+>
+> **Status: just opened (2026-05-30).**
+
+### Sub-phases
+
+| Track | What | Dependency | Status |
+|---|---|---|---|
+| 15.A | **Normalization standard.** Audit shimanism's existing services for implicit cross-cloud translations (version-ID shape, tags-vs-labels, region naming, soft-delete grace period, resource-ID format, secret value-less create, queue topic-vs-subscription, etc). Document each as a formal rule in a new `docs/normalizations.md`. Each rule names the asymmetry, the rule, the trade-off, and the test that exercises it. Sets the contract pattern for 15.C / 15.D. | — | ◐ planned |
+| 15.B | **14.E residual cleanups.** Investigate the terraform-aws v5 `has_secret_string_wo` write-only-attribute drift on `TestCrossCloudApply_Roundtrip_SecretsAWStoAzure` (currently skipped). File at `hashicorp/aws` if it's a provider bug; otherwise document the limitation. Scope the SB cross-cloud cells (blocked on missing shim-side AMQP listener) — decide whether to file at sockerless, build AMQP listener in the shim, or formally close the SB cross-cloud row as out-of-intersection. | — | ◐ planned |
+| 15.C | **NoSQL key-value service.** New shimmed service covering DynamoDB (AWS) + Firestore Native (GCP) + Cosmos DB Table API (Azure) + K8s peer (etcd-based). Key-value subset: Get / Put / Delete / Scan on a partition key. Includes spec ingest, gen, frontends, backends, conformance matrix per the existing service pattern. Per-PR rather than monolithic. | 15.A normalisations established | ◐ planned |
+| 15.D | **DNS service.** New shimmed service covering Route 53 (AWS) + Cloud DNS (GCP) + Azure DNS (Azure) + K8s peer (CoreDNS). Public **and** private zones; standard record types (A / AAAA / CNAME / MX / TXT / NS). Per-PR. | 15.A normalisations established | ◐ planned |
+
+### The ordering decision
+
+15.A ships first: it's cheap, high-value, and sets the precedent for the new-service phases. 15.B can be interleaved (some cleanups are doc-only, others need investigation). 15.C and 15.D follow: NoSQL is bigger so DNS may ship sooner if scope risk surfaces.
+
+### Exit criteria
+
+- `docs/normalizations.md` enumerates every cross-cloud translation rule the shim implements, with one published rule per asymmetry.
+- 14.E residual cells either work, have a filed upstream issue, or are formally closed as out-of-intersection in `services/*/APPLY_INTERSECTION.md`.
+- NoSQL key-value service has the standard 3 frontends + 4 backends, the conformance matrix (SDK / CLI / Terraform per frontend per backend), and at least one cross-cloud Apply cell.
+- DNS service has the standard frontends + backends + conformance matrix; public zone cell + private zone cell at minimum.
+
+### Standing rule on new services
+
+Per intersection-only scope: every new service must work across **AWS + GCP + Azure + K8s peer**. If a feature only exists in one cloud, it's out-of-intersection by definition and rejected with the source cloud's "not supported" error. This includes the standard pre-flight that opened Phase 14: identify the intersection upfront, publish the per-cell normalization rules, then write the code.
+
 ## Standing open questions (not phase-gated)
 
 - Single org-wide deployment vs per-tenant — affects auth model.

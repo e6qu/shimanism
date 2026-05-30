@@ -4,7 +4,18 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 
 > Reverse chronological. One section per phase. The *why*, the surprises, the root causes — not per-PR detail. For commit-level history, `git log`. For per-bug detail, [BUGS.md](BUGS.md). For pipeline + verifier architecture, [docs/codegen-pipelines.md](docs/codegen-pipelines.md) + [docs/verifiers.md](docs/verifiers.md).
 
-## Phase 14 — Closing
+## Phase 15 — Cross-cloud normalization standard + new services
+
+Just opened (2026-05-30). The 14.E secrets matrix closure (PR #69 — this PR) surfaced the first formal *normalization rule*: the empty-placeholder convention for value-less secret creates (AWS/GCP → Azure). That rule generalises — every (source-cloud × destination-cloud) cell where semantics don't map 1:1 needs a published, stateless, deterministic translation. Phase 15 codifies the existing implicit normalisations into a contract document, closes out 14.E residuals, and adds two new shimmed services (NoSQL key-value + DNS) using that contract from the start.
+
+Sub-phases (full scoping in [PLAN.md § Phase 15](PLAN.md#phase-15--cross-cloud-normalization-standard--new-service-expansion)):
+
+- **15.A** — Normalisations contract doc. Audit + publish every implicit rule. Cheap, high-value, ships first.
+- **15.B** — 14.E residual cleanups (`has_secret_string_wo` drift, SB cross-cloud scoping).
+- **15.C** — NoSQL key-value service: DynamoDB + Firestore Native + Cosmos DB Table API + K8s peer.
+- **15.D** — DNS service: Route 53 + Cloud DNS + Azure DNS + CoreDNS. Public + private zones.
+
+## Phase 14 — Closed (with carryover)
 
 PR #21 (2026-05-25) landed 14.A, the 14.D simulator audit, and the 14.B sockerless lane skeleton. PR #46 closed 14.B/C narrowly; PR #47 retired the last Phase-13 ◐ migration (`azure_blob`). 14.E shipped as **11 PRs (#58–#67, plus the secrets-matrix closure this PR adds)** over 2026-05-29 / 2026-05-30, walking the through-shim Apply pattern from the first honest cell up through full storage + secrets cross-cloud matrix coverage. What remains under Phase 14: 14.D Track A (real-cloud credentials), captured as Phase-15 carryover. SB cross-cloud (blocked on missing shim-side AMQP listener) is also a Phase-15 candidate.
 

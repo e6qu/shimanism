@@ -39,14 +39,18 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 
 Real-cloud lanes for BUG-8 (hashicorp/google API Gateway TF endpoint/OAuth leg) + BUG-15 (`message_retention_duration` state-drift question) + real-signed verifier conformance. Requires AWS / GCP / Azure accounts. Not actionable until infra exists.
 
-## Practical next chunks (Phase 14 closing; Phase 15 candidates)
+## Practical next chunks (Phase 15 opens)
 
-Phase 14.E shipped 10 PRs (#58–#67) — see WHAT_WE_DID.md § 14.E closure narrative. Remaining work in priority order:
+Phase 14 closed; 14.E shipped 11 PRs (#58–#67 + this PR's secrets matrix). Phase 15 opens with cross-cloud normalisation standard + new-service expansion (NoSQL key-value, DNS public+private). Full scoping in [PLAN.md § Phase 15](PLAN.md#phase-15--cross-cloud-normalization-standard--new-service-expansion).
 
-1. **Secrets cross-cloud closure — implemented (this PR).** 4 cells: AWS-source → Azure / GCP backends; GCS-source → AWS / Azure backends. Combined with PRs #59 / #64 / #65 this closes the secrets cross-cloud Apply matrix across every source / backend permutation the shim covers.
-2. **SB cross-cloud cells.** Blocked on missing shim-side AMQP listener in `internal/queue/frontends/azure_servicebus` (file header explicitly says AMQP tier is deferred). Substantial new shim work — AMQP frame parsing, SASL ANONYMOUS, link / session lifecycle. Phase 15 scoping question.
-3. **Track A real-cloud Apply.** BUG-8 + BUG-15 + real-signed verifier conformance. Still blocked on real AWS / GCP / Azure credentials.
-4. **Phase 15 design.** What's the next shape — broader service coverage (Event Hubs, Cosmos DB, Event Grid)? Multi-tenant deployment model? Real-cloud Track A bring-up? Open question.
+Phase 15 sub-phase order:
+
+1. **15.A — Normalisations contract doc (ships first).** Audit shimanism's existing services for implicit cross-cloud translations (version-ID shape, tags-vs-labels, region naming, soft-delete grace, secret value-less create per this PR, queue topic-vs-subscription, etc). Document each as a formal published rule in a new `docs/normalizations.md`. Each rule: asymmetry → rule → trade-off → test. Sets the contract pattern for 15.C / 15.D.
+2. **15.B — 14.E residual cleanups.** Investigate `terraform-aws v5` `has_secret_string_wo` drift on `TestCrossCloudApply_Roundtrip_SecretsAWStoAzure` (skipped today). Scope SB cross-cloud (decide: build shim AMQP listener / file sockerless / formally close as out-of-intersection).
+3. **15.C — NoSQL key-value service.** DynamoDB + Firestore Native + Cosmos DB Table API + K8s peer (etcd-based). Get / Put / Delete / Scan on partition key. Multi-PR.
+4. **15.D — DNS service.** Route 53 + Cloud DNS + Azure DNS + K8s peer (CoreDNS). Public + private zones; standard record types. Multi-PR.
+
+Track A (BUG-8 + BUG-15) still blocked on real-cloud credentials.
 
 ### Lesson: ARM shimming via fakes was the wrong design
 

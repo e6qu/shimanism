@@ -12,7 +12,8 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 | In-flight | **14.E secrets cross-cloud Apply matrix closure.** Four cells in one PR: AWS-source → Azure backend, AWS-source → GCP backend, GCS-source → AWS backend, GCS-source → Azure backend. Combined with PRs #59 / #64 / #65 this closes the secrets cross-cloud Apply matrix across every source / backend permutation the shim covers. Factored helpers (`sockerlessAzureKVBackend`, `sockerlessAWSSMBackend`, `sockerlessGCPSMBackend`, `terraformSecretsRunner`, `expectSecretValueInBackend`) keep per-cell code small. Track A blocked on real-cloud credentials. |
 | Last merged | PR #68 — Phase 14.E closure: continuity docs roll forward. |
 | Phases 1–13 | All closed (Phase 13 closed by PR #20). PR index in [PLAN.md § Closed phases](PLAN.md#closed-phases-pr-index). |
-| Phase 14 | 14.A ✅ · 14.B ✅ · 14.C ✅ · 14.D ✅ (simulator audit) / Track A blocked · 14.E ✅ with deferred residuals (secrets AWS / GCS-source rows, SB cross-cloud). |
+| Phase 14 | 14.A ✅ · 14.B ✅ · 14.C ✅ · 14.D ✅ (simulator audit) / Track A blocked · 14.E ✅. Remaining residuals (terraform-aws `_wo` drift, SB cross-cloud scoping) carried into Phase 15.B. |
+| Phase 15 | Just opened. Sub-phases: 15.A normalisations contract doc · 15.B 14.E cleanups · 15.C NoSQL key-value · 15.D DNS public+private. 15.A ships first. See [PLAN.md § Phase 15](PLAN.md#phase-15--cross-cloud-normalization-standard--new-service-expansion). |
 | Bugs | **38 filed · 36 fixed · 2 open · 1 false positive.** Open: **BUG-8** (apigateway TF-provider Track A leg, real GCP), **BUG-15** (queue TF state-drift Track A leg, real GCP). BUG-35 closed by sockerless PR #245. |
 | Upstream | sockerless #257 / #260 / #261 / #269 / #272 / #276 all closed (via #259 / #262 / #271 / #274 / #277). Zero open sockerless issues for the shimanism roadmap. |
 | CI | 18 required checks. Real-cloud lanes wait on Track A. |
