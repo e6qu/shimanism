@@ -8,9 +8,9 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 
 | | |
 |---|---|
-| Active branch | `main` after PR #61 merged (SB topics through-shim Apply). Phase 14.E expansion PR in flight: cross-cloud backends for the existing Apply cells (Azure terraform → shim → AWS / GCP backend). |
-| In-flight | **14.E cross-cloud-backend variants of the existing Apply cells.** PR #58/#59/#60/#61 all land Azure terraform → shim → *inmem* backend (or sockerless AMQP for SB). The cross-cloud promise is `Azure terraform → shim → AWS / GCP backend → sockerless cloud Y store`. Starting with `TestSockerless_E2E_AzureBlob_Through_Shim_ApplyTF_BackendAWS`: same azurerm storage account + container Apply as PR #58, but the shim's azure_blob backend is the AWS S3 backend talking to sockerless's AWS sim. Verifies the "container" lands as an S3 bucket in sockerless. Track A blocked on real-cloud credentials. |
-| Last merged | PR #61 — 14.E SB Topics + Subscriptions through-shim Apply. |
+| Active branch | `main` after PR #62 merged (cross-cloud Azure→AWS Apply for storage). Phase 14.E expansion PR in flight: GCS-backend variant of the storage Apply cell. |
+| In-flight | **14.E cross-cloud Azure→GCP Apply for storage.** Mirror of PR #62 on the GCP side. `TestSockerless_E2E_AzureBlob_Through_Shim_ApplyTF_BackendGCS` runs the same azurerm storage Apply as PR #58 / PR #62, but the shim's azure_blob frontend is backed by the GCS backend talking to sockerless's GCP sim. Verifies the "container" lands as a GCS bucket. Closes the cross-cloud Apply matrix on the Azure→GCP corner for storage. Track A blocked on real-cloud credentials. |
+| Last merged | PR #62 — 14.E cross-cloud: Azure storage Apply → AWS S3 backend via sockerless. |
 | Phases 1–12 | All closed. PR index in [PLAN.md § Closed phases](PLAN.md#closed-phases-pr-index). |
 | Bugs | **38 filed · 36 fixed · 2 open · 1 false positive.** Open: **BUG-8** (apigateway TF-provider Track A leg, real GCP), **BUG-15** (queue TF state-drift Track A leg, real GCP). BUG-35 closed by sockerless PR #245. |
 | Upstream | sockerless #257 / #260 / #261 / #269 / #272 / #276 all closed (via #259 / #262 / #271 / #274 / #277). Zero open sockerless issues for the shimanism roadmap. |

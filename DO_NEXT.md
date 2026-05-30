@@ -47,7 +47,9 @@ Real-cloud lanes for BUG-8 (hashicorp/google API Gateway TF endpoint/OAuth leg) 
 3. **14.E expansion: Key Vault Apply via sockerless ARM — implemented (this PR).** sockerless#274 closed #272's per-resource `aud` gap; the cell composes `azurerm_key_vault` + `azurerm_key_vault_access_policy` + `azurerm_key_vault_secret` end-to-end via sockerless real ARM → shim's azure_keyvault frontend → inmem secrets backend. JWKS pre-fetched out-of-band by the test so the in-process verifier doesn't need TLS-trust plumbing for sockerless's self-signed cert.
 4. ~~14.E expansion: Service Bus Apply.~~ ✅ Shipped in PR #60 (queue side).
 5. ~~14.E SB Topics + Subscriptions Apply.~~ ✅ Shipped in PR #61.
-6. **14.E cross-cloud backends — implemented (this PR).** Realises the original cross-cloud Apply promise: the existing storage Apply cell's inmem backend is replaced with an AWS S3 backend pointing at sockerless's AWS sim. `TestSockerless_E2E_AzureBlob_Through_Shim_ApplyTF_BackendAWS` runs the same azurerm Apply as PR #58 and verifies the "container" lands as an S3 bucket in sockerless. Follow-ons (next): GCS-backend variant for the Azure storage cell, then the same pattern for KV (secrets sockerless variants already exist via cross-cloud Roundtrip; Apply-driven version is the gap).
+6. ~~14.E cross-cloud Azure→AWS Apply for storage.~~ ✅ Shipped in PR #62.
+7. **14.E cross-cloud Azure→GCP Apply for storage — implemented (this PR).** Mirror of PR #62 on the GCP side. `TestSockerless_E2E_AzureBlob_Through_Shim_ApplyTF_BackendGCS` runs the same azurerm Apply, but the shim's azure_blob backend is GCS talking to sockerless's GCP sim. Closes the cross-cloud Apply matrix on the Azure→GCP corner for storage.
+8. **14.E expansion (next concrete chunk):** KV cross-cloud Apply (`Azure terraform → shim azure_keyvault → AWS Secrets Manager backend → sockerless AWS sim`). Closes the cross-cloud loop for secrets.
 5. ~~Watch sockerless#244.~~ ✅ Done in PR #49.
 
 ### Lesson: ARM shimming via fakes was the wrong design
