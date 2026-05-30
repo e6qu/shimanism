@@ -230,19 +230,39 @@ For these use cases users either go to the destination-cloud's native API direct
 
 **Reference.** `internal/apigateway/domain/domain.go::Gateway` + `DeployGateway`. Per-cloud `DeployGateway` implementations in `services/apigateway/backends/{aws,gcp,azure}/`.
 
-### N16 — Azure Service Bus AMQP frontend: deliberately out of intersection
+### N16 — Connection-based data-plane frontends: achievable, not yet built
 
-**Asymmetry.** Azure Service Bus's data plane is AMQP/TLS. Source-cloud Terraform that drives SB queues / topics (e.g. `azurerm_servicebus_queue` + an `azservicebus.Client` Send/Receive) needs an AMQP-speaking endpoint at the shim. The shim's `internal/queue/frontends/azure_servicebus` is **REST/ATOM-only** — the file header explicitly says "AMQP tier is deferred." That means cross-cloud Apply for Service Bus where the source-cloud Terraform sends messages through the shim's frontend cannot compose: there's no AMQP listener for the SDK to talk to.
+**Asymmetry.** Several shimmed services have data planes that aren't HTTP — they're persistent-connection protocols with their own wire formats and state machines:
 
-**Rule.** Cross-cloud Service Bus Apply *via the shim's frontend* is **out of intersection**. The shim returns no AMQP listener; calls into the missing surface fail at the connection layer. This is not a sockerless gap — sockerless faithfully provides the AMQP server on the destination side; what's missing is the shim being a faithful AMQP receiver.
+| Service | Wire protocol | Server-side Go library examples |
+|---|---|---|
+| Azure Service Bus | AMQP 1.0 / TLS | `github.com/Azure/go-amqp` (used by sockerless's Azure sim) |
+| Redis / ElastiCache / Memorystore | RESP | several Go libraries (e.g. `tidwall/redcon`) |
+| PostgreSQL / RDS / Cloud SQL | PG wire | `github.com/jackc/pgx/v5/pgproto3` (server-side framing) |
+| MySQL / RDS / Cloud SQL | MySQL wire | `github.com/go-mysql-org/go-mysql/server` |
+| Kafka / MSK | Kafka wire | `github.com/twmb/franz-go` server primitives |
 
-For the Apply path the shim DOES support, see PRs #60 / #61: through-shim Service Bus Apply where azurerm targets sockerless's real ARM, sockerless emits the SAS connection string, and the shim's *backend* (not frontend) drives `azservicebus.Client` Send/Receive against sockerless's AMQP listener. That cell exercises the shim's backend translation layer; the frontend remains REST/ATOM-only.
+Today the shim handles the **control plane** (admin / lifecycle / CreateInstance / CreateNamespace) for all of these, but **not the data plane**. The user's app connects directly to the destination cloud's data-plane endpoint (e.g. Redis IP:port, AMQP host:port) — the shim is bypassed for actual messages / queries / cache operations.
 
-**Trade-off.** Users who want full source-cloud-Terraform → shim AMQP front → destination-cloud-AMQP-backend cross-cloud Apply for SB queues / topics don't have a path through the shim today. Workarounds: use the shim's backend translation directly (without going through a shim AMQP frontend), or migrate to a non-AMQP queue service (SQS / Pub/Sub) where the shim's frontends are HTTP and cross-cloud Apply already works.
+**Rule.** Connection-based data-plane shimming is **in-intersection by design but not built today**. Architecturally these frontends are the same shape as HTTP frontends (e.g. `azure_blob` / `azure_keyvault`): receive in the source cloud's wire protocol, translate to `domain.*` operations, let the existing backend layer dispatch to whichever destination cloud.
 
-**Why not build the AMQP listener?** AMQP frame parsing + SASL ANONYMOUS + link / session lifecycle + security model is multi-PR Phase-16+ scope work. The cost doesn't match the user-visible value today (no real-world cross-cloud SB migration pressure surfaced in shimanism's roadmap). Building it stays as a deferred Phase-16+ consideration.
+**The pattern is already half-shipped.** The shim's *backends* for connection-based destinations already use cloud-native client libraries — `services/queue/backends/azure/azure.go` uses `azservicebus.NewClient` (an AMQP 1.0 client), `services/secrets/backends/gcp/gcp.go` uses the gRPC `cloud.google.com/go/secretmanager/apiv1` client, etc. The shim doesn't reimplement these wire formats; it consumes them via the cloud's published Go SDK. Adding a *frontend* for a connection-based protocol is the mirror image: pick a Go server-side library for the wire format (server-mode of `go-amqp` for AMQP, `pgproto3` for PG wire, etc.), wire it up to the existing `domain.*` interface, and the rest of the stack (backend dispatch, normalization rules, conformance) composes unchanged.
 
-**Reference.** `internal/queue/frontends/azure_servicebus/server.go` file header (explicitly defers AMQP). PRs #60 / #61 (the backend-layer SB through-shim Apply that DOES work). `services/queue/APPLY_INTERSECTION.md` for the service-level closure note.
+The work is therefore "plug in a Go server library for the wire format" + "map decoded ops to `domain.*` calls" — **not** "implement a wire protocol from scratch."
+
+What's blocking each protocol:
+- **AMQP 1.0** — `go-amqp` supports server mode; sockerless already runs it. Effort comparable to adding an HTTP frontend.
+- **RESP** — simplest of the bunch; text-based; multiple Go libs.
+- **PG / MySQL wire** — protocols documented; server-side libs exist but auth flows (SCRAM, TLS, password-based) need careful matching to per-cloud expectations.
+- **Kafka** — substantial state machine, but franz-go primitives carry most of it.
+
+The shim doesn't have these frontends because the admin-plane scope has been the priority. Building any of them is a Phase 15.E (or 16) candidate, weighed against demand vs. effort.
+
+**Trade-off (today).** Cross-cloud Apply via a shim data-plane frontend doesn't exist for any connection-based service today. Users either keep app code on the destination cloud's native protocol, or wait for the data-plane frontend to land. The Apply paths that DO compose — through the shim's backend translation, with the user's app talking the destination cloud's protocol via the connection string — are exercised by PRs #60 / #61 for Service Bus and by the existing direct-connection lanes for cache / rdbms.
+
+**Rule when one of these frontends lands.** Same rule as HTTP frontends: receive in source-cloud shape, translate to `domain.*`, dispatch through backend translation, surface errors in the source cloud's error envelope. Cross-protocol cells (e.g. AMQP → SQS HTTP) follow the standard `domain.*` round-trip. Same-protocol same-cloud cells (e.g. AMQP source → AMQP destination at sockerless / real Azure) could be implemented as TCP-level proxies with auth-handshake interception if richer translation isn't needed — that's a per-frontend choice when one is built.
+
+**Reference.** Sockerless's Azure SB AMQP server (`/tmp/sockerless/simulators/azure/servicebus_amqp.go`) is the concrete proof-of-concept that AMQP 1.0 in Go server-side is straightforward. The shim's existing HTTP frontends are the structural template.
 
 ## How rules are added
 

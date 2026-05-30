@@ -132,11 +132,17 @@ Compared to the generated frontend surface (`services/storage/gen/aws_s3.gen.go`
 
 | Layer | Contains | Allowed to do |
 |---|---|---|
-| **Frontend** | Wire-protocol HTTP routing, request/response decoders, error envelope shaping, per-cloud quirks (e.g. AWS query-XML compatibility headers, GCP operation polling endpoints, Azure async-operation URLs) | Translate wire ↔ domain. **Cannot** call backends directly — must go through the domain. |
+| **Frontend** | Wire-protocol routing, request/response decoders, error envelope shaping, per-cloud quirks (e.g. AWS query-XML compatibility headers, GCP operation polling endpoints, Azure async-operation URLs) | Translate wire ↔ domain. **Cannot** call backends directly — must go through the domain. |
 | **Domain** | One interface per service, plus typed errors, plus shared types (`Bucket`, `Secret`, etc.) | Define the intersection. **Stateless** — no in-process maps that backends or frontends read across requests. |
-| **Backend** | Calls to the real destination (`aws-sdk-go-v2`, `cloud.google.com/go/...`, Azure SDK, NATS client, etc.) | Call destination APIs. Translate domain options to destination shapes. Surface destination errors back through the domain's typed-error vocabulary. |
+| **Backend** | Calls to the real destination (`aws-sdk-go-v2`, `cloud.google.com/go/...`, Azure SDK, NATS client, `pgx`, etc.) | Call destination APIs. Translate domain options to destination shapes. Surface destination errors back through the domain's typed-error vocabulary. |
 
 The `internal/<service>/` tree holds the domain + frontends. The `services/<service>/` tree holds the backends + conformance tests + the codegen manifest + the per-service `OPERATIONS.md` / `INTERSECTION.md` / `APPLY_INTERSECTION.md`.
+
+### Wire-protocol libraries (both sides)
+
+Frontends and backends both **reuse cloud-native / third-party wire-protocol libraries** rather than reimplementing protocols. HTTP frontends use Go's `net/http` plus per-service codegen for spec-driven request decoding. Backends use the destination cloud's published Go SDK (`aws-sdk-go-v2`, `cloud.google.com/go/...`, `azure-sdk-for-go`) — that includes the wire protocols those SDKs speak: HTTP/REST, HTTP/gRPC, AMQP 1.0 (via `azservicebus`), PG / MySQL wire (via `pgx` / `go-mysql`), etc. The shim never writes its own wire-format parser if a faithful library exists.
+
+The same rule applies when adding new frontends for non-HTTP source-cloud protocols (AMQP from Azure SB clients, RESP from Redis clients, PG wire from `psql` clients, etc.): use a server-side wire-format library (e.g. `github.com/Azure/go-amqp` server mode, `tidwall/redcon`, `jackc/pgx/v5/pgproto3`). The shim plugs the decoded operations into the existing `domain.*` interface, and the rest of the stack composes unchanged. This is documented as **N16** in [`normalizations.md`](normalizations.md#n16--connection-based-data-plane-frontends-achievable-not-yet-built).
 
 ## Statelessness
 
