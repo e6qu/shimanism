@@ -32,7 +32,15 @@ Cross-referenced from `PHILOSOPHY.md` (operational footnote on "The Circle"), `A
 
 Open audit items captured at the bottom of `normalizations.md` for follow-on 15.A PRs: soft-delete grace period, queue visibility-timeout semantics, RDBMS engine version naming + connection string, cache cluster mode, functions runtime → container image mapping, API Gateway stages-vs-configs-vs-products. Each becomes a rule entry once audited.
 
-### 15.A N9: secrets soft-delete grace period (this PR, after PR #70)
+### 15.A N10 + N11: queue visibility timeout + RDBMS engine version (this PR, after PR #71)
+
+Two more rules audited from the open items list.
+
+**N10 — Queue visibility timeout / lock duration / ack deadline.** The "how long an in-flight message stays invisible to other consumers" concept exists in all three clouds, but the bounds differ wildly: AWS SQS up to 12 h (43 200 s), GCP Pub/Sub `ackDeadlineSeconds` capped at 10 min (600 s), Azure Service Bus `LockDuration` capped at 5 min (300 s). The shim's domain field is `VisibilityTimeoutSeconds`. Backend behaviour today: AWS and Azure pass through and let the cloud API reject out-of-bounds values; **GCP silently clamps to `[10, 600]`**. The clamping is the only mutation across the three backends — flagged as an open sub-question on N10: does the shim align by failing (preserving the source cloud's error vocabulary) or by clamping (preserving the call). Decision deferred to a follow-on PR.
+
+**N11 — RDBMS engine version naming.** AWS RDS `engine_version = "16.1"` vs GCP Cloud SQL `database_version = "POSTGRES_16"` vs Azure Database for PostgreSQL `version = "16"`. The shim's domain has `Engine` as a canonical enum and `EngineVersion` as an opaque string. The GCP backend has an explicit `gcpEngineVersion` helper that adds the `POSTGRES_` / `MYSQL_` prefix if missing and defaults to a specific major version when empty; AWS and Azure backends pass through. Cross-cloud version-string portability is lossy: AWS-shape `"16.1"` rejected by GCP, GCP-shape `"POSTGRES_16"` rejected by AWS. **The portable form is major-version-only (`"16"`)** — that's what round-trips cleanly across all three clouds. The shim doesn't transform minor-version to major-only; that would silently change semantics.
+
+### 15.A N9: secrets soft-delete grace period (PR #71, after PR #70)
 
 Audit of the first open item. The five secrets backends differ in how they handle `DeleteSecret`'s `force bool`:
 
