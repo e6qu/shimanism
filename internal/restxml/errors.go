@@ -85,10 +85,10 @@ func WriteBackendError(w http.ResponseWriter, err error) {
 // Route 53, CloudFront, and most other rest-xml services use this
 // envelope; S3 uses the bare form emitted by WriteBackendError.
 type ErrorResponse struct {
-	XMLName   xml.Name      `xml:"ErrorResponse"`
-	XMLNS     string        `xml:"xmlns,attr,omitempty"`
+	XMLName   xml.Name           `xml:"ErrorResponse"`
+	XMLNS     string             `xml:"xmlns,attr,omitempty"`
 	Error     ErrorResponseInner `xml:"Error"`
-	RequestID string        `xml:"RequestId,omitempty"`
+	RequestID string             `xml:"RequestId,omitempty"`
 }
 
 // ErrorResponseInner is the `<Error>` child of an `<ErrorResponse>`.
