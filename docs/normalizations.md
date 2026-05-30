@@ -264,6 +264,28 @@ The shim doesn't have these frontends because the admin-plane scope has been the
 
 **Reference.** Sockerless's Azure SB AMQP server (`/tmp/sockerless/simulators/azure/servicebus_amqp.go`) is the concrete proof-of-concept that AMQP 1.0 in Go server-side is straightforward. The shim's existing HTTP frontends are the structural template.
 
+### N17 — DNS zone visibility (one domain field, per-cloud dispatch)
+
+**Asymmetry.** Each cloud splits public vs. private DNS zones differently:
+
+- **AWS Route 53:** one resource type (`HostedZone`) with a `VPC` association list. Empty `VPC` → public; non-empty → private.
+- **GCP Cloud DNS:** one resource type (`managedZone`) with a `visibility` field (`public` / `private`) + a `privateVisibilityConfig.networks[]` for the bound VPCs.
+- **Azure DNS:** **two resource types** — `Microsoft.Network/dnszones` (public) and `Microsoft.Network/privateDnsZones` (private) — with different ARM paths and slightly different schemas.
+
+`hashicorp/azurerm` mirrors Azure's split with `azurerm_dns_zone` and `azurerm_private_dns_zone` as separate Terraform resources.
+
+**Rule.** The shim's domain layer (`internal/dns/domain`) carries `Zone.Visibility = Public | Private` as a single enum. Backends dispatch on it:
+
+- **AWS** backend: `Visibility=Public` → `CreateHostedZone` with no `VPC`; `Visibility=Private` → `CreateHostedZone` with the supplied `VPC` associations from `CreateZoneOptions.PrivateVPCs`.
+- **GCP** backend: passes `Visibility` through to `managedZones.visibility`.
+- **Azure** backend: **one backend** dispatches between `Microsoft.Network/dnszones` (public) and `Microsoft.Network/privateDnsZones` (private) at call time. The backend's outbound wire calls match Azure's published two-resource split; the domain hides the split.
+
+**Trade-off.** Azure-side observers see two resource types depending on visibility; that's part of Azure's published API and the shim doesn't try to flatten it on the wire — only at the domain layer where cross-cloud uniformity matters.
+
+**Why one Azure backend rather than two?** Putting the split in the backend layer (one backend with `Visibility` dispatch) keeps the *normalisation rule* explicit and testable — there's one place where the cross-cloud "private vs public" semantic is decided. Two backends would fragment the rule across more code and require a higher-layer dispatch on `Visibility` anyway. Same pattern as N8 (storage metadata-vs-tags split is one backend with the split internal) and N5 (queue ↔ topic+subscription is one GCP backend dispatching on whether a queue/topic operation is involved).
+
+**Reference.** `internal/dns/domain/domain.go::ZoneVisibility`. `services/dns/backends/inmem/inmem.go` shows the pattern for the per-cloud backends to follow. Per-cloud backends (AWS Route 53 / GCP Cloud DNS / Azure DNS + Private DNS) land in follow-on 15.D PRs.
+
 ## How rules are added
 
 When 14.E-style cross-cloud work surfaces a new asymmetry:
