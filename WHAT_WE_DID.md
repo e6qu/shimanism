@@ -32,7 +32,19 @@ Cross-referenced from `PHILOSOPHY.md` (operational footnote on "The Circle"), `A
 
 Open audit items captured at the bottom of `normalizations.md` for follow-on 15.A PRs: soft-delete grace period, queue visibility-timeout semantics, RDBMS engine version naming + connection string, cache cluster mode, functions runtime → container image mapping, API Gateway stages-vs-configs-vs-products. Each becomes a rule entry once audited.
 
-### 15.A N10 + N11: queue visibility timeout + RDBMS engine version (this PR, after PR #71)
+### 15.A N12 + N13 + N14: RDBMS connection identity + cache node tier + functions container image (this PR, after PR #72)
+
+Three rules batched. Pattern across all three: **opaque pass-through with documented per-cloud asymmetry**, not transformation.
+
+**N12 — RDBMS connection identity.** Each cloud exposes connection details differently (AWS hostname, GCP connection-name + IP, Azure FQDN). The domain layer carries `Host` and `Port` as separate fields; backends extract them from each cloud's native API response. **The shim does not synthesize a connection string** — that's left to the user's downstream app or the cloud's Terraform provider.
+
+**N13 — Cache node tier.** AWS `cache.t3.micro` vs GCP `BASIC`/`STANDARD_HA` vs Azure `Basic C0` / `Premium P3`. The domain `NodeType` is an opaque string; backends pass through; the destination cloud rejects unrecognised values. Cross-cloud Apply with a hard-coded tier string fails on the destination — flagged as an open sub-question whether a normalised enum (`small`/`medium`/`large` with mapping table) would help.
+
+**N14 — Functions container image.** AWS Lambda historically supports language-runtimes (`runtime = "python3.12"`) and container images. GCP Cloud Run + Azure Container Apps are container-image-only. The shim's domain represents only container-image-packaged functions; Lambda backend creates `PackageType = Image` exclusively. Language-runtime Lambdas are out of intersection — users wrap their code as a container image (AWS provides `public.ecr.aws/lambda/<runtime>:` base images for this).
+
+After this PR, the only remaining open audit item is **API Gateway stages vs configs vs products** — the cross-cloud asymmetry between AWS stages, GCP API configs, and Azure APIM products / subscriptions.
+
+### 15.A N10 + N11: queue visibility timeout + RDBMS engine version (PR #72, after PR #71)
 
 Two more rules audited from the open items list.
 
