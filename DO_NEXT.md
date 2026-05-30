@@ -6,9 +6,8 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 
 ## Where we are
 
-- **3-PR plan: 2/3 shipped; PR 3 (Track A) blocked.** PR #46/#47/#48/#49/#50 all landed 2026-05-27.
-- **BUG-24 reverse-direction coverage is now complete** — every service family has both cross-cloud directions (PR #50).
-- **14.E first through-shim azurerm Apply shipped (PR #58, 2026-05-29).** `TestSockerless_E2E_AzureBlob_Through_Shim_ApplyTF` drives `azurerm → sockerless real ARM → primaryEndpoints.blob → shim azure_blob frontend → inmem backend` end-to-end with no shim-side fakes. The fakes-laden PRs #51–#54 are fully reverted (PR #56). All four upstream sockerless gates landed: #259 endpoint emission, #260 64-byte deterministic listKeys, #262 RS256 JWKS-published Azure AD tokens, #269/#271 `{account}` interpolation + auto-derived `storage` suffix. The shim's existing azure_blob frontend accepts vhost-style addressing without modification; the SharedKey verifier reads the account from the Authorization header.
+- **Phase 14 closing.** 14.A/B/C/D landed earlier; 14.E shipped as 10 PRs (#58–#67) covering through-shim azurerm Apply (storage, KV, SB queue, SB topic) plus the cross-cloud Apply matrix for storage (every source × backend permutation) and the Azure-source row for secrets. 6 upstream sockerless gaps filed + closed.
+- **Phase 14 deferred to Phase 15:** secrets cross-cloud AWS / GCS-source rows (mechanically identical to PR #67's storage batch); SB cross-cloud cells (blocked on missing shim-side AMQP listener — `internal/queue/frontends/azure_servicebus` is REST/ATOM-only by design); real-cloud Track A (still blocked on credentials — BUG-8 + BUG-15).
 - **Phase 13.A is fully closed.** Every Azure frontend has full `gen.ServerInterface` impl.
 - `make sockerless` reports **43 passing + 0 skipped** locally after the revert (PR #54's ARM cells removed).
 - **Storage matrix complete 3×3** — single-shot + multipart + copy across AWS S3 + GCS + Azure Blob.
@@ -19,8 +18,8 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 - **All 7 GCP frontends migrated** from `regexp` tables to `strings.CutPrefix` + `strings.Split` + `segs[N]` dispatch. `regexp` import retired from all per-frontend GCP handlers.
 - **All Azure frontends carry full `gen.ServerInterface` impls** with the `var _ gen.ServerInterface = (*Server)(nil)` compile-time gate.
 - **Open BUGs (2):** BUG-8 + BUG-15 (Track A, real GCP needed). BUG-35 closed in PR #48 after sockerless PR #245 derived ACA image platforms from the resolved manifest.
-- **Upstream watch:** zero open sockerless issues — #257 / #260 / #261 / #269 all closed via #259 / #262 / #271.
-- **Last merged:** PR #58 — 14.E through-shim azurerm Terraform Apply via sockerless real ARM (no fakes), 2026-05-29.
+- **Upstream watch:** zero open sockerless issues for the shimanism roadmap (six gaps surfaced during 14.E all closed: #257/#260/#261/#269/#272/#276 via #259/#262/#271/#274/#277).
+- **Last merged:** PR #67 — 14.E storage cross-cloud Apply matrix closure (3 cells in one PR).
 
 ## Session-start checklist
 
@@ -40,21 +39,14 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 
 Real-cloud lanes for BUG-8 (hashicorp/google API Gateway TF endpoint/OAuth leg) + BUG-15 (`message_retention_duration` state-drift question) + real-signed verifier conformance. Requires AWS / GCP / Azure accounts. Not actionable until infra exists.
 
-## Practical next chunks (while Track A is blocked)
+## Practical next chunks (Phase 14 closing; Phase 15 candidates)
 
-1. ~~BUG-24 reverse-direction expansion.~~ ✅ Shipped in PR #50.
-2. ~~14.E first through-shim azurerm Apply.~~ ✅ Shipped in PR #58 (storage / azure_blob / `azurerm_storage_container` data plane).
-3. **14.E expansion: Key Vault Apply via sockerless ARM — implemented (this PR).** sockerless#274 closed #272's per-resource `aud` gap; the cell composes `azurerm_key_vault` + `azurerm_key_vault_access_policy` + `azurerm_key_vault_secret` end-to-end via sockerless real ARM → shim's azure_keyvault frontend → inmem secrets backend. JWKS pre-fetched out-of-band by the test so the in-process verifier doesn't need TLS-trust plumbing for sockerless's self-signed cert.
-4. ~~14.E expansion: Service Bus Apply.~~ ✅ Shipped in PR #60 (queue side).
-5. ~~14.E SB Topics + Subscriptions Apply.~~ ✅ Shipped in PR #61.
-6. ~~14.E cross-cloud Azure→AWS Apply for storage.~~ ✅ Shipped in PR #62.
-7. ~~14.E cross-cloud Azure→GCP Apply for storage.~~ ✅ Shipped in PR #63.
-8. ~~14.E cross-cloud Azure→AWS Apply for secrets.~~ ✅ Shipped in PR #64.
-9. ~~14.E cross-cloud Azure→GCP Apply for secrets.~~ ✅ Shipped in PR #65.
-10. ~~14.E cross-cloud AWS→GCP Apply for storage.~~ ✅ Shipped in PR #66.
-11. **14.E storage cross-cloud Apply matrix closure — implemented (this PR).** Three cells: AWS→Azure, GCS→AWS, GCS→Azure. Closes the storage Apply matrix across all source / backend permutations the shim covers. Factored helpers (`sockerlessAzureBlobBackend`, `terraformRunner`, `expectBucketInBackend`, `gcsBearerJWT`) keep per-cell code small.
-12. **14.E expansion (next concrete chunk):** KV cross-cloud Apply expansion — AWS-source / GCS-source rows for secrets (mirror of #66 on the secrets service). **SB cross-cloud is blocked** on shim AMQP. Or: audit + close 14.E, write the Phase-14 closure narrative.
-5. ~~Watch sockerless#244.~~ ✅ Done in PR #49.
+Phase 14.E shipped 10 PRs (#58–#67) — see WHAT_WE_DID.md § 14.E closure narrative. Remaining work in priority order:
+
+1. **Secrets cross-cloud closure (mechanical).** AWS-source secrets Apply + GCS-source secrets Apply, 4 cells total mirroring PR #67's storage batch. Helpers from PR #67 (`terraformRunner`, `expectBucketInBackend`, `gcsBearerJWT`) reuse cleanly. Pick this up if 14.E full-matrix completeness matters for a Phase-14 sign-off; otherwise defer to Phase 15.
+2. **SB cross-cloud cells.** Blocked on missing shim-side AMQP listener in `internal/queue/frontends/azure_servicebus` (file header explicitly says AMQP tier is deferred). Substantial new shim work — AMQP frame parsing, SASL ANONYMOUS, link / session lifecycle. Phase 15 scoping question.
+3. **Track A real-cloud Apply.** BUG-8 + BUG-15 + real-signed verifier conformance. Still blocked on real AWS / GCP / Azure credentials.
+4. **Phase 15 design.** What's the next shape — broader service coverage (Event Hubs, Cosmos DB, Event Grid)? Multi-tenant deployment model? Real-cloud Track A bring-up? Open question.
 
 ### Lesson: ARM shimming via fakes was the wrong design
 
