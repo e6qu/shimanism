@@ -19,7 +19,9 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -40,6 +42,8 @@ import (
 	dnsraw "google.golang.org/api/dns/v1"
 	"google.golang.org/api/option"
 
+	"github.com/e6qu/shimanism/internal/azurebearer"
+	azuredfront "github.com/e6qu/shimanism/internal/dns/frontends/azure_dns"
 	"github.com/e6qu/shimanism/internal/gcpbearer"
 	"github.com/e6qu/shimanism/internal/harness"
 	awsbackend "github.com/e6qu/shimanism/services/dns/backends/aws"
@@ -243,18 +247,18 @@ func TestSockerless_AzureDNS_Through_Shim_ZoneLifecycle(t *testing.T) {
 }
 
 // TestSockerless_AzureDNS_Through_Shim_Terraform_Apply exercises the
-// shim's Azure DNS frontend in ARM passthrough mode end-to-end with
-// `azurerm` Terraform Apply.
+// shim's Azure DNS frontend in **ARM passthrough mode** end-to-end
+// with `azurerm` Terraform Apply.
 //
-// Tracked as BUG-46: full enablement requires the shim to also host
-// Azure metadata + Entra ID token endpoints (azurerm acquires
-// service-principal tokens before any ARM call; the default points
-// at real `login.microsoftonline.com` which rejects test client IDs
-// with AADSTS700038). The ARM passthrough primitive itself works
-// (see `internal/dns/frontends/azure_dns/passthrough_test.go`); this
-// test stays skipped pending the metadata + Entra ID stub work.
+// Closes BUG-46. The shim's `/metadata/endpoints` handler points
+// `resourceManager` at the shim itself and the rest of the cloud
+// service URLs (login, graph, …) at sockerless's Azure ARM mock.
+// `metadata_host = "<shim>"` makes azurerm fetch this metadata,
+// acquire its service-principal token from sockerless's Entra ID
+// stub, and then route ARM calls back through the shim — DNS-
+// specific paths handled locally, resource-group + subscription
+// paths forwarded to sockerless.
 func TestSockerless_AzureDNS_Through_Shim_Terraform_Apply(t *testing.T) {
-	t.Skip("BUG-46: shim needs Azure metadata + Entra ID stub routes for end-to-end azurerm Apply through the shim. ARM passthrough primitive works (BUG-44 closed); end-to-end TF Apply needs more infrastructure.")
 	azureTLSPort := os.Getenv("SOCKERLESS_AZURE_TLS_PORT")
 	if azureTLSPort == "" {
 		t.Skip("SOCKERLESS_AZURE_TLS_PORT not set")
@@ -298,11 +302,35 @@ func TestSockerless_AzureDNS_Through_Shim_Terraform_Apply(t *testing.T) {
 	proxy := httputil.NewSingleHostReverseProxy(sockerlessARM)
 	proxy.Transport = &http.Transport{TLSClientConfig: &tls.Config{RootCAs: rootCAs}}
 
-	// 2. Start the shim with passthrough → sockerless ARM. Drives DNS
-	//    paths locally against an inmem backend (the through-shim test
-	//    exercises the FRONTEND surface; the backend choice is
-	//    orthogonal).
-	shim := harness.StartDNSServerAzureWithPassthrough(t, inmem.New(), proxy)
+	// 2. Fetch sockerless's JWKS so the shim's Azure bearer verifier
+	//    accepts the tokens sockerless's Entra ID stub issues to the
+	//    azurerm provider. Without this the shim returns 401 on every
+	//    ARM call (real Azure validates JWTs against Microsoft Entra's
+	//    JWKS at /<tenant>/discovery/v2.0/keys; we mirror that here).
+	jwks := fetchSockerlessDNSJWKS(t, azureTLSPort, tenantID, sockCertPEM)
+
+	// 3. Start the shim with passthrough → sockerless ARM and the
+	//    cloud-metadata endpoint pointing auth + service URLs at
+	//    sockerless. Bearer verifier configured against sockerless's
+	//    JWKS. Drives DNS paths locally against an inmem backend.
+	shim := harness.StartDNSServerAzureWithConfig(t, inmem.New(), azuredfront.Config{
+		Passthrough:      proxy,
+		MetadataLoginURL: sockerlessARM.String(),
+		BearerOptions: azurebearer.Options{
+			Issuer: fmt.Sprintf("https://sts.windows.net/%s/", tenantID),
+			// Audience deliberately empty: sockerless mints tokens with
+			// `aud = <shim_url>` because the shim's /metadata/endpoints
+			// declares itself as `resourceManager`. The shim doesn't know
+			// its own URL at config-time (httptest assigns a random port),
+			// so we can't pin Audience to that URL here. Signature (JWKS),
+			// Issuer, and Exp/Nbf checks still apply — the verifier
+			// confirms the token came from sockerless's Entra, was issued
+			// for the right tenant, and isn't expired. Production deployments
+			// would set Audience to the canonical ARM URL with a fixed
+			// shim hostname.
+			JWKS: jwks,
+		},
+	})
 
 	// 3. Combined CA bundle = system + sockerless cert + shim cert so
 	//    Terraform's HTTPS handshakes succeed on both legs.
@@ -331,6 +359,7 @@ terraform {
 
 provider "azurerm" {
   features {}
+  metadata_host                   = %q
   subscription_id                 = %q
   tenant_id                       = %q
   client_id                       = %q
@@ -338,7 +367,6 @@ provider "azurerm" {
   use_oidc                        = false
   use_cli                         = false
   resource_provider_registrations = "none"
-  environment                     = "public"
 }
 
 resource "azurerm_resource_group" "tf" {
@@ -358,7 +386,7 @@ resource "azurerm_dns_a_record" "www" {
   ttl                 = 300
   records             = ["1.2.3.4", "5.6.7.8"]
 }
-`, subscriptionID, tenantID, clientID, resourceGroup, zoneName)
+`, shimHost(shim.URL), subscriptionID, tenantID, clientID, resourceGroup, zoneName)
 	if err := os.WriteFile(filepath.Join(dir, "main.tf"), []byte(hcl), 0o644); err != nil {
 		t.Fatalf("write main.tf: %v", err)
 	}
@@ -372,12 +400,6 @@ resource "azurerm_dns_a_record" "www" {
 			"TF_PLUGIN_CACHE_DIR="+terraformPluginCacheDirForDNSWorkdir(dir),
 			"SSL_CERT_FILE="+combinedPath,
 			"ARM_CLIENT_SECRET=shim-test",
-			// azurerm v4 removed the `endpoints { }` block; the supported
-			// override is per-service env var. Point resource_manager at
-			// the shim URL so DNS-specific calls hit the shim's frontend
-			// and resource-group + subscription calls passthrough to the
-			// sockerless ARM mock.
-			"ARM_RESOURCE_MANAGER_ENDPOINT="+shim.URL,
 		)
 		var stdout, stderr bytes.Buffer
 		cmd.Stdout = &stdout
@@ -390,4 +412,53 @@ resource "azurerm_dns_a_record" "www" {
 	runTf("init", "-no-color")
 	runTf("apply", "-auto-approve", "-no-color")
 	runTf("destroy", "-auto-approve", "-no-color")
+}
+
+// shimHost extracts the `host:port` authority from a URL like
+// `https://127.0.0.1:NN`. azurerm's `metadata_host` expects this
+// shape (no scheme); it prepends https:// itself.
+func shimHost(rawURL string) string {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return rawURL
+	}
+	return u.Host
+}
+
+// fetchSockerlessDNSJWKS pulls sockerless's Entra ID stub JWKS so the
+// shim's Azure bearer verifier validates tokens sockerless issues.
+// Mirrors `services/secrets/conformance/sockerless_test.go`'s helper.
+func fetchSockerlessDNSJWKS(t *testing.T, azurePort, tenantID string, certPEM []byte) *azurebearer.JWKS {
+	t.Helper()
+	pool := x509.NewCertPool()
+	if !pool.AppendCertsFromPEM(certPEM) {
+		t.Fatal("AppendCertsFromPEM: no certs parsed")
+	}
+	client := &http.Client{
+		Timeout: 10 * time.Second,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{RootCAs: pool},
+		},
+	}
+	url := fmt.Sprintf("https://localhost:%s/%s/discovery/v2.0/keys", azurePort, tenantID)
+	resp, err := client.Get(url)
+	if err != nil {
+		t.Fatalf("GET %s: %v", url, err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("GET %s: HTTP %d", url, resp.StatusCode)
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("read JWKS body: %v", err)
+	}
+	var jwks azurebearer.JWKS
+	if err := json.Unmarshal(body, &jwks); err != nil {
+		t.Fatalf("parse JWKS: %v\nbody: %s", err, body)
+	}
+	if len(jwks.Keys) == 0 {
+		t.Fatalf("JWKS at %s is empty", url)
+	}
+	return &jwks
 }

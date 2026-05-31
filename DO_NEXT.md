@@ -19,7 +19,7 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 - **All Azure frontends carry full `gen.ServerInterface` impls** with the `var _ gen.ServerInterface = (*Server)(nil)` compile-time gate.
 - **Open BUGs (2):** BUG-8 + BUG-15 (Track A, real GCP needed). BUG-35 closed in PR #48 after sockerless PR #245 derived ACA image platforms from the resolved manifest.
 - **Upstream watch:** zero open sockerless issues for the shimanism roadmap (six gaps surfaced during 14.E all closed: #257/#260/#261/#269/#272/#276 via #259/#262/#271/#274/#277).
-- **Last merged:** PR #83 — 15.D Azure DNS + Private DNS frontend + backend + SDK conformance.
+- **Last merged:** PR #84 — BUG-44 Azure DNS ARM passthrough primitive.
 
 ## Session-start checklist
 
@@ -53,8 +53,9 @@ Phase 15 sub-phase order:
 6. ~~15.D AWS Route 53 frontend + conformance~~ — ✅ shipped in PR #81.
 7. ~~15.D GCP Cloud DNS~~ — ✅ shipped in PR #82.
 8. ~~15.D Azure DNS + Private DNS~~ — ✅ shipped in PR #83.
-9. **BUG-44 ARM passthrough — implemented (this PR).** `azure_dns.NewWithPassthrough(d, upstream)` forwards unmatched ARM paths to a configured upstream while DNS paths stay local. Through-shim Azure DNS Terraform test wires the proxy to sockerless's Azure ARM mock under TLS with explicit cert pinning. Closes BUG-44.
-10. **15.D — next chunks (in order):** (a) CoreDNS K8s peer (file-based); (b) cross-cloud Apply cells; (c) BUG-43 `az network dns` CLI wiring; (d) BUG-45 Azure through-shim sockerless SDK lifecycle test.
+9. ~~BUG-44 ARM passthrough~~ — ✅ shipped in PR #84.
+10. **BUG-46 shim Azure metadata + Entra ID redirection — implemented (this PR).** Shim's Azure DNS frontend serves `GET /metadata/endpoints` returning `resourceManager = shim_url` + `authentication.loginEndpoint = sockerlessURL`. With `metadata_host = "<shim>"` on azurerm, ARM flows through the shim and auth goes to sockerless. `TestSockerless_AzureDNS_Through_Shim_Terraform_Apply` re-enabled.
+11. **15.D — next chunks (in order):** (a) CoreDNS K8s peer (file-based); (b) cross-cloud Apply cells; (c) BUG-43 `az network dns` CLI wiring; (d) BUG-45 Azure through-shim sockerless SDK lifecycle test.
 6. **15.C — NoSQL key-value service** (after 15.D). Per scoping doc: DynamoDB + Firestore Native + Cosmos DB Table API + etcd K8s peer. ~3-4 PRs.
 
 Track A (BUG-8 + BUG-15) still blocked on real-cloud credentials.

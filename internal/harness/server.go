@@ -295,6 +295,21 @@ func StartDNSServerAzureWithPassthrough(t *testing.T, backend dnsdomain.DNS, ups
 	return &DNSServerTLS{URL: ts.URL, CertPEM: certPEM, Close: ts.Close}
 }
 
+// StartDNSServerAzureWithConfig exposes the full azure_dns.Config
+// — passthrough + cloud-metadata endpoint — for tests that drive
+// `azurerm` Terraform end-to-end through the shim. The metadata
+// endpoint redirects auth + service URLs to `metadataLoginURL`
+// while keeping ARM on the shim (BUG-46).
+func StartDNSServerAzureWithConfig(t *testing.T, backend dnsdomain.DNS, cfg azuredfront.Config) *DNSServerTLS {
+	t.Helper()
+	srv := azuredfront.HandlerWithConfig(backend, cfg)
+	ts := httptest.NewTLSServer(&logRoundTrip{t: t, mux: srv})
+	t.Cleanup(ts.Close)
+	cert := ts.Certificate()
+	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw})
+	return &DNSServerTLS{URL: ts.URL, CertPEM: certPEM, Close: ts.Close}
+}
+
 // StartSecretsServerAWS starts a shim instance with the AWS Secrets
 // Manager frontend backed by the given secrets implementation.
 // AWS-shaped clients (aws-sdk-go-v2/service/secretsmanager,
