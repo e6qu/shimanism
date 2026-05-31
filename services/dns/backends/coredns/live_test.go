@@ -83,7 +83,7 @@ func TestLive_CoreDNS_ResolvesRecordsWrittenByBackend(t *testing.T) {
 	corefile := filepath.Join(t.TempDir(), "Corefile")
 	corefileContent := fmt.Sprintf(`. {
     auto {
-        directory %s
+        directory %s (.*)\.db {1}
         reload 1s
     }
     bind 127.0.0.1
@@ -203,7 +203,7 @@ func TestLive_CoreDNS_PicksUpRuntimeChanges(t *testing.T) {
 	if err := os.WriteFile(corefile, []byte(fmt.Sprintf(
 		`. {
     auto {
-        directory %s
+        directory %s (.*)\.db {1}
         reload 1s
     }
     bind 127.0.0.1
