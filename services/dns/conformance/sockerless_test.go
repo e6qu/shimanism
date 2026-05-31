@@ -317,9 +317,18 @@ func TestSockerless_AzureDNS_Through_Shim_Terraform_Apply(t *testing.T) {
 		Passthrough:      proxy,
 		MetadataLoginURL: sockerlessARM.String(),
 		BearerOptions: azurebearer.Options{
-			Issuer:   fmt.Sprintf("https://sts.windows.net/%s/", tenantID),
-			Audience: "https://management.azure.com/",
-			JWKS:     jwks,
+			Issuer: fmt.Sprintf("https://sts.windows.net/%s/", tenantID),
+			// Audience deliberately empty: sockerless mints tokens with
+			// `aud = <shim_url>` because the shim's /metadata/endpoints
+			// declares itself as `resourceManager`. The shim doesn't know
+			// its own URL at config-time (httptest assigns a random port),
+			// so we can't pin Audience to that URL here. Signature (JWKS),
+			// Issuer, and Exp/Nbf checks still apply — the verifier
+			// confirms the token came from sockerless's Entra, was issued
+			// for the right tenant, and isn't expired. Production deployments
+			// would set Audience to the canonical ARM URL with a fixed
+			// shim hostname.
+			JWKS: jwks,
 		},
 	})
 
