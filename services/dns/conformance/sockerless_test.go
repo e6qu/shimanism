@@ -328,17 +328,15 @@ terraform {
 
 provider "azurerm" {
   features {}
-  subscription_id = %q
-  tenant_id       = %q
-  client_id       = %q
-  client_secret   = "shim-test"
-  use_oidc        = false
-  use_cli         = false
+  subscription_id            = %q
+  tenant_id                  = %q
+  client_id                  = %q
+  client_secret              = "shim-test"
+  use_oidc                   = false
+  use_cli                    = false
   skip_provider_registration = true
-  resource_provider_registrations = "none"
-  resource_providers_to_register = []
-  metadata_host = "shim.test"
-  environment   = "public"
+  metadata_host              = "shim.test"
+  environment                = "public"
 
   endpoints {
     resource_manager = %q
