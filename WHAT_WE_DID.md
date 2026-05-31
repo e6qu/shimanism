@@ -32,7 +32,19 @@ Cross-referenced from `PHILOSOPHY.md` (operational footnote on "The Circle"), `A
 
 Open audit items captured at the bottom of `normalizations.md` for follow-on 15.A PRs: soft-delete grace period, queue visibility-timeout semantics, RDBMS engine version naming + connection string, cache cluster mode, functions runtime → container image mapping, API Gateway stages-vs-configs-vs-products. Each becomes a rule entry once audited.
 
-### 15.D AWS Route 53 backend (this PR, after PR #79)
+### 15.D AWS Route 53 frontend + SDK/CLI/Terraform conformance (this PR, after PR #80)
+
+Third 15.D chunk closes the AWS leg. Frontend adapter, three conformance lanes, and codegen support for wrapped error envelopes — Route 53 (and every other rest-xml service that doesn't set `aws.protocols#restXml.noErrorWrapping=true`) emits `<ErrorResponse><Error>...</Error></ErrorResponse>`, S3 keeps the bare `<Error>` form it's always used.
+
+- `internal/dns/frontends/aws_route53/adapter.go` — implements `gen.AWSDnsV20130401Backend` translating Route 53 wire types ↔ `domain.DNS`. Synthetic `HostedZoneId` derived deterministically from canonical zone name (`"Z" + sha256(name)[:6]`); SDK clients treat the ID as opaque so any conforming shape works. SigV4 verifier middleware on the front. Synchronous adapter reports every change as `INSYNC` immediately (Route 53's real path is async).
+- **Codegen `noErrorWrapping` support.** `internal/codegen/emit/emit.go` adds `restXmlNoErrorWrapping()` reading the trait JSON; `fileData.NoErrorWrapping` flows through to the template. `template.tmpl` picks `restxml.WriteBackendError` (bare, S3) or `restxml.WriteBackendErrorWrapped` (wrapped, default) per service. `internal/restxml/errors.go` adds the wrapped variants. The S3 gen file regenerates identically — no behaviour change — because S3's spec sets `noErrorWrapping=true`.
+- **`GetChange` added to the intersection.** Terraform's `aws_route53_zone` polls `GetChange` after every create / record-change waiting for `INSYNC`. The shim's synchronous model returns it immediately, but the operation has to exist on the gen surface. Added to `services/dns/codegen.json` and the adapter.
+- **Three conformance test files.** `aws_sdk_test.go` (`aws-sdk-go-v2/service/route53` driving zone lifecycle + TXT double-quoted round-trip), `aws_cli_test.go` (`aws route53` CLI), `aws_terraform_test.go` (`hashicorp/aws` provider apply with `aws_route53_zone` + `aws_route53_record`). All three pass against the inmem backend in ~82 s locally.
+- **Sockerless through-shim test.** `sockerless_test.go::TestSockerless_AWSRoute53_Through_Shim_ZoneLifecycle` puts the SDK on both sides — frontend leg drives the shim, backend leg has the shim drive sockerless's Route 53 sim. Gated on `SOCKERLESS_AWS_ENDPOINT`. `scripts/run-sockerless-storage.sh` adds `./services/dns/conformance/...` to the lane so CI runs it.
+
+**What's next:** GCP Cloud DNS frontend + backend (Discovery doc, REST), then Azure DNS + Private DNS (one backend dispatching on N17 `Visibility`), then the CoreDNS K8s peer, then cross-cloud Apply cells.
+
+### 15.D AWS Route 53 backend (PR #80, after PR #79)
 
 Second 15.D chunk. The first frontend's destination-side translation layer.
 
@@ -41,7 +53,7 @@ Second 15.D chunk. The first frontend's destination-side translation layer.
 - `services/dns/backends/aws/aws.go` — `domain.DNS` implemented against `aws-sdk-go-v2/service/route53`. Name → HostedZoneId resolved per request via `ListHostedZonesByName` (no shim-side mapping table). N17 dispatch: `Visibility=Private` passes the first `PrivateVPCs` entry as the `VPC` field on `CreateHostedZone`; `Visibility=Public` omits it. TXT records are double-quoted on write and stripped on read (Route 53 wire format). `DeleteZone(force=true)` enumerates record sets and batches `ChangeResourceRecordSets` DELETE actions, skipping cloud-managed SOA + apex NS records.
 - `services/dns/backends/aws/aws_test.go` — pure-Go unit tests for the helper layer (canonicalize, TXT encode/decode round-trip, AWS↔domain record-set translation, zone visibility decode from `HostedZoneConfig.PrivateZone`).
 
-**Conformance lives in the follow-on PR.** This PR is backend-only; no frontend handler is registered yet, so the AGENTS.md "conformance in same commit" gate doesn't fire. The frontend PR will land `internal/dns/frontends/aws_route53/` plus SDK + CLI + Terraform conformance against the sockerless AWS sim (which already implements Route 53 — `/Users/zardoz/projects/sockerless/simulators/aws/route53.go`).
+**Conformance lived in the follow-on PR** — see "AWS Route 53 frontend + SDK/CLI/Terraform conformance" above.
 
 **Same-name public+private zone is a known caveat.** Route 53 lets you create both; the shim's `GetZone(name)` resolves to whichever `ListHostedZonesByName` surfaces first. Disambiguation requires `ListZones(Visibility=...)` for now. A follow-on normalisation rule (N17 expansion or N18) can carry the discriminator into the domain if the user-visible value justifies.
 

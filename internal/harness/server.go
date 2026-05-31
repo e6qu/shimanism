@@ -26,6 +26,8 @@ import (
 	awsecfront "github.com/e6qu/shimanism/internal/cache/frontends/aws_elasticache"
 	azureredisfront "github.com/e6qu/shimanism/internal/cache/frontends/azure_redis"
 	gcpmsfront "github.com/e6qu/shimanism/internal/cache/frontends/gcp_memorystore"
+	dnsdomain "github.com/e6qu/shimanism/internal/dns/domain"
+	awsr53front "github.com/e6qu/shimanism/internal/dns/frontends/aws_route53"
 	functionsdomain "github.com/e6qu/shimanism/internal/functions/domain"
 	awslambdafront "github.com/e6qu/shimanism/internal/functions/frontends/aws_lambda"
 	azurecafront "github.com/e6qu/shimanism/internal/functions/frontends/azure_containerapps"
@@ -196,6 +198,27 @@ func StartStorageServerAzureBlobAtPort(t *testing.T, backend domain.Storage, por
 type SecretsServer struct {
 	URL   string
 	Close func()
+}
+
+// DNSServer is a started DNS-shim instance with its addressable URL.
+// Same shape as StorageServer / SecretsServer; the URL goes to
+// SDK / CLI / Terraform clients via their endpoint-override path.
+type DNSServer struct {
+	URL   string
+	Close func()
+}
+
+// StartDNSServerAWS starts a shim instance with the AWS Route 53
+// frontend backed by the given DNS implementation. AWS-shaped clients
+// (aws-sdk-go-v2/service/route53, aws route53 CLI, hashicorp/aws
+// Terraform provider) drive it via the standard endpoint-override
+// path.
+func StartDNSServerAWS(t *testing.T, backend dnsdomain.DNS) *DNSServer {
+	t.Helper()
+	srv := awsr53front.Handler(backend)
+	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
+	t.Cleanup(ts.Close)
+	return &DNSServer{URL: ts.URL, Close: ts.Close}
 }
 
 // StartSecretsServerAWS starts a shim instance with the AWS Secrets

@@ -583,6 +583,21 @@ type ListTagsForResourceResponse struct {
 	ResourceTagSet *ResourceTagSet `xml:"ResourceTagSet,omitempty"`
 }
 
+// GetChangeRequest is a generated Smithy structure.
+type GetChangeRequest struct {
+	Id string // bound to label=Id
+}
+
+// GetChangeResponse is a generated Smithy structure.
+type GetChangeResponse struct {
+	ChangeInfo *ChangeInfo `xml:"ChangeInfo,omitempty"`
+}
+
+// NoSuchChange is a generated Smithy structure. It is an error response (HTTP 404).
+type NoSuchChange struct {
+	Message *string `xml:"message,omitempty"`
+}
+
 // AWSDnsV20130401Backend is the union of every per-operation backend
 // interface emitted from the spec. A real backend implementation
 // satisfies this union; the harness's in-memory backend satisfies it
@@ -597,6 +612,7 @@ type AWSDnsV20130401Backend interface {
 	ListResourceRecordSetsBackend
 	ChangeTagsForResourceBackend
 	ListTagsForResourceBackend
+	GetChangeBackend
 }
 
 // RegisterAWSDnsV20130401Routes mounts every shimmed operation handler
@@ -660,6 +676,13 @@ func RegisterAWSDnsV20130401Routes(router *restxml.Router, b AWSDnsV20130401Back
 			ForbiddenQueries: []string{},
 		},
 	)
+	router.Register(GetChangeMethod, GetChangeURITemplate, "GetChange", GetChangeHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{},
+			ForbiddenQueries: []string{},
+		},
+	)
 }
 
 // CreateHostedZoneBackend serves the CreateHostedZone operation.
@@ -681,7 +704,7 @@ func CreateHostedZoneHandler(b CreateHostedZoneBackend) http.Handler {
 		in := &CreateHostedZoneRequest{}
 		labels, ok := restxml.MatchURI(r.URL.Path, CreateHostedZoneURITemplate)
 		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
+			restxml.WriteErrorWrapped(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
 		}
 		_ = labels
@@ -693,7 +716,7 @@ func CreateHostedZoneHandler(b CreateHostedZoneBackend) http.Handler {
 		}
 		out, err := b.CreateHostedZone(ctx, in)
 		if err != nil {
-			restxml.WriteBackendError(w, err)
+			restxml.WriteBackendErrorWrapped(w, err)
 			return
 		}
 		_ = out
@@ -727,7 +750,7 @@ func DeleteHostedZoneHandler(b DeleteHostedZoneBackend) http.Handler {
 		in := &DeleteHostedZoneRequest{}
 		labels, ok := restxml.MatchURI(r.URL.Path, DeleteHostedZoneURITemplate)
 		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
+			restxml.WriteErrorWrapped(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
 		}
 		_ = labels
@@ -739,7 +762,7 @@ func DeleteHostedZoneHandler(b DeleteHostedZoneBackend) http.Handler {
 
 		out, err := b.DeleteHostedZone(ctx, in)
 		if err != nil {
-			restxml.WriteBackendError(w, err)
+			restxml.WriteBackendErrorWrapped(w, err)
 			return
 		}
 		_ = out
@@ -770,7 +793,7 @@ func GetHostedZoneHandler(b GetHostedZoneBackend) http.Handler {
 		in := &GetHostedZoneRequest{}
 		labels, ok := restxml.MatchURI(r.URL.Path, GetHostedZoneURITemplate)
 		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
+			restxml.WriteErrorWrapped(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
 		}
 		_ = labels
@@ -782,7 +805,7 @@ func GetHostedZoneHandler(b GetHostedZoneBackend) http.Handler {
 
 		out, err := b.GetHostedZone(ctx, in)
 		if err != nil {
-			restxml.WriteBackendError(w, err)
+			restxml.WriteBackendErrorWrapped(w, err)
 			return
 		}
 		_ = out
@@ -813,7 +836,7 @@ func ListHostedZonesHandler(b ListHostedZonesBackend) http.Handler {
 		in := &ListHostedZonesRequest{}
 		labels, ok := restxml.MatchURI(r.URL.Path, ListHostedZonesURITemplate)
 		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
+			restxml.WriteErrorWrapped(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
 		}
 		_ = labels
@@ -839,7 +862,7 @@ func ListHostedZonesHandler(b ListHostedZonesBackend) http.Handler {
 
 		out, err := b.ListHostedZones(ctx, in)
 		if err != nil {
-			restxml.WriteBackendError(w, err)
+			restxml.WriteBackendErrorWrapped(w, err)
 			return
 		}
 		_ = out
@@ -870,7 +893,7 @@ func ChangeResourceRecordSetsHandler(b ChangeResourceRecordSetsBackend) http.Han
 		in := &ChangeResourceRecordSetsRequest{}
 		labels, ok := restxml.MatchURI(r.URL.Path, ChangeResourceRecordSetsURITemplate)
 		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
+			restxml.WriteErrorWrapped(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
 		}
 		_ = labels
@@ -885,7 +908,7 @@ func ChangeResourceRecordSetsHandler(b ChangeResourceRecordSetsBackend) http.Han
 		}
 		out, err := b.ChangeResourceRecordSets(ctx, in)
 		if err != nil {
-			restxml.WriteBackendError(w, err)
+			restxml.WriteBackendErrorWrapped(w, err)
 			return
 		}
 		_ = out
@@ -916,7 +939,7 @@ func ListResourceRecordSetsHandler(b ListResourceRecordSetsBackend) http.Handler
 		in := &ListResourceRecordSetsRequest{}
 		labels, ok := restxml.MatchURI(r.URL.Path, ListResourceRecordSetsURITemplate)
 		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
+			restxml.WriteErrorWrapped(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
 		}
 		_ = labels
@@ -945,7 +968,7 @@ func ListResourceRecordSetsHandler(b ListResourceRecordSetsBackend) http.Handler
 
 		out, err := b.ListResourceRecordSets(ctx, in)
 		if err != nil {
-			restxml.WriteBackendError(w, err)
+			restxml.WriteBackendErrorWrapped(w, err)
 			return
 		}
 		_ = out
@@ -976,7 +999,7 @@ func ChangeTagsForResourceHandler(b ChangeTagsForResourceBackend) http.Handler {
 		in := &ChangeTagsForResourceRequest{}
 		labels, ok := restxml.MatchURI(r.URL.Path, ChangeTagsForResourceURITemplate)
 		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
+			restxml.WriteErrorWrapped(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
 		}
 		_ = labels
@@ -995,7 +1018,7 @@ func ChangeTagsForResourceHandler(b ChangeTagsForResourceBackend) http.Handler {
 		}
 		out, err := b.ChangeTagsForResource(ctx, in)
 		if err != nil {
-			restxml.WriteBackendError(w, err)
+			restxml.WriteBackendErrorWrapped(w, err)
 			return
 		}
 		_ = out
@@ -1023,7 +1046,7 @@ func ListTagsForResourceHandler(b ListTagsForResourceBackend) http.Handler {
 		in := &ListTagsForResourceRequest{}
 		labels, ok := restxml.MatchURI(r.URL.Path, ListTagsForResourceURITemplate)
 		if !ok {
-			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
+			restxml.WriteErrorWrapped(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
 		}
 		_ = labels
@@ -1039,7 +1062,50 @@ func ListTagsForResourceHandler(b ListTagsForResourceBackend) http.Handler {
 
 		out, err := b.ListTagsForResource(ctx, in)
 		if err != nil {
-			restxml.WriteBackendError(w, err)
+			restxml.WriteBackendErrorWrapped(w, err)
+			return
+		}
+		_ = out
+
+		w.Header().Set("Content-Type", "application/xml")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(xml.Header))
+		_ = xml.NewEncoder(w).Encode(out)
+	})
+}
+
+// GetChangeBackend serves the GetChange operation.
+type GetChangeBackend interface {
+	GetChange(ctx context.Context, in *GetChangeRequest) (*GetChangeResponse, error)
+}
+
+// GetChangeURITemplate is the Smithy URI template for the operation.
+const GetChangeURITemplate = "/2013-04-01/change/{Id}"
+
+// GetChangeMethod is the HTTP method for the operation.
+const GetChangeMethod = "GET"
+
+// GetChangeHandler decodes a GetChange request, dispatches to
+// the backend, and encodes the response per AWS REST-XML semantics.
+func GetChangeHandler(b GetChangeBackend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		in := &GetChangeRequest{}
+		labels, ok := restxml.MatchURI(r.URL.Path, GetChangeURITemplate)
+		if !ok {
+			restxml.WriteErrorWrapped(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
+			return
+		}
+		_ = labels
+		q := r.URL.Query()
+		_ = q
+		if v, ok := labels["Id"]; ok {
+			in.Id = v
+		}
+
+		out, err := b.GetChange(ctx, in)
+		if err != nil {
+			restxml.WriteBackendErrorWrapped(w, err)
 			return
 		}
 		_ = out

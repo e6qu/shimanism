@@ -55,6 +55,12 @@ func (e *ShimError) Error() string {
 // WriteBackendError centralises the backend-error → HTTP-response
 // mapping. Every generated handler funnels backend errors through
 // here so error fidelity stays in one place.
+//
+// Emits the bare `<Error>...</Error>` envelope used by S3 (the
+// rest-xml service that sets `noErrorWrapping=true` on its
+// `aws.protocols#restXml` trait). Services that don't set
+// `noErrorWrapping` — Route 53, CloudFront — use the wrapped form
+// emitted by WriteBackendErrorWrapped.
 func WriteBackendError(w http.ResponseWriter, err error) {
 	var se *ShimError
 	if errors.As(err, &se) {
@@ -72,6 +78,65 @@ func WriteBackendError(w http.ResponseWriter, err error) {
 		return
 	}
 	WriteError(w, http.StatusInternalServerError, "InternalError", err.Error())
+}
+
+// ErrorResponse is the rest-xml wire shape for services that **don't**
+// set `noErrorWrapping=true` on their `aws.protocols#restXml` trait.
+// Route 53, CloudFront, and most other rest-xml services use this
+// envelope; S3 uses the bare form emitted by WriteBackendError.
+type ErrorResponse struct {
+	XMLName   xml.Name           `xml:"ErrorResponse"`
+	XMLNS     string             `xml:"xmlns,attr,omitempty"`
+	Error     ErrorResponseInner `xml:"Error"`
+	RequestID string             `xml:"RequestId,omitempty"`
+}
+
+// ErrorResponseInner is the `<Error>` child of an `<ErrorResponse>`.
+// The AWS SDK's xml parser (smithy-go encoding/xml.GetErrorResponseComponents
+// with noErrorWrapping=false) follows the `Error>Code` / `Error>Message`
+// paths and ignores the outer element name.
+type ErrorResponseInner struct {
+	Type    string `xml:"Type,omitempty"`
+	Code    string `xml:"Code"`
+	Message string `xml:"Message"`
+}
+
+// WriteBackendErrorWrapped emits the `<ErrorResponse><Error>...</Error></ErrorResponse>`
+// envelope used by rest-xml services without `noErrorWrapping=true`.
+// Generated handlers for those services funnel through here.
+func WriteBackendErrorWrapped(w http.ResponseWriter, err error) {
+	var se *ShimError
+	if errors.As(err, &se) {
+		w.Header().Set("Content-Type", "application/xml")
+		w.WriteHeader(se.HTTPStatus)
+		_, _ = w.Write([]byte(xml.Header))
+		enc := xml.NewEncoder(w)
+		_ = enc.Encode(ErrorResponse{
+			Error: ErrorResponseInner{
+				Type:    "Sender",
+				Code:    se.Code,
+				Message: se.Message,
+			},
+			RequestID: se.RequestID,
+		})
+		_ = enc.Flush()
+		return
+	}
+	WriteErrorWrapped(w, http.StatusInternalServerError, "InternalError", err.Error())
+}
+
+// WriteErrorWrapped is the wrapped-envelope counterpart to WriteError.
+// Used by rest-xml services without `noErrorWrapping=true` (Route 53,
+// CloudFront).
+func WriteErrorWrapped(w http.ResponseWriter, status int, code, message string) {
+	w.Header().Set("Content-Type", "application/xml")
+	w.WriteHeader(status)
+	_, _ = w.Write([]byte(xml.Header))
+	enc := xml.NewEncoder(w)
+	_ = enc.Encode(ErrorResponse{
+		Error: ErrorResponseInner{Type: "Sender", Code: code, Message: message},
+	})
+	_ = enc.Flush()
 }
 
 // Common S3 error helpers — backends construct these instead of
