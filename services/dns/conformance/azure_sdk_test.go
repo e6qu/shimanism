@@ -87,8 +87,8 @@ func TestAzureSDK_DNS_ZoneLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateOrUpdate zone: %v", err)
 	}
-	if created.Zone.Name == nil || *created.Zone.Name != zoneName {
-		t.Errorf("zone Name = %v, want %s", created.Zone.Name, zoneName)
+	if created.Name == nil || *created.Name != zoneName {
+		t.Errorf("zone Name = %v, want %s", created.Name, zoneName)
 	}
 
 	// Add an A record at the apex.

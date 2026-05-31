@@ -41,10 +41,12 @@ Fifth 15.D chunk closes the third cloud and validates the **one-backend-on-Visib
 - `internal/dns/frontends/azure_dns/server.go` — one frontend, ARM path dispatch. `/subscriptions/{sub}/resourceGroups/{rg}/providers/Microsoft.Network/<dnsZones|privateDnsZones>/{zone}[/<type>/<name>]`. The path tells us visibility; everything below is uniform. Wire types come from `armdns` / `armprivatedns` directly. Azure bearer verifier middleware.
 - **`StartDNSServerAzure` serves TLS** (Azure SDK refuses Bearer over plain HTTP). Client uses `InsecureSkipVerify` to accept the httptest self-signed cert.
 - **SDK conformance** in `azure_sdk_test.go` exercises `armdns.ZonesClient` + `armdns.RecordSetsClient` against the shim: zone create/get/delete, A record CRUD at the apex, full round-trip.
-- **CLI + Terraform conformance skipped** for this PR. `az` needs custom-cloud configuration (more involved than `gcloud --api-endpoint-overrides` or `aws --endpoint-url`); `azurerm` needs ARM resource-group + subscription operations the shim doesn't stub at this phase. The SDK cell covers the same driver-backend pair. CLI/TF re-enable when those gaps close.
-- **Sockerless through-shim test skipped** — Azure DNS through-shim wiring (sockerless TLS cert plumbing on both legs) is deferred to the cross-cloud Apply chunk. Sockerless's `public_dns.go` covers all record types; `dns.go` (private) covers A records + virtualNetworkLinks. Foundational PR's inmem coverage validates wire correctness.
+- **CLI + Terraform conformance skipped** with tracking BUGs filed against the shim test infrastructure (sockerless coverage is sufficient for both):
+  - **BUG-43** (`az network dns`): cloud-register plumbing or `az rest` wiring not in the harness yet.
+  - **BUG-44** (`azurerm_dns_zone`): the shim needs ARM passthrough so `azurerm_resource_group` + subscription calls reach sockerless's ARM mock while DNS-specific paths stay on the shim's frontend. `azurerm` supports only one `endpoints { resource_manager = "..." }`.
+- **Sockerless through-shim test skipped** — **BUG-45** filed for the TLS cert plumbing on both legs (shim outbound to sockerless + test inbound). Sockerless's `public_dns.go` + `dns.go` already cover the surface; this is shim test wiring.
 
-**What's next:** CoreDNS K8s peer (file-based zone config), then cross-cloud Apply cells (where through-shim sockerless wiring matters most), then revisit Azure CLI/Terraform conformance.
+**What's next:** CoreDNS K8s peer (file-based zone config), then cross-cloud Apply cells. BUG-43/44/45 land alongside (or before) the cross-cloud Apply chunk where their value compounds.
 
 ### 15.D GCP Cloud DNS frontend + backend + SDK/CLI/Terraform conformance (PR #82, after PR #81)
 
