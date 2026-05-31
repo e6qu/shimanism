@@ -8,9 +8,9 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 
 | | |
 |---|---|
-| Active branch | `main` after PR #84 merged (BUG-44 ARM passthrough primitive). BUG-46 (shim Azure metadata + Entra redirection) PR in flight. |
-| In-flight | **BUG-46: shim Azure cloud-metadata endpoint.** Shim's Azure DNS frontend now serves `GET /metadata/endpoints?api-version=...` returning the Azure cloud-environment JSON with `resourceManager = shim_url` (derived from `r.Host`) and `authentication.loginEndpoint = MetadataLoginURL` (sockerless's Azure ARM mock). `Config{Passthrough, MetadataLoginURL}` + `NewWithConfig` / `HandlerWithConfig`. With `metadata_host = "<shim>"` on the azurerm provider, ARM calls flow through the shim's DNS dispatch + passthrough while Entra ID token acquisition reaches sockerless directly. `TestSockerless_AzureDNS_Through_Shim_Terraform_Apply` re-enabled. Unit tests pin the JSON contract for both 2022-09-01 single-object and legacy array shapes. Track A blocked on real-cloud credentials. |
-| Last merged | PR #84 — BUG-44 Azure DNS ARM passthrough mode. |
+| Active branch | `main` after PR #85 merged (BUG-46 metadata endpoint). BUG-43 + BUG-45 (Azure DNS CLI + SDK through-shim) PR in flight. |
+| In-flight | **BUG-43 + BUG-45: Azure DNS CLI + SDK through-shim closure.** BUG-45: `TestSockerless_AzureDNS_Through_Shim_ZoneLifecycle` wired end-to-end. armdns SDK with custom `cloud.Configuration` (resourceManager=shim, ActiveDirectoryAuthorityHost=sockerless) drives zone CRUD; token credential acquires JWTs from sockerless's Entra via `POST /<tenant>/oauth2/v2.0/token`. BUG-43: `TestAzureCLI_DNS_ZoneLifecycle_ThroughShim` wires `az cloud register` + `az login --service-principal` + `az network dns zone create/show/delete` through the shim+sockerless stack with `AZURE_CONFIG_DIR` isolation and SSL_CERT_FILE trust for both the shim's and sockerless's certs. Linux-only. Track A blocked on real-cloud credentials. |
+| Last merged | PR #85 — BUG-46 shim Azure cloud-metadata endpoint. |
 | Upstream watch | sockerless #288 merged (AWS API Gateway client-surface coverage). Zero open sockerless issues for shimanism's current work. |
 | Phases 1–13 | All closed (Phase 13 closed by PR #20). PR index in [PLAN.md § Closed phases](PLAN.md#closed-phases-pr-index). |
 | Phase 14 | 14.A ✅ · 14.B ✅ · 14.C ✅ · 14.D ✅ (simulator audit) / Track A blocked · 14.E ✅. Remaining residuals (terraform-aws `_wo` drift, SB cross-cloud scoping) carried into Phase 15.B. |

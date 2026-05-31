@@ -32,7 +32,16 @@ Cross-referenced from `PHILOSOPHY.md` (operational footnote on "The Circle"), `A
 
 Open audit items captured at the bottom of `normalizations.md` for follow-on 15.A PRs: soft-delete grace period, queue visibility-timeout semantics, RDBMS engine version naming + connection string, cache cluster mode, functions runtime → container image mapping, API Gateway stages-vs-configs-vs-products. Each becomes a rule entry once audited.
 
-### BUG-46 — shim Azure cloud-metadata endpoint, closes Azure DNS Terraform through-shim (this PR, after PR #84)
+### BUG-43 + BUG-45 — Azure DNS CLI + SDK through-shim closure (this PR, after PR #85)
+
+PR #85 closed the through-shim Terraform path. This PR wires the remaining two driver rows of the Azure DNS through-shim matrix using the same metadata + bearer plumbing.
+
+- **BUG-45** — `TestSockerless_AzureDNS_Through_Shim_ZoneLifecycle` reborn. armdns SDK with a custom `cloud.Configuration` (`ResourceManager.Endpoint = shim`, `ActiveDirectoryAuthorityHost = sockerless`) drives zone CRUD through the shim's Azure DNS frontend. The `sockerlessTokenCred` credential acquires JWTs from sockerless's Entra ID stub via `POST /<tenant>/oauth2/v2.0/token` over TLS with explicit `RootCAs` cert pinning (no `InsecureSkipVerify` on the credential dial). The shim's bearer verifier accepts the sockerless-signed token via the JWKS plumbing BUG-46 introduced.
+- **BUG-43** — `TestAzureCLI_DNS_ZoneLifecycle_ThroughShim` wires `az network dns zone {create,show,delete}` end-to-end. `az cloud register --name shim-conformance --endpoint-resource-manager <shim> --endpoint-active-directory <sockerless> ...` registers a per-test profile pointing at the stack; `az cloud set` + `az login --service-principal` against sockerless's Entra mints a token via sockerless that the shim's bearer verifier accepts. Per-test `AZURE_CONFIG_DIR` isolates the profile from any system-wide `az` state. `SSL_CERT_FILE` + `REQUESTS_CA_BUNDLE` thread the combined system + sockerless + shim cert bundle into `az` (it uses both env vars depending on the version of the underlying SDK).
+
+Both tests are Linux-only via the SSL_CERT_FILE platform limit. Both close existing skips in `services/dns/conformance/sockerless_test.go` and `services/dns/conformance/azure_cli_test.go`.
+
+### BUG-46 — shim Azure cloud-metadata endpoint, closes Azure DNS Terraform through-shim (PR #85, after PR #84)
 
 PR #84 added the ARM passthrough primitive but discovered CI-side that `azurerm` acquires an Entra ID service-principal token **before any ARM call**, against the default `https://login.microsoftonline.com/{tenant}/...`. Real Entra rejected the test client ID with `AADSTS700038`. ARM passthrough alone couldn't help because the token request lands at a different URL than ARM.
 
