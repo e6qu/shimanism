@@ -73,6 +73,14 @@ type Config struct {
 	// shim itself (derived from the request's Host header) so ARM
 	// calls flow through the frontend's DNS dispatch.
 	MetadataLoginURL string
+
+	// BearerOptions configures the Azure Bearer-token verifier the
+	// frontend's middleware enforces on protected paths. Through-
+	// shim Terraform tests fill `JWKS` + `Issuer` + `Audience` so
+	// the shim accepts tokens issued by sockerless's Entra ID
+	// stub. Zero value falls back to the default verifier
+	// (`Audience = https://management.azure.com/`, TestKey HMAC).
+	BearerOptions azurebearer.Options
 }
 
 // New returns a frontend bound to the given backend. Unmatched ARM
@@ -118,9 +126,9 @@ func HandlerWithConfig(d domain.DNS, c Config) http.Handler {
 	server := NewWithConfig(d, c)
 	if c.MetadataLoginURL == "" {
 		// No metadata endpoint configured; bearer-wrap the whole server.
-		return wrapWithBearer(server)
+		return wrapWithBearer(server, c.BearerOptions)
 	}
-	bearerWrapped := wrapWithBearer(server)
+	bearerWrapped := wrapWithBearer(server, c.BearerOptions)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet && r.URL.Path == "/metadata/endpoints" {
 			// Public discovery endpoint — answer directly, no bearer.
@@ -131,11 +139,14 @@ func HandlerWithConfig(d domain.DNS, c Config) http.Handler {
 	})
 }
 
-func wrapWithBearer(h http.Handler) http.Handler {
-	verifier := azurebearer.New(azurebearer.Options{
-		Audience: "https://management.azure.com/",
-		TestKey:  []byte("test-key-do-not-use-in-prod"),
-	})
+func wrapWithBearer(h http.Handler, opts azurebearer.Options) http.Handler {
+	if opts.Audience == "" {
+		opts.Audience = "https://management.azure.com/"
+	}
+	if opts.JWKS == nil && opts.JWKSURL == "" && len(opts.TestKey) == 0 {
+		opts.TestKey = []byte("test-key-do-not-use-in-prod")
+	}
+	verifier := azurebearer.New(opts)
 	return azurebearer.Middleware(verifier, azurebearer.WithChallenge("https://management.azure.com/"))(h)
 }
 

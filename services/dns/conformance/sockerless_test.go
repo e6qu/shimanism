@@ -19,7 +19,9 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -40,6 +42,7 @@ import (
 	dnsraw "google.golang.org/api/dns/v1"
 	"google.golang.org/api/option"
 
+	"github.com/e6qu/shimanism/internal/azurebearer"
 	azuredfront "github.com/e6qu/shimanism/internal/dns/frontends/azure_dns"
 	"github.com/e6qu/shimanism/internal/gcpbearer"
 	"github.com/e6qu/shimanism/internal/harness"
@@ -299,14 +302,25 @@ func TestSockerless_AzureDNS_Through_Shim_Terraform_Apply(t *testing.T) {
 	proxy := httputil.NewSingleHostReverseProxy(sockerlessARM)
 	proxy.Transport = &http.Transport{TLSClientConfig: &tls.Config{RootCAs: rootCAs}}
 
-	// 2. Start the shim with passthrough → sockerless ARM and the
+	// 2. Fetch sockerless's JWKS so the shim's Azure bearer verifier
+	//    accepts the tokens sockerless's Entra ID stub issues to the
+	//    azurerm provider. Without this the shim returns 401 on every
+	//    ARM call (real Azure validates JWTs against Microsoft Entra's
+	//    JWKS at /<tenant>/discovery/v2.0/keys; we mirror that here).
+	jwks := fetchSockerlessDNSJWKS(t, azureTLSPort, tenantID, sockCertPEM)
+
+	// 3. Start the shim with passthrough → sockerless ARM and the
 	//    cloud-metadata endpoint pointing auth + service URLs at
-	//    sockerless. Drives DNS paths locally against an inmem
-	//    backend (the through-shim test exercises the FRONTEND
-	//    surface; the backend choice is orthogonal).
+	//    sockerless. Bearer verifier configured against sockerless's
+	//    JWKS. Drives DNS paths locally against an inmem backend.
 	shim := harness.StartDNSServerAzureWithConfig(t, inmem.New(), azuredfront.Config{
 		Passthrough:      proxy,
 		MetadataLoginURL: sockerlessARM.String(),
+		BearerOptions: azurebearer.Options{
+			Issuer:   fmt.Sprintf("https://sts.windows.net/%s/", tenantID),
+			Audience: "https://management.azure.com/",
+			JWKS:     jwks,
+		},
 	})
 
 	// 3. Combined CA bundle = system + sockerless cert + shim cert so
@@ -400,4 +414,42 @@ func shimHost(rawURL string) string {
 		return rawURL
 	}
 	return u.Host
+}
+
+// fetchSockerlessDNSJWKS pulls sockerless's Entra ID stub JWKS so the
+// shim's Azure bearer verifier validates tokens sockerless issues.
+// Mirrors `services/secrets/conformance/sockerless_test.go`'s helper.
+func fetchSockerlessDNSJWKS(t *testing.T, azurePort, tenantID string, certPEM []byte) *azurebearer.JWKS {
+	t.Helper()
+	pool := x509.NewCertPool()
+	if !pool.AppendCertsFromPEM(certPEM) {
+		t.Fatal("AppendCertsFromPEM: no certs parsed")
+	}
+	client := &http.Client{
+		Timeout: 10 * time.Second,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{RootCAs: pool},
+		},
+	}
+	url := fmt.Sprintf("https://localhost:%s/%s/discovery/v2.0/keys", azurePort, tenantID)
+	resp, err := client.Get(url)
+	if err != nil {
+		t.Fatalf("GET %s: %v", url, err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("GET %s: HTTP %d", url, resp.StatusCode)
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("read JWKS body: %v", err)
+	}
+	var jwks azurebearer.JWKS
+	if err := json.Unmarshal(body, &jwks); err != nil {
+		t.Fatalf("parse JWKS: %v\nbody: %s", err, body)
+	}
+	if len(jwks.Keys) == 0 {
+		t.Fatalf("JWKS at %s is empty", url)
+	}
+	return &jwks
 }
