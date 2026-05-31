@@ -32,7 +32,21 @@ Cross-referenced from `PHILOSOPHY.md` (operational footnote on "The Circle"), `A
 
 Open audit items captured at the bottom of `normalizations.md` for follow-on 15.A PRs: soft-delete grace period, queue visibility-timeout semantics, RDBMS engine version naming + connection string, cache cluster mode, functions runtime → container image mapping, API Gateway stages-vs-configs-vs-products. Each becomes a rule entry once audited.
 
-### BUG-44 — Azure DNS ARM passthrough mode (this PR, after PR #83)
+### BUG-46 — shim Azure cloud-metadata endpoint, closes Azure DNS Terraform through-shim (this PR, after PR #84)
+
+PR #84 added the ARM passthrough primitive but discovered CI-side that `azurerm` acquires an Entra ID service-principal token **before any ARM call**, against the default `https://login.microsoftonline.com/{tenant}/...`. Real Entra rejected the test client ID with `AADSTS700038`. ARM passthrough alone couldn't help because the token request lands at a different URL than ARM.
+
+This PR closes the loop:
+
+- `internal/dns/frontends/azure_dns/server.go::serveMetadata` answers `GET /metadata/endpoints?api-version=...` with the Azure cloud-environment JSON real Azure / sockerless return at the same path. `resourceManager` points at the shim itself (derived from the request's Host header); `authentication.loginEndpoint`, `graph`, `batch`, `portal`, `gallery`, `microsoftGraphResourceId` point at the configured `MetadataLoginURL`. Both api-version shapes (`2022-09-01` returns a single object; legacy returns a singleton array) are honored.
+- `Config{Passthrough, MetadataLoginURL}` + `NewWithConfig` / `HandlerWithConfig` carry the new wiring; `NewWithPassthrough` / `HandlerWithPassthrough` stay as convenience aliases.
+- `harness.StartDNSServerAzureWithConfig` exposes the full setup + the auto-generated cert PEM so callers can combine it with the upstream cert in an SSL_CERT_FILE bundle.
+- `TestSockerless_AzureDNS_Through_Shim_Terraform_Apply` re-enabled. Provider config now uses `metadata_host = "<shim host:port>"`; azurerm fetches metadata from the shim, acquires its Entra ID token from sockerless (via the metadata's `loginEndpoint`), and routes ARM calls back through the shim — DNS-specific paths handled locally, resource-group + subscription paths forwarded to sockerless. Linux-only via SSL_CERT_FILE.
+- New unit tests in `passthrough_test.go` pin the JSON contract: `resourceManager` prefixes match the shim's URL; `authentication.loginEndpoint` matches the configured upstream; missing config → 404 (no silent fallback).
+
+The "no fakes" rule stands. The metadata response is a *configuration document* declaring real cloud-environment endpoints. The shim doesn't synthesize Entra ID tokens — it points the provider at sockerless's Entra mock (or real Entra in prod). Auth crypto stays out of the shim.
+
+### BUG-44 — Azure DNS ARM passthrough mode (PR #84, after PR #83)
 
 The shim's Azure DNS frontend handles only `Microsoft.Network/dnsZones[+privateDnsZones]`. `hashicorp/azurerm`'s `azurerm_dns_zone` requires an `azurerm_resource_group`, and `azurerm` carries a single `endpoints { resource_manager = "..." }` config for both. Result: the Azure DNS Terraform conformance has been skipped since PR #83 — the harness had no way to satisfy DNS calls (shim) and resource-group + subscription calls (sockerless's ARM mock) under one endpoint.
 

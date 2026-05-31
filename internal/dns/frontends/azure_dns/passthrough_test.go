@@ -1,6 +1,7 @@
 package azure_dns
 
 import (
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -113,5 +114,86 @@ func TestPassthrough_NotConfiguredReturns404(t *testing.T) {
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusNotFound {
 		t.Errorf("status = %d, want 404", resp.StatusCode)
+	}
+}
+
+// TestMetadata_ResourceManagerPointsAtShim_AuthPointsAtUpstream
+// verifies the cloud-metadata endpoint: resourceManager pointing at
+// the shim's own URL (so ARM calls flow through the frontend's DNS
+// dispatch) while authentication.loginEndpoint and other service
+// endpoints point at the configured upstream URL. This is the
+// BUG-46 contract that lets azurerm acquire its Entra ID token from
+// the upstream while routing ARM through the shim.
+func TestMetadata_ResourceManagerPointsAtShim_AuthPointsAtUpstream(t *testing.T) {
+	const upstreamURL = "https://sockerless.example:14569"
+	srv := NewWithConfig(inmem.New(), Config{
+		MetadataLoginURL: upstreamURL,
+	})
+	ts := httptest.NewServer(srv)
+	t.Cleanup(ts.Close)
+
+	for _, tc := range []struct {
+		name            string
+		apiVersion      string
+		decodeSingle    bool // 2022-09-01 returns a single object; older returns an array
+		wantInOutput    []string
+		notWantInOutput []string
+	}{
+		{"v2022-09-01-single", "2022-09-01", true, nil, nil},
+		{"legacy-array", "2020-06-01", false, nil, nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			resp, err := http.Get(ts.URL + "/metadata/endpoints?api-version=" + tc.apiVersion)
+			if err != nil {
+				t.Fatalf("GET: %v", err)
+			}
+			defer resp.Body.Close()
+			if resp.StatusCode != http.StatusOK {
+				t.Fatalf("status = %d, want 200", resp.StatusCode)
+			}
+			body, _ := io.ReadAll(resp.Body)
+
+			var env map[string]any
+			if tc.decodeSingle {
+				if err := json.Unmarshal(body, &env); err != nil {
+					t.Fatalf("decode single: %v\n%s", err, body)
+				}
+			} else {
+				var arr []map[string]any
+				if err := json.Unmarshal(body, &arr); err != nil {
+					t.Fatalf("decode array: %v\n%s", err, body)
+				}
+				if len(arr) != 1 {
+					t.Fatalf("legacy array len = %d, want 1", len(arr))
+				}
+				env = arr[0]
+			}
+			rm, _ := env["resourceManager"].(string)
+			if !strings.HasPrefix(rm, ts.URL) {
+				t.Errorf("resourceManager = %q, want prefix %q", rm, ts.URL)
+			}
+			auth, _ := env["authentication"].(map[string]any)
+			login, _ := auth["loginEndpoint"].(string)
+			if login != upstreamURL {
+				t.Errorf("authentication.loginEndpoint = %q, want %q", login, upstreamURL)
+			}
+		})
+	}
+}
+
+// TestMetadata_NotConfiguredFallsThrough verifies that when
+// MetadataLoginURL is unset, /metadata/endpoints falls through to
+// the passthrough (or 404 if no upstream).
+func TestMetadata_NotConfiguredFallsThrough(t *testing.T) {
+	srv := New(inmem.New()) // no metadata config, no upstream
+	ts := httptest.NewServer(srv)
+	t.Cleanup(ts.Close)
+	resp, err := http.Get(ts.URL + "/metadata/endpoints?api-version=2022-09-01")
+	if err != nil {
+		t.Fatalf("GET: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusNotFound {
+		t.Errorf("status = %d, want 404 (no metadata config, no upstream)", resp.StatusCode)
 	}
 }

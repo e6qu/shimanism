@@ -32,16 +32,47 @@ import (
 )
 
 // Server is an Azure-DNS-shaped HTTP frontend dispatching to a
-// domain.DNS backend. When `upstream` is non-nil, ARM paths the
-// frontend doesn't handle (resource groups, subscriptions, provider
-// registration, …) are forwarded to the upstream handler — the ARM
-// passthrough mode that lets `hashicorp/azurerm`'s single
-// `endpoints { resource_manager = "..." }` config drive DNS-specific
-// paths through the shim while other ARM paths reach a real ARM mock
-// (sockerless in tests, real Azure in prod).
+// domain.DNS backend. Optional fields turn it into a more complete
+// Azure-cloud-control-plane proxy:
+//
+//   - `upstream` (when non-nil) forwards ARM paths the frontend
+//     doesn't handle to a real ARM mock (sockerless in tests, real
+//     ARM in prod) — the "ARM passthrough" mode from BUG-44.
+//   - `metadataLoginURL` (when set) makes the frontend serve
+//     `GET /metadata/endpoints` returning a cloud-environment JSON
+//     document where `resourceManager` points at the shim itself
+//     (derived from `r.Host`) and the auth + suffix endpoints point
+//     at the configured upstream login URL. This is the BUG-46
+//     primitive that lets `hashicorp/azurerm`'s
+//     `metadata_host = "<shim>"` make the provider acquire Entra ID
+//     tokens from sockerless while ARM calls flow through the shim.
 type Server struct {
-	d        domain.DNS
-	upstream http.Handler
+	d                domain.DNS
+	upstream         http.Handler
+	metadataLoginURL string
+}
+
+// Config carries optional Server configuration. SubscriptionID and
+// ResourceGroup aren't carried here — the shim is identity-free per
+// the stateless-shim rule; ARM calls already encode them in the URL.
+type Config struct {
+	// Passthrough forwards unmatched ARM paths (resource groups,
+	// subscriptions, non-DNS Microsoft.* resources, Entra ID token
+	// requests when MetadataLoginURL is unset, …) to the upstream
+	// handler. Typically `httputil.NewSingleHostReverseProxy(...)`
+	// pointing at sockerless's Azure ARM mock or real ARM.
+	Passthrough http.Handler
+
+	// MetadataLoginURL is the base URL for endpoints the shim does
+	// **not** intercept (Entra ID `loginEndpoint`, graph, batch, …).
+	// Typically the sockerless Azure ARM URL. When empty, the
+	// metadata endpoint is not served (the path falls through to
+	// Passthrough or 404).
+	//
+	// The metadata response always points `resourceManager` at the
+	// shim itself (derived from the request's Host header) so ARM
+	// calls flow through the frontend's DNS dispatch.
+	MetadataLoginURL string
 }
 
 // New returns a frontend bound to the given backend. Unmatched ARM
@@ -49,17 +80,19 @@ type Server struct {
 func New(d domain.DNS) *Server { return &Server{d: d} }
 
 // NewWithPassthrough wires an upstream ARM handler that the frontend
-// forwards unmatched paths to. The upstream is typically a
-// `httputil.NewSingleHostReverseProxy` pointing at sockerless's
-// Azure ARM mock; in production it would point at real ARM.
-//
-// The passthrough preserves the original request unchanged
-// (method / path / query / headers / body) and streams the
-// response back. Auth flows straight through — sockerless's ARM
-// mock accepts any non-empty Bearer; real ARM would validate
-// against Entra ID either way.
+// forwards unmatched paths to.
 func NewWithPassthrough(d domain.DNS, upstream http.Handler) *Server {
 	return &Server{d: d, upstream: upstream}
+}
+
+// NewWithConfig is the most general constructor; honors every
+// Config field.
+func NewWithConfig(d domain.DNS, c Config) *Server {
+	return &Server{
+		d:                d,
+		upstream:         c.Passthrough,
+		metadataLoginURL: c.MetadataLoginURL,
+	}
 }
 
 // Handler wraps Server with the Azure bearer verifier middleware.
@@ -71,11 +104,16 @@ func Handler(d domain.DNS) http.Handler {
 // HandlerWithPassthrough is the passthrough variant — same middleware,
 // non-DNS ARM paths forwarded to the upstream.
 func HandlerWithPassthrough(d domain.DNS, upstream http.Handler) http.Handler {
+	return HandlerWithConfig(d, Config{Passthrough: upstream})
+}
+
+// HandlerWithConfig is the verifier-wrapped form of NewWithConfig.
+func HandlerWithConfig(d domain.DNS, c Config) http.Handler {
 	verifier := azurebearer.New(azurebearer.Options{
 		Audience: "https://management.azure.com/",
 		TestKey:  []byte("test-key-do-not-use-in-prod"),
 	})
-	return azurebearer.Middleware(verifier, azurebearer.WithChallenge("https://management.azure.com/"))(NewWithPassthrough(d, upstream))
+	return azurebearer.Middleware(verifier, azurebearer.WithChallenge("https://management.azure.com/"))(NewWithConfig(d, c))
 }
 
 // ARM path shape the frontend handles directly:
@@ -92,6 +130,17 @@ func HandlerWithPassthrough(d domain.DNS, upstream http.Handler) http.Handler {
 // Microsoft.Network resources, …) is forwarded to `srv.upstream`
 // when it's set, otherwise returns 404.
 func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// Azure cloud metadata endpoint. azurerm sets `metadata_host =
+	// <shim>` and fetches /metadata/endpoints to discover the cloud's
+	// service URLs. We answer in-band when MetadataLoginURL is set
+	// (BUG-46), pointing resourceManager at the shim itself so ARM
+	// calls flow through the local DNS dispatch + passthrough, while
+	// everything else (login, graph, batch, …) points at the
+	// upstream login URL.
+	if r.Method == http.MethodGet && r.URL.Path == "/metadata/endpoints" && srv.metadataLoginURL != "" {
+		srv.serveMetadata(w, r)
+		return
+	}
 	path := strings.TrimPrefix(r.URL.Path, "/")
 	segs := strings.Split(path, "/")
 	// Anything not under /subscriptions/{sub}/resourceGroups/{rg}/providers/Microsoft.Network/<dnsZones|privateDnsZones>
@@ -190,6 +239,63 @@ func (srv *Server) passthroughOr404(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	srv.upstream.ServeHTTP(w, r)
+}
+
+// serveMetadata returns the Azure cloud-environment JSON document
+// the azurerm provider fetches via `metadata_host = "<shim>"`.
+// `resourceManager` points at the shim itself (so ARM calls flow
+// through this frontend's local-DNS + passthrough dispatch);
+// `authentication.loginEndpoint` and the other service endpoints
+// point at the configured `MetadataLoginURL` (sockerless's Azure
+// mock in tests, real Azure in prod).
+//
+// Shape mirrors what real Azure returns at
+// `https://management.azure.com/metadata/endpoints?api-version=...`
+// and what sockerless's `simulators/azure/metadata.go` emits. Two
+// api-version flavours: `2022-09-01` returns a single object
+// (azurerm v3/v4); older versions return a singleton array.
+func (srv *Server) serveMetadata(w http.ResponseWriter, r *http.Request) {
+	scheme := "https"
+	if r.TLS == nil {
+		scheme = "http"
+	}
+	if fp := r.Header.Get("X-Forwarded-Proto"); fp != "" {
+		scheme = strings.ToLower(fp)
+	}
+	shimBase := fmt.Sprintf("%s://%s", scheme, r.Host)
+	env := map[string]any{
+		"name": "AzureCloud",
+		"authentication": map[string]any{
+			"loginEndpoint": srv.metadataLoginURL,
+			"audiences": []string{
+				srv.metadataLoginURL + "/",
+				"https://management.core.windows.net/",
+				"https://management.azure.com/",
+			},
+			"tenant":           "common",
+			"identityProvider": "AAD",
+		},
+		"resourceManager":          shimBase,
+		"microsoftGraphResourceId": srv.metadataLoginURL + "/",
+		"graph":                    srv.metadataLoginURL,
+		"portal":                   srv.metadataLoginURL,
+		"gallery":                  srv.metadataLoginURL,
+		"batch":                    srv.metadataLoginURL,
+		"suffixes": map[string]any{
+			"keyVaultDns":       "vault.localhost",
+			"storage":           "storage.localhost",
+			"acrLoginServer":    "localhost",
+			"sqlServerHostname": "localhost",
+		},
+	}
+	apiVersion := r.URL.Query().Get("api-version")
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	if apiVersion == "2022-09-01" {
+		_ = json.NewEncoder(w).Encode(env)
+	} else {
+		_ = json.NewEncoder(w).Encode([]any{env})
+	}
 }
 
 // --------------- Zones ---------------
