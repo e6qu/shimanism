@@ -32,7 +32,23 @@ Cross-referenced from `PHILOSOPHY.md` (operational footnote on "The Circle"), `A
 
 Open audit items captured at the bottom of `normalizations.md` for follow-on 15.A PRs: soft-delete grace period, queue visibility-timeout semantics, RDBMS engine version naming + connection string, cache cluster mode, functions runtime → container image mapping, API Gateway stages-vs-configs-vs-products. Each becomes a rule entry once audited.
 
-### 15.D GCP Cloud DNS frontend + backend + SDK/CLI/Terraform conformance (this PR, after PR #81)
+### 15.D Azure DNS + Private DNS frontend + backend + SDK conformance (this PR, after PR #82)
+
+Fifth 15.D chunk closes the third cloud and validates the **one-backend-on-Visibility** dispatch from N17 in practice. Public + private DNS go through a single backend that maps `Visibility` to `armdns` (`Microsoft.Network/dnsZones`) or `armprivatedns` (`Microsoft.Network/privateDnsZones`) at the boundary. The domain layer stays uniform underneath.
+
+- `services/dns/spec/azure-dns.json` (2018-05-01) + `services/dns/spec/azure-privatedns.json` (2024-06-01) vendored from `Azure/azure-rest-api-specs`. No codegen yet — DNS specs are large; the foundational frontend handler is hand-written by path-shape dispatch (same pattern 13.A.6 left `azure_blob` and 13.A.7 left `azure_apim` for future full migration).
+- `services/dns/backends/azure/azure.go` — single backend struct holds both `armdns.ZonesClient` + `armprivatedns.PrivateZonesClient` (and their `RecordSets` clients). `CreateZone` / `Get` / `Delete` / `ListZones` / record-set ops resolve the family by Visibility on Create, by `isPrivate` probe on subsequent ops (a Get-against-public, fall through on 404 to private). Stateless — no shim-side visibility table. Per-type record translation (`ARecord` / `AaaaRecord` / `MxRecord` / `SrvRecord` / `TxtRecord` / `CnameRecord` / `NsRecord` ↔ `[]string` shape used by the domain).
+- `internal/dns/frontends/azure_dns/server.go` — one frontend, ARM path dispatch. `/subscriptions/{sub}/resourceGroups/{rg}/providers/Microsoft.Network/<dnsZones|privateDnsZones>/{zone}[/<type>/<name>]`. The path tells us visibility; everything below is uniform. Wire types come from `armdns` / `armprivatedns` directly. Azure bearer verifier middleware.
+- **`StartDNSServerAzure` serves TLS** (Azure SDK refuses Bearer over plain HTTP). Client uses `InsecureSkipVerify` to accept the httptest self-signed cert.
+- **SDK conformance** in `azure_sdk_test.go` exercises `armdns.ZonesClient` + `armdns.RecordSetsClient` against the shim: zone create/get/delete, A record CRUD at the apex, full round-trip.
+- **CLI + Terraform conformance skipped** with tracking BUGs filed against the shim test infrastructure (sockerless coverage is sufficient for both):
+  - **BUG-43** (`az network dns`): cloud-register plumbing or `az rest` wiring not in the harness yet.
+  - **BUG-44** (`azurerm_dns_zone`): the shim needs ARM passthrough so `azurerm_resource_group` + subscription calls reach sockerless's ARM mock while DNS-specific paths stay on the shim's frontend. `azurerm` supports only one `endpoints { resource_manager = "..." }`.
+- **Sockerless through-shim test skipped** — **BUG-45** filed for the TLS cert plumbing on both legs (shim outbound to sockerless + test inbound). Sockerless's `public_dns.go` + `dns.go` already cover the surface; this is shim test wiring.
+
+**What's next:** CoreDNS K8s peer (file-based zone config), then cross-cloud Apply cells. BUG-43/44/45 land alongside (or before) the cross-cloud Apply chunk where their value compounds.
+
+### 15.D GCP Cloud DNS frontend + backend + SDK/CLI/Terraform conformance (PR #82, after PR #81)
 
 Fourth 15.D chunk closes the GCP leg. Discovery doc, routing codegen, REST frontend, passthrough backend, three conformance lanes. Two new fidelity bumps surfaced and got filed: a `hashicorp/google` provider regex bug (workaround landed) and a sockerless Cloud DNS Changes-API gap (test skipped pending upstream).
 

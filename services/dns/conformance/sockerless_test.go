@@ -221,3 +221,14 @@ func TestSockerless_GCPCloudDNS_Through_Shim_ZoneLifecycle(t *testing.T) {
 		t.Fatalf("Changes.Create: %v", err)
 	}
 }
+
+// TestSockerless_AzureDNS_Through_Shim_ZoneLifecycle drives the shim's
+// Azure DNS frontend with an armdns SDK call, then has the shim's
+// Azure backend translate back to ARM calls against sockerless's
+// Azure simulator (`public_dns.go`).
+//
+// Tracked as BUG-45: TLS cert plumbing on both legs (shim outbound +
+// test inbound). Sockerless coverage exists; gap is shim test wiring.
+func TestSockerless_AzureDNS_Through_Shim_ZoneLifecycle(t *testing.T) {
+	t.Skip("BUG-45: Azure DNS through-shim TLS cert plumbing pending. Sockerless coverage exists; this is shim test wiring.")
+}
