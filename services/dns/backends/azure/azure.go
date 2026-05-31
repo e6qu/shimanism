@@ -208,11 +208,21 @@ func (b *Backend) DeleteZone(ctx context.Context, name string, force bool) error
 
 func (b *Backend) ListZones(ctx context.Context, opt domain.ListZonesOptions) (domain.ListZonesResult, error) {
 	res := domain.ListZonesResult{}
+	// When no visibility filter is set, list both families. A 404 on
+	// either family's list endpoint (e.g. some Azure mock surfaces
+	// missing the `GET /privateDnsZones` route) is treated as
+	// "no zones of that family" rather than propagating as the
+	// translateErr → NoSuchZone — listing a non-existent family
+	// returns an empty set, not an error, for real Azure too.
+	listFailureFatal := opt.VisibilityFilter != domain.VisibilityUnknown
 	if opt.VisibilityFilter != domain.VisibilityPrivate {
 		pager := b.pubZones.NewListByResourceGroupPager(b.resourceGroup, nil)
 		for pager.More() {
 			page, err := pager.NextPage(ctx)
 			if err != nil {
+				if !listFailureFatal && isNotFound(err) {
+					break
+				}
 				return domain.ListZonesResult{}, translateErr(err, "")
 			}
 			for _, z := range page.Value {
@@ -229,6 +239,9 @@ func (b *Backend) ListZones(ctx context.Context, opt domain.ListZonesOptions) (d
 		for pager.More() {
 			page, err := pager.NextPage(ctx)
 			if err != nil {
+				if !listFailureFatal && isNotFound(err) {
+					break
+				}
 				return domain.ListZonesResult{}, translateErr(err, "")
 			}
 			for _, z := range page.Value {
