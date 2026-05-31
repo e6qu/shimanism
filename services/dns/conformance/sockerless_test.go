@@ -171,7 +171,6 @@ func TestSockerless_AWSRoute53_Through_Shim_ZoneLifecycle(t *testing.T) {
 // shim's Cloud DNS frontend with an SDK call, then has the shim's
 // GCP backend translate back to Cloud DNS calls against sockerless's
 // Cloud DNS simulator.
-//
 func TestSockerless_GCPCloudDNS_Through_Shim_ZoneLifecycle(t *testing.T) {
 	endpoint := os.Getenv("SOCKERLESS_GCP_ENDPOINT")
 	if endpoint == "" {
