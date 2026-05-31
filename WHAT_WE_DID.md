@@ -32,7 +32,18 @@ Cross-referenced from `PHILOSOPHY.md` (operational footnote on "The Circle"), `A
 
 Open audit items captured at the bottom of `normalizations.md` for follow-on 15.A PRs: soft-delete grace period, queue visibility-timeout semantics, RDBMS engine version naming + connection string, cache cluster mode, functions runtime → container image mapping, API Gateway stages-vs-configs-vs-products. Each becomes a rule entry once audited.
 
-### 15.D CoreDNS K8s peer — file-based fourth backend (this PR, after PR #87)
+### 15.D CoreDNS — live conformance + K8s row cells (this PR, after PR #88)
+
+PR #88 landed the file-based CoreDNS backend with unit tests that round-trip RFC 1035 master files through `miekg/dns`. This PR validates the chain end-to-end by running a real `coredns` server and adds the K8s row to the cross-cloud Apply matrix.
+
+- `services/dns/backends/coredns/live_test.go` starts a real `coredns -conf <Corefile>` process bound to an ephemeral UDP port. The Corefile points the `auto` plugin at the backend's zone directory with `reload 1s`. Two scenarios:
+  - `TestLive_CoreDNS_ResolvesRecordsWrittenByBackend` — seed zone + A + AAAA + SOA via the backend before starting CoreDNS; query each via `miekg/dns` and assert the values match.
+  - `TestLive_CoreDNS_PicksUpRuntimeChanges` — start CoreDNS with an empty zone, then add a record via the backend, wait for auto-reload, query again, assert the record resolved. Validates the inotify-driven reload path the K8s deployment depends on.
+- `.github/workflows/checks.yml`'s `go vet + test + build` job now installs CoreDNS v1.12.0 from the upstream release tarball pinned by version. Local devs install manually; the test `t.Skip`s without it on PATH.
+- Three K8s-row cells in `services/dns/conformance/cross_cloud_apply_test.go`: AWS Route 53 / GCP Cloud DNS / Azure DNS frontends materializing records in a file-based CoreDNS backend. The AWS + GCP cells need no sockerless at all (destination is local files); the Azure cell still requires `SOCKERLESS_AZURE_TLS_PORT` because the armdns SDK acquires Entra tokens via sockerless's stub.
+- Closes the 15.D matrix fully: every {AWS, GCP, Azure, CoreDNS} backend × every {AWS Route 53, GCP Cloud DNS, Azure DNS} frontend, including cross-cloud Apply through-shim, SDK + CLI + Terraform conformance per cloud, normalisation rule N17 for visibility, ARM passthrough for Azure (BUG-44), metadata + Entra redirection for through-shim ARM (BUG-46), CLI + SDK + Terraform Azure (BUG-43 + BUG-45), Azure private DNS list-by-RG (BUG-47 + sockerless#340 + #350).
+
+### 15.D CoreDNS K8s peer — file-based fourth backend (PR #88, after PR #87)
 
 Closes the 4-backend slot for DNS per AGENTS.md's "Kubernetes is the fourth backend, always" mandate. `services/dns/backends/coredns/coredns.go` implements `domain.DNS` by mutating RFC 1035 master files (one `<zone>.db` per zone) in a configured directory.
 

@@ -8,9 +8,9 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 
 | | |
 |---|---|
-| Active branch | `main` after PR #87 merged (15.D cross-cloud Apply cells). CoreDNS K8s peer PR in flight. |
-| In-flight | **15.D CoreDNS K8s peer — file-based.** `services/dns/backends/coredns/coredns.go` implements `domain.DNS` by mutating RFC 1035 master files (one `.db` per zone) in a configured directory. In a K8s deployment the directory is a ConfigMap or PVC mounted into the CoreDNS pod; CoreDNS's `auto` plugin reloads via inotify. Uses `github.com/miekg/dns` (the same parser CoreDNS itself uses) for read/write round-trips. Per-zone in-memory mutex serialises writes; no shim-side cache. Unit tests cover zone + record CRUD, force-delete, TXT round-trip, and master-file parse-back validation. Live conformance against a real `coredns` binary deferred (requires CoreDNS in CI's PATH). Closes the 4-backend slot per AGENTS.md's K8s-as-fourth-backend mandate. Track A blocked on real-cloud credentials. |
-| Last merged | PR #87 — 15.D cross-cloud Apply cells. |
+| Active branch | `main` after PR #88 merged (15.D CoreDNS K8s peer foundational). 15.D live CoreDNS conformance + K8s row cells PR in flight. |
+| In-flight | **15.D CoreDNS — live conformance + K8s row cells.** `services/dns/backends/coredns/live_test.go` starts a real `coredns` binary with the `auto` plugin pointed at the backend's directory and verifies records the shim writes are resolvable via DNS (UDP/53) — including runtime reloads. CI workflow's `go vet + test + build` job now installs CoreDNS v1.12.0. Three new K8s-row cells in `cross_cloud_apply_test.go`: AWS Route 53 / GCP Cloud DNS / Azure DNS frontend → CoreDNS file-based backend (AWS/GCP don't need sockerless; Azure still needs SOCKERLESS_AZURE_TLS_PORT for the SDK auth flow). Closes 15.D matrix fully across the 4 backends × 4 frontends. Track A blocked on real-cloud credentials. |
+| Last merged | PR #88 — 15.D CoreDNS K8s peer foundational. |
 | Upstream watch | sockerless #288 merged (AWS API Gateway client-surface coverage). Zero open sockerless issues for shimanism's current work. |
 | Phases 1–13 | All closed (Phase 13 closed by PR #20). PR index in [PLAN.md § Closed phases](PLAN.md#closed-phases-pr-index). |
 | Phase 14 | 14.A ✅ · 14.B ✅ · 14.C ✅ · 14.D ✅ (simulator audit) / Track A blocked · 14.E ✅. Remaining residuals (terraform-aws `_wo` drift, SB cross-cloud scoping) carried into Phase 15.B. |
