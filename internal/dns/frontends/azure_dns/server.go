@@ -108,12 +108,35 @@ func HandlerWithPassthrough(d domain.DNS, upstream http.Handler) http.Handler {
 }
 
 // HandlerWithConfig is the verifier-wrapped form of NewWithConfig.
+//
+// The Azure cloud-metadata endpoint at `/metadata/endpoints` is a
+// **public discovery URL** in real Azure: clients hit it without
+// any bearer token to discover where to acquire one. We mirror that
+// — the metadata route bypasses the bearer middleware. Every other
+// path goes through the verifier.
 func HandlerWithConfig(d domain.DNS, c Config) http.Handler {
+	server := NewWithConfig(d, c)
+	if c.MetadataLoginURL == "" {
+		// No metadata endpoint configured; bearer-wrap the whole server.
+		return wrapWithBearer(server)
+	}
+	bearerWrapped := wrapWithBearer(server)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == "/metadata/endpoints" {
+			// Public discovery endpoint — answer directly, no bearer.
+			server.ServeHTTP(w, r)
+			return
+		}
+		bearerWrapped.ServeHTTP(w, r)
+	})
+}
+
+func wrapWithBearer(h http.Handler) http.Handler {
 	verifier := azurebearer.New(azurebearer.Options{
 		Audience: "https://management.azure.com/",
 		TestKey:  []byte("test-key-do-not-use-in-prod"),
 	})
-	return azurebearer.Middleware(verifier, azurebearer.WithChallenge("https://management.azure.com/"))(NewWithConfig(d, c))
+	return azurebearer.Middleware(verifier, azurebearer.WithChallenge("https://management.azure.com/"))(h)
 }
 
 // ARM path shape the frontend handles directly:
