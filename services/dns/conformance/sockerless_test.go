@@ -322,21 +322,22 @@ func TestSockerless_AzureDNS_Through_Shim_Terraform_Apply(t *testing.T) {
 	hcl := fmt.Sprintf(`
 terraform {
   required_providers {
-    azurerm = { source = "hashicorp/azurerm", version = "~> 3.0" }
+    azurerm = { source = "hashicorp/azurerm", version = "~> 4.0" }
   }
 }
 
 provider "azurerm" {
   features {}
-  subscription_id            = %q
-  tenant_id                  = %q
-  client_id                  = %q
-  client_secret              = "shim-test"
-  use_oidc                   = false
-  use_cli                    = false
-  skip_provider_registration = true
-  metadata_host              = "shim.test"
-  environment                = "public"
+  subscription_id                 = %q
+  tenant_id                       = %q
+  client_id                       = %q
+  client_secret                   = "shim-test"
+  use_oidc                        = false
+  use_cli                         = false
+  resource_provider_registrations = "none"
+  environment                     = "public"
+
+  metadata_host = "shim.test"
 
   endpoints {
     resource_manager = %q
