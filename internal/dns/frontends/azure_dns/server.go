@@ -32,25 +32,53 @@ import (
 )
 
 // Server is an Azure-DNS-shaped HTTP frontend dispatching to a
-// domain.DNS backend.
+// domain.DNS backend. When `upstream` is non-nil, ARM paths the
+// frontend doesn't handle (resource groups, subscriptions, provider
+// registration, …) are forwarded to the upstream handler — the ARM
+// passthrough mode that lets `hashicorp/azurerm`'s single
+// `endpoints { resource_manager = "..." }` config drive DNS-specific
+// paths through the shim while other ARM paths reach a real ARM mock
+// (sockerless in tests, real Azure in prod).
 type Server struct {
-	d domain.DNS
+	d        domain.DNS
+	upstream http.Handler
 }
 
-// New returns a frontend bound to the given backend.
+// New returns a frontend bound to the given backend. Unmatched ARM
+// paths return 404 ("no route matches …").
 func New(d domain.DNS) *Server { return &Server{d: d} }
+
+// NewWithPassthrough wires an upstream ARM handler that the frontend
+// forwards unmatched paths to. The upstream is typically a
+// `httputil.NewSingleHostReverseProxy` pointing at sockerless's
+// Azure ARM mock; in production it would point at real ARM.
+//
+// The passthrough preserves the original request unchanged
+// (method / path / query / headers / body) and streams the
+// response back. Auth flows straight through — sockerless's ARM
+// mock accepts any non-empty Bearer; real ARM would validate
+// against Entra ID either way.
+func NewWithPassthrough(d domain.DNS, upstream http.Handler) *Server {
+	return &Server{d: d, upstream: upstream}
+}
 
 // Handler wraps Server with the Azure bearer verifier middleware.
 // SHIMANISM_TEST_UNAUTHENTICATED_AZURE=1 short-circuits verification.
 func Handler(d domain.DNS) http.Handler {
+	return HandlerWithPassthrough(d, nil)
+}
+
+// HandlerWithPassthrough is the passthrough variant — same middleware,
+// non-DNS ARM paths forwarded to the upstream.
+func HandlerWithPassthrough(d domain.DNS, upstream http.Handler) http.Handler {
 	verifier := azurebearer.New(azurebearer.Options{
 		Audience: "https://management.azure.com/",
 		TestKey:  []byte("test-key-do-not-use-in-prod"),
 	})
-	return azurebearer.Middleware(verifier, azurebearer.WithChallenge("https://management.azure.com/"))(New(d))
+	return azurebearer.Middleware(verifier, azurebearer.WithChallenge("https://management.azure.com/"))(NewWithPassthrough(d, upstream))
 }
 
-// ARM path shape:
+// ARM path shape the frontend handles directly:
 //
 //	/subscriptions/{sub}/resourceGroups/{rg}/providers/Microsoft.Network/
 //	  <dnsZones | privateDnsZones>/{zone}[/<recordType>/<recordName>] [?api-version=...]
@@ -59,12 +87,17 @@ func Handler(d domain.DNS) http.Handler {
 //
 //	/subscriptions/{sub}/resourceGroups/{rg}/providers/Microsoft.Network/dnsZones
 //	/subscriptions/{sub}/resourceGroups/{rg}/providers/Microsoft.Network/dnsZones/{zone}/recordsets
+//
+// Every other ARM path (resource groups, subscriptions, other
+// Microsoft.Network resources, …) is forwarded to `srv.upstream`
+// when it's set, otherwise returns 404.
 func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	path := strings.TrimPrefix(r.URL.Path, "/")
 	segs := strings.Split(path, "/")
-	if len(segs) < 7 || segs[0] != "subscriptions" || segs[2] != "resourceGroups" ||
-		segs[4] != "providers" || segs[5] != "Microsoft.Network" {
-		writeError(w, http.StatusNotFound, "NotFound", "no route matches "+r.URL.Path)
+	// Anything not under /subscriptions/{sub}/resourceGroups/{rg}/providers/Microsoft.Network/<dnsZones|privateDnsZones>
+	// goes to the upstream when configured.
+	if !isLocalDNSPath(segs) {
+		srv.passthroughOr404(w, r)
 		return
 	}
 	kind := segs[6]
@@ -75,7 +108,7 @@ func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case "privateDnsZones":
 		visibility = domain.VisibilityPrivate
 	default:
-		writeError(w, http.StatusNotFound, "NotFound", "unsupported provider type "+kind)
+		srv.passthroughOr404(w, r)
 		return
 	}
 	tail := segs[7:]
@@ -134,6 +167,29 @@ func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	default:
 		writeError(w, http.StatusNotFound, "NotFound", "unmatched ARM path tail "+r.URL.Path)
 	}
+}
+
+// isLocalDNSPath reports whether the segmented path falls under the
+// DNS-specific ARM provider this frontend handles directly.
+func isLocalDNSPath(segs []string) bool {
+	if len(segs) < 7 {
+		return false
+	}
+	if segs[0] != "subscriptions" || segs[2] != "resourceGroups" ||
+		segs[4] != "providers" || segs[5] != "Microsoft.Network" {
+		return false
+	}
+	return segs[6] == "dnsZones" || segs[6] == "privateDnsZones"
+}
+
+// passthroughOr404 forwards to the configured upstream when present;
+// otherwise emits the Azure-shaped 404 error envelope.
+func (srv *Server) passthroughOr404(w http.ResponseWriter, r *http.Request) {
+	if srv.upstream == nil {
+		writeError(w, http.StatusNotFound, "NotFound", "no route matches "+r.URL.Path)
+		return
+	}
+	srv.upstream.ServeHTTP(w, r)
 }
 
 // --------------- Zones ---------------

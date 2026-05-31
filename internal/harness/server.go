@@ -279,6 +279,22 @@ func StartDNSServerAzure(t *testing.T, backend dnsdomain.DNS) *DNSServer {
 	return &DNSServer{URL: ts.URL, Close: ts.Close}
 }
 
+// StartDNSServerAzureWithPassthrough is the ARM-passthrough variant.
+// Non-DNS ARM paths (resource groups, subscriptions, other
+// Microsoft.Network resources) forward to the upstream handler.
+// Used for end-to-end Terraform conformance where azurerm's single
+// `endpoints { resource_manager = "..." }` config must satisfy both
+// DNS-specific and generic ARM operations.
+func StartDNSServerAzureWithPassthrough(t *testing.T, backend dnsdomain.DNS, upstream http.Handler) *DNSServerTLS {
+	t.Helper()
+	srv := azuredfront.HandlerWithPassthrough(backend, upstream)
+	ts := httptest.NewTLSServer(&logRoundTrip{t: t, mux: srv})
+	t.Cleanup(ts.Close)
+	cert := ts.Certificate()
+	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw})
+	return &DNSServerTLS{URL: ts.URL, CertPEM: certPEM, Close: ts.Close}
+}
+
 // StartSecretsServerAWS starts a shim instance with the AWS Secrets
 // Manager frontend backed by the given secrets implementation.
 // AWS-shaped clients (aws-sdk-go-v2/service/secretsmanager,

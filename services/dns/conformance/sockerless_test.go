@@ -15,10 +15,18 @@
 package conformance_test
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
+	"crypto/x509"
+	"fmt"
 	"net/http"
+	"net/http/httputil"
+	"net/url"
 	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -36,6 +44,7 @@ import (
 	"github.com/e6qu/shimanism/internal/harness"
 	awsbackend "github.com/e6qu/shimanism/services/dns/backends/aws"
 	gcpbackend "github.com/e6qu/shimanism/services/dns/backends/gcp"
+	"github.com/e6qu/shimanism/services/dns/backends/inmem"
 )
 
 // TestSockerless_AWSRoute53_Through_Shim_ZoneLifecycle drives the
@@ -231,4 +240,152 @@ func TestSockerless_GCPCloudDNS_Through_Shim_ZoneLifecycle(t *testing.T) {
 // test inbound). Sockerless coverage exists; gap is shim test wiring.
 func TestSockerless_AzureDNS_Through_Shim_ZoneLifecycle(t *testing.T) {
 	t.Skip("BUG-45: Azure DNS through-shim TLS cert plumbing pending. Sockerless coverage exists; this is shim test wiring.")
+}
+
+// TestSockerless_AzureDNS_Through_Shim_Terraform_Apply exercises the
+// shim's Azure DNS frontend in **ARM passthrough mode**: azurerm's
+// `azurerm_dns_zone` + `azurerm_resource_group` ride a single
+// `endpoints { resource_manager = "..." }` config pointing at the
+// shim. The shim handles DNS paths locally; the resource-group +
+// subscription paths get reverse-proxied to sockerless's Azure ARM
+// mock under TLS. Closes BUG-44.
+//
+// Linux-only (SSL_CERT_FILE workaround).
+func TestSockerless_AzureDNS_Through_Shim_Terraform_Apply(t *testing.T) {
+	azureTLSPort := os.Getenv("SOCKERLESS_AZURE_TLS_PORT")
+	if azureTLSPort == "" {
+		t.Skip("SOCKERLESS_AZURE_TLS_PORT not set")
+	}
+	sockCertPath := os.Getenv("SOCKERLESS_AZURE_TLS_CERT")
+	if sockCertPath == "" {
+		t.Skip("SOCKERLESS_AZURE_TLS_CERT not set")
+	}
+	sockCertPEM, err := os.ReadFile(sockCertPath)
+	if err != nil {
+		t.Fatalf("read sockerless cert: %v", err)
+	}
+	tfBin, err := exec.LookPath("terraform")
+	if err != nil {
+		t.Skipf("terraform not installed: %v", err)
+	}
+	systemCABundle := findSystemCABundleForDNS()
+	if systemCABundle == "" {
+		t.Skip("no system CA bundle found — SSL_CERT_FILE workaround requires Linux")
+	}
+
+	const (
+		subscriptionID = "00000000-0000-0000-0000-000000000000"
+		tenantID       = "00000000-0000-0000-0000-000000000000"
+		clientID       = "00000000-0000-0000-0000-000000000000"
+		resourceGroup  = "shim-dns-rg"
+		zoneName       = "azure.example.com"
+	)
+
+	// 1. Build a reverse proxy from the shim → sockerless's Azure ARM
+	//    endpoint. The proxy's transport trusts the sockerless self-
+	//    signed cert via a RootCAs pool (no InsecureSkipVerify).
+	sockerlessARM, err := url.Parse("https://localhost:" + azureTLSPort)
+	if err != nil {
+		t.Fatalf("parse sockerless URL: %v", err)
+	}
+	rootCAs := x509.NewCertPool()
+	if !rootCAs.AppendCertsFromPEM(sockCertPEM) {
+		t.Fatalf("append sockerless cert to pool")
+	}
+	proxy := httputil.NewSingleHostReverseProxy(sockerlessARM)
+	proxy.Transport = &http.Transport{TLSClientConfig: &tls.Config{RootCAs: rootCAs}}
+
+	// 2. Start the shim with passthrough → sockerless ARM. Drives DNS
+	//    paths locally against an inmem backend (the through-shim test
+	//    exercises the FRONTEND surface; the backend choice is
+	//    orthogonal).
+	shim := harness.StartDNSServerAzureWithPassthrough(t, inmem.New(), proxy)
+
+	// 3. Combined CA bundle = system + sockerless cert + shim cert so
+	//    Terraform's HTTPS handshakes succeed on both legs.
+	dir := t.TempDir()
+	systemBytes, err := os.ReadFile(systemCABundle)
+	if err != nil {
+		t.Fatalf("read system CA: %v", err)
+	}
+	combined := append(append([]byte{}, systemBytes...), '\n')
+	combined = append(combined, sockCertPEM...)
+	combined = append(combined, '\n')
+	combined = append(combined, shim.CertPEM...)
+	combinedPath := filepath.Join(dir, "combined-ca.pem")
+	if err := os.WriteFile(combinedPath, combined, 0o644); err != nil {
+		t.Fatalf("write combined CA: %v", err)
+	}
+
+	// 4. Terraform config — single resource_manager endpoint, drives
+	//    both DNS and RG operations through the shim.
+	hcl := fmt.Sprintf(`
+terraform {
+  required_providers {
+    azurerm = { source = "hashicorp/azurerm", version = "~> 3.0" }
+  }
+}
+
+provider "azurerm" {
+  features {}
+  subscription_id = %q
+  tenant_id       = %q
+  client_id       = %q
+  client_secret   = "shim-test"
+  use_oidc        = false
+  use_cli         = false
+  skip_provider_registration = true
+  resource_provider_registrations = "none"
+  resource_providers_to_register = []
+  metadata_host = "shim.test"
+  environment   = "public"
+
+  endpoints {
+    resource_manager = %q
+  }
+}
+
+resource "azurerm_resource_group" "tf" {
+  name     = %q
+  location = "global"
+}
+
+resource "azurerm_dns_zone" "tf" {
+  name                = %q
+  resource_group_name = azurerm_resource_group.tf.name
+}
+
+resource "azurerm_dns_a_record" "www" {
+  name                = "www"
+  zone_name           = azurerm_dns_zone.tf.name
+  resource_group_name = azurerm_resource_group.tf.name
+  ttl                 = 300
+  records             = ["1.2.3.4", "5.6.7.8"]
+}
+`, subscriptionID, tenantID, clientID, shim.URL, resourceGroup, zoneName)
+	if err := os.WriteFile(filepath.Join(dir, "main.tf"), []byte(hcl), 0o644); err != nil {
+		t.Fatalf("write main.tf: %v", err)
+	}
+
+	runTf := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command(tfBin, args...)
+		cmd.Dir = dir
+		cmd.Env = append(os.Environ(),
+			"TF_IN_AUTOMATION=1", "TF_INPUT=0", "CHECKPOINT_DISABLE=1",
+			"TF_PLUGIN_CACHE_DIR="+terraformPluginCacheDirForDNSWorkdir(dir),
+			"SSL_CERT_FILE="+combinedPath,
+			"ARM_CLIENT_SECRET=shim-test",
+		)
+		var stdout, stderr bytes.Buffer
+		cmd.Stdout = &stdout
+		cmd.Stderr = &stderr
+		if err := cmd.Run(); err != nil {
+			t.Fatalf("terraform %s\nstdout: %s\nstderr: %s\nerr: %v",
+				strings.Join(args, " "), stdout.String(), stderr.String(), err)
+		}
+	}
+	runTf("init", "-no-color")
+	runTf("apply", "-auto-approve", "-no-color")
+	runTf("destroy", "-auto-approve", "-no-color")
 }
