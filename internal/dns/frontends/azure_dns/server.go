@@ -140,9 +140,12 @@ func HandlerWithConfig(d domain.DNS, c Config) http.Handler {
 }
 
 func wrapWithBearer(h http.Handler, opts azurebearer.Options) http.Handler {
-	if opts.Audience == "" {
-		opts.Audience = "https://management.azure.com/"
-	}
+	// Default to the test HMAC key when no signing material is
+	// configured at all (covers the bare `Handler(d)` path used by
+	// SDK / inmem tests). Audience stays at the caller's value —
+	// empty means "skip aud check", which is the through-shim test
+	// posture (the token's aud is the dynamic shim URL we can't pin
+	// here).
 	if opts.JWKS == nil && opts.JWKSURL == "" && len(opts.TestKey) == 0 {
 		opts.TestKey = []byte("test-key-do-not-use-in-prod")
 	}
