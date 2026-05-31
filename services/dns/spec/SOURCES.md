@@ -9,6 +9,7 @@ and commit the resulting diff in a normal PR.
 | Local file | Upstream repo | Upstream path | Upstream license | Pinned at | Fetched (UTC) |
 |---|---|---|---|---|---|
 | `aws-route-53.smithy.json` | `aws/aws-sdk-go-v2` | `codegen/sdk-codegen/aws-models/route-53.json` | Apache-2.0 | `13bee3c72e77d68d6180fb633a7ce1c8714d53c0` | 2026-05-30T18:39:28Z |
+| `gcp-cloud-dns-discovery.json` | `dns.googleapis.com` | `$discovery/rest?version=v1` (live Discovery document) | Apache-2.0 | revision `20260520` | 2026-05-31T03:00:00Z |
 
 ## License of vendored files
 

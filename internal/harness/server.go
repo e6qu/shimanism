@@ -10,6 +10,7 @@ package harness
 
 import (
 	"crypto/tls"
+	"encoding/pem"
 	"fmt"
 	"net"
 	"net/http"
@@ -28,6 +29,7 @@ import (
 	gcpmsfront "github.com/e6qu/shimanism/internal/cache/frontends/gcp_memorystore"
 	dnsdomain "github.com/e6qu/shimanism/internal/dns/domain"
 	awsr53front "github.com/e6qu/shimanism/internal/dns/frontends/aws_route53"
+	gcpdnsfront "github.com/e6qu/shimanism/internal/dns/frontends/gcp_clouddns"
 	functionsdomain "github.com/e6qu/shimanism/internal/functions/domain"
 	awslambdafront "github.com/e6qu/shimanism/internal/functions/frontends/aws_lambda"
 	azurecafront "github.com/e6qu/shimanism/internal/functions/frontends/azure_containerapps"
@@ -219,6 +221,43 @@ func StartDNSServerAWS(t *testing.T, backend dnsdomain.DNS) *DNSServer {
 	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
 	t.Cleanup(ts.Close)
 	return &DNSServer{URL: ts.URL, Close: ts.Close}
+}
+
+// StartDNSServerGCP starts a shim instance with the GCP Cloud DNS
+// frontend backed by the given DNS implementation. GCP-shaped clients
+// (google.golang.org/api/dns/v1, gcloud dns, hashicorp/google
+// Terraform provider) drive it via the endpoint-override path.
+func StartDNSServerGCP(t *testing.T, backend dnsdomain.DNS) *DNSServer {
+	t.Helper()
+	srv := gcpdnsfront.Handler(backend)
+	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
+	t.Cleanup(ts.Close)
+	return &DNSServer{URL: ts.URL, Close: ts.Close}
+}
+
+// DNSServerTLS is a started DNS-shim instance addressable over HTTPS,
+// with the self-signed certificate exported as PEM so Terraform-like
+// callers can trust it via SSL_CERT_FILE. Used by the GCP Cloud DNS
+// Terraform conformance test, where the hashicorp/google provider's
+// `RemoveBasePathVersion` regex requires an HTTPS endpoint to match
+// (the regex hard-codes `http[s]://`, accepting only HTTPS).
+type DNSServerTLS struct {
+	URL     string
+	CertPEM []byte
+	Close   func()
+}
+
+// StartDNSServerGCPTLS is the HTTPS variant of StartDNSServerGCP.
+// Returns the auto-generated self-signed cert as PEM so callers can
+// inject it into a CA bundle for child processes (Terraform).
+func StartDNSServerGCPTLS(t *testing.T, backend dnsdomain.DNS) *DNSServerTLS {
+	t.Helper()
+	srv := gcpdnsfront.Handler(backend)
+	ts := httptest.NewTLSServer(&logRoundTrip{t: t, mux: srv})
+	t.Cleanup(ts.Close)
+	cert := ts.Certificate()
+	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw})
+	return &DNSServerTLS{URL: ts.URL, CertPEM: certPEM, Close: ts.Close}
 }
 
 // StartSecretsServerAWS starts a shim instance with the AWS Secrets

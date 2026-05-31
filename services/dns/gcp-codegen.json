@@ -1,0 +1,6 @@
+{
+  "_comment": "GCP Cloud DNS Discovery JSON drives the spec-driven routing layer. cmd/gcp-codegen emits a Routes slice of (httpMethod, uriPattern, operationID) triples; the gcp_clouddns frontend uses those to validate dispatch coverage against the upstream spec. Wire types come from google.golang.org/api/dns/v1 directly per AGENTS.md decision #11.",
+  "spec": "services/dns/spec/gcp-cloud-dns-discovery.json",
+  "package": "gcp",
+  "out": "services/dns/gen/gcp/gcp_clouddns.gen.go"
+}
