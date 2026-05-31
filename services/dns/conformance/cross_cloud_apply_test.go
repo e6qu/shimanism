@@ -57,6 +57,7 @@ import (
 	"github.com/e6qu/shimanism/internal/harness"
 	awsbackend "github.com/e6qu/shimanism/services/dns/backends/aws"
 	azurebackend "github.com/e6qu/shimanism/services/dns/backends/azure"
+	corednsbackend "github.com/e6qu/shimanism/services/dns/backends/coredns"
 	gcpbackend "github.com/e6qu/shimanism/services/dns/backends/gcp"
 )
 
@@ -475,4 +476,41 @@ func runAzureDNSCRUDThroughShim(t *testing.T, backend dnsdomain.DNS, zoneName st
 	if _, err := rrSets.Delete(ctx, resourceGroup, zoneName, "api", armdns.RecordTypeA, nil); err != nil {
 		t.Fatalf("Delete A record: %v", err)
 	}
+}
+
+// ---------------- K8s row cells (destination = CoreDNS / file-based) ----------------
+//
+// The CoreDNS backend is local — files in a directory. No sockerless
+// dependency for the destination side. AWS / GCP cells need no
+// sockerless at all (frontends accept local test creds). The Azure
+// cell still needs the through-shim Azure setup (metadata + JWKS +
+// bearer) because the armdns SDK acquires tokens before any ARM
+// call, so SOCKERLESS_AZURE_TLS_PORT is still required.
+
+func newCoreDNSBackend(t *testing.T) dnsdomain.DNS {
+	t.Helper()
+	b, err := corednsbackend.New(t.TempDir())
+	if err != nil {
+		t.Fatalf("coredns backend: %v", err)
+	}
+	return b
+}
+
+func TestSockerless_DNS_AWSRoute53Frontend_To_CoreDNSBackend(t *testing.T) {
+	backend := newCoreDNSBackend(t)
+	shim := harness.StartDNSServerAWS(t, backend)
+	cli := newShimRoute53Client(t, shim.URL)
+	runRoute53ZoneCRUDThroughShim(t, cli, "aws2coredns.example.")
+}
+
+func TestSockerless_DNS_GCPCloudDNSFrontend_To_CoreDNSBackend(t *testing.T) {
+	backend := newCoreDNSBackend(t)
+	shim := harness.StartDNSServerGCP(t, backend)
+	cli := newShimCloudDNSService(t, shim.URL, "https://dns.googleapis.com/")
+	runCloudDNSZoneCRUDThroughShim(t, cli, "shim-cross-cloud", "gcp2coredns-example", "gcp2coredns.example.")
+}
+
+func TestSockerless_DNS_AzureDNSFrontend_To_CoreDNSBackend(t *testing.T) {
+	backend := newCoreDNSBackend(t)
+	runAzureDNSCRUDThroughShim(t, backend, "azure2coredns.example")
 }

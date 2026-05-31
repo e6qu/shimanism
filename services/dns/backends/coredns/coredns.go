@@ -259,6 +259,7 @@ func (b *Backend) PutRecordSet(ctx context.Context, zone string, rs domain.Recor
 		}
 		rrs = append(rrs, rr)
 	}
+	bumpSOASerial(rrs)
 	return writeZoneFile(path, canonical, rrs)
 }
 
@@ -330,6 +331,7 @@ func (b *Backend) DeleteRecordSet(ctx context.Context, zone, name string, rtype 
 	if !removed {
 		return domain.NoSuchRecordSet(canonical, rsName, rtype)
 	}
+	bumpSOASerial(out)
 	return writeZoneFile(path, canonical, out)
 }
 
@@ -385,6 +387,26 @@ func (b *Backend) ListRecordSets(ctx context.Context, zone string, opt domain.Li
 }
 
 // ---------------- file I/O ----------------
+
+// bumpSOASerial advances the zone's SOA serial. CoreDNS's `auto`
+// plugin reloads a zone only when the serial changes — preserving the
+// existing serial across mutations would leave the server with stale
+// data.
+func bumpSOASerial(rrs []dns.RR) {
+	now := uint32(time.Now().Unix())
+	for _, rr := range rrs {
+		soa, ok := rr.(*dns.SOA)
+		if !ok {
+			continue
+		}
+		next := soa.Serial + 1
+		if now > next {
+			next = now
+		}
+		soa.Serial = next
+		return
+	}
+}
 
 // readZoneFile parses the master file at path. Returns os.ErrNotExist
 // when missing so callers can map it to NoSuchZone.

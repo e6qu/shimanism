@@ -19,7 +19,7 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 - **All Azure frontends carry full `gen.ServerInterface` impls** with the `var _ gen.ServerInterface = (*Server)(nil)` compile-time gate.
 - **Open BUGs (2):** BUG-8 + BUG-15 (Track A, real GCP needed). BUG-35 closed in PR #48 after sockerless PR #245 derived ACA image platforms from the resolved manifest.
 - **Upstream watch:** zero open sockerless issues for the shimanism roadmap (six gaps surfaced during 14.E all closed: #257/#260/#261/#269/#272/#276 via #259/#262/#271/#274/#277).
-- **Last merged:** PR #87 — 15.D cross-cloud Apply cells.
+- **Last merged:** PR #88 — 15.D CoreDNS K8s peer foundational.
 
 ## Session-start checklist
 
@@ -57,8 +57,9 @@ Phase 15 sub-phase order:
 10. ~~BUG-46 shim Azure metadata + Entra ID redirection~~ — ✅ shipped in PR #85.
 11. ~~BUG-43 + BUG-45~~ — ✅ shipped in PR #86.
 12. ~~15.D cross-cloud Apply cells~~ — ✅ shipped in PR #87.
-13. **15.D CoreDNS K8s peer — implemented (this PR).** `services/dns/backends/coredns/coredns.go` materializes zones as RFC 1035 master files using miekg/dns; CoreDNS's `auto` plugin loads them. Unit tests cover zone + record CRUD round-trips. Closes the 4-backend slot.
-14. **Follow-ons:** (a) live `coredns` process conformance — gate on `coredns` binary in PATH, query via miekg/dns resolver; (b) K8s row for cross-cloud Apply cells (`AWSRoute53Frontend_To_CoreDNSBackend`, etc.).
+13. ~~15.D CoreDNS K8s peer foundational~~ — ✅ shipped in PR #88.
+14. **15.D CoreDNS — live + K8s row (this PR).** `live_test.go` starts the real `coredns` binary and verifies records resolve via DNS (including runtime reloads). CI installs CoreDNS v1.12.0. Three K8s-row cross-cloud cells: AWS/GCP/Azure DNS frontends → CoreDNS file backend.
+15. **Phase 15.D fully closed.** Next: 15.D phase-close narrative + advance 15.E scoping (or 15.C NoSQL key-value).
 6. **15.C — NoSQL key-value service** (after 15.D). Per scoping doc: DynamoDB + Firestore Native + Cosmos DB Table API + etcd K8s peer. ~3-4 PRs.
 
 Track A (BUG-8 + BUG-15) still blocked on real-cloud credentials.
