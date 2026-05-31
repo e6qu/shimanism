@@ -19,7 +19,7 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 - **All Azure frontends carry full `gen.ServerInterface` impls** with the `var _ gen.ServerInterface = (*Server)(nil)` compile-time gate.
 - **Open BUGs (2):** BUG-8 + BUG-15 (Track A, real GCP needed). BUG-35 closed in PR #48 after sockerless PR #245 derived ACA image platforms from the resolved manifest.
 - **Upstream watch:** zero open sockerless issues for the shimanism roadmap (six gaps surfaced during 14.E all closed: #257/#260/#261/#269/#272/#276 via #259/#262/#271/#274/#277).
-- **Last merged:** PR #81 — 15.D AWS Route 53 frontend + SDK/CLI/Terraform conformance.
+- **Last merged:** PR #82 — 15.D GCP Cloud DNS frontend + backend + SDK/CLI/Terraform conformance.
 
 ## Session-start checklist
 
@@ -51,8 +51,9 @@ Phase 15 sub-phase order:
 4. ~~15.D foundational~~ — ✅ shipped in PR #79.
 5. ~~15.D AWS Route 53 backend~~ — ✅ shipped in PR #80.
 6. ~~15.D AWS Route 53 frontend + conformance~~ — ✅ shipped in PR #81.
-7. **15.D GCP Cloud DNS — implemented (this PR).** Discovery doc vendored, routing codegen emits, backend uses `google.golang.org/api/dns/v1`, frontend dispatches `managedZones` + `rrsets` + `changes` REST routes, SDK + CLI conformance pass on Linux + macOS, Terraform conformance passes on Linux (TLS workaround for `hashicorp/google`'s `RemoveBasePathVersion` regex — BUG-41). Through-shim sockerless test skipped pending sockerless#298 (BUG-42 — sim missing Changes API + rrset PATCH).
-8. **15.D — next chunks (in order):** (a) Azure DNS + Private DNS frontend + backend with vendored OpenAPI (one backend, `Visibility` dispatch); (b) CoreDNS K8s peer (file-based); (c) cross-cloud Apply cells.
+7. ~~15.D GCP Cloud DNS~~ — ✅ shipped in PR #82.
+8. **15.D Azure DNS + Private DNS — implemented (this PR).** OpenAPI v2 specs vendored; one backend dispatches on `Visibility` (armdns for public / armprivatedns for private); one frontend handles both ARM resource types via path-shape dispatch. TLS harness server. SDK conformance passes against inmem. CLI/Terraform conformance skipped (CLI: `az` needs cloud-config plumbing; TF: azurerm needs ARM resource-group + subscription stubs the shim doesn't have).
+9. **15.D — next chunks (in order):** (a) CoreDNS K8s peer (file-based); (b) cross-cloud Apply cells; (c) Azure DNS Terraform conformance once ARM stubs land.
 6. **15.C — NoSQL key-value service** (after 15.D). Per scoping doc: DynamoDB + Firestore Native + Cosmos DB Table API + etcd K8s peer. ~3-4 PRs.
 
 Track A (BUG-8 + BUG-15) still blocked on real-cloud credentials.

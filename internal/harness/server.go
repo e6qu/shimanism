@@ -29,6 +29,7 @@ import (
 	gcpmsfront "github.com/e6qu/shimanism/internal/cache/frontends/gcp_memorystore"
 	dnsdomain "github.com/e6qu/shimanism/internal/dns/domain"
 	awsr53front "github.com/e6qu/shimanism/internal/dns/frontends/aws_route53"
+	azuredfront "github.com/e6qu/shimanism/internal/dns/frontends/azure_dns"
 	gcpdnsfront "github.com/e6qu/shimanism/internal/dns/frontends/gcp_clouddns"
 	functionsdomain "github.com/e6qu/shimanism/internal/functions/domain"
 	awslambdafront "github.com/e6qu/shimanism/internal/functions/frontends/aws_lambda"
@@ -258,6 +259,24 @@ func StartDNSServerGCPTLS(t *testing.T, backend dnsdomain.DNS) *DNSServerTLS {
 	cert := ts.Certificate()
 	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw})
 	return &DNSServerTLS{URL: ts.URL, CertPEM: certPEM, Close: ts.Close}
+}
+
+// StartDNSServerAzure starts a shim instance with the Azure DNS
+// (public + private — one frontend, dispatch on path) backed by the
+// given DNS implementation. Azure-shaped clients (`armdns` /
+// `armprivatedns`, `az network dns`, hashicorp/azurerm) drive it
+// via the standard endpoint-override path.
+//
+// The Azure SDK refuses to send Bearer tokens over plain HTTP, so
+// this serves under TLS. Callers configure their client transport
+// with `TLSClientConfig{InsecureSkipVerify: true}` to accept the
+// httptest self-signed cert.
+func StartDNSServerAzure(t *testing.T, backend dnsdomain.DNS) *DNSServer {
+	t.Helper()
+	srv := azuredfront.Handler(backend)
+	ts := httptest.NewTLSServer(&logRoundTrip{t: t, mux: srv})
+	t.Cleanup(ts.Close)
+	return &DNSServer{URL: ts.URL, Close: ts.Close}
 }
 
 // StartSecretsServerAWS starts a shim instance with the AWS Secrets

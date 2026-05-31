@@ -36,10 +36,14 @@ github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/apimanagement/armapimanage
 github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/apimanagement/armapimanagement/v3 v3.0.0/go.mod h1:4/JvtEOgU0r2lkVz8BImrFd0e7ZNQ74x+3k9swJzSmc=
 github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/appcontainers/armappcontainers/v3 v3.1.0 h1:ilMZ576u8sm975EqV+AKEtD4u9TLwqEo2XY9csPXBRo=
 github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/appcontainers/armappcontainers/v3 v3.1.0/go.mod h1:LGhzy+pg9AKr1Z7ZRyTC1qr1xNyVqLsqydvLdY+2iQk=
+github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/dns/armdns v1.2.0 h1:lpOxwrQ919lCZoNCd69rVt8u1eLZuMORrGXqy8sNf3c=
+github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/dns/armdns v1.2.0/go.mod h1:fSvRkb8d26z9dbL40Uf/OO6Vo9iExtZK3D0ulRV+8M0=
 github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/internal/v3 v3.1.0 h1:2qsIIvxVT+uE6yrNldntJKlLRgxGbZ85kgtz5SNBhMw=
 github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/internal/v3 v3.1.0/go.mod h1:AW8VEadnhw9xox+VaVd9sP7NjzOAnaZBLRH6Tq3cJ38=
 github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/postgresql/armpostgresqlflexibleservers/v4 v4.1.0 h1:DKj6HK9RND77ExIVt8rUQvI9k91cWKFusuCEyQoJeX0=
 github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/postgresql/armpostgresqlflexibleservers/v4 v4.1.0/go.mod h1:mCRvzle78YbuKIJ7kLeMNQm5JdXLpvEUL7Hxjq/jxMk=
+github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/privatedns/armprivatedns v1.3.0 h1:yzrctSl9GMIQ5lHu7jc8olOsGjWDCsBpJhWqfGa/YIM=
+github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/privatedns/armprivatedns v1.3.0/go.mod h1:GE4m0rnnfwLGX0Y9A9A25Zx5N/90jneT5ABevqzhuFQ=
 github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/redis/armredis/v3 v3.3.0 h1:EkL5dmUoy1OlzVfsbkcHayOvOJgheyRYL3wM/RHizzg=
 github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/redis/armredis/v3 v3.3.0/go.mod h1:DiazWkJHUUKUZGpIdV7JhDTjebBxdfsJ386dE5w7G3o=
 github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resources/armresources v1.2.0 h1:Dd+RhdJn0OTtVGaeDLZpcumkIVCtA/3/Fo42+eoYvVM=
