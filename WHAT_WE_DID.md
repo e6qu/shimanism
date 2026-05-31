@@ -32,7 +32,36 @@ Cross-referenced from `PHILOSOPHY.md` (operational footnote on "The Circle"), `A
 
 Open audit items captured at the bottom of `normalizations.md` for follow-on 15.A PRs: soft-delete grace period, queue visibility-timeout semantics, RDBMS engine version naming + connection string, cache cluster mode, functions runtime → container image mapping, API Gateway stages-vs-configs-vs-products. Each becomes a rule entry once audited.
 
-### BUG-43 + BUG-45 — Azure DNS CLI + SDK through-shim closure (this PR, after PR #85)
+### 15.D cross-cloud Apply cells — six through-shim DNS cells (this PR, after PR #86)
+
+The value-prop demonstration: write DNS records via one cloud's API, materialize them via a different cloud's API in sockerless. The full matrix excluding the K8s row (CoreDNS peer ships next):
+
+| Source frontend | Destination backend | Test                                                          |
+|---|---|---|
+| AWS Route 53    | GCP Cloud DNS       | `TestSockerless_DNS_AWSRoute53Frontend_To_GCPBackend`         |
+| AWS Route 53    | Azure DNS           | `TestSockerless_DNS_AWSRoute53Frontend_To_AzureBackend`       |
+| GCP Cloud DNS   | AWS Route 53        | `TestSockerless_DNS_GCPCloudDNSFrontend_To_AWSBackend`        |
+| GCP Cloud DNS   | Azure DNS           | `TestSockerless_DNS_GCPCloudDNSFrontend_To_AzureBackend`      |
+| Azure DNS       | AWS Route 53        | `TestSockerless_DNS_AzureDNSFrontend_To_AWSBackend`           |
+| Azure DNS       | GCP Cloud DNS       | `TestSockerless_DNS_AzureDNSFrontend_To_GCPBackend`           |
+
+Each cell:
+
+1. Builds the destination-cloud SDK pointing at sockerless's destination-cloud sim.
+2. Wraps the SDK in the shim's destination-cloud backend (`awsbackend.New` / `gcpbackend.New` / `azurebackend.New`).
+3. Starts the shim with the source-cloud frontend wired to that backend.
+4. Drives the canonical zone-and-record lifecycle through the source-cloud SDK pointed at the shim.
+
+The Azure-source cells reuse the BUG-46 metadata + JWKS plumbing PR #85 introduced. The Azure-destination cells use a parallel credential helper that acquires tokens from sockerless's Entra ID stub directly (no shim in the auth path; shim sees the bearer-validated request and translates the domain.DNS call into ARM via armdns + armprivatedns against sockerless's ARM endpoint, with explicit `RootCAs` cert pinning).
+
+Helpers consolidated in `services/dns/conformance/cross_cloud_apply_test.go`:
+
+- `sockerlessAWSConfig(t)` — AWS config with sockerless test creds + optional TLS-skip toggle.
+- `sockerlessAzureBackend(t, port, certPEM)` — shim's Azure backend talking to sockerless under explicit cert pinning.
+- `newShimRoute53Client(t, shimURL)` / `newShimCloudDNSService(t, shimURL, audience)` — source-cloud SDK clients pointed at the shim with trusted creds.
+- `runRoute53ZoneCRUDThroughShim` / `runCloudDNSZoneCRUDThroughShim` / `runAzureDNSCRUDThroughShim` — backend-agnostic lifecycle drivers.
+
+### BUG-43 + BUG-45 — Azure DNS CLI + SDK through-shim closure (PR #86, after PR #85)
 
 PR #85 closed the through-shim Terraform path. This PR wires the remaining two driver rows of the Azure DNS through-shim matrix using the same metadata + bearer plumbing.
 

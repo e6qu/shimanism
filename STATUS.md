@@ -8,9 +8,9 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 
 | | |
 |---|---|
-| Active branch | `main` after PR #85 merged (BUG-46 metadata endpoint). BUG-43 + BUG-45 (Azure DNS CLI + SDK through-shim) PR in flight. |
-| In-flight | **BUG-43 + BUG-45: Azure DNS CLI + SDK through-shim closure.** BUG-45: `TestSockerless_AzureDNS_Through_Shim_ZoneLifecycle` wired end-to-end. armdns SDK with custom `cloud.Configuration` (resourceManager=shim, ActiveDirectoryAuthorityHost=sockerless) drives zone CRUD; token credential acquires JWTs from sockerless's Entra via `POST /<tenant>/oauth2/v2.0/token`. BUG-43: `TestAzureCLI_DNS_ZoneLifecycle_ThroughShim` wires `az cloud register` + `az login --service-principal` + `az network dns zone create/show/delete` through the shim+sockerless stack with `AZURE_CONFIG_DIR` isolation and SSL_CERT_FILE trust for both the shim's and sockerless's certs. Linux-only. Track A blocked on real-cloud credentials. |
-| Last merged | PR #85 — BUG-46 shim Azure cloud-metadata endpoint. |
+| Active branch | `main` after PR #86 merged (BUG-43 + BUG-45 Azure DNS CLI + SDK). 15.D cross-cloud Apply cells PR in flight. |
+| In-flight | **15.D cross-cloud Apply cells.** Six through-shim DNS cells in `services/dns/conformance/cross_cloud_apply_test.go`: AWS Route 53 frontend → GCP / Azure backend, GCP Cloud DNS frontend → AWS / Azure backend, Azure DNS frontend → AWS / GCP backend. Each drives the source-cloud SDK against the shim, the shim translates to `domain.DNS`, the destination-cloud backend translates back to the destination-cloud's SDK calls against sockerless. Azure-source cells use the BUG-46 metadata + JWKS plumbing; Azure-destination cells use the cross-cloud credential pattern from `sockerlessAzureBackend`. Track A blocked on real-cloud credentials. |
+| Last merged | PR #86 — BUG-43 + BUG-45 Azure DNS CLI + SDK through-shim. |
 | Upstream watch | sockerless #288 merged (AWS API Gateway client-surface coverage). Zero open sockerless issues for shimanism's current work. |
 | Phases 1–13 | All closed (Phase 13 closed by PR #20). PR index in [PLAN.md § Closed phases](PLAN.md#closed-phases-pr-index). |
 | Phase 14 | 14.A ✅ · 14.B ✅ · 14.C ✅ · 14.D ✅ (simulator audit) / Track A blocked · 14.E ✅. Remaining residuals (terraform-aws `_wo` drift, SB cross-cloud scoping) carried into Phase 15.B. |
