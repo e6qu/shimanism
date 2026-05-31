@@ -8,14 +8,14 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 
 | | |
 |---|---|
-| Active branch | `main` after PR #88 merged (15.D CoreDNS K8s peer foundational). 15.D live CoreDNS conformance + K8s row cells PR in flight. |
-| In-flight | **15.D CoreDNS — live conformance + K8s row cells.** `services/dns/backends/coredns/live_test.go` starts a real `coredns` binary with the `auto` plugin pointed at the backend's directory and verifies records the shim writes are resolvable via DNS (UDP/53) — including runtime reloads. CI workflow's `go vet + test + build` job now installs CoreDNS v1.12.0. Three new K8s-row cells in `cross_cloud_apply_test.go`: AWS Route 53 / GCP Cloud DNS / Azure DNS frontend → CoreDNS file-based backend (AWS/GCP don't need sockerless; Azure still needs SOCKERLESS_AZURE_TLS_PORT for the SDK auth flow). Closes 15.D matrix fully across the 4 backends × 4 frontends. Track A blocked on real-cloud credentials. |
-| Last merged | PR #88 — 15.D CoreDNS K8s peer foundational. |
+| Active branch | `15c-nosql-foundational` — 15.C NoSQL key-value foundational. 15.D fully closed by PR #89. |
+| In-flight | **15.C NoSQL key-value — foundational.** Domain interface at `internal/nosql/domain/` covers `Table` / `Item` / `Key` / `Value` (discriminated union: String / Number-as-decimal-string / Bool / Bytes / Null). `services/nosql/backends/inmem/` is the in-memory backend with composite-key encoding (length-prefixed values), schema-bound `extractKey`, deterministic Scan ordering. N18 (NoSQL table concept; Firestore's no-tables → `__shim_tables__` metadata collection) + N19 (discriminated-union attribute values; DynamoDB-precision numbers as decimal strings) added to `docs/normalizations.md`. Follow-on PRs: per-cloud frontends (DynamoDB / Firestore / Cosmos Tables), per-cloud backends, etcd K8s peer, cross-cloud Apply matrix. |
+| Last merged | PR #89 — 15.D CoreDNS live conformance + K8s row cells (closes 15.D matrix fully). |
 | Upstream watch | sockerless #288 merged (AWS API Gateway client-surface coverage). Zero open sockerless issues for shimanism's current work. |
 | Phases 1–13 | All closed (Phase 13 closed by PR #20). PR index in [PLAN.md § Closed phases](PLAN.md#closed-phases-pr-index). |
 | Phase 14 | 14.A ✅ · 14.B ✅ · 14.C ✅ · 14.D ✅ (simulator audit) / Track A blocked · 14.E ✅. Remaining residuals (terraform-aws `_wo` drift, SB cross-cloud scoping) carried into Phase 15.B. |
-| Phase 15 | Just opened. Sub-phases: 15.A normalisations contract doc · 15.B 14.E cleanups · 15.C NoSQL key-value · 15.D DNS public+private. 15.A ships first. See [PLAN.md § Phase 15](PLAN.md#phase-15--cross-cloud-normalization-standard--new-service-expansion). |
-| Bugs | **38 filed · 36 fixed · 2 open · 1 false positive.** Open: **BUG-8** (apigateway TF-provider Track A leg, real GCP), **BUG-15** (queue TF state-drift Track A leg, real GCP). BUG-35 closed by sockerless PR #245. |
+| Phase 15 | 15.A ✅ · 15.B ✅ · 15.D ✅ (closed PR #89). 15.C in flight (this branch — foundational landing). |
+| Bugs | **48 filed · 45 fixed · 3 open · 1 false positive.** Open: **BUG-8** (apigateway TF-provider Track A leg, real GCP), **BUG-15** (queue TF state-drift Track A leg, real GCP), **BUG-41** (hashicorp/google DNS endpoint regex; documented workaround in place — third-party project, can't file upstream). BUG-48 closed by PR #89. |
 | Upstream | sockerless #257 / #260 / #261 / #269 / #272 / #276 all closed (via #259 / #262 / #271 / #274 / #277). Zero open sockerless issues for the shimanism roadmap. |
 | CI | 18 required checks. Real-cloud lanes wait on Track A. |
 | Renovate | Config + custom manager for vendored-spec SHAs (12.0.15). **User must install the Renovate GitHub App.** |

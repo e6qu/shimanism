@@ -286,6 +286,50 @@ The shim doesn't have these frontends because the admin-plane scope has been the
 
 **Reference.** `internal/dns/domain/domain.go::ZoneVisibility`. `services/dns/backends/inmem/inmem.go` shows the pattern for the per-cloud backends to follow. Per-cloud backends (AWS Route 53 / GCP Cloud DNS / Azure DNS + Private DNS) land in follow-on 15.D PRs.
 
+### N18 — NoSQL table concept: explicit on AWS/Azure/etcd, implicit on Firestore
+
+**Asymmetry.** "Table" is a first-class lifecycle in three of the four NoSQL backends and a fiction in the fourth:
+
+- **AWS DynamoDB:** explicit `CreateTable` / `DeleteTable` with a KeySchema + AttributeDefinitions block.
+- **Azure Cosmos DB Table API:** explicit `CreateTable` / `DeleteTable`.
+- **etcd K8s peer:** no native table concept, but the shim manufactures one via a `<table>/` key prefix that bounds the namespace.
+- **GCP Firestore Native:** no tables. Every document lives under `projects/{p}/databases/(default)/documents/{collection}/{docID}` — "tables" become collection-prefix conventions. Firestore's only lifecycle is the database itself (`projects/{p}/databases/(default)`).
+
+**Rule.** The shim's domain layer carries `domain.Table` with explicit `CreateTable` / `DeleteTable` / `GetTable` / `ListTables`. Backends map this onto their native shape:
+
+- **AWS** backend: 1:1 with DynamoDB `CreateTable` / `DeleteTable`.
+- **Azure** backend: 1:1 with Cosmos Tables `CreateTable` / `DeleteTable`.
+- **etcd** backend: writes a `<table>/$meta` marker key on create (carrying schema + tags); deletes by recursive range-delete under the `<table>/` prefix.
+- **GCP** backend: `CreateTable(name)` is **a backend-managed metadata write** in a reserved Firestore collection (`__shim_tables__/{name}`), holding the schema (`PartitionKeyName`, `SortKeyName`, `Tags`, `Description`, `CreatedAt`). Items for "table T" live under `collection=T`. `DeleteTable(name, force=false)` checks the `T` collection is empty before deleting the metadata doc; `force=true` issues collection-delete via the Firestore admin API. **This metadata-doc write is the one stateless-shim deviation Firestore forces** — the metadata is the destination cloud's own storage (Firestore itself), so the shim doesn't hold it; per-request reads remain authoritative.
+
+**Trade-off.** Firestore users who interact outside the shim see a `__shim_tables__/{name}` collection alongside their own. That's the cost of giving cross-cloud users a uniform table lifecycle. Alternative — exposing Firestore's "no tables" semantic at the domain layer — would force AWS/Azure/etcd users into a no-op `CreateTable` and lose the schema check (DynamoDB and Cosmos *require* a partition-key declaration upfront).
+
+**Reference.** `internal/nosql/domain/domain.go::Table`. `services/nosql/backends/inmem/inmem.go` shows the in-memory pattern (composite-key encoding + schema-bound `extractKey`). Per-cloud backends (DynamoDB / Firestore / Cosmos Tables / etcd) land in follow-on 15.C PRs; the GCP backend's `__shim_tables__` collection is the only normalisation-specific code.
+
+### N19 — NoSQL attribute value types: discriminated-union over per-cloud native
+
+**Asymmetry.** Each NoSQL backend's wire-protocol value type is different:
+
+- **DynamoDB AttributeValue:** `S` / `N` / `B` / `BOOL` / `NULL` / `L` / `M` / `SS` / `NS` / `BS`.
+- **Firestore Value:** `stringValue` / `integerValue` / `doubleValue` / `booleanValue` / `bytesValue` / `timestampValue` / `referenceValue` / `geoPointValue` / `arrayValue` / `mapValue` / `nullValue`.
+- **Cosmos Tables EdmType:** `String` / `Int32` / `Int64` / `Double` / `Boolean` / `Binary` / `DateTime` / `Guid`.
+- **etcd:** raw bytes only; the shim encodes typed values via a length-prefixed scheme on write and decodes on read.
+
+DynamoDB's `N` is decimal-string with arbitrary precision. Firestore splits Int64 / Double. Cosmos has Int32 / Int64 / Double as separate types. Reading a Firestore `integerValue: "9999999999999999"` and writing it to DynamoDB then back risks float-rounding drift if the shim collapses to `float64` mid-pipeline.
+
+**Rule.** The shim's domain layer carries `domain.Value` as a discriminated union with `Type ∈ {String, Number, Bool, Bytes, Null}` plus payload fields. Numbers are carried as decimal strings (`Num string`) so DynamoDB-precision survives round-trip via Firestore/Cosmos. Backends translate at the boundary:
+
+- **AWS** backend: `Value{Number, "9999999999999999"}` → `AttributeValue{N: "9999999999999999"}`. 1:1.
+- **GCP** backend: parses `Num` as int64; falls back to `doubleValue` only when the value contains `.` or scientific notation. Out-of-int64-range integers round-trip as `stringValue` — documented at the cell.
+- **Azure** backend: parses `Num` into `EdmType.Int64` when integral; `Double` otherwise. Out-of-double-range integers round-trip via `String` per the Cosmos Tables spec's documented escape.
+- **etcd** backend: encodes via the length-prefixed scheme; round-trip is exact.
+
+Composite scalar types (`L` / `M` / `arrayValue` / `mapValue`) are **out of intersection for 15.C** and reject with `domain.Unsupported`. Timestamps / GeoPoints / References are also out of intersection (no portable equivalent).
+
+**Trade-off.** Users who write integers > 2^53 via the GCP frontend (Firestore) see them stringified on the wire after a shim round-trip. That's the cost of preserving DynamoDB-style precision; alternative (float-collapse in the domain) would silently lose digits. The string-fallback path is documented; the alternative is not visible to users at all.
+
+**Reference.** `internal/nosql/domain/domain.go::Value`. `services/nosql/backends/inmem/inmem.go::TestValueRoundTrip_AllTypes` exercises every in-intersection type.
+
 ## How rules are added
 
 When 14.E-style cross-cloud work surfaces a new asymmetry:
@@ -300,7 +344,7 @@ The contract: every cross-cloud translation rule is published, named, and exerci
 
 ## Rules under audit (open items for Phase 15)
 
-The first-pass audit is complete: every implicit normalisation the shim implements today has a published rule (N1–N15). New asymmetries surfaced by Phase 15.C (NoSQL key-value) and 15.D (DNS) will add rules to this file as they land.
+The first-pass audit is complete: every implicit normalisation the shim implements today has a published rule (N1–N15). Phase 15.D added N17 (DNS zone visibility). Phase 15.C adds N18 (NoSQL table concept) + N19 (NoSQL attribute value types) as the domain layer lands; further asymmetries surfaced during per-cloud backend / cross-cloud Apply PRs will add more rules.
 
 ~~**Open sub-question on N10:**~~ Resolved in 15.B (the GCP queue backend now fails with `domain.InvalidArgument` on `VisibilityTimeoutSeconds > 600` instead of silently clamping). N10 above documents the final rule.
 
