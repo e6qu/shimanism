@@ -172,14 +172,7 @@ func TestSockerless_AWSRoute53_Through_Shim_ZoneLifecycle(t *testing.T) {
 // GCP backend translate back to Cloud DNS calls against sockerless's
 // Cloud DNS simulator.
 //
-// Skipped pending sockerless#298: sockerless's Cloud DNS sim is
-// missing POST /managedZones/{zone}/changes (atomic record-set
-// updates), GET /managedZones/{zone}/changes/{id} (change polling),
-// and PATCH /rrsets/{name}/{type} — the surface the shim's GCP
-// backend uses for PutRecordSet / DeleteRecordSet. Re-enable once
-// the upstream gap closes.
 func TestSockerless_GCPCloudDNS_Through_Shim_ZoneLifecycle(t *testing.T) {
-	t.Skip("blocked on sockerless#298: Cloud DNS sim missing Changes API + rrset PATCH")
 	endpoint := os.Getenv("SOCKERLESS_GCP_ENDPOINT")
 	if endpoint == "" {
 		t.Skip("SOCKERLESS_GCP_ENDPOINT not set")

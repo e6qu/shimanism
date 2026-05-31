@@ -198,7 +198,12 @@ func (srv *Server) deleteZone(w http.ResponseWriter, r *http.Request, zoneID str
 		writeDomainError(w, err)
 		return
 	}
-	w.WriteHeader(http.StatusOK)
+	// Cloud DNS returns 200 with an empty JSON object — `hashicorp/google`'s
+	// `transport_tpg.SendRequest` parses the body unconditionally and treats
+	// an empty body as EOF, surfacing as `Error when reading or editing
+	// ManagedZone: EOF` on the destroy path. Writing `{}` keeps the JSON
+	// decoder happy without inventing a synthetic response.
+	writeJSON(w, http.StatusOK, struct{}{})
 }
 
 func (srv *Server) listZones(w http.ResponseWriter, r *http.Request) {
@@ -306,7 +311,7 @@ func (srv *Server) deleteRecordSet(w http.ResponseWriter, r *http.Request, zoneI
 		writeDomainError(w, err)
 		return
 	}
-	w.WriteHeader(http.StatusOK)
+	writeJSON(w, http.StatusOK, struct{}{})
 }
 
 // ---------- Changes ----------
