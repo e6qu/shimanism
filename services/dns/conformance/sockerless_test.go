@@ -336,12 +336,6 @@ provider "azurerm" {
   use_cli                         = false
   resource_provider_registrations = "none"
   environment                     = "public"
-
-  metadata_host = "shim.test"
-
-  endpoints {
-    resource_manager = %q
-  }
 }
 
 resource "azurerm_resource_group" "tf" {
@@ -361,7 +355,7 @@ resource "azurerm_dns_a_record" "www" {
   ttl                 = 300
   records             = ["1.2.3.4", "5.6.7.8"]
 }
-`, subscriptionID, tenantID, clientID, shim.URL, resourceGroup, zoneName)
+`, subscriptionID, tenantID, clientID, resourceGroup, zoneName)
 	if err := os.WriteFile(filepath.Join(dir, "main.tf"), []byte(hcl), 0o644); err != nil {
 		t.Fatalf("write main.tf: %v", err)
 	}
@@ -375,6 +369,12 @@ resource "azurerm_dns_a_record" "www" {
 			"TF_PLUGIN_CACHE_DIR="+terraformPluginCacheDirForDNSWorkdir(dir),
 			"SSL_CERT_FILE="+combinedPath,
 			"ARM_CLIENT_SECRET=shim-test",
+			// azurerm v4 removed the `endpoints { }` block; the supported
+			// override is per-service env var. Point resource_manager at
+			// the shim URL so DNS-specific calls hit the shim's frontend
+			// and resource-group + subscription calls passthrough to the
+			// sockerless ARM mock.
+			"ARM_RESOURCE_MANAGER_ENDPOINT="+shim.URL,
 		)
 		var stdout, stderr bytes.Buffer
 		cmd.Stdout = &stdout
