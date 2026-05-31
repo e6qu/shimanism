@@ -32,7 +32,19 @@ Cross-referenced from `PHILOSOPHY.md` (operational footnote on "The Circle"), `A
 
 Open audit items captured at the bottom of `normalizations.md` for follow-on 15.A PRs: soft-delete grace period, queue visibility-timeout semantics, RDBMS engine version naming + connection string, cache cluster mode, functions runtime → container image mapping, API Gateway stages-vs-configs-vs-products. Each becomes a rule entry once audited.
 
-### 15.D cross-cloud Apply cells — six through-shim DNS cells (this PR, after PR #86)
+### 15.D CoreDNS K8s peer — file-based fourth backend (this PR, after PR #87)
+
+Closes the 4-backend slot for DNS per AGENTS.md's "Kubernetes is the fourth backend, always" mandate. `services/dns/backends/coredns/coredns.go` implements `domain.DNS` by mutating RFC 1035 master files (one `<zone>.db` per zone) in a configured directory.
+
+- **No shim-side state.** Per-zone in-memory mutex serialises concurrent edits within one shim process; the filesystem is the source of truth across replicas. In K8s the directory is a ConfigMap or PVC mounted into the CoreDNS pod; CoreDNS's `auto` plugin reloads via inotify when files change.
+- **Reuse over reinvention.** Parsing + serializing the master-file format goes through `github.com/miekg/dns` — the same library CoreDNS itself uses. The unit-test round-trip (`TestZoneFileIsValidMasterFile`) confirms files the backend writes parse cleanly via the same library, giving reasonable assurance CoreDNS would accept them.
+- **CreateZone** seeds the apex SOA + two NS records (`ns1.<zone>` / `ns2.<zone>`), matching what every other DNS backend does for zone bootstrap. **DeleteZone(force=false)** refuses when any user-managed records remain (anything besides the apex SOA + NS). **DeleteZone(force=true)** removes the file outright.
+- **Per-type record translation** maps the domain's `[]string` encoding (plain IP for A/AAAA, FQDN-with-dot for CNAME/NS, `<pref> <exch>` for MX, `<pri> <wt> <port> <target>` for SRV, raw string for TXT) to and from miekg's per-type RR structs. Same normalisation rules the AWS / GCP / Azure backends follow (see docs/normalizations.md).
+- **Atomic writes** via tempfile + rename so partial states never surface to CoreDNS reloads.
+
+**What's deferred:** live `coredns` process conformance (gate on the binary in PATH; query via miekg/dns resolver; verify resolution). The K8s row for cross-cloud Apply cells (e.g., `AWSRoute53Frontend_To_CoreDNSBackend`) is a follow-on once the live conformance pattern exists.
+
+### 15.D cross-cloud Apply cells — six through-shim DNS cells (PR #87, after PR #86)
 
 The value-prop demonstration: write DNS records via one cloud's API, materialize them via a different cloud's API in sockerless. The full matrix excluding the K8s row (CoreDNS peer ships next):
 
