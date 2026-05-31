@@ -347,23 +347,26 @@ func (b *Backend) ListRecordSets(ctx context.Context, zone string, opt domain.Li
 }
 
 func (b *Backend) findRecordSet(ctx context.Context, hostedZoneID, name string, rtype domain.RecordType) (*r53types.ResourceRecordSet, error) {
+	// Scan the response page for an exact (name, type) match. Real Route 53
+	// returns records in ASCII order by (Name, Type), so a MaxItems=1 query
+	// with StartRecordName=name surfaces the match at index 0 when present.
+	// Defensive against simulators / proxies that return records in a less
+	// strict order — the page is bounded so the scan is cheap.
 	out, err := b.c.ListResourceRecordSets(ctx, &r53.ListResourceRecordSetsInput{
 		HostedZoneId:    awsapi.String(hostedZoneID),
 		StartRecordName: awsapi.String(name),
 		StartRecordType: r53types.RRType(rtype),
-		MaxItems:        awsapi.Int32(1),
 	})
 	if err != nil {
 		return nil, translateErr(err, name)
 	}
-	if len(out.ResourceRecordSets) == 0 {
-		return nil, nil
+	for i := range out.ResourceRecordSets {
+		rs := out.ResourceRecordSets[i]
+		if canonicalize(awsapi.ToString(rs.Name)) == name && string(rs.Type) == string(rtype) {
+			return &rs, nil
+		}
 	}
-	got := out.ResourceRecordSets[0]
-	if canonicalize(awsapi.ToString(got.Name)) != name || string(got.Type) != string(rtype) {
-		return nil, nil
-	}
-	return &got, nil
+	return nil, nil
 }
 
 func (b *Backend) deleteUserRecordSets(ctx context.Context, hostedZoneID string) error {

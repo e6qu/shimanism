@@ -37,13 +37,7 @@ import (
 // backend translate back to Route 53 calls against sockerless's Route
 // 53 simulator. Both legs round-trip through real client and server
 // code.
-//
-// Skipped pending sockerless#291: sockerless's Route 53 sim doesn't
-// implement ListHostedZonesByName, which the shim's AWS backend uses
-// for stateless name → HostedZoneId resolution. Re-enable once the
-// upstream gap closes.
 func TestSockerless_AWSRoute53_Through_Shim_ZoneLifecycle(t *testing.T) {
-	t.Skip("blocked on sockerless#291: Route 53 sim missing ListHostedZonesByName")
 	endpoint := os.Getenv("SOCKERLESS_AWS_ENDPOINT")
 	if endpoint == "" {
 		t.Skip("SOCKERLESS_AWS_ENDPOINT not set")
