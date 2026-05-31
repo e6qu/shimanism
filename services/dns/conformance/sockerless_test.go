@@ -20,6 +20,7 @@ import (
 	"net/http"
 	"os"
 	"testing"
+	"time"
 
 	awsapi "github.com/aws/aws-sdk-go-v2/aws"
 	awshttp "github.com/aws/aws-sdk-go-v2/aws/transport/http"
@@ -27,9 +28,14 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/route53"
 	r53types "github.com/aws/aws-sdk-go-v2/service/route53/types"
+	"golang.org/x/oauth2"
+	dnsraw "google.golang.org/api/dns/v1"
+	"google.golang.org/api/option"
 
+	"github.com/e6qu/shimanism/internal/gcpbearer"
 	"github.com/e6qu/shimanism/internal/harness"
 	awsbackend "github.com/e6qu/shimanism/services/dns/backends/aws"
+	gcpbackend "github.com/e6qu/shimanism/services/dns/backends/gcp"
 )
 
 // TestSockerless_AWSRoute53_Through_Shim_ZoneLifecycle drives the
@@ -158,5 +164,60 @@ func TestSockerless_AWSRoute53_Through_Shim_ZoneLifecycle(t *testing.T) {
 	}
 	if _, err := cli.DeleteHostedZone(ctx, &route53.DeleteHostedZoneInput{Id: awsapi.String(id)}); err != nil {
 		t.Fatalf("DeleteHostedZone: %v", err)
+	}
+}
+
+// TestSockerless_GCPCloudDNS_Through_Shim_ZoneLifecycle drives the
+// shim's Cloud DNS frontend with an SDK call, then has the shim's
+// GCP backend translate back to Cloud DNS calls against sockerless's
+// Cloud DNS simulator.
+func TestSockerless_GCPCloudDNS_Through_Shim_ZoneLifecycle(t *testing.T) {
+	endpoint := os.Getenv("SOCKERLESS_GCP_ENDPOINT")
+	if endpoint == "" {
+		t.Skip("SOCKERLESS_GCP_ENDPOINT not set")
+	}
+	const project = "shim-sockerless"
+	gcpSvc, err := dnsraw.NewService(context.Background(),
+		option.WithEndpoint("http://"+endpoint+"/"),
+		option.WithTokenSource(oauth2.StaticTokenSource(&oauth2.Token{AccessToken: "sockerless-test"})),
+	)
+	if err != nil {
+		t.Fatalf("new GCP DNS service: %v", err)
+	}
+	backend := gcpbackend.New(gcpSvc, project)
+	shim := harness.StartDNSServerGCP(t, backend)
+
+	frontendJWT := gcpbearer.TestJWT(
+		[]byte("test-key-do-not-use-in-prod"),
+		"https://shim.test/",
+		"https://dns.googleapis.com/",
+		15*time.Minute,
+	)
+	cliSvc, err := dnsraw.NewService(context.Background(),
+		option.WithEndpoint(shim.URL),
+		option.WithTokenSource(oauth2.StaticTokenSource(&oauth2.Token{AccessToken: frontendJWT})),
+	)
+	if err != nil {
+		t.Fatalf("new shim-facing DNS service: %v", err)
+	}
+	ctx := context.Background()
+
+	created, err := cliSvc.ManagedZones.Create(project, &dnsraw.ManagedZone{
+		Name: "e2e-example-com", DnsName: "e2e.example.com.", Visibility: "public",
+	}).Context(ctx).Do()
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = cliSvc.ManagedZones.Delete(project, created.Name).Context(context.Background()).Do()
+	})
+
+	if _, err := cliSvc.Changes.Create(project, created.Name, &dnsraw.Change{
+		Additions: []*dnsraw.ResourceRecordSet{{
+			Name: "api.e2e.example.com.", Type: "A", Ttl: 300,
+			Rrdatas: []string{"10.0.0.1"},
+		}},
+	}).Context(ctx).Do(); err != nil {
+		t.Fatalf("Changes.Create: %v", err)
 	}
 }

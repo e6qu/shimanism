@@ -32,7 +32,20 @@ Cross-referenced from `PHILOSOPHY.md` (operational footnote on "The Circle"), `A
 
 Open audit items captured at the bottom of `normalizations.md` for follow-on 15.A PRs: soft-delete grace period, queue visibility-timeout semantics, RDBMS engine version naming + connection string, cache cluster mode, functions runtime → container image mapping, API Gateway stages-vs-configs-vs-products. Each becomes a rule entry once audited.
 
-### 15.D AWS Route 53 frontend + SDK/CLI/Terraform conformance (this PR, after PR #80)
+### 15.D GCP Cloud DNS frontend + backend + SDK/CLI/Terraform conformance (this PR, after PR #81)
+
+Fourth 15.D chunk closes the GCP leg. Discovery doc, routing codegen, REST frontend, passthrough backend, three conformance lanes. Two new fidelity bumps surfaced and got filed: a `hashicorp/google` provider regex bug (workaround landed) and a sockerless Cloud DNS Changes-API gap (test skipped pending upstream).
+
+- `services/dns/spec/gcp-cloud-dns-discovery.json` — Discovery JSON revision `20260520` from `dns.googleapis.com`. `services/dns/gcp-codegen.json` (routing-only); `make codegen` emits `services/dns/gen/gcp/gcp_clouddns.gen.go` with 40 routes.
+- `services/dns/backends/gcp/gcp.go` — `domain.DNS` against `google.golang.org/api/dns/v1`. Name → Cloud DNS `Name` (resource ID) derived deterministically (lowercase, dots → dashes, prefix with `z` if first char isn't a letter). N17 visibility dispatch. `PutRecordSet` / `DeleteRecordSet` route through `Changes.Create` — the SDK-canonical atomic replace path that `hashicorp/google` also uses.
+- `internal/dns/frontends/gcp_clouddns/server.go` — dispatches Cloud DNS REST routes by path-shape inspection: `managedZones` (CRUD), `rrsets` (CRUD + PATCH), `changes` (POST + GET, synchronous → every change reports `done`). GCP bearer verifier middleware. Wire types come from `google.golang.org/api/dns/v1` directly (reuse-over-reinvention).
+- **Three conformance tests** drive the shim (inmem-backed): SDK (`google.golang.org/api/dns/v1` round-tripping zones, record sets via `Changes.Create`), CLI (`gcloud dns managed-zones …` via `CLOUDSDK_API_ENDPOINT_OVERRIDES_DNS`), Terraform (`hashicorp/google` `google_dns_managed_zone` + `google_dns_record_set` apply + destroy).
+- **TF over TLS (BUG-41).** `hashicorp/google`'s `RemoveBasePathVersion` regex hard-codes `http[s]://` (literal `s`, not `[s]?`), so it skips HTTP endpoints; the follow-up `strings.ReplaceAll("/dns/", "")` then mangles the URL into `http://localhost:PORTv1/` (URL parse panic). Workaround: `harness.StartDNSServerGCPTLS` serves the conformance HTTPS via `httptest.NewTLSServer` and exposes the self-signed cert as PEM; the test threads it through `SSL_CERT_FILE` (combined with the system CA bundle). Linux-only — SSL_CERT_FILE platform limit — skips on macOS. Not filing upstream pending user direction.
+- **Sockerless gap (BUG-42).** sockerless's Cloud DNS sim covers zone CRUD + direct `POST/GET/DELETE /rrsets` but is missing the **Changes API** (`POST /managedZones/{zone}/changes` + `GET .../changes/{id}` + `PATCH /rrsets/{name}/{type}`) that the SDK and `hashicorp/google` use. Filed [e6qu/sockerless#298](https://github.com/e6qu/sockerless/issues/298). The through-shim sockerless test (`TestSockerless_GCPCloudDNS_Through_Shim_ZoneLifecycle`) `t.Skip`s citing it; un-skips when the upstream PR lands.
+
+**What's next:** Azure DNS + Private DNS frontend + backend (one backend dispatching on N17 `Visibility`), then the CoreDNS K8s peer, then cross-cloud Apply cells.
+
+### 15.D AWS Route 53 frontend + SDK/CLI/Terraform conformance (PR #81, after PR #80)
 
 Third 15.D chunk closes the AWS leg. Frontend adapter, three conformance lanes, and codegen support for wrapped error envelopes — Route 53 (and every other rest-xml service that doesn't set `aws.protocols#restXml.noErrorWrapping=true`) emits `<ErrorResponse><Error>...</Error></ErrorResponse>`, S3 keeps the bare `<Error>` form it's always used.
 
