@@ -32,7 +32,20 @@ Cross-referenced from `PHILOSOPHY.md` (operational footnote on "The Circle"), `A
 
 Open audit items captured at the bottom of `normalizations.md` for follow-on 15.A PRs: soft-delete grace period, queue visibility-timeout semantics, RDBMS engine version naming + connection string, cache cluster mode, functions runtime → container image mapping, API Gateway stages-vs-configs-vs-products. Each becomes a rule entry once audited.
 
-### 15.D Azure DNS + Private DNS frontend + backend + SDK conformance (this PR, after PR #82)
+### BUG-44 — Azure DNS ARM passthrough mode (this PR, after PR #83)
+
+The shim's Azure DNS frontend handles only `Microsoft.Network/dnsZones[+privateDnsZones]`. `hashicorp/azurerm`'s `azurerm_dns_zone` requires an `azurerm_resource_group`, and `azurerm` carries a single `endpoints { resource_manager = "..." }` config for both. Result: the Azure DNS Terraform conformance has been skipped since PR #83 — the harness had no way to satisfy DNS calls (shim) and resource-group + subscription calls (sockerless's ARM mock) under one endpoint.
+
+Closed by introducing **ARM passthrough mode**:
+
+- `internal/dns/frontends/azure_dns/server.go` adds `NewWithPassthrough(d domain.DNS, upstream http.Handler)`. `ServeHTTP` matches the DNS-specific provider prefix (`/subscriptions/{sub}/resourceGroups/{rg}/providers/Microsoft.Network/<dnsZones|privateDnsZones>/...`); on a match it handles locally, on a miss it forwards the request unchanged to `upstream`. No upstream configured → honest 404 in the Azure error envelope.
+- `internal/dns/frontends/azure_dns/passthrough_test.go` pins the dispatch boundary: resource-group / generic Microsoft.Network / non-Microsoft.Network / providers-list paths all reach the upstream; DNS paths stay local; no-upstream returns 404. No silent fallback.
+- `harness.StartDNSServerAzureWithPassthrough` exposes the TLS variant + the auto-generated cert PEM so callers can combine it with the upstream's cert in a CA bundle.
+- `services/dns/conformance/sockerless_test.go::TestSockerless_AzureDNS_Through_Shim_Terraform_Apply` was the end-to-end exercise candidate (`azurerm_resource_group` + `azurerm_dns_zone` + `azurerm_dns_a_record` driven through the shim, with `httputil.NewSingleHostReverseProxy` forwarding ARM calls to sockerless under TLS with RootCAs cert pinning). It **stays skipped** because the provider acquires a service-principal token from Entra ID *before any ARM call*; the default points at real `login.microsoftonline.com` which rejects test client IDs with `AADSTS700038`. To redirect token acquisition the shim must host a metadata endpoint + an Entra ID stub — work tracked as **BUG-46**. The ARM passthrough primitive itself is closed and verified.
+
+The "no fallbacks" rule is honored throughout — every TLS hop in the (skipped) test uses explicit cert pinning; no `InsecureSkipVerify`; the no-upstream path is a distinct configuration, not a degraded mode.
+
+### 15.D Azure DNS + Private DNS frontend + backend + SDK conformance (PR #83, after PR #82)
 
 Fifth 15.D chunk closes the third cloud and validates the **one-backend-on-Visibility** dispatch from N17 in practice. Public + private DNS go through a single backend that maps `Visibility` to `armdns` (`Microsoft.Network/dnsZones`) or `armprivatedns` (`Microsoft.Network/privateDnsZones`) at the boundary. The domain layer stays uniform underneath.
 
