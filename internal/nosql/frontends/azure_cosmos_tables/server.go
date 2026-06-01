@@ -113,11 +113,12 @@ func Handler(n domain.NoSQL) http.Handler {
 
 // HandlerWithPassthrough wraps a Server configured with an ARM
 // passthrough handler. The SharedKey verifier middleware runs only
-// on data-plane paths; ARM paths (`/subscriptions/...`) bypass it
-// because azurerm authenticates ARM with Bearer tokens, not
-// SharedKey. Without BearerOptions set, the upstream handler is
-// responsible for token verification. Use HandlerWithConfig to add
-// a bearer verifier in front of the passthrough.
+// on data-plane paths; ARM paths (`/subscriptions/...` or global
+// `/providers/...`) bypass it because azurerm authenticates ARM with
+// Bearer tokens, not SharedKey. Without BearerOptions set, the
+// upstream handler is responsible for token verification. Use
+// HandlerWithConfig to add a bearer verifier in front of the
+// passthrough.
 func HandlerWithPassthrough(n domain.NoSQL, upstream http.Handler) http.Handler {
 	return HandlerWithConfig(n, Config{Passthrough: upstream})
 }
@@ -126,8 +127,9 @@ func HandlerWithPassthrough(n domain.NoSQL, upstream http.Handler) http.Handler 
 //
 // Auth split per path:
 //   - Data-plane paths (Tables / entity ops) → SharedKey verifier.
-//   - ARM paths (`/subscriptions/...`) → bearer verifier (when
-//     BearerOptions is configured) → server → passthrough.
+//   - ARM paths (subscription-scoped `/subscriptions/...` or global
+//     `/providers/...`) → bearer verifier (when BearerOptions is
+//     configured) → server → passthrough.
 //   - `/metadata/endpoints` GET → server's metadata handler (when
 //     MetadataLoginURL is set), bypassing both verifiers. The
 //     metadata endpoint is a public discovery URL in real Azure;
@@ -142,12 +144,21 @@ func HandlerWithConfig(n domain.NoSQL, c Config) http.Handler {
 			server.ServeHTTP(w, r)
 			return
 		}
-		if strings.HasPrefix(path, "subscriptions/") {
+		if isARMPath(path) {
 			bearerARM.ServeHTTP(w, r)
 			return
 		}
 		sharedKey.ServeHTTP(w, r)
 	})
+}
+
+// isARMPath reports whether path (with leading slash already stripped)
+// is an Azure Resource Manager path. ARM paths include subscription-
+// scoped resources (`subscriptions/...`) and global provider
+// operations such as databaseAccountsCheckNameExists
+// (`providers/Microsoft.DocumentDB/databaseAccounts/{name}`).
+func isARMPath(path string) bool {
+	return strings.HasPrefix(path, "subscriptions/") || strings.HasPrefix(path, "providers/")
 }
 
 func sharedKeyMiddleware() func(http.Handler) http.Handler {
@@ -184,13 +195,13 @@ func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// ARM paths flow to the upstream passthrough when configured.
-	// `/subscriptions/<sub>/...` is the universal ARM root —
-	// Microsoft.DocumentDB/databaseAccounts/{account}/tables/{name}
-	// and every other ARM resource lives under it. Without a
+	// Subscription-scoped resources live under `subscriptions/...`;
+	// global ARM operations (e.g. databaseAccountsCheckNameExists)
+	// use `providers/...` without a subscription prefix. Without a
 	// passthrough configured, unmatched paths fall through to the
 	// data-plane dispatch below and 404 with the Tables error
 	// envelope.
-	if srv.passthrough != nil && strings.HasPrefix(path, "subscriptions/") {
+	if srv.passthrough != nil && isARMPath(path) {
 		srv.passthrough.ServeHTTP(w, r)
 		return
 	}

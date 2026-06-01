@@ -12,11 +12,12 @@ import (
 )
 
 // TestPassthrough_ForwardsARMPaths verifies the frontend forwards
-// ARM paths to the upstream handler. ARM paths start with
-// `/subscriptions/`; the data-plane handlers (Tables / entity ops)
+// ARM paths to the upstream handler. ARM paths are subscription-
+// scoped (`/subscriptions/...`) or global provider operations
+// (`/providers/...`); the data-plane handlers (Tables / entity ops)
 // use unprefixed paths, so the routing split is unambiguous.
 func TestPassthrough_ForwardsARMPaths(t *testing.T) {
-	upstreamHit := make(chan string, 4)
+	upstreamHit := make(chan string, 6)
 	upstream := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		upstreamHit <- r.URL.Path
 		w.Header().Set("Content-Type", "application/json")
@@ -36,6 +37,9 @@ func TestPassthrough_ForwardsARMPaths(t *testing.T) {
 		{"cosmos table", "/subscriptions/sub-1/resourceGroups/shim-rg/providers/Microsoft.DocumentDB/databaseAccounts/acct1/tables/users"},
 		{"non-DocumentDB provider", "/subscriptions/sub-1/resourceGroups/shim-rg/providers/Microsoft.Storage/storageAccounts/acct1"},
 		{"providers list", "/subscriptions/sub-1/providers"},
+		// Global ARM operation (no subscription prefix): azurerm's
+		// databaseAccountsCheckNameExists uses this path shape.
+		{"global name check", "/providers/Microsoft.DocumentDB/databaseAccounts/shimcosmosacct"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -66,7 +70,7 @@ func TestPassthrough_ForwardsARMPaths(t *testing.T) {
 // TestPassthrough_PreservesTablesDataPlane verifies that Tables
 // data-plane requests (POST /Tables, GET /Tables('x'), etc.) still
 // go to the data-plane handler when a passthrough is configured.
-// The split: ARM = `/subscriptions/`, Tables = everything else.
+// The split: ARM = `/subscriptions/` or `/providers/`, Tables = everything else.
 func TestPassthrough_PreservesTablesDataPlane(t *testing.T) {
 	upstreamHit := make(chan struct{}, 1)
 	upstream := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -189,5 +193,47 @@ func TestMetadata_NotServedWhenURLEmpty(t *testing.T) {
 	defer resp.Body.Close()
 	if resp.StatusCode == http.StatusOK {
 		t.Errorf("metadata endpoint returned 200 with MetadataLoginURL unset")
+	}
+}
+
+// TestHandlerWithConfig_GlobalARMRoutedToBearer verifies that global
+// ARM paths (`/providers/...`) are routed to the bearer verifier and
+// forwarded to the upstream passthrough — not to the SharedKey
+// verifier. azurerm's databaseAccountsCheckNameExists issues a HEAD
+// to this path shape before creating a Cosmos DB account.
+func TestHandlerWithConfig_GlobalARMRoutedToBearer(t *testing.T) {
+	t.Setenv("SHIMANISM_TEST_UNAUTHENTICATED", "1")
+
+	upstreamHit := make(chan string, 1)
+	upstream := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		upstreamHit <- r.URL.Path
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = io.WriteString(w, `{"id":"upstream-handled"}`)
+	})
+
+	h := HandlerWithConfig(inmem.New(), Config{
+		Passthrough:      upstream,
+		MetadataLoginURL: "https://sockerless.example/",
+	})
+	ts := httptest.NewServer(h)
+	t.Cleanup(ts.Close)
+
+	resp, err := http.Head(ts.URL + "/providers/Microsoft.DocumentDB/databaseAccounts/shimcosmosacct")
+	if err != nil {
+		t.Fatalf("HEAD: %v", err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200 (global ARM path must reach upstream, not SharedKey verifier)", resp.StatusCode)
+	}
+	select {
+	case got := <-upstreamHit:
+		want := "/providers/Microsoft.DocumentDB/databaseAccounts/shimcosmosacct"
+		if got != want {
+			t.Errorf("upstream received %q, want %q", got, want)
+		}
+	default:
+		t.Errorf("upstream handler was not reached for global ARM path")
 	}
 }

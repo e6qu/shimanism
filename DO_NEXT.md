@@ -71,6 +71,7 @@ Phase 15 sub-phase order:
 22. ~~15.C Cosmos Tables ARM passthrough foundational~~ — ✅ shipped in PR #97.
 23. **15.C Cosmos Tables metadata + bearer — PR #98 (open).** Adds `Config.MetadataLoginURL` + `Config.BearerOptions` + `HandlerWithConfig`; serves `/metadata/endpoints` redirecting auth to sockerless and pointing resourceManager at the shim. 6 unit tests covering ARM forwarding + metadata shape. Harness `StartNoSQLServerAzureWithConfig`. Also fixes BUG-49 (`LOCAL_TAG` env in docker-pull-retry) + BUG-51 (pre-pull + `kind load` redis-operator image to bypass quay.io from kind nodes). CI 20/20 green.
 24. ~~Sockerless Cosmos Tables ARM coverage~~ — ✅ closed by [sockerless PR #357](https://github.com/e6qu/sockerless/pull/357) on 2026-06-01 (filed as [sockerless#356](https://github.com/e6qu/sockerless/issues/356)). Cosmos Tables ARM + Storage Tables ARM + Tables data-plane `Prefer: return-no-content` / ACL.
+24b. ~~Sockerless real networking~~  — ✅ [sockerless PR #358](https://github.com/e6qu/sockerless/pull/358) merged 2026-06-02. Full Linux netns per VPC + IPAM/NAT/nftables ingress across AWS, GCP, Azure sims. Fixes #336; advances #334 (ELBv2 real probes) + #335 (EC2 SG nftables); #333 (Firecracker) still open. No current Phase 15 dependency.
 25. **Next 15.C PRs (now unblocked):** Terraform conformance for `azurerm_cosmosdb_table` against the upgraded sockerless; az CLI conformance for `az cosmosdb table`; local-dev hook setup helper; 15.C closure narrative.
 
 Track A (BUG-8 + BUG-15) still blocked on real-cloud credentials.
