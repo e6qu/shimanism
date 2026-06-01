@@ -8,9 +8,9 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 
 | | |
 |---|---|
-| Active branch | `15c-cross-cloud-apply-matrix` — 15.C NoSQL cross-cloud Apply matrix K8s-row cells. |
-| In-flight | **15.C cross-cloud Apply matrix — K8s row.** `services/nosql/conformance/cross_cloud_apply_test.go` adds 3 K8s-row cells of the 3×4 matrix: every {AWS DynamoDB, GCP Firestore, Azure Cosmos Tables} frontend → etcd backend. Each cell starts a real `etcd` subprocess on ephemeral ports, points the matching frontend at the etcd backend, drives full CRUD via the source cloud's SDK, and asserts round-trip. All 3 green locally. Validates N18 + N19 across every frontend → K8s-peer seam. The remaining 6 off-diagonal cells (AWS↔GCP, AWS↔Azure, GCP↔Azure) need sockerless per-cloud TLS + auth plumbing — deferred to a follow-on PR; scaffolding documented in the test file. |
-| Last merged | PR #94 — 15.C etcd K8s peer + live conformance + CI etcd install. |
+| Active branch | `15c-sockerless-cross-cloud-cells` — 15.C NoSQL sockerless cross-cloud cells (6 off-diagonal). |
+| In-flight | **15.C cross-cloud Apply matrix — 6 sockerless cells.** Closes the 3×4 matrix's off-diagonal: AWS↔GCP, AWS↔Azure, GCP↔Azure. Each cell wires the destination cloud's shim backend (DynamoDB / Firestore / Cosmos Tables) at the matching sockerless sim endpoint with TLS+auth, wraps in the source-cloud frontend, drives via source-cloud SDK. Helpers `sockerlessAWSDynamoDBBackend` / `sockerlessGCPFirestoreBackend` / `sockerlessAzureCosmosTablesBackend` mirror the DNS PR #87 pattern. Tests skip-gate on `SOCKERLESS_*_ENDPOINT` env vars (set by the `sockerless through-shim e2e` CI lane). Local skip-pass green; CI run will exercise all 6 cells. |
+| Last merged | PR #95 — 15.C cross-cloud Apply matrix K8s row (3 cells). |
 | Upstream watch | sockerless #288 merged (AWS API Gateway client-surface coverage). Zero open sockerless issues for shimanism's current work. |
 | Phases 1–13 | All closed (Phase 13 closed by PR #20). PR index in [PLAN.md § Closed phases](PLAN.md#closed-phases-pr-index). |
 | Phase 14 | 14.A ✅ · 14.B ✅ · 14.C ✅ · 14.D ✅ (simulator audit) / Track A blocked · 14.E ✅. Remaining residuals (terraform-aws `_wo` drift, SB cross-cloud scoping) carried into Phase 15.B. |

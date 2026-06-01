@@ -15,7 +15,19 @@ Sub-phases (full scoping in [PLAN.md § Phase 15](PLAN.md#phase-15--cross-cloud-
 - **15.C** — NoSQL key-value service: DynamoDB + Firestore Native + Cosmos DB Table API + K8s peer.
 - **15.D** — DNS service: Route 53 + Cloud DNS + Azure DNS + CoreDNS. Public + private zones.
 
-### 15.C cross-cloud Apply matrix — K8s row (this PR, after PR #94)
+### 15.C cross-cloud Apply matrix — 6 sockerless cells (this PR, after PR #95)
+
+PR #95 landed the 3 K8s-row cells. This PR closes the 3×4 matrix's off-diagonal with 6 cells exercising every {AWS, GCP, Azure} source frontend against every other-cloud destination backend, with the destination backend pointed at a sockerless simulator instance for the cloud's wire surface.
+
+- **Three backend-constructor helpers in `services/nosql/conformance/cross_cloud_apply_test.go`:**
+  - `sockerlessAWSDynamoDBBackend(t, awsEndpoint)` — `awsbackend.New(...)` with `aws-sdk-go-v2/service/dynamodb` client `BaseEndpoint`-overridden at the sockerless AWS sim. TLS skip when `AWS_S3_CONFORMANCE_INSECURE_TLS=1` (the sockerless lane sets it).
+  - `sockerlessGCPFirestoreBackend(t, gcpEndpoint)` — `gcpbackend.New(...)` with `firestore.NewService(WithEndpoint, WithoutAuthentication)`.
+  - `sockerlessAzureCosmosTablesBackend(t, azureTLSPort, sockCertPEM)` — `azurenosqlbackend.New(...)` with `aztables.NewServiceClientWithSharedKey(...)` pointed at `https://localhost:<tls-port>/table/testacct`. Cert pinning via the sim's PEM (no `InsecureSkipVerify`). The path-style URL is what sockerless's Azure Tables data plane accepts.
+- **Six test functions** — one per off-diagonal cell — using the existing `runDynamoDBCRUDThroughShim` / `runFirestoreCRUDThroughShim` / `runCosmosTablesCRUDThroughShim` runners from PR #95. The PR adds zero new CRUD code; only the (frontend, backend) wiring per cell is new.
+- **Skip semantics.** Each cell requires its destination's `SOCKERLESS_*_ENDPOINT` env var. Local `go test ./services/nosql/conformance/` skips all 6 cleanly when env vars are unset; the `sockerless through-shim e2e` CI lane sets every var so all 6 cells run there.
+- **Why this closes the matrix.** With this PR + #95, the 3×4 matrix's off-diagonal (every frontend → every other-cloud backend, plus the K8s row) is covered. Identity cells are already in per-cloud SDK conformance. Effective closure of 15.C's cross-cloud Apply intersection.
+
+### 15.C cross-cloud Apply matrix — K8s row (PR #95, after PR #94)
 
 PR #94 closed the 4th-backend slot (etcd K8s peer). This PR opens the cross-cloud Apply matrix by validating the K8s row — every frontend → etcd backend cell — end-to-end. The 6 off-diagonal cross-cloud cells (AWS↔GCP, AWS↔Azure, GCP↔Azure) need sockerless per-cloud TLS + auth plumbing and are scoped for a follow-on PR; this PR's scaffolding documents that handoff in the test file's comment block.
 
