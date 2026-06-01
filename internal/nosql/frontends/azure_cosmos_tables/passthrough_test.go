@@ -1,6 +1,7 @@
 package azure_cosmos_tables
 
 import (
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -111,5 +112,82 @@ func TestPassthrough_NilFallsThrough(t *testing.T) {
 	if resp.StatusCode != http.StatusNotFound {
 		body, _ := io.ReadAll(resp.Body)
 		t.Errorf("status = %d, want 404\nbody: %s", resp.StatusCode, body)
+	}
+}
+
+// TestMetadata_PointsResourceManagerAtShim verifies the metadata
+// endpoint returns the shim's URL for `resourceManager` and the
+// configured upstream URL for `authentication.loginEndpoint`.
+// azurerm uses this discovery to decide where to acquire tokens vs
+// where to send ARM calls.
+func TestMetadata_PointsResourceManagerAtShim(t *testing.T) {
+	const upstream = "https://sockerless.example/upstream"
+	srv := NewWithConfig(inmem.New(), Config{MetadataLoginURL: upstream})
+	ts := httptest.NewServer(srv)
+	t.Cleanup(ts.Close)
+
+	resp, err := http.Get(ts.URL + "/metadata/endpoints?api-version=2022-09-01")
+	if err != nil {
+		t.Fatalf("GET metadata: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		t.Fatalf("status = %d, want 200\nbody: %s", resp.StatusCode, body)
+	}
+	var env map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&env); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if rm, _ := env["resourceManager"].(string); rm != ts.URL {
+		t.Errorf("resourceManager = %q, want %q (the shim's URL)", rm, ts.URL)
+	}
+	auth, _ := env["authentication"].(map[string]any)
+	if auth == nil {
+		t.Fatal("authentication missing")
+	}
+	if login, _ := auth["loginEndpoint"].(string); login != upstream {
+		t.Errorf("loginEndpoint = %q, want %q", login, upstream)
+	}
+}
+
+// TestMetadata_OlderApiVersionReturnsArray verifies the api-version
+// branching: 2022-09-01 returns a single object (azurerm v3/v4);
+// older versions return a singleton array.
+func TestMetadata_OlderApiVersionReturnsArray(t *testing.T) {
+	srv := NewWithConfig(inmem.New(), Config{MetadataLoginURL: "https://example/"})
+	ts := httptest.NewServer(srv)
+	t.Cleanup(ts.Close)
+
+	resp, err := http.Get(ts.URL + "/metadata/endpoints?api-version=2019-05-01")
+	if err != nil {
+		t.Fatalf("GET metadata old: %v", err)
+	}
+	defer resp.Body.Close()
+	var arr []map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&arr); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(arr) != 1 {
+		t.Errorf("array len = %d, want 1", len(arr))
+	}
+}
+
+// TestMetadata_NotServedWhenURLEmpty verifies the metadata endpoint
+// is NOT served when MetadataLoginURL is unset — the request falls
+// through (to the passthrough if configured, or 404 otherwise).
+// Skipping this would silently hide misconfiguration.
+func TestMetadata_NotServedWhenURLEmpty(t *testing.T) {
+	srv := New(inmem.New())
+	ts := httptest.NewServer(srv)
+	t.Cleanup(ts.Close)
+
+	resp, err := http.Get(ts.URL + "/metadata/endpoints?api-version=2022-09-01")
+	if err != nil {
+		t.Fatalf("GET metadata: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusOK {
+		t.Errorf("metadata endpoint returned 200 with MetadataLoginURL unset")
 	}
 }

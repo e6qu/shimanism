@@ -8,9 +8,9 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 
 | | |
 |---|---|
-| Active branch | `15c-cosmos-tables-arm-passthrough` — 15.C Cosmos Tables frontend ARM passthrough foundational. |
-| In-flight | **15.C Cosmos Tables ARM passthrough (BUG-50).** Extends `internal/nosql/frontends/azure_cosmos_tables/` with `Config{Passthrough}` + `NewWithPassthrough` + `HandlerWithPassthrough`; routes paths starting with `/subscriptions/` to the upstream ARM handler (Bearer-authed paths bypass the SharedKey middleware). Unit tests cover ARM forwarding, Tables data-plane preservation, and the nil-passthrough fallback. `internal/harness/server.go` gains `StartNoSQLServerAzureWithPassthrough` returning an HTTPS-served `NoSQLServerTLS` for Terraform consumers. Foundational only — the metadata endpoint (analogue of DNS BUG-46) + TF + az CLI conformance are follow-on PRs. |
-| Last merged | PR #96 — 15.C cross-cloud Apply matrix sockerless off-diagonal cells (closes the 3×4 matrix). |
+| Active branch | `15c-cosmos-tables-metadata-and-tf` — 15.C Cosmos Tables metadata + bearer verifier. |
+| In-flight | **15.C Cosmos Tables metadata + bearer (BUG-50 continued).** Extends `internal/nosql/frontends/azure_cosmos_tables/Config` with `MetadataLoginURL` + `BearerOptions`. `HandlerWithConfig` splits auth by path: data-plane → SharedKey; ARM `/subscriptions/...` → bearer verifier → passthrough; `/metadata/endpoints` → in-band cloud-environment JSON (resourceManager = shim, login = sockerless). `internal/harness/server.go` gains `StartNoSQLServerAzureWithConfig`. Six unit tests cover ARM forwarding + metadata shape (api-version branching, URL composition, off-by-default). **Terraform conformance for `azurerm_cosmosdb_table` is deferred**: blocked on a sockerless gap (Cosmos handler covers Core SQL but not Tables ARM). Sockerless issue draft surfaced for user approval. |
+| Last merged | PR #97 — BUG-50 Cosmos Tables ARM passthrough foundational (Config.Passthrough + unit tests + HTTPS harness). |
 | Upstream watch | sockerless #288 merged (AWS API Gateway client-surface coverage). Zero open sockerless issues for shimanism's current work. |
 | Phases 1–13 | All closed (Phase 13 closed by PR #20). PR index in [PLAN.md § Closed phases](PLAN.md#closed-phases-pr-index). |
 | Phase 14 | 14.A ✅ · 14.B ✅ · 14.C ✅ · 14.D ✅ (simulator audit) / Track A blocked · 14.E ✅. Remaining residuals (terraform-aws `_wo` drift, SB cross-cloud scoping) carried into Phase 15.B. |

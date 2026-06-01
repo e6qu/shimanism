@@ -19,8 +19,8 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 - **All Azure frontends carry full `gen.ServerInterface` impls** with the `var _ gen.ServerInterface = (*Server)(nil)` compile-time gate.
 - **Open BUGs (2):** BUG-8 + BUG-15 (Track A, real GCP needed). BUG-35 closed in PR #48 after sockerless PR #245 derived ACA image platforms from the resolved manifest.
 - **Upstream watch:** zero open sockerless issues for the shimanism roadmap (six gaps surfaced during 14.E all closed: #257/#260/#261/#269/#272/#276 via #259/#262/#271/#274/#277).
-- **Last merged:** PR #96 — 15.C cross-cloud Apply matrix sockerless off-diagonal cells (closes the 3×4 matrix).
-- **In flight:** 15.C Cosmos Tables ARM passthrough foundational (BUG-50).
+- **Last merged:** PR #97 — BUG-50 Cosmos Tables ARM passthrough foundational.
+- **In flight:** 15.C Cosmos Tables metadata + bearer wiring (BUG-50 continued); TF conformance deferred — blocked on sockerless gap (Tables ARM not simulated).
 
 ## Session-start checklist
 
@@ -67,8 +67,9 @@ Phase 15 sub-phase order:
 19. ~~15.C etcd K8s peer~~ — ✅ shipped in PR #94.
 20. ~~15.C cross-cloud Apply matrix K8s row~~ — ✅ shipped in PR #95.
 21. ~~15.C cross-cloud Apply matrix sockerless cells~~ — ✅ shipped in PR #96.
-22. **15.C Cosmos Tables ARM passthrough — this PR (foundational).** Adds `Config.Passthrough` + `NewWithPassthrough` + `HandlerWithPassthrough` to the Cosmos Tables frontend; ARM paths under `/subscriptions/` route to the upstream. Unit tests + harness helper. No TF/CLI conformance yet.
-23. **Next 15.C PRs (Cosmos Tables ARM closure):** Azure metadata endpoint (analogue of DNS BUG-46 — redirects auth + service URLs to sockerless's Entra); Terraform conformance for `azurerm_cosmosdb_table` (analogue of DNS BUG-43); az CLI conformance (analogue of DNS BUG-45). Plus local-dev hook setup helper.
+22. ~~15.C Cosmos Tables ARM passthrough foundational~~ — ✅ shipped in PR #97.
+23. **15.C Cosmos Tables metadata + bearer — this PR.** Adds `Config.MetadataLoginURL` + `Config.BearerOptions` + `HandlerWithConfig`; serves `/metadata/endpoints` redirecting auth to sockerless and pointing resourceManager at the shim. 6 unit tests covering ARM forwarding + metadata shape. Harness `StartNoSQLServerAzureWithConfig`. **TF conformance deferred** — blocked on sockerless gap (Cosmos handler covers Core SQL only, no Tables ARM at `Microsoft.DocumentDB/databaseAccounts/{a}/tables/{n}`).
+24. **Next 15.C PRs:** Sockerless Cosmos Tables ARM coverage (upstream — pending user approval to file); Terraform conformance for `azurerm_cosmosdb_table` (blocked on upstream); az CLI conformance (blocked on upstream); local-dev hook setup helper; 15.C closure narrative.
 
 Track A (BUG-8 + BUG-15) still blocked on real-cloud credentials.
 
