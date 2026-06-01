@@ -9,6 +9,7 @@ and commit the resulting diff in a normal PR.
 | Local file | Upstream repo | Upstream path | Upstream license | Pinned at | Fetched (UTC) |
 |---|---|---|---|---|---|
 | `aws-dynamodb.smithy.json` | `aws/aws-sdk-go-v2` | `codegen/sdk-codegen/aws-models/dynamodb.json` | Apache-2.0 | `13bee3c72e77d68d6180fb633a7ce1c8714d53c0` | 2026-06-01T08:36:54Z |
+| `gcp-firestore-discovery.json` | `firestore.googleapis.com` | `$discovery/rest?version=v1` (live Discovery document) | Apache-2.0 | revision `20260529` | 2026-06-01T19:28:00Z |
 
 ## License of vendored files
 
