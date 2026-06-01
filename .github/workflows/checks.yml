@@ -234,6 +234,7 @@ jobs:
           cache: true
       - name: Start MinIO
         run: |
+          scripts/docker-pull-retry.sh quay.io/minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e
           docker run -d --name minio \
             -p 9000:9000 \
             -e MINIO_ROOT_USER=minioadmin \
@@ -259,6 +260,7 @@ jobs:
           cache: true
       - name: Start fake-gcs-server
         run: |
+          scripts/docker-pull-retry.sh fsouza/fake-gcs-server:1.50
           docker run -d --name fakegcs \
             -p 4443:4443 \
             fsouza/fake-gcs-server:1.50 \
@@ -284,6 +286,7 @@ jobs:
           # hashicorp/vault is a multi-arch manifest; pin to a tag so
           # docker picks the runner's architecture. The per-arch
           # digest pin only works when the build platform matches.
+          scripts/docker-pull-retry.sh hashicorp/vault:1.18
           docker run -d --name vault-dev \
             -e VAULT_DEV_ROOT_TOKEN_ID=dev-token \
             -e VAULT_DEV_LISTEN_ADDRESS=0.0.0.0:8200 \
@@ -313,6 +316,7 @@ jobs:
           # nats:latest pulls the multi-arch manifest. JetStream is
           # opt-in via -js; the shim's NATS backend requires it for
           # streams + consumers.
+          scripts/docker-pull-retry.sh nats:2.10
           docker run -d --name nats-js \
             -p 4222:4222 -p 8222:8222 \
             nats:2.10 \
@@ -511,6 +515,7 @@ jobs:
           cache: true
       - name: Start Azurite
         run: |
+          scripts/docker-pull-retry.sh mcr.microsoft.com/azure-storage/azurite:3.34.0
           docker run -d --name azurite \
             -p 10000:10000 \
             mcr.microsoft.com/azure-storage/azurite:3.34.0 \
