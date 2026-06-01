@@ -157,6 +157,16 @@ jobs:
           tar -xzf /tmp/coredns.tgz -C /tmp coredns
           sudo install -m 0755 /tmp/coredns /usr/local/bin/coredns
           coredns -version
+      - name: Install etcd
+        run: |
+          set -euo pipefail
+          version=3.5.18
+          url="https://github.com/etcd-io/etcd/releases/download/v${version}/etcd-v${version}-linux-amd64.tar.gz"
+          curl -fsSL "$url" -o /tmp/etcd.tgz
+          tar -xzf /tmp/etcd.tgz -C /tmp --strip-components=1 etcd-v${version}-linux-amd64/etcd etcd-v${version}-linux-amd64/etcdctl
+          sudo install -m 0755 /tmp/etcd /usr/local/bin/etcd
+          sudo install -m 0755 /tmp/etcdctl /usr/local/bin/etcdctl
+          etcd --version | head -1
       - name: go vet
         run: go vet ./...
       # Conformance tests use SDK + CLI + Terraform drivers. SDK is

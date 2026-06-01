@@ -15,7 +15,23 @@ Sub-phases (full scoping in [PLAN.md § Phase 15](PLAN.md#phase-15--cross-cloud-
 - **15.C** — NoSQL key-value service: DynamoDB + Firestore Native + Cosmos DB Table API + K8s peer.
 - **15.D** — DNS service: Route 53 + Cloud DNS + Azure DNS + CoreDNS. Public + private zones.
 
-### 15.C Azure Cosmos Tables — backend + frontend + conformance (this PR, after PR #92)
+### 15.C etcd K8s peer — backend + live conformance (this PR, after PR #93)
+
+PR #91/#92/#93 closed the AWS/GCP/Azure backends; this PR closes the 4th-backend slot — etcd K8s peer — per AGENTS.md's "Kubernetes is the fourth backend, always" rule. With this PR the 4-backend matrix for NoSQL is complete; only the cross-cloud Apply cells (3 frontends × 4 backends) and sockerless backend lanes remain in 15.C.
+
+- **Backend (`services/nosql/backends/etcd/etcd.go`).** Implements `domain.NoSQL` against an etcd cluster via `go.etcd.io/etcd/client/v3`. Key layout:
+  - `__shim_tables__/<table>` — table metadata (JSON encoding `partitionKey` / `sortKey` / `description` / `tags` / `createdAt`).
+  - `<table>/items/<base64url(typed-composite-key)>` — each item's attributes serialized as a JSON object of `{type, str|num|bool|bin}` typed-discriminator values.
+- **Composite-key encoding matches GCP + Azure backends.** Same typed-prefix segments — `s:` / `n:` / `b:` / `x:` / `_:` — joined by `|` and base64-url-encoded so cross-cloud Apply writes from any backend round-trip through any other backend.
+- **CreateTable uses an etcd transaction with `CreateRevision = 0` guard** to surface duplicates as `TableAlreadyExists` rather than silently overwriting. UpdateTableTags uses the inverse (`CreateRevision != 0`) so concurrent deletes surface as `NoSuchTable` instead of partial-write success.
+- **Scan paginates via `WithRange + WithSort + WithLimit`** with the continuation token being the last-returned-key + 0x00 sentinel (lexicographically smallest key strictly greater than the last). Previous attempt combined `WithPrefix` + `WithFromKey` and etcd's client panics on that combination — fixed by computing the prefix range end explicitly with `clientv3.GetPrefixRangeEnd`.
+- **Query falls back to range-scan + client-side filter.** Because the etcd key embeds BOTH partition and sort keys into a single base64-url segment, we can't compute a partition-key-only prefix on the etcd side. Same trade-off as Firestore's Query path (O(N) on collection size), documented at the Query method.
+- **Live conformance (`live_test.go`) starts a real `etcd` binary on ephemeral client + peer ports.** No mocks — the test sends actual gRPC against a single-node etcd cluster booted as a subprocess in a `t.TempDir()` data-dir. Five tests: TableLifecycle (Create/dup/Get/List/reserved-name-reject/Delete), ItemCRUD_PartitionOnly (every value type round-trip including out-of-int64 numbers via decimal-string per N19), QueryAndScan_CompositeKey (3-vs-2-vs-4 result counts + pagination), DeleteTable_ForceVsRefuse, UpdateTableTags.
+- **CI** installs etcd v3.5.18 in the `go vet + test + build` job (mirrors the CoreDNS v1.12.0 install pattern from PR #89). The live test `t.Skip`s when the `etcd` binary isn't on PATH so the rest of the suite stays green on developer machines that haven't installed it.
+
+Follow-on PRs: sockerless backend lanes (AWS + GCP sims for DynamoDB + Firestore); cross-cloud Apply matrix (3 frontends × 4 backends now that the etcd row exists).
+
+### 15.C Azure Cosmos Tables — backend + frontend + conformance (PR #93, after PR #92)
 
 PR #91 closed AWS, PR #92 closed GCP; this PR closes the Azure slot. Three of the four NoSQL backends now exist; only the etcd K8s peer remains plus the cross-cloud Apply matrix.
 
