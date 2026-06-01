@@ -274,7 +274,7 @@ func (b *Backend) GetItem(ctx context.Context, table string, key domain.Key) (do
 	if err != nil {
 		return domain.Item{}, translateErr(err, table)
 	}
-	if out.Item == nil || len(out.Item) == 0 {
+	if len(out.Item) == 0 {
 		return domain.Item{}, domain.NoSuchItem(table, describeKey(key))
 	}
 	return domain.Item{Attributes: attrsFromAWS(out.Item)}, nil
@@ -297,7 +297,7 @@ func (b *Backend) DeleteItem(ctx context.Context, table string, key domain.Key) 
 	if err != nil {
 		return translateErr(err, table)
 	}
-	if out.Attributes == nil || len(out.Attributes) == 0 {
+	if len(out.Attributes) == 0 {
 		return domain.NoSuchItem(table, describeKey(key))
 	}
 	return nil
