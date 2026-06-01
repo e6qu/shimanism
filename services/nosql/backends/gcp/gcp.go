@@ -283,17 +283,6 @@ func attrsFromFS(in map[string]firestore.Value) map[string]domain.Value {
 
 // ---------------- metadata ↔ Table ----------------
 
-// metaDoc carries the table schema in a Firestore Document. We use
-// stringValue / mapValue for shim-internal storage — these fields
-// are not user-facing items.
-type metaDoc struct {
-	PartitionKey string
-	SortKey      string
-	Description  string
-	Tags         map[string]string
-	CreatedAt    time.Time
-}
-
 func tableToMetaDocument(name string, t domain.Table, created time.Time) *firestore.Document {
 	fields := map[string]firestore.Value{
 		"partitionKey": {StringValue: t.PartitionKeyName, ForceSendFields: []string{"StringValue"}},

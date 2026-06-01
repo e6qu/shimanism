@@ -422,7 +422,7 @@ func (srv *Server) runQuery(w http.ResponseWriter, r *http.Request) {
 
 func parseStructuredQueryFilter(q *firestore.StructuredQuery, t domain.Table) (domain.Value, string, error) {
 	if q.Where == nil {
-		return domain.Value{}, "", errors.New("Where filter required for shim Query (full-collection scans should use documents.list)")
+		return domain.Value{}, "", errors.New("where filter required for shim Query (full-collection scans should use documents.list)")
 	}
 	filters := flatFilters(q.Where)
 	var pk domain.Value
