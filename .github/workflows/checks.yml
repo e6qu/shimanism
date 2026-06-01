@@ -407,17 +407,25 @@ jobs:
           kubectl apply --server-side -f https://raw.githubusercontent.com/OT-CONTAINER-KIT/redis-operator/v0.21.0/config/crd/bases/redis.redis.opstreelabs.in_redisreplications.yaml
           kubectl apply --server-side -f https://raw.githubusercontent.com/OT-CONTAINER-KIT/redis-operator/v0.21.0/config/crd/bases/redis.redis.opstreelabs.in_redissentinels.yaml
           # The static `example/v1beta2/redis/redis-operator.yaml` URL
-          # that older revisions of this workflow piped through
-          # kubectl was a 404 in v0.21.0 — that path doesn't exist in
-          # the upstream tag. Helm is the canonical install path.
+          # was a 404 in v0.21.0; Helm is the canonical install path.
+          # Pre-pull the operator image on the host with multi-mirror
+          # retry, then `kind load` it into the cluster. Without this,
+          # the operator pod tries to pull `quay.io/opstree/redis-
+          # operator:v0.24.0` directly inside the kind node and hits
+          # quay.io's recurring 502s — ImagePullBackOff stalls the
+          # whole job (BUG-51 + BUG-49 both surfaced this).
+          # docker.io has only ancient v0.4.0, so the mirror list is
+          # quay.io alone; the retry buys time for transient outages.
+          OPERATOR_IMG=quay.io/opstree/redis-operator:v0.24.0
+          LOCAL_TAG="$OPERATOR_IMG" scripts/docker-pull-retry.sh "$OPERATOR_IMG" 5 5
+          kind load docker-image "$OPERATOR_IMG" --name shim-redisop
           helm repo add ot-helm https://ot-container-kit.github.io/helm-charts/
           helm repo update
-          # `--wait` blocks until every resource is Ready; default
-          # timeout is 5m. Image pulls from docker.io can be slow on
-          # GitHub Actions runners (BUG-49 surfaced the same pattern
-          # for conformance docker-pull steps), so give Helm 10m to
-          # finish; if the operator still can't start by then,
-          # something is genuinely wrong upstream.
+          # With the image pre-loaded into kind, the pod's pull
+          # policy (IfNotPresent for non-`:latest` tags) hits the
+          # local cache — no quay.io round-trip needed. helm --wait
+          # still blocks on readiness; 10m is plenty when the image
+          # is already there.
           helm install redis-operator ot-helm/redis-operator \
             --namespace redis-operator-system --create-namespace \
             --wait --timeout 10m
