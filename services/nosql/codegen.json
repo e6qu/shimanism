@@ -1,0 +1,22 @@
+{
+  "_comment": "The intersection operation set for the NoSQL shim's AWS DynamoDB frontend. See services/nosql/INTERSECTION.md for the per-cloud equivalence table and docs/phase-15-cd-scoping.md for the 15.C scoping. Tag ops round-trip the AWS-side identity for N3 (tags-vs-labels) but are not in the in-process intersection — they remain frontend-passthrough operations the backend translates per-cloud.",
+  "spec": "services/nosql/spec/aws-dynamodb.smithy.json",
+  "package": "gen",
+  "out": "services/nosql/gen/aws_dynamodb.gen.go",
+  "operations": [
+    "CreateTable",
+    "DeleteTable",
+    "DescribeTable",
+    "ListTables",
+    "PutItem",
+    "GetItem",
+    "DeleteItem",
+    "Scan",
+    "Query",
+    "TagResource",
+    "UntagResource",
+    "ListTagsOfResource",
+    "DescribeTimeToLive",
+    "DescribeContinuousBackups"
+  ]
+}

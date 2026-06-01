@@ -19,8 +19,8 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 - **All Azure frontends carry full `gen.ServerInterface` impls** with the `var _ gen.ServerInterface = (*Server)(nil)` compile-time gate.
 - **Open BUGs (2):** BUG-8 + BUG-15 (Track A, real GCP needed). BUG-35 closed in PR #48 after sockerless PR #245 derived ACA image platforms from the resolved manifest.
 - **Upstream watch:** zero open sockerless issues for the shimanism roadmap (six gaps surfaced during 14.E all closed: #257/#260/#261/#269/#272/#276 via #259/#262/#271/#274/#277).
-- **Last merged:** PR #89 — 15.D CoreDNS live conformance + K8s row cells (closes the 15.D matrix fully).
-- **In flight:** 15.C NoSQL foundational — domain interface + inmem backend + N18 / N19 rules.
+- **Last merged:** PR #90 — 15.C foundational (domain + inmem + N18 / N19).
+- **In flight:** 15.C AWS DynamoDB — backend + frontend + SDK/CLI/Terraform conformance.
 
 ## Session-start checklist
 
@@ -60,8 +60,9 @@ Phase 15 sub-phase order:
 12. ~~15.D cross-cloud Apply cells~~ — ✅ shipped in PR #87.
 13. ~~15.D CoreDNS K8s peer foundational~~ — ✅ shipped in PR #88.
 14. ~~15.D CoreDNS — live + K8s row~~ — ✅ shipped in PR #89. Auto plugin regex + SOA-serial bump on every mutation (BUG-48). 15.D matrix fully closed.
-15. **15.C foundational — this PR.** Domain interface (`internal/nosql/domain/`) + inmem backend (`services/nosql/backends/inmem/`) + N18 (table concept) + N19 (attribute value types) published.
-16. **Next 15.C PRs:** per-cloud frontends (DynamoDB / Firestore / Cosmos Tables) with spec ingest + codegen; per-cloud backends (AWS DynamoDB / GCP Firestore / Azure Cosmos Tables); etcd K8s peer; cross-cloud Apply matrix; conformance (SDK + CLI + Terraform per frontend per backend).
+15. ~~15.C foundational~~ — ✅ shipped in PR #90.
+16. **15.C AWS DynamoDB — this PR.** Vendored Smithy spec → codegen → passthrough backend → frontend → SDK + CLI + Terraform conformance. `UpdateTableTags` added to `domain.NoSQL` so `TagResource` / `UntagResource` round-trip honestly.
+17. **Next 15.C PRs:** sockerless backend lane (against the AWS sim's DynamoDB handler); GCP Firestore backend + frontend with `__shim_tables__` metadata collection per N18; Azure Cosmos Tables backend + frontend; etcd K8s peer; cross-cloud Apply matrix.
 
 Track A (BUG-8 + BUG-15) still blocked on real-cloud credentials.
 

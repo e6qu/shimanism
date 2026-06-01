@@ -8,9 +8,9 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 
 | | |
 |---|---|
-| Active branch | `15c-nosql-foundational` — 15.C NoSQL key-value foundational. 15.D fully closed by PR #89. |
-| In-flight | **15.C NoSQL key-value — foundational.** Domain interface at `internal/nosql/domain/` covers `Table` / `Item` / `Key` / `Value` (discriminated union: String / Number-as-decimal-string / Bool / Bytes / Null). `services/nosql/backends/inmem/` is the in-memory backend with composite-key encoding (length-prefixed values), schema-bound `extractKey`, deterministic Scan ordering. N18 (NoSQL table concept; Firestore's no-tables → `__shim_tables__` metadata collection) + N19 (discriminated-union attribute values; DynamoDB-precision numbers as decimal strings) added to `docs/normalizations.md`. Follow-on PRs: per-cloud frontends (DynamoDB / Firestore / Cosmos Tables), per-cloud backends, etcd K8s peer, cross-cloud Apply matrix. |
-| Last merged | PR #89 — 15.D CoreDNS live conformance + K8s row cells (closes 15.D matrix fully). |
+| Active branch | `15c-aws-dynamodb-backend-frontend` — 15.C NoSQL AWS DynamoDB backend + frontend + SDK/CLI/Terraform conformance. |
+| In-flight | **15.C AWS DynamoDB — backend + frontend + conformance.** Vendored DynamoDB Smithy spec (`services/nosql/spec/aws-dynamodb.smithy.json`, pinned at `13bee3c…`); codegen emits 14-op `gen.DynamoDBBackend` interface; passthrough backend at `services/nosql/backends/aws/aws.go` calls real DynamoDB via `aws-sdk-go-v2/service/dynamodb`; frontend at `internal/nosql/frontends/aws_dynamodb/` translates DynamoDB JSON-1.0 → `domain.NoSQL`. `domain.NoSQL` gains `UpdateTableTags` so `TagResource` / `UntagResource` round-trip without lying. SDK + CLI + Terraform conformance under `services/nosql/conformance/`. Follow-on PRs: sockerless backend lane, GCP Firestore + Azure Cosmos Tables backends/frontends, etcd K8s peer, cross-cloud Apply matrix. |
+| Last merged | PR #90 — 15.C foundational (domain + inmem + N18 / N19). |
 | Upstream watch | sockerless #288 merged (AWS API Gateway client-surface coverage). Zero open sockerless issues for shimanism's current work. |
 | Phases 1–13 | All closed (Phase 13 closed by PR #20). PR index in [PLAN.md § Closed phases](PLAN.md#closed-phases-pr-index). |
 | Phase 14 | 14.A ✅ · 14.B ✅ · 14.C ✅ · 14.D ✅ (simulator audit) / Track A blocked · 14.E ✅. Remaining residuals (terraform-aws `_wo` drift, SB cross-cloud scoping) carried into Phase 15.B. |

@@ -36,6 +36,8 @@ import (
 	azurecafront "github.com/e6qu/shimanism/internal/functions/frontends/azure_containerapps"
 	gcpcrfront "github.com/e6qu/shimanism/internal/functions/frontends/gcp_cloudrun"
 	"github.com/e6qu/shimanism/internal/gcpbearer"
+	nosqldomain "github.com/e6qu/shimanism/internal/nosql/domain"
+	awsddbfront "github.com/e6qu/shimanism/internal/nosql/frontends/aws_dynamodb"
 	pubsubdomain "github.com/e6qu/shimanism/internal/pubsub/domain"
 	awssnsfront "github.com/e6qu/shimanism/internal/pubsub/frontends/aws_sns"
 	awssqsreceivefront "github.com/e6qu/shimanism/internal/pubsub/frontends/aws_sqs_receive"
@@ -699,6 +701,25 @@ func (l *logRoundTrip) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		suffix = "?" + r.URL.RawQuery
 	}
 	l.t.Logf("[harness] %s %s%s -> %d", r.Method, r.URL.Path, suffix, sw.status)
+}
+
+// NoSQLServer is a started NoSQL-shim instance with its addressable URL.
+type NoSQLServer struct {
+	URL   string
+	Close func()
+}
+
+// StartNoSQLServerAWS starts a shim instance with the AWS DynamoDB
+// frontend backed by the given NoSQL implementation. DynamoDB-shaped
+// clients (aws-sdk-go-v2/service/dynamodb, aws dynamodb CLI,
+// hashicorp/aws Terraform provider) drive it via the standard
+// endpoint-override path.
+func StartNoSQLServerAWS(t *testing.T, backend nosqldomain.NoSQL) *NoSQLServer {
+	t.Helper()
+	srv := awsddbfront.New(backend)
+	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
+	t.Cleanup(ts.Close)
+	return &NoSQLServer{URL: ts.URL, Close: ts.Close}
 }
 
 type statusWriter struct {
