@@ -234,7 +234,12 @@ jobs:
           cache: true
       - name: Start MinIO
         run: |
-          scripts/docker-pull-retry.sh quay.io/minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e
+          # quay.io has had recurring 502/504 outages; docker.io serves
+          # the same MinIO release. Both refs are accepted by docker
+          # run because docker-pull-retry.sh tags the pulled image to
+          # every supplied ref on success.
+          scripts/docker-pull-retry.sh \
+            quay.io/minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e,docker.io/minio/minio:RELEASE.2024-09-13T20-26-02Z
           docker run -d --name minio \
             -p 9000:9000 \
             -e MINIO_ROOT_USER=minioadmin \
