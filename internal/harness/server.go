@@ -751,6 +751,34 @@ func StartNoSQLServerAzure(t *testing.T, backend nosqldomain.NoSQL) *NoSQLServer
 	return &NoSQLServer{URL: ts.URL, Close: ts.Close}
 }
 
+// NoSQLServerTLS is the HTTPS variant of NoSQLServer, with the
+// self-signed cert exported as PEM so Terraform / SDK clients can
+// trust it via SSL_CERT_FILE / RootCAs pools without
+// InsecureSkipVerify.
+type NoSQLServerTLS struct {
+	URL     string
+	CertPEM []byte
+	Close   func()
+}
+
+// StartNoSQLServerAzureWithPassthrough is the ARM-passthrough
+// variant of StartNoSQLServerAzure. Non-Tables ARM paths
+// (`/subscriptions/...`) forward to the upstream handler. Used for
+// end-to-end Terraform conformance where azurerm's single
+// `metadata_host` / `resource_manager_endpoint` config drives both
+// Cosmos Tables data-plane operations and the ARM resource
+// (`Microsoft.DocumentDB/databaseAccounts/.../tables/...`) lifecycle
+// through one shim port.
+func StartNoSQLServerAzureWithPassthrough(t *testing.T, backend nosqldomain.NoSQL, upstream http.Handler) *NoSQLServerTLS {
+	t.Helper()
+	srv := azurectfront.HandlerWithPassthrough(backend, upstream)
+	ts := httptest.NewTLSServer(&logRoundTrip{t: t, mux: srv})
+	t.Cleanup(ts.Close)
+	cert := ts.Certificate()
+	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw})
+	return &NoSQLServerTLS{URL: ts.URL, CertPEM: certPEM, Close: ts.Close}
+}
+
 type statusWriter struct {
 	http.ResponseWriter
 	status int

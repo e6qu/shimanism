@@ -8,14 +8,14 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 
 | | |
 |---|---|
-| Active branch | `15c-sockerless-cross-cloud-cells` — 15.C NoSQL sockerless cross-cloud cells (6 off-diagonal). |
-| In-flight | **15.C cross-cloud Apply matrix — 6 sockerless cells.** Closes the 3×4 matrix's off-diagonal: AWS↔GCP, AWS↔Azure, GCP↔Azure. Each cell wires the destination cloud's shim backend (DynamoDB / Firestore / Cosmos Tables) at the matching sockerless sim endpoint with TLS+auth, wraps in the source-cloud frontend, drives via source-cloud SDK. Helpers `sockerlessAWSDynamoDBBackend` / `sockerlessGCPFirestoreBackend` / `sockerlessAzureCosmosTablesBackend` mirror the DNS PR #87 pattern. Tests skip-gate on `SOCKERLESS_*_ENDPOINT` env vars (set by the `sockerless through-shim e2e` CI lane). Local skip-pass green; CI run will exercise all 6 cells. |
-| Last merged | PR #95 — 15.C cross-cloud Apply matrix K8s row (3 cells). |
+| Active branch | `15c-cosmos-tables-arm-passthrough` — 15.C Cosmos Tables frontend ARM passthrough foundational. |
+| In-flight | **15.C Cosmos Tables ARM passthrough (BUG-50).** Extends `internal/nosql/frontends/azure_cosmos_tables/` with `Config{Passthrough}` + `NewWithPassthrough` + `HandlerWithPassthrough`; routes paths starting with `/subscriptions/` to the upstream ARM handler (Bearer-authed paths bypass the SharedKey middleware). Unit tests cover ARM forwarding, Tables data-plane preservation, and the nil-passthrough fallback. `internal/harness/server.go` gains `StartNoSQLServerAzureWithPassthrough` returning an HTTPS-served `NoSQLServerTLS` for Terraform consumers. Foundational only — the metadata endpoint (analogue of DNS BUG-46) + TF + az CLI conformance are follow-on PRs. |
+| Last merged | PR #96 — 15.C cross-cloud Apply matrix sockerless off-diagonal cells (closes the 3×4 matrix). |
 | Upstream watch | sockerless #288 merged (AWS API Gateway client-surface coverage). Zero open sockerless issues for shimanism's current work. |
 | Phases 1–13 | All closed (Phase 13 closed by PR #20). PR index in [PLAN.md § Closed phases](PLAN.md#closed-phases-pr-index). |
 | Phase 14 | 14.A ✅ · 14.B ✅ · 14.C ✅ · 14.D ✅ (simulator audit) / Track A blocked · 14.E ✅. Remaining residuals (terraform-aws `_wo` drift, SB cross-cloud scoping) carried into Phase 15.B. |
 | Phase 15 | 15.A ✅ · 15.B ✅ · 15.D ✅ (closed PR #89). 15.C in flight (this branch — foundational landing). |
-| Bugs | **48 filed · 45 fixed · 3 open · 1 false positive.** Open: **BUG-8** (apigateway TF-provider Track A leg, real GCP), **BUG-15** (queue TF state-drift Track A leg, real GCP), **BUG-41** (hashicorp/google DNS endpoint regex; documented workaround in place — third-party project, can't file upstream). BUG-48 closed by PR #89. |
+| Bugs | **50 filed · 46 fixed · 4 open · 1 false positive.** Open: **BUG-8** + **BUG-15** + **BUG-41** (third-party / Track A); **BUG-50** (Cosmos Tables ARM passthrough — foundational landed this PR; metadata + TF + CLI are follow-on PRs). |
 | Upstream | sockerless #257 / #260 / #261 / #269 / #272 / #276 all closed (via #259 / #262 / #271 / #274 / #277). Zero open sockerless issues for the shimanism roadmap. |
 | CI | 18 required checks. Real-cloud lanes wait on Track A. |
 | Renovate | Config + custom manager for vendored-spec SHAs (12.0.15). **User must install the Renovate GitHub App.** |
