@@ -28,25 +28,34 @@ package conformance_test
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"net"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/data/aztables"
 	"github.com/aws/aws-sdk-go-v2/aws"
+	awshttp "github.com/aws/aws-sdk-go-v2/aws/transport/http"
+	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	ddbtypes "github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	firestore "google.golang.org/api/firestore/v1"
+	"google.golang.org/api/option"
 
 	"github.com/e6qu/shimanism/internal/harness"
+	awsbackend "github.com/e6qu/shimanism/services/nosql/backends/aws"
+	azurenosqlbackend "github.com/e6qu/shimanism/services/nosql/backends/azure"
 	etcdbackend "github.com/e6qu/shimanism/services/nosql/backends/etcd"
+	gcpbackend "github.com/e6qu/shimanism/services/nosql/backends/gcp"
 )
 
 // ---------------- K8s row cells (destination = etcd) ----------------
@@ -333,24 +342,177 @@ func runCosmosTablesCRUDThroughShim(t *testing.T, svc *aztables.ServiceClient, t
 
 // ---------------- Sockerless cross-cloud cells (off-diagonal) ----------------
 //
-// The remaining 6 cells of the 3×4 matrix — AWS↔GCP, AWS↔Azure,
+// The 6 off-diagonal cells of the 3×4 matrix — AWS↔GCP, AWS↔Azure,
 // GCP↔Azure — each use a sockerless simulator as the destination
 // cloud's backend. The shim's frontend speaks the SOURCE cloud's
-// shape; the destination backend's outbound HTTP / gRPC traffic
-// goes to sockerless. Tests skip when the relevant
-// SOCKERLESS_*_ENDPOINT env vars are unset; the
-// `sockerless through-shim e2e` CI lane sets them all.
-//
-// These cells follow the DNS analogue
-// (services/dns/conformance/cross_cloud_apply_test.go) but require
-// per-cloud client construction with TLS + auth plumbing between
-// the shim's destination backend and the sim. That work is the
-// next 15.C follow-on PR; the K8s-row cells above are this PR's
-// green-CI deliverable.
+// shape; the destination backend's outbound HTTP traffic goes to
+// sockerless. Tests skip when SOCKERLESS_*_ENDPOINT env vars are
+// unset; the `sockerless through-shim e2e` CI lane sets them.
 
-// Imports that the sockerless cells will use — kept active so the
-// scaffolding compiles ahead of the follow-on PR.
-var (
-	_ = strings.TrimSpace
-	_ = os.Getenv
-)
+// sockerlessAWSDynamoDBBackend wires the AWS DynamoDB passthrough
+// backend at a sockerless AWS sim. The sim presents a self-signed
+// cert; AWS_S3_CONFORMANCE_INSECURE_TLS=1 (already set in the
+// sockerless lane) tells the SDK to skip cert verification.
+func sockerlessAWSDynamoDBBackend(t *testing.T, awsEndpoint string) *awsbackend.Backend {
+	t.Helper()
+	if os.Getenv("AWS_ACCESS_KEY_ID") == "" {
+		t.Setenv("AWS_ACCESS_KEY_ID", "test")
+	}
+	if os.Getenv("AWS_SECRET_ACCESS_KEY") == "" {
+		t.Setenv("AWS_SECRET_ACCESS_KEY", "test")
+	}
+	if os.Getenv("AWS_REGION") == "" {
+		t.Setenv("AWS_REGION", "us-east-1")
+	}
+	cfg, err := awsconfig.LoadDefaultConfig(context.Background())
+	if err != nil {
+		t.Fatalf("aws config: %v", err)
+	}
+	if os.Getenv("AWS_S3_CONFORMANCE_INSECURE_TLS") == "1" {
+		cfg.HTTPClient = awshttp.NewBuildableClient().WithTransportOptions(func(tr *http.Transport) {
+			tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true} //nolint:gosec
+		})
+	}
+	ddbClient := dynamodb.NewFromConfig(cfg, func(o *dynamodb.Options) {
+		o.BaseEndpoint = aws.String(awsEndpoint)
+	})
+	return awsbackend.New(ddbClient)
+}
+
+// sockerlessGCPFirestoreBackend wires the GCP Firestore passthrough
+// backend at a sockerless GCP sim.
+func sockerlessGCPFirestoreBackend(t *testing.T, gcpEndpoint string) *gcpbackend.Backend {
+	t.Helper()
+	svc, err := firestore.NewService(context.Background(),
+		option.WithEndpoint("http://"+gcpEndpoint+"/"),
+		option.WithoutAuthentication(),
+	)
+	if err != nil {
+		t.Fatalf("firestore svc: %v", err)
+	}
+	b, err := gcpbackend.New(svc, gcpbackend.Config{ProjectID: "shim-cross-cloud"})
+	if err != nil {
+		t.Fatalf("firestore backend: %v", err)
+	}
+	return b
+}
+
+// sockerlessAzureCosmosTablesBackend wires the Azure Cosmos Tables
+// passthrough backend at the sockerless Azure Tables data plane.
+// Sockerless serves Tables under a path-style prefix
+// (https://localhost:<tls-port>/table/<account>/) for SDKs whose
+// endpoint host doesn't carry a `<account>.table.<...>` subdomain.
+func sockerlessAzureCosmosTablesBackend(t *testing.T, azureTLSPort string, sockCertPEM []byte) *azurenosqlbackend.Backend {
+	t.Helper()
+	const account = "testacct"
+	const keyB64 = "dGVzdC1rZXktZG8tbm90LXVzZS1pbi1wcm9kLXRoaXMtaXMtMzItYnl0ZXMtb2YtanVuaw=="
+	pool := x509.NewCertPool()
+	if !pool.AppendCertsFromPEM(sockCertPEM) {
+		t.Fatalf("AppendCertsFromPEM")
+	}
+	serviceURL := "https://localhost:" + azureTLSPort + "/table/" + account
+	cred, err := aztables.NewSharedKeyCredential(account, keyB64)
+	if err != nil {
+		t.Fatalf("SharedKeyCredential: %v", err)
+	}
+	svc, err := aztables.NewServiceClientWithSharedKey(serviceURL, cred, &aztables.ClientOptions{
+		ClientOptions: azcore.ClientOptions{
+			Transport: &http.Client{
+				Transport: &http.Transport{TLSClientConfig: &tls.Config{RootCAs: pool}},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("aztables service: %v", err)
+	}
+	return azurenosqlbackend.New(svc)
+}
+
+func loadSockerlessAzureCert(t *testing.T) ([]byte, string) {
+	t.Helper()
+	port := os.Getenv("SOCKERLESS_AZURE_TLS_PORT")
+	if port == "" {
+		t.Skip("SOCKERLESS_AZURE_TLS_PORT not set")
+	}
+	certPath := os.Getenv("SOCKERLESS_AZURE_TLS_CERT")
+	if certPath == "" {
+		t.Skip("SOCKERLESS_AZURE_TLS_CERT not set")
+	}
+	pem, err := os.ReadFile(certPath)
+	if err != nil {
+		t.Fatalf("read sockerless cert: %v", err)
+	}
+	return pem, port
+}
+
+func requireSockerlessAWS(t *testing.T) string {
+	t.Helper()
+	ep := os.Getenv("SOCKERLESS_AWS_ENDPOINT")
+	if ep == "" {
+		t.Skip("SOCKERLESS_AWS_ENDPOINT not set")
+	}
+	return ep
+}
+
+func requireSockerlessGCP(t *testing.T) string {
+	t.Helper()
+	ep := os.Getenv("SOCKERLESS_GCP_ENDPOINT")
+	if ep == "" {
+		t.Skip("SOCKERLESS_GCP_ENDPOINT not set")
+	}
+	return ep
+}
+
+// ---- AWS source cells ----
+
+func TestSockerless_NoSQL_DynamoDBFrontend_To_FirestoreBackend(t *testing.T) {
+	gcpEndpoint := requireSockerlessGCP(t)
+	backend := sockerlessGCPFirestoreBackend(t, gcpEndpoint)
+	srv := harness.StartNoSQLServerAWS(t, backend)
+	cli := newDynamoDBClient(t, srv.URL)
+	runDynamoDBCRUDThroughShim(t, cli, "aws2gcp")
+}
+
+func TestSockerless_NoSQL_DynamoDBFrontend_To_CosmosTablesBackend(t *testing.T) {
+	sockCert, azureTLSPort := loadSockerlessAzureCert(t)
+	backend := sockerlessAzureCosmosTablesBackend(t, azureTLSPort, sockCert)
+	srv := harness.StartNoSQLServerAWS(t, backend)
+	cli := newDynamoDBClient(t, srv.URL)
+	runDynamoDBCRUDThroughShim(t, cli, "aws2azure")
+}
+
+// ---- GCP source cells ----
+
+func TestSockerless_NoSQL_FirestoreFrontend_To_DynamoDBBackend(t *testing.T) {
+	awsEndpoint := requireSockerlessAWS(t)
+	backend := sockerlessAWSDynamoDBBackend(t, awsEndpoint)
+	srv := harness.StartNoSQLServerGCP(t, backend)
+	svc := newFirestoreService(t, srv.URL)
+	runFirestoreCRUDThroughShim(t, svc, "gcp2aws")
+}
+
+func TestSockerless_NoSQL_FirestoreFrontend_To_CosmosTablesBackend(t *testing.T) {
+	sockCert, azureTLSPort := loadSockerlessAzureCert(t)
+	backend := sockerlessAzureCosmosTablesBackend(t, azureTLSPort, sockCert)
+	srv := harness.StartNoSQLServerGCP(t, backend)
+	svc := newFirestoreService(t, srv.URL)
+	runFirestoreCRUDThroughShim(t, svc, "gcp2azure")
+}
+
+// ---- Azure source cells ----
+
+func TestSockerless_NoSQL_CosmosTablesFrontend_To_DynamoDBBackend(t *testing.T) {
+	awsEndpoint := requireSockerlessAWS(t)
+	backend := sockerlessAWSDynamoDBBackend(t, awsEndpoint)
+	srv := harness.StartNoSQLServerAzure(t, backend)
+	svc := newCosmosTablesClient(t, srv.URL)
+	runCosmosTablesCRUDThroughShim(t, svc, "azure2aws")
+}
+
+func TestSockerless_NoSQL_CosmosTablesFrontend_To_FirestoreBackend(t *testing.T) {
+	gcpEndpoint := requireSockerlessGCP(t)
+	backend := sockerlessGCPFirestoreBackend(t, gcpEndpoint)
+	srv := harness.StartNoSQLServerAzure(t, backend)
+	svc := newCosmosTablesClient(t, srv.URL)
+	runCosmosTablesCRUDThroughShim(t, svc, "azure2gcp")
+}

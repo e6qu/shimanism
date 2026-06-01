@@ -19,8 +19,8 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 - **All Azure frontends carry full `gen.ServerInterface` impls** with the `var _ gen.ServerInterface = (*Server)(nil)` compile-time gate.
 - **Open BUGs (2):** BUG-8 + BUG-15 (Track A, real GCP needed). BUG-35 closed in PR #48 after sockerless PR #245 derived ACA image platforms from the resolved manifest.
 - **Upstream watch:** zero open sockerless issues for the shimanism roadmap (six gaps surfaced during 14.E all closed: #257/#260/#261/#269/#272/#276 via #259/#262/#271/#274/#277).
-- **Last merged:** PR #94 — 15.C etcd K8s peer + live conformance against real `etcd` binary + CI install.
-- **In flight:** 15.C cross-cloud Apply matrix — K8s row (3 cells: every frontend → etcd backend).
+- **Last merged:** PR #95 — 15.C cross-cloud Apply matrix K8s row (3 cells: every frontend → etcd backend).
+- **In flight:** 15.C cross-cloud Apply matrix — 6 sockerless off-diagonal cells (closes the 3×4 matrix).
 
 ## Session-start checklist
 
@@ -65,8 +65,9 @@ Phase 15 sub-phase order:
 17. ~~15.C GCP Firestore~~ — ✅ shipped in PR #92.
 18. ~~15.C Azure Cosmos Tables~~ — ✅ shipped in PR #93. Plus BUG-49 docker-pull-retry multi-registry fallback.
 19. ~~15.C etcd K8s peer~~ — ✅ shipped in PR #94.
-20. **15.C cross-cloud Apply matrix K8s row — this PR.** 3 cells: AWS DynamoDB / GCP Firestore / Azure Cosmos Tables frontends each → etcd backend (real subprocess). Validates N18 + N19 across every frontend → K8s-peer seam.
-21. **Next 15.C PRs:** sockerless cross-cloud cells (6 off-diagonal cells: AWS↔GCP, AWS↔Azure, GCP↔Azure — needs per-cloud TLS + auth between shim backend and sim); Cosmos Tables CLI + Terraform conformance (needs Azure ARM passthrough plumbing analogous to DNS PRs #84-86); local-dev hook setup (`make install-hooks` + README note).
+20. ~~15.C cross-cloud Apply matrix K8s row~~ — ✅ shipped in PR #95.
+21. **15.C cross-cloud Apply matrix sockerless cells — this PR.** Closes the 3×4 matrix's off-diagonal — 6 cells: AWS↔GCP, AWS↔Azure, GCP↔Azure via sockerless sims. Helpers + tests share the existing 3 CRUD runners from PR #95. Skip-gated on `SOCKERLESS_*_ENDPOINT` env vars.
+22. **Next 15.C PRs:** Cosmos Tables CLI + Terraform conformance (needs Azure ARM passthrough plumbing analogous to DNS PRs #84-86); local-dev hook setup (`make install-hooks` + README note); 15.C closure narrative.
 
 Track A (BUG-8 + BUG-15) still blocked on real-cloud credentials.
 
