@@ -15,6 +15,17 @@ Sub-phases (full scoping in [PLAN.md § Phase 15](PLAN.md#phase-15--cross-cloud-
 - **15.C** — NoSQL key-value service: DynamoDB + Firestore Native + Cosmos DB Table API + K8s peer.
 - **15.D** — DNS service: Route 53 + Cloud DNS + Azure DNS + CoreDNS. Public + private zones.
 
+### 15.C NoSQL foundational — domain + inmem + N18 / N19 (this PR, after PR #89)
+
+PR #89 closed the 15.D DNS matrix end-to-end (CoreDNS as 4th backend with live conformance + K8s row cells). With DNS done, 15.C opens. The pattern from 15.D: foundational PR first (domain interface + inmem backend + normalisation rules), then per-cloud backends + frontends + cross-cloud Apply matrix in follow-on PRs.
+
+- `internal/nosql/domain/` lands the neutral interface. `Table` carries the schema (PartitionKeyName + optional SortKeyName), `Item` is `map[string]Value`, `Key` pairs PartitionKey + optional SortKey. `Value` is a discriminated union: String / Number (decimal string) / Bool / Bytes / Null. Composite scalars (List / Map / Set) are out of intersection for 15.C — they have no portable equivalent across DynamoDB / Firestore / Cosmos Tables / etcd.
+- `services/nosql/backends/inmem/` mirrors the existing inmem patterns (storage / secrets / DNS): per-table state, mutex-protected map, deterministic Scan ordering (sorted by composite key encoding), defensive value copy so callers can mutate inputs. `extractKey` enforces the schema — items missing the partition-key attribute reject at the boundary, the same way DynamoDB's `PutItem` does.
+- **Two normalisation rules published.** N18 (NoSQL table concept) documents why Firestore needs a backend-managed `__shim_tables__` metadata collection to give cross-cloud users a uniform `CreateTable` / `DeleteTable` lifecycle — Firestore's native shape (collections, no tables) doesn't map onto AWS/Azure/etcd's "tables are explicit" model without one side translating. The metadata write stays in Firestore itself (no shim sidecar storage). N19 (NoSQL attribute value types) explains the discriminated-union design — DynamoDB's arbitrary-precision numbers would silently lose digits if the domain collapsed to `float64`, so numbers travel as decimal strings across backends; backends parse-at-the-boundary into Int64 / Double / EdmType per destination, with a documented String-fallback for out-of-int64 integers on Firestore / Cosmos.
+- **Why this is "the right base."** Choosing `Value{Type, Num string}` over `Value any` is a fidelity decision: the domain has to commit to a wire-truth representation or risk per-backend drift. Decimal strings are the only encoding that round-trips through every cloud's native type without precision loss. Future composite-types expansion (15.E or Phase 16) extends the discriminator with `ValueList` / `ValueMap` without changing the base shape.
+
+Follow-on 15.C PRs: per-cloud backends (DynamoDB / Firestore / Cosmos Tables) with their respective wire-type translation logic, etcd K8s peer (length-prefixed binary encoding for typed values over raw etcd kv), per-cloud frontends with spec ingest + codegen (DynamoDB Smithy / Firestore Discovery / Cosmos Tables OpenAPI), cross-cloud Apply matrix cells.
+
 ### 15.A first cut: normalisations contract doc (this PR)
 
 `docs/normalizations.md` lands with eight rules already implemented in the codebase, each documented with a fixed shape: **asymmetry / rule / trade-off / reference**.
