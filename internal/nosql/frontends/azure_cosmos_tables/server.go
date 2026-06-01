@@ -40,27 +40,98 @@ import (
 // can't corrupt shim state by directly editing schema rows.
 const MetadataTable = "shimtables"
 
+// Config controls optional frontend behaviour. Most callers use
+// the zero value via New(); through-shim ARM scenarios (Terraform,
+// az CLI) wire a Passthrough handler so unrecognised ARM paths
+// (`/subscriptions/...`) reach an upstream Cosmos DB ARM resource
+// provider rather than 404.
+type Config struct {
+	// Passthrough forwards unmatched ARM paths (subscriptions,
+	// resource groups, `Microsoft.DocumentDB/databaseAccounts/...`,
+	// metadata endpoints when MetadataLoginURL is unset, …) to the
+	// upstream handler. nil → unmatched paths 404. Used by
+	// through-shim Apply tests where the destination cloud's full
+	// ARM surface needs to be reachable through the shim's port.
+	Passthrough http.Handler
+}
+
 // Server is a Tables-shaped HTTP frontend dispatching to a
 // domain.NoSQL backend.
 type Server struct {
-	n domain.NoSQL
+	n           domain.NoSQL
+	passthrough http.Handler
 }
 
 // New returns a frontend bound to the given backend.
 func New(n domain.NoSQL) *Server { return &Server{n: n} }
 
+// NewWithPassthrough wires an upstream ARM handler that the frontend
+// forwards unmatched ARM paths to (paths starting with
+// `/subscriptions/`). Used by through-shim Terraform / az CLI tests
+// where the user's azurerm provider drives ARM operations on
+// `Microsoft.DocumentDB/databaseAccounts/...` through the shim's
+// endpoint.
+func NewWithPassthrough(n domain.NoSQL, upstream http.Handler) *Server {
+	return NewWithConfig(n, Config{Passthrough: upstream})
+}
+
+// NewWithConfig is the full constructor.
+func NewWithConfig(n domain.NoSQL, cfg Config) *Server {
+	return &Server{n: n, passthrough: cfg.Passthrough}
+}
+
 // Handler wraps Server with the SharedKey verifier middleware.
 // SHIMANISM_TEST_UNAUTHENTICATED=1 short-circuits verification.
 func Handler(n domain.NoSQL) http.Handler {
+	return verifierMiddleware()(New(n))
+}
+
+// HandlerWithPassthrough wraps a Server configured with an ARM
+// passthrough handler. The SharedKey verifier middleware runs only
+// on data-plane paths; ARM paths (`/subscriptions/...`) bypass it
+// because azurerm authenticates ARM with Bearer tokens, not
+// SharedKey, and the upstream handler validates those tokens.
+//
+// A follow-on PR will add an Azure bearer verifier in front of the
+// passthrough for end-to-end auth coverage; for now the upstream
+// (typically sockerless's Azure ARM stub) does the work.
+func HandlerWithPassthrough(n domain.NoSQL, upstream http.Handler) http.Handler {
+	server := NewWithPassthrough(n, upstream)
+	wrapped := verifierMiddleware()(server)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path := strings.TrimPrefix(r.URL.Path, "/")
+		if strings.HasPrefix(path, "subscriptions/") {
+			// ARM paths skip the SharedKey middleware so Bearer-
+			// authed azurerm/az calls reach the passthrough.
+			server.ServeHTTP(w, r)
+			return
+		}
+		wrapped.ServeHTTP(w, r)
+	})
+}
+
+func verifierMiddleware() func(http.Handler) http.Handler {
 	verifier := azuresharedkey.New(azuresharedkey.StaticStore{
 		Account: "shimcosmos",
 		Key:     []byte("test-key-do-not-use-in-prod-this-is-32-bytes-of-junk"),
 	})
-	return azuresharedkey.Middleware(verifier)(New(n))
+	return azuresharedkey.Middleware(verifier)
 }
 
 func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	path := strings.TrimPrefix(r.URL.Path, "/")
+
+	// ARM paths flow to the upstream passthrough when configured.
+	// `/subscriptions/<sub>/...` is the universal ARM root —
+	// Microsoft.DocumentDB/databaseAccounts/{account}/tables/{name}
+	// and every other ARM resource lives under it. Without a
+	// passthrough configured, unmatched paths fall through to the
+	// data-plane dispatch below and 404 with the Tables error
+	// envelope.
+	if srv.passthrough != nil && strings.HasPrefix(path, "subscriptions/") {
+		srv.passthrough.ServeHTTP(w, r)
+		return
+	}
 
 	// Tables management:
 	//   GET    /Tables           — list tables

@@ -15,7 +15,27 @@ Sub-phases (full scoping in [PLAN.md § Phase 15](PLAN.md#phase-15--cross-cloud-
 - **15.C** — NoSQL key-value service: DynamoDB + Firestore Native + Cosmos DB Table API + K8s peer.
 - **15.D** — DNS service: Route 53 + Cloud DNS + Azure DNS + CoreDNS. Public + private zones.
 
-### 15.C cross-cloud Apply matrix — 6 sockerless cells (this PR, after PR #95)
+### 15.C Cosmos Tables ARM passthrough — foundational (this PR, after PR #96)
+
+PR #96 closed the cross-cloud Apply matrix. This PR opens the Cosmos Tables ARM passthrough series — the multi-PR follow-on (analogue of DNS PRs #84-86) needed for `azurerm_cosmosdb_table` Terraform and `az cosmosdb table` CLI conformance. ARM operations on `Microsoft.DocumentDB/databaseAccounts/<account>/tables/<name>` go through ARM, not the Cosmos Tables data plane, so the shim's Cosmos Tables frontend must forward ARM paths to an upstream handler.
+
+- **`internal/nosql/frontends/azure_cosmos_tables/server.go`** gains:
+  - `Config{Passthrough http.Handler}` — describing the optional ARM passthrough behaviour.
+  - `NewWithPassthrough(n, upstream)` + `NewWithConfig(n, cfg)` constructors mirroring the DNS frontend's shape.
+  - `HandlerWithPassthrough(n, upstream)` — wraps Server with the SharedKey middleware on data-plane paths only; ARM paths under `/subscriptions/` bypass SharedKey so Bearer-authed `azurerm`/`az` calls reach the upstream. The upstream handler (typically sockerless's Azure ARM stub) validates the Bearer token.
+- **Routing logic.** `ServeHTTP` checks the URL path immediately: if it starts with `subscriptions/`, the passthrough handles it; everything else flows to the existing Tables data-plane dispatcher (CreateTable / list / entity ops). Routes are deterministic and disjoint — ARM and Tables data plane share no prefix overlap.
+- **Three unit tests** in `passthrough_test.go` validate (a) ARM paths forward to upstream (5 sub-cases: resource groups, Cosmos accounts, Cosmos tables, non-DocumentDB providers, providers list), (b) Tables data-plane requests stay on the shim's dispatcher when a passthrough is configured, (c) absent a passthrough, ARM paths fall through to the data-plane dispatcher's 404 envelope — no silent success.
+- **`internal/harness/server.go`** gains `NoSQLServerTLS` (HTTPS variant with cert PEM exported) + `StartNoSQLServerAzureWithPassthrough` returning it. Terraform / azurerm tests need TLS because the provider's `metadata_host` + `resource_manager_endpoint` URLs are HTTPS.
+
+This PR is foundational only. Follow-ons:
+
+- **Azure metadata endpoint** (analogue of DNS BUG-46) — shim serves `/metadata/endpoints` returning resourceManager=shim, login=sockerless. Required for azurerm to acquire tokens from sockerless instead of real Entra.
+- **Terraform conformance** for `azurerm_cosmosdb_account` + `azurerm_cosmosdb_table` (analogue of DNS BUG-43).
+- **az CLI conformance** for `az cosmosdb table` (analogue of DNS BUG-45).
+
+Filed as BUG-50.
+
+### 15.C cross-cloud Apply matrix — 6 sockerless cells (PR #96, after PR #95)
 
 PR #95 landed the 3 K8s-row cells. This PR closes the 3×4 matrix's off-diagonal with 6 cells exercising every {AWS, GCP, Azure} source frontend against every other-cloud destination backend, with the destination backend pointed at a sockerless simulator instance for the cloud's wire surface.
 
