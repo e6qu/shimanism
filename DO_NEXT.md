@@ -76,6 +76,8 @@ Phase 15 sub-phase order:
 
 Track A (BUG-8 + BUG-15) still blocked on real-cloud credentials.
 
+**Upstream watch (new):** [sockerless#360](https://github.com/e6qu/sockerless/issues/360) filed 2026-06-02 — DynamoDB simulator `DeleteItem` with `ReturnValues=ALL_OLD` always returns empty `Attributes`. Shim-side workaround already applied (switched to `ConditionExpression: attribute_exists(#pk)` in `services/nosql/backends/aws/aws.go`).
+
 ### Lesson: ARM shimming via fakes was the wrong design
 
 PRs #51–#54 built `internal/storage/frontends/azure_arm_storageaccounts/`, `internal/secrets/frontends/azure_arm_keyvault/`, `internal/mockaad/`, an `armResourcesStub` middleware, in-process `Track*` state, synthetic `StorageAccountsListKeys` with hardcoded keys matching the harness verifier, and a synthetic Microsoft Entra OIDC endpoint. Every one of these is a "canned-response path" / "fake HTTP server" / "in-memory stand-in for real cloud state" — violations of the no-fakes rule. The user [stopped the work mid-flight](https://github.com/e6qu/shimanism/pull/55#issuecomment-4564061276) and pointed out the violation. The honest answer was always sockerless: ARM with real state lives there. Filed [sockerless#257](https://github.com/e6qu/sockerless/issues/257), maintainer landed [#259](https://github.com/e6qu/sockerless/pull/259) within hours. Revert PR (this PR) cleans up the shim-side fakes; future PR wires through the honest path.
