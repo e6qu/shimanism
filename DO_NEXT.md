@@ -19,8 +19,8 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 - **All Azure frontends carry full `gen.ServerInterface` impls** with the `var _ gen.ServerInterface = (*Server)(nil)` compile-time gate.
 - **Open BUGs (2):** BUG-8 + BUG-15 (Track A, real GCP needed). BUG-35 closed in PR #48 after sockerless PR #245 derived ACA image platforms from the resolved manifest.
 - **Upstream watch:** zero open sockerless issues for the shimanism roadmap (six gaps surfaced during 14.E all closed: #257/#260/#261/#269/#272/#276 via #259/#262/#271/#274/#277).
-- **Last merged:** PR #93 — 15.C Azure Cosmos DB Table API backend + frontend + SDK conformance + SharedKeyLite verifier extension + BUG-49 multi-registry CI docker fallback.
-- **In flight:** 15.C etcd K8s peer — backend + live conformance against real `etcd` binary.
+- **Last merged:** PR #94 — 15.C etcd K8s peer + live conformance against real `etcd` binary + CI install.
+- **In flight:** 15.C cross-cloud Apply matrix — K8s row (3 cells: every frontend → etcd backend).
 
 ## Session-start checklist
 
@@ -64,8 +64,9 @@ Phase 15 sub-phase order:
 16. ~~15.C AWS DynamoDB~~ — ✅ shipped in PR #91.
 17. ~~15.C GCP Firestore~~ — ✅ shipped in PR #92.
 18. ~~15.C Azure Cosmos Tables~~ — ✅ shipped in PR #93. Plus BUG-49 docker-pull-retry multi-registry fallback.
-19. **15.C etcd K8s peer — this PR.** Closes the 4th-backend slot (K8s row). Backend at `services/nosql/backends/etcd/` uses `go.etcd.io/etcd/client/v3`; key layout = `__shim_tables__/<name>` for meta (per N18) + `<table>/items/<base64url(typed-composite-key)>` for items. Live test starts real `etcd` binary on ephemeral ports (skipped if not on PATH); CI installs etcd 3.5.18 in the go-vet+test+build job (mirrors CoreDNS install for DNS). 5 live tests green.
-20. **Next 15.C PRs:** sockerless backend lanes (AWS + GCP sims); cross-cloud Apply matrix (3 frontends × 4 backends now that all four backends exist).
+19. ~~15.C etcd K8s peer~~ — ✅ shipped in PR #94.
+20. **15.C cross-cloud Apply matrix K8s row — this PR.** 3 cells: AWS DynamoDB / GCP Firestore / Azure Cosmos Tables frontends each → etcd backend (real subprocess). Validates N18 + N19 across every frontend → K8s-peer seam.
+21. **Next 15.C PRs:** sockerless cross-cloud cells (6 off-diagonal cells: AWS↔GCP, AWS↔Azure, GCP↔Azure — needs per-cloud TLS + auth between shim backend and sim); Cosmos Tables CLI + Terraform conformance (needs Azure ARM passthrough plumbing analogous to DNS PRs #84-86); local-dev hook setup (`make install-hooks` + README note).
 
 Track A (BUG-8 + BUG-15) still blocked on real-cloud credentials.
 

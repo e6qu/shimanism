@@ -15,7 +15,20 @@ Sub-phases (full scoping in [PLAN.md § Phase 15](PLAN.md#phase-15--cross-cloud-
 - **15.C** — NoSQL key-value service: DynamoDB + Firestore Native + Cosmos DB Table API + K8s peer.
 - **15.D** — DNS service: Route 53 + Cloud DNS + Azure DNS + CoreDNS. Public + private zones.
 
-### 15.C etcd K8s peer — backend + live conformance (this PR, after PR #93)
+### 15.C cross-cloud Apply matrix — K8s row (this PR, after PR #94)
+
+PR #94 closed the 4th-backend slot (etcd K8s peer). This PR opens the cross-cloud Apply matrix by validating the K8s row — every frontend → etcd backend cell — end-to-end. The 6 off-diagonal cross-cloud cells (AWS↔GCP, AWS↔Azure, GCP↔Azure) need sockerless per-cloud TLS + auth plumbing and are scoped for a follow-on PR; this PR's scaffolding documents that handoff in the test file's comment block.
+
+- **`services/nosql/conformance/cross_cloud_apply_test.go`** adds 3 cells:
+  - `TestCrossCloud_DynamoDBFrontend_To_EtcdBackend` — drives the AWS DynamoDB SDK against the shim's AWS frontend, which writes to the etcd K8s peer backend. Validates that DynamoDB's `CreateTable` + `PutItem` + `GetItem` + `DeleteItem` + `DeleteTable` round-trip across the AWS→domain→etcd seam.
+  - `TestCrossCloud_FirestoreFrontend_To_EtcdBackend` — same flow via the `google.golang.org/api/firestore/v1` SDK, going through the shim's Firestore frontend (with the `__shim_tables__` convention from N18) into the etcd backend.
+  - `TestCrossCloud_CosmosTablesFrontend_To_EtcdBackend` — same flow via `aztables` SDK through the Azure Cosmos Tables frontend into the etcd backend. Tests that the Cosmos `PartitionKey + RowKey` schema-default surfaces into etcd's metadata + composite-key layout.
+- **Shared infrastructure.** Three runners — `runDynamoDBCRUDThroughShim`, `runFirestoreCRUDThroughShim`, `runCosmosTablesCRUDThroughShim` — each take a source-cloud client and drive a complete CRUD lifecycle including every value type. These are reusable by the upcoming sockerless cross-cloud cells, which only differ in destination backend construction. `newEtcdBackendForCrossCloud` starts a real `etcd` subprocess on ephemeral ports for the K8s row.
+- **No mocks.** Real `etcd` binary as destination; real cloud SDKs on the source side. The shim's per-cloud frontend translation + etcd backend translation are both exercised end-to-end; N18 (`__shim_tables__` metadata) + N19 (decimal-string number precision, byte round-trip) survive every seam.
+
+The 6 off-diagonal cells need per-cloud TLS + auth wiring (SDK → shim backend → sockerless sim) that's similar in shape to `services/dns/conformance/cross_cloud_apply_test.go`'s sockerless cells — porting that pattern is the next follow-on PR.
+
+### 15.C etcd K8s peer — backend + live conformance (PR #94, after PR #93)
 
 PR #91/#92/#93 closed the AWS/GCP/Azure backends; this PR closes the 4th-backend slot — etcd K8s peer — per AGENTS.md's "Kubernetes is the fourth backend, always" rule. With this PR the 4-backend matrix for NoSQL is complete; only the cross-cloud Apply cells (3 frontends × 4 backends) and sockerless backend lanes remain in 15.C.
 

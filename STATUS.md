@@ -8,9 +8,9 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 
 | | |
 |---|---|
-| Active branch | `15c-etcd-k8s-peer` — 15.C NoSQL etcd K8s peer (4th backend) + live conformance. |
-| In-flight | **15.C etcd K8s peer — backend + live conformance.** Backend at `services/nosql/backends/etcd/etcd.go` implements `domain.NoSQL` against etcd via `go.etcd.io/etcd/client/v3`. Key layout: `__shim_tables__/<table>` for metadata (per N18), `<table>/items/<base64url(typed-composite-key)>` for items (encoding matches GCP + Azure backends so cross-cloud Apply round-trips). Live test starts a real `etcd` binary on ephemeral ports + exercises full lifecycle, composite keys, every value type (including out-of-int64 numbers via decimal-string per N19), Scan pagination, force-vs-refuse delete, UpdateTableTags. Five live tests green locally with etcd 3.6.11. CI installs etcd 3.5.18 in the `go vet + test + build` job. |
-| Last merged | PR #93 — 15.C Azure Cosmos DB Table API backend + frontend + SDK conformance + SharedKeyLite verifier. |
+| Active branch | `15c-cross-cloud-apply-matrix` — 15.C NoSQL cross-cloud Apply matrix K8s-row cells. |
+| In-flight | **15.C cross-cloud Apply matrix — K8s row.** `services/nosql/conformance/cross_cloud_apply_test.go` adds 3 K8s-row cells of the 3×4 matrix: every {AWS DynamoDB, GCP Firestore, Azure Cosmos Tables} frontend → etcd backend. Each cell starts a real `etcd` subprocess on ephemeral ports, points the matching frontend at the etcd backend, drives full CRUD via the source cloud's SDK, and asserts round-trip. All 3 green locally. Validates N18 + N19 across every frontend → K8s-peer seam. The remaining 6 off-diagonal cells (AWS↔GCP, AWS↔Azure, GCP↔Azure) need sockerless per-cloud TLS + auth plumbing — deferred to a follow-on PR; scaffolding documented in the test file. |
+| Last merged | PR #94 — 15.C etcd K8s peer + live conformance + CI etcd install. |
 | Upstream watch | sockerless #288 merged (AWS API Gateway client-surface coverage). Zero open sockerless issues for shimanism's current work. |
 | Phases 1–13 | All closed (Phase 13 closed by PR #20). PR index in [PLAN.md § Closed phases](PLAN.md#closed-phases-pr-index). |
 | Phase 14 | 14.A ✅ · 14.B ✅ · 14.C ✅ · 14.D ✅ (simulator audit) / Track A blocked · 14.E ✅. Remaining residuals (terraform-aws `_wo` drift, SB cross-cloud scoping) carried into Phase 15.B. |
