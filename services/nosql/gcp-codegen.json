@@ -1,0 +1,6 @@
+{
+  "_comment": "GCP Firestore Discovery JSON drives the spec-driven routing layer. cmd/gcp-codegen emits a Routes slice of (httpMethod, uriPattern, operationID) triples; the gcp_firestore frontend uses those to validate dispatch coverage against the upstream spec. Wire types come from google.golang.org/api/firestore/v1 directly per AGENTS.md decision #11.",
+  "spec": "services/nosql/spec/gcp-firestore-discovery.json",
+  "package": "gcp",
+  "out": "services/nosql/gen/gcp/gcp_firestore.gen.go"
+}

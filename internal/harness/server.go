@@ -38,6 +38,7 @@ import (
 	"github.com/e6qu/shimanism/internal/gcpbearer"
 	nosqldomain "github.com/e6qu/shimanism/internal/nosql/domain"
 	awsddbfront "github.com/e6qu/shimanism/internal/nosql/frontends/aws_dynamodb"
+	gcpfsfront "github.com/e6qu/shimanism/internal/nosql/frontends/gcp_firestore"
 	pubsubdomain "github.com/e6qu/shimanism/internal/pubsub/domain"
 	awssnsfront "github.com/e6qu/shimanism/internal/pubsub/frontends/aws_sns"
 	awssqsreceivefront "github.com/e6qu/shimanism/internal/pubsub/frontends/aws_sqs_receive"
@@ -717,6 +718,19 @@ type NoSQLServer struct {
 func StartNoSQLServerAWS(t *testing.T, backend nosqldomain.NoSQL) *NoSQLServer {
 	t.Helper()
 	srv := awsddbfront.New(backend)
+	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
+	t.Cleanup(ts.Close)
+	return &NoSQLServer{URL: ts.URL, Close: ts.Close}
+}
+
+// StartNoSQLServerGCP starts a shim instance with the GCP Firestore
+// Native frontend backed by the given NoSQL implementation.
+// Firestore-shaped clients (google.golang.org/api/firestore/v1,
+// gcloud firestore, hashicorp/google Terraform provider) drive it
+// via the endpoint-override path.
+func StartNoSQLServerGCP(t *testing.T, backend nosqldomain.NoSQL) *NoSQLServer {
+	t.Helper()
+	srv := gcpfsfront.Handler(backend)
 	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
 	t.Cleanup(ts.Close)
 	return &NoSQLServer{URL: ts.URL, Close: ts.Close}
