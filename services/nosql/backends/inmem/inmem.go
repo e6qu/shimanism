@@ -90,6 +90,17 @@ func (b *Backend) GetTable(ctx context.Context, name string) (domain.Table, erro
 	return st.table, nil
 }
 
+func (b *Backend) UpdateTableTags(ctx context.Context, name string, tags map[string]string) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	st, ok := b.tables[name]
+	if !ok {
+		return domain.NoSuchTable(name)
+	}
+	st.table.Tags = copyTags(tags)
+	return nil
+}
+
 func (b *Backend) DeleteTable(ctx context.Context, name string, force bool) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()

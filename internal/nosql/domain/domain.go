@@ -189,6 +189,13 @@ type NoSQL interface {
 	// items; force=false fails with TableNotEmpty when items exist.
 	DeleteTable(ctx context.Context, name string, force bool) error
 
+	// UpdateTableTags replaces the table's tag set with the supplied
+	// map. Callers wanting Add / Remove semantics (e.g. AWS
+	// TagResource / UntagResource) read GetTable.Tags, merge, then
+	// call UpdateTableTags. Per N3 the per-cloud backends enforce
+	// label constraints (GCP-side) and report violations.
+	UpdateTableTags(ctx context.Context, name string, tags map[string]string) error
+
 	// ListTables enumerates tables, optionally filtered by prefix.
 	ListTables(ctx context.Context, opt ListTablesOptions) (ListTablesResult, error)
 
