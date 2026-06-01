@@ -19,8 +19,8 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 - **All Azure frontends carry full `gen.ServerInterface` impls** with the `var _ gen.ServerInterface = (*Server)(nil)` compile-time gate.
 - **Open BUGs (2):** BUG-8 + BUG-15 (Track A, real GCP needed). BUG-35 closed in PR #48 after sockerless PR #245 derived ACA image platforms from the resolved manifest.
 - **Upstream watch:** zero open sockerless issues for the shimanism roadmap (six gaps surfaced during 14.E all closed: #257/#260/#261/#269/#272/#276 via #259/#262/#271/#274/#277).
-- **Last merged:** PR #91 — 15.C AWS DynamoDB backend + frontend + SDK/CLI/Terraform conformance.
-- **In flight:** 15.C GCP Firestore Native — backend + frontend + SDK + raw-HTTP conformance.
+- **Last merged:** PR #92 — 15.C GCP Firestore Native backend + frontend + SDK + raw-HTTP conformance.
+- **In flight:** 15.C Azure Cosmos DB Table API — backend + frontend + SDK conformance.
 
 ## Session-start checklist
 
@@ -62,8 +62,9 @@ Phase 15 sub-phase order:
 14. ~~15.D CoreDNS — live + K8s row~~ — ✅ shipped in PR #89. Auto plugin regex + SOA-serial bump on every mutation (BUG-48). 15.D matrix fully closed.
 15. ~~15.C foundational~~ — ✅ shipped in PR #90.
 16. ~~15.C AWS DynamoDB~~ — ✅ shipped in PR #91.
-17. **15.C GCP Firestore — this PR.** Discovery doc → routing-only codegen → passthrough backend with `__shim_tables__` per N18 → frontend translating Firestore REST → domain → SDK + raw-HTTP conformance. Query uses documents.list + client-side filter; documented Firestore-specific trade-off.
-18. **Next 15.C PRs:** sockerless backend lane (against the AWS sim's DynamoDB handler); Azure Cosmos Tables backend + frontend; etcd K8s peer; cross-cloud Apply matrix.
+17. ~~15.C GCP Firestore~~ — ✅ shipped in PR #92.
+18. **15.C Azure Cosmos Tables — this PR.** Backend via `aztables` (metadata in `shimtables` per N18) + frontend translating OData v3 Tables wire → domain. `internal/azuresharedkey/` extended for the `SharedKeyLite` Tables variant. SDK conformance via aztables (3 tests). CLI + Terraform deferred to cross-cloud Apply PR.
+19. **Next 15.C PRs:** sockerless backend lanes; etcd K8s peer; cross-cloud Apply matrix.
 
 Track A (BUG-8 + BUG-15) still blocked on real-cloud credentials.
 

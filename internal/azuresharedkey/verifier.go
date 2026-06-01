@@ -98,10 +98,22 @@ func (v *Verifier) Verify(r *http.Request) error {
 	if authHdr == "" {
 		return &Error{HTTPStatus: http.StatusUnauthorized, Code: "AuthenticationFailed", Message: "Server failed to authenticate the request. Make sure the value of Authorization header is formed correctly including the signature."}
 	}
-	if !strings.HasPrefix(authHdr, "SharedKey ") {
+	// Two schemes accepted: full "SharedKey" (used by Blob/Queue/File
+	// data planes) and "SharedKeyLite" (used by Tables — different
+	// canonical form, see buildTablesCanonicalString below). The
+	// presented account name + base64 signature follow either prefix.
+	var rest string
+	var scheme string
+	switch {
+	case strings.HasPrefix(authHdr, "SharedKeyLite "):
+		rest = strings.TrimPrefix(authHdr, "SharedKeyLite ")
+		scheme = "SharedKeyLite"
+	case strings.HasPrefix(authHdr, "SharedKey "):
+		rest = strings.TrimPrefix(authHdr, "SharedKey ")
+		scheme = "SharedKey"
+	default:
 		return &Error{HTTPStatus: http.StatusUnauthorized, Code: "InvalidAuthenticationInfo", Message: "Authorization scheme must be SharedKey"}
 	}
-	rest := strings.TrimPrefix(authHdr, "SharedKey ")
 	colonAt := strings.IndexByte(rest, ':')
 	if colonAt < 0 {
 		return &Error{HTTPStatus: http.StatusUnauthorized, Code: "InvalidAuthenticationInfo", Message: "Authorization header missing account:signature separator"}
@@ -114,14 +126,48 @@ func (v *Verifier) Verify(r *http.Request) error {
 		return &Error{HTTPStatus: http.StatusForbidden, Code: "AuthenticationFailed", Message: "account name is not recognised"}
 	}
 
-	canonical := buildCanonicalString(r, account)
+	var canonical string
+	if scheme == "SharedKeyLite" {
+		canonical = buildTablesCanonicalString(r, account)
+	} else {
+		canonical = buildCanonicalString(r, account)
+	}
 	mac := hmac.New(sha256.New, key)
 	mac.Write([]byte(canonical))
 	expected := base64.StdEncoding.EncodeToString(mac.Sum(nil))
 	if subtleConstTimeEq([]byte(expected), []byte(presented)) {
 		return nil
 	}
-	return &Error{HTTPStatus: http.StatusForbidden, Code: "AuthenticationFailed", Message: fmt.Sprintf("computed signature does not match presented signature for account %q", account)}
+	return &Error{HTTPStatus: http.StatusForbidden, Code: "AuthenticationFailed", Message: fmt.Sprintf("computed signature does not match presented signature for account %q (scheme=%s)", account, scheme)}
+}
+
+// buildTablesCanonicalString assembles the SharedKeyLite canonical
+// string per the Tables variant — see Azure's docs and the aztables
+// SDK's buildStringToSign. Strictly:
+//
+//	StringToSign = x-ms-date "\n" CanonicalizedResource
+//
+// CanonicalizedResource = "/" account u.EscapedPath() [?comp=<v>]
+//
+// Only the `comp=` query parameter participates in the canonical
+// form for Tables; other query parameters (Top, NextRowKey, $filter,
+// etc.) are not signed.
+func buildTablesCanonicalString(r *http.Request, account string) string {
+	var b strings.Builder
+	b.WriteString(r.Header.Get("x-ms-date"))
+	b.WriteString("\n")
+	b.WriteString("/")
+	b.WriteString(account)
+	if r.URL.Path == "" {
+		b.WriteString("/")
+	} else {
+		b.WriteString(r.URL.EscapedPath())
+	}
+	if comp := r.URL.Query().Get("comp"); comp != "" {
+		b.WriteString("?comp=")
+		b.WriteString(comp)
+	}
+	return b.String()
 }
 
 // buildCanonicalString assembles the canonical signing string per

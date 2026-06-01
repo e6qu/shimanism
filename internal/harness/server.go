@@ -38,6 +38,7 @@ import (
 	"github.com/e6qu/shimanism/internal/gcpbearer"
 	nosqldomain "github.com/e6qu/shimanism/internal/nosql/domain"
 	awsddbfront "github.com/e6qu/shimanism/internal/nosql/frontends/aws_dynamodb"
+	azurectfront "github.com/e6qu/shimanism/internal/nosql/frontends/azure_cosmos_tables"
 	gcpfsfront "github.com/e6qu/shimanism/internal/nosql/frontends/gcp_firestore"
 	pubsubdomain "github.com/e6qu/shimanism/internal/pubsub/domain"
 	awssnsfront "github.com/e6qu/shimanism/internal/pubsub/frontends/aws_sns"
@@ -731,6 +732,20 @@ func StartNoSQLServerAWS(t *testing.T, backend nosqldomain.NoSQL) *NoSQLServer {
 func StartNoSQLServerGCP(t *testing.T, backend nosqldomain.NoSQL) *NoSQLServer {
 	t.Helper()
 	srv := gcpfsfront.Handler(backend)
+	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
+	t.Cleanup(ts.Close)
+	return &NoSQLServer{URL: ts.URL, Close: ts.Close}
+}
+
+// StartNoSQLServerAzure starts a shim instance with the Azure
+// Cosmos DB Table API frontend backed by the given NoSQL
+// implementation. Tables-shaped clients
+// (github.com/Azure/azure-sdk-for-go/sdk/data/aztables) drive it
+// via SharedKey-signed requests against the standard endpoint
+// override.
+func StartNoSQLServerAzure(t *testing.T, backend nosqldomain.NoSQL) *NoSQLServer {
+	t.Helper()
+	srv := azurectfront.Handler(backend)
 	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
 	t.Cleanup(ts.Close)
 	return &NoSQLServer{URL: ts.URL, Close: ts.Close}
