@@ -8,14 +8,14 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 
 | | |
 |---|---|
-| Active branch | `15c-cosmos-tables-metadata-and-tf` — 15.C Cosmos Tables metadata + bearer verifier. |
-| In-flight | **PR #98 — 15.C Cosmos Tables metadata + bearer (BUG-50 cont.).** `HandlerWithConfig` splits auth by path: `/metadata/endpoints` → public discovery JSON; `subscriptions/` or `providers/` ARM paths → bearer verifier → passthrough; everything else → SharedKey → data-plane. `StartNoSQLServerAzureWithConfig` in harness. CI fixes 2026-06-02: global ARM path routing + DynamoDB `DeleteItem ConditionExpression`. Awaiting CI green. **After merge:** `azurerm_cosmosdb_table` TF conformance + `az cosmosdb table` CLI conformance + 15.C closure. |
-| Last merged | PR #97 — BUG-50 Cosmos Tables ARM passthrough foundational (Config.Passthrough + unit tests + HTTPS harness). |
-| Upstream watch | [sockerless PR #357](https://github.com/e6qu/sockerless/pull/357) — Cosmos + Storage Tables ARM. [PR #358](https://github.com/e6qu/sockerless/pull/358) — Linux netns + NAT/IPAM (no Phase 15 dep). [#360](https://github.com/e6qu/sockerless/issues/360) filed + closed via [PR #361](https://github.com/e6qu/sockerless/pull/361) — DynamoDB `DeleteItem ReturnValues=ALL_OLD`. |
+| Active branch | `15c-cosmos-tables-az-cli-conformance` — 15.C az CLI conformance for `az cosmosdb table`. |
+| In-flight | **PR pending — `az cosmosdb table` CLI conformance (BUG-50 final leg).** `TestAzureCLI_CosmosTable_Lifecycle_ThroughShim` in `services/nosql/conformance/azure_cli_test.go`. Mirrors DNS BUG-43 pattern: `az cloud register` → `az login --service-principal` against sockerless Entra → create RG + account + table → show + list → delete. Linux-only (SSL_CERT_FILE). |
+| Last merged | PR #98 — BUG-50 Cosmos Tables metadata + bearer verifier + Terraform conformance. TF conformance row complete. DynamoDB DeleteItem ConditionExpression fix. Global ARM path routing fix. |
+| Upstream watch | [sockerless PR #357](https://github.com/e6qu/sockerless/pull/357) — Cosmos + Storage Tables ARM (merged). [PR #358](https://github.com/e6qu/sockerless/pull/358) — Linux netns + NAT/IPAM (merged, no Phase 15 dep). [#360](https://github.com/e6qu/sockerless/issues/360) filed + closed via [PR #361](https://github.com/e6qu/sockerless/pull/361) — DynamoDB `DeleteItem ReturnValues=ALL_OLD`. |
 | Phases 1–13 | All closed (Phase 13 closed by PR #20). PR index in [PLAN.md § Closed phases](PLAN.md#closed-phases-pr-index). |
 | Phase 14 | 14.A ✅ · 14.B ✅ · 14.C ✅ · 14.D ✅ (simulator audit) / Track A blocked · 14.E ✅. Remaining residuals (terraform-aws `_wo` drift, SB cross-cloud scoping) carried into Phase 15.B. |
 | Phase 15 | 15.A ✅ · 15.B ✅ · 15.D ✅ (closed PR #89). 15.C in flight (this branch — foundational landing). |
-| Bugs | **50 filed · 46 fixed · 4 open · 1 false positive.** Open: **BUG-8** + **BUG-15** + **BUG-41** (third-party / Track A); **BUG-50** (Cosmos Tables ARM passthrough — foundational landed this PR; metadata + TF + CLI are follow-on PRs). |
+| Bugs | **51 filed · 46 fixed · 5 open · 1 false positive.** Open: **BUG-8** + **BUG-15** + **BUG-41** (third-party / Track A); **BUG-50** (Cosmos Tables — foundational + metadata + TF landed; CLI conformance in flight). |
 | Upstream | All prior sockerless gaps closed. Current watch in DO_NEXT.md § Upstream watch. |
 | CI | 18 required checks. Real-cloud lanes wait on Track A. |
 | Renovate | Config + custom manager for vendored-spec SHAs (12.0.15). **User must install the Renovate GitHub App.** |
