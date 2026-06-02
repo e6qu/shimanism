@@ -304,9 +304,14 @@ func (b *Backend) AllocatePublicIP(_ context.Context, opt domain.AllocatePublicI
 	// Allocate a deterministic in-test address from the 203.0.113.0/24
 	// documentation range (TEST-NET-3, RFC 5737).
 	addr := fmt.Sprintf("203.0.113.%d", b.ipSeq%254+1)
+	id := b.nextID("eip", &b.ipSeq)
+	name := opt.Name
+	if name == "" {
+		name = fmt.Sprintf("eip-%08d", b.ipSeq)
+	}
 	ip := &domain.PublicIP{
-		ID:      b.nextID("eip", &b.ipSeq),
-		Name:    fmt.Sprintf("eip-%08d", b.ipSeq),
+		ID:      id,
+		Name:    name,
 		Address: addr,
 		Region:  opt.Region,
 		Tags:    copyTags(opt.Tags),

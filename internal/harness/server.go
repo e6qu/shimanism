@@ -29,6 +29,7 @@ import (
 	gcpmsfront "github.com/e6qu/shimanism/internal/cache/frontends/gcp_memorystore"
 	computedomain "github.com/e6qu/shimanism/internal/compute/domain"
 	awsec2front "github.com/e6qu/shimanism/internal/compute/frontends/aws_ec2"
+	azurenetfront "github.com/e6qu/shimanism/internal/compute/frontends/azure_network"
 	gcpcomputefront "github.com/e6qu/shimanism/internal/compute/frontends/gcp_compute"
 	dnsdomain "github.com/e6qu/shimanism/internal/dns/domain"
 	awsr53front "github.com/e6qu/shimanism/internal/dns/frontends/aws_route53"
@@ -827,6 +828,19 @@ func StartComputeServerGCP(t *testing.T, backend computedomain.Networking) *Comp
 	t.Helper()
 	srv := gcpcomputefront.Handler(backend)
 	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
+	t.Cleanup(ts.Close)
+	return &ComputeServer{URL: ts.URL, Close: ts.Close}
+}
+
+// StartComputeServerAzure starts a shim instance with the Azure Network
+// ARM frontend backed by the given networking implementation. The
+// httptest server uses TLS so the Azure SDK sends Bearer tokens.
+// Azure-shaped clients (armnetwork/v6, az network CLI, hashicorp/azurerm
+// Terraform provider) drive it via the endpoint-override path.
+func StartComputeServerAzure(t *testing.T, backend computedomain.Networking) *ComputeServer {
+	t.Helper()
+	srv := azurenetfront.Handler(backend)
+	ts := httptest.NewTLSServer(&logRoundTrip{t: t, mux: srv})
 	t.Cleanup(ts.Close)
 	return &ComputeServer{URL: ts.URL, Close: ts.Close}
 }

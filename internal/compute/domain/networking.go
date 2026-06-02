@@ -178,6 +178,9 @@ type PublicIP struct {
 
 // AllocatePublicIPOptions carries inputs for AllocatePublicIP.
 type AllocatePublicIPOptions struct {
+	// Name is the caller-specified resource name. Azure uses this directly;
+	// AWS and GCP ignore it (IDs are system-assigned).
+	Name   string
 	Region string // required for GCP / Azure; optional for AWS
 	Tags   map[string]string
 }
