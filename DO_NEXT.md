@@ -74,16 +74,23 @@ The Azure sim requires `SIM_SERVICEBUS_AMQP_LISTEN_ADDR` on a separate port (han
 
 ### 16.C — Compute instance lifecycle (3–4 PRs, after 16.B)
 
-- [ ] Define `internal/compute/domain/instances.go` — `Instances` interface: RunInstances / DescribeInstances / StartInstances / StopInstances / TerminateInstances / RebootInstances / DescribeInstanceTypes.
-- [ ] `services/compute/backends/inmem/` — extend with instance lifecycle.
-- [ ] AWS EC2 frontend — extend with instance Action handlers (same listener/router as 16.B; new Action registrations).
+**PR1 (branch `phase-16c-instances-pr1`) — in progress:**
+- [x] Define `internal/compute/domain/instances.go` — `Instances` interface + all types. ✅ this PR
+- [x] `services/compute/backends/inmem/` — extend with instance lifecycle (10 unit tests green). ✅ this PR
+- [x] AWS EC2 frontend — extend with instance Action handlers; BUG-55 fix (ec2Query list FormKey). ✅ this PR
+- [x] K8s peer — extend: DescribeInstances → Node list/get; DescribeInstanceTypes → Node capacity; Run/Start/Stop/Terminate/Reboot → NotImplemented. ✅ this PR
+- [x] Real AWS backend (`services/compute/backends/aws/`) — instance CRUD implementations. ✅ this PR
+- [x] AWS SDK conformance tests: RunInstances/Describe/Start/Stop/Terminate/Reboot/DescribeInstanceTypes (all green). ✅ this PR
+- [x] Codegen fix: `fieldView.FormKey` derives from `@xmlName` for list form decode keys. ✅ this PR
+
+**Remaining 16.C:**
 - [ ] GCP Compute v1 frontend — instances.insert/delete/start/stop/reset/get/list/aggregatedList + machineTypes.list/get.
+- [ ] Real GCP backend (`services/compute/backends/gcp/`) — instance implementations.
 - [ ] Azure Compute frontend (`services/compute/spec/azure-compute.json`) — VirtualMachines + VirtualMachineSizes ARM handlers.
-- [ ] K8s peer — extend: DescribeInstances → Node list/get; DescribeInstanceTypes → Node capacity; Run/Start/Stop/Terminate/Reboot → NotImplemented.
-- [ ] Real backends: `services/compute/backends/{aws,gcp,azure}/` instance implementations.
-- [ ] Full conformance matrix — SDK + CLI + Terraform × all frontends × all backends.
-- [ ] Sockerless instance lane — add with `SOCKERLESS_COMPUTE_TLS_PORT` guard; `t.Skip` with clear message referencing sockerless #373/#374/#375 until they close.
-- [ ] Cross-cloud Apply cell: e.g., `TestCrossCloudApply_Roundtrip_Compute_AWStoAzure` in `conformance/cross_cloud_apply_test.go`.
+- [ ] Real Azure backend (`services/compute/backends/azure/`) — VM implementations.
+- [ ] GCP + Azure SDK + CLI + Terraform conformance tests.
+- [ ] Sockerless instance lane — `t.Skip` referencing sockerless #373/#374/#375 until they close.
+- [ ] Cross-cloud Apply cell: e.g., `TestCrossCloudApply_Roundtrip_Compute_AWStoAzure`.
 
 ### 16.D — Load balancers (2–3 PRs, after 16.A; parallels 16.B)
 

@@ -812,10 +812,11 @@ type ComputeServer struct {
 }
 
 // StartComputeServerAWS starts a shim instance with the AWS EC2
-// (ec2Query) frontend backed by the given networking implementation.
+// (ec2Query) frontend backed by the given compute backend. The backend
+// must implement both domain.Networking and domain.Instances.
 // EC2-shaped clients (aws-sdk-go-v2/service/ec2, aws ec2 CLI,
 // hashicorp/aws Terraform provider) drive it via BaseEndpoint.
-func StartComputeServerAWS(t *testing.T, backend computedomain.Networking) *ComputeServer {
+func StartComputeServerAWS(t *testing.T, backend awsec2front.ComputeBackend) *ComputeServer {
 	t.Helper()
 	srv := awsec2front.New(backend)
 	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})

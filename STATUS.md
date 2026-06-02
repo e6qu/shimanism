@@ -8,15 +8,15 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 
 | | |
 |---|---|
-| Active branch | `phase-16a-scoping` — Phase 16.A: ec2Query codegen lane + scoping doc + N20–N27. |
-| In-flight | 16.A. ec2Query runtime + template + codegen hook shipped. Scoping doc + N20–N27 shipped. |
-| Last merged | PR #103 — Phase 16 plan docs. |
-| Upstream watch | Sockerless PRs #368–#372 merged. PR #372 added Firecracker VM lifecycle; three follow-up issues open: [#373](https://github.com/e6qu/sockerless/issues/373) (kvm check), [#374](https://github.com/e6qu/sockerless/issues/374) (disk), [#375](https://github.com/e6qu/sockerless/issues/375) (caching). These block 16.C instance sockerless lane + 16.D RegisterTargets lane. |
+| Active branch | `phase-16c-instances-pr1` — Phase 16.C PR1: instance lifecycle domain + inmem + AWS EC2 frontend. |
+| In-flight | 16.C PR1. `domain.Instances` + inmem implementation + AWS EC2 adapter + K8s/AWS real backend extensions. |
+| Last merged | PR #110 — 16.D PR2: GCP + Azure LB frontends + K8s peer. |
+| Upstream watch | Sockerless PRs #368–#372 merged. PR #372 added Firecracker VM lifecycle; three follow-up issues open: [#373](https://github.com/e6qu/sockerless/issues/373) (kvm check), [#374](https://github.com/e6qu/sockerless/issues/374) (disk), [#375](https://github.com/e6qu/sockerless/issues/375) (caching). These block 16.C instance sockerless lane. |
 | Phases 1–13 | All closed (Phase 13 closed by PR #20). PR index in [PLAN.md § Closed phases](PLAN.md#closed-phases-pr-index). |
 | Phase 14 | 14.A ✅ · 14.B ✅ · 14.C ✅ · 14.D ✅ (simulator audit) / Track A blocked · 14.E ✅. Remaining residuals (terraform-aws `_wo` drift, SB cross-cloud scoping) carried into Phase 15.B. |
 | Phase 15 | ✅ All sub-phases closed: 15.A ✅ · 15.B ✅ · 15.C ✅ (PRs #90–#100) · 15.D ✅ (PR #89). |
-| Phase 16 | **Planned.** 16.A (scoping + ec2Query codegen) → 16.B (VPC networking) → 16.C (instances; sockerless gated on #373–375) → 16.D (load balancers, parallels 16.B). Services: `services/compute/` + `services/loadbalancer/`. |
-| Bugs | **51 filed · 47 fixed · 3 open · 1 false positive.** Open: **BUG-8** + **BUG-15** + **BUG-41** (all Track A / third-party — blocked on real-cloud credentials). BUG-48/49/50/51 ✅ closed. |
+| Phase 16 | 16.A ✅ · 16.B ✅ · 16.C ◐ (PR1 in progress) · 16.D ✅. Services: `services/compute/` + `services/loadbalancer/`. |
+| Bugs | **55 filed · 51 fixed · 3 open · 1 false positive.** Open: **BUG-8** + **BUG-15** + **BUG-41** (all Track A / third-party). BUG-52/53/54/55 ✅ closed. |
 | Upstream | All prior sockerless gaps closed. Current watch in DO_NEXT.md § Upstream watch. |
 | CI | 18 required checks. Real-cloud lanes wait on Track A. |
 | Renovate | Config + custom manager for vendored-spec SHAs (12.0.15). **User must install the Renovate GitHub App.** |

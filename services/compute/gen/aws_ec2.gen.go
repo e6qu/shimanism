@@ -344,6 +344,1653 @@ const (
 	ServiceManagedRnat ServiceManaged = "rnat"
 )
 
+// VolumeType is a generated Smithy enum.
+type VolumeType string
+
+const (
+	VolumeTypeGp2      VolumeType = "gp2"
+	VolumeTypeGp3      VolumeType = "gp3"
+	VolumeTypeIo1      VolumeType = "io1"
+	VolumeTypeIo2      VolumeType = "io2"
+	VolumeTypeSc1      VolumeType = "sc1"
+	VolumeTypeSt1      VolumeType = "st1"
+	VolumeTypeStandard VolumeType = "standard"
+)
+
+// CapacityReservationPreference is a generated Smithy enum.
+type CapacityReservationPreference string
+
+const (
+	CapacityReservationPreferenceCapacity_reservations_only CapacityReservationPreference = "capacity-reservations-only"
+	CapacityReservationPreferenceNone                       CapacityReservationPreference = "none"
+	CapacityReservationPreferenceOpen                       CapacityReservationPreference = "open"
+)
+
+// AmdSevSnpSpecification is a generated Smithy enum.
+type AmdSevSnpSpecification string
+
+const (
+	AmdSevSnpSpecificationDisabled AmdSevSnpSpecification = "disabled"
+	AmdSevSnpSpecificationEnabled  AmdSevSnpSpecification = "enabled"
+)
+
+// NestedVirtualizationSpecification is a generated Smithy enum.
+type NestedVirtualizationSpecification string
+
+const (
+	NestedVirtualizationSpecificationDisabled NestedVirtualizationSpecification = "disabled"
+	NestedVirtualizationSpecificationEnabled  NestedVirtualizationSpecification = "enabled"
+)
+
+// ShutdownBehavior is a generated Smithy enum.
+type ShutdownBehavior string
+
+const (
+	ShutdownBehaviorStop      ShutdownBehavior = "stop"
+	ShutdownBehaviorTerminate ShutdownBehavior = "terminate"
+)
+
+// MarketType is a generated Smithy enum.
+type MarketType string
+
+const (
+	MarketTypeCapacity_block                     MarketType = "capacity-block"
+	MarketTypeInterruptible_capacity_reservation MarketType = "interruptible-capacity-reservation"
+	MarketTypeSpot                               MarketType = "spot"
+)
+
+// InstanceInterruptionBehavior is a generated Smithy enum.
+type InstanceInterruptionBehavior string
+
+const (
+	InstanceInterruptionBehaviorHibernate InstanceInterruptionBehavior = "hibernate"
+	InstanceInterruptionBehaviorStop      InstanceInterruptionBehavior = "stop"
+	InstanceInterruptionBehaviorTerminate InstanceInterruptionBehavior = "terminate"
+)
+
+// SpotInstanceType is a generated Smithy enum.
+type SpotInstanceType string
+
+const (
+	SpotInstanceTypeOne_time   SpotInstanceType = "one-time"
+	SpotInstanceTypePersistent SpotInstanceType = "persistent"
+)
+
+// InstanceType is a generated Smithy enum.
+type InstanceType string
+
+const (
+	InstanceTypeA1_2xlarge           InstanceType = "a1.2xlarge"
+	InstanceTypeA1_4xlarge           InstanceType = "a1.4xlarge"
+	InstanceTypeA1_large             InstanceType = "a1.large"
+	InstanceTypeA1_medium            InstanceType = "a1.medium"
+	InstanceTypeA1_metal             InstanceType = "a1.metal"
+	InstanceTypeA1_xlarge            InstanceType = "a1.xlarge"
+	InstanceTypeC1_medium            InstanceType = "c1.medium"
+	InstanceTypeC1_xlarge            InstanceType = "c1.xlarge"
+	InstanceTypeC3_2xlarge           InstanceType = "c3.2xlarge"
+	InstanceTypeC3_4xlarge           InstanceType = "c3.4xlarge"
+	InstanceTypeC3_8xlarge           InstanceType = "c3.8xlarge"
+	InstanceTypeC3_large             InstanceType = "c3.large"
+	InstanceTypeC3_xlarge            InstanceType = "c3.xlarge"
+	InstanceTypeC4_2xlarge           InstanceType = "c4.2xlarge"
+	InstanceTypeC4_4xlarge           InstanceType = "c4.4xlarge"
+	InstanceTypeC4_8xlarge           InstanceType = "c4.8xlarge"
+	InstanceTypeC4_large             InstanceType = "c4.large"
+	InstanceTypeC4_xlarge            InstanceType = "c4.xlarge"
+	InstanceTypeC5_12xlarge          InstanceType = "c5.12xlarge"
+	InstanceTypeC5_18xlarge          InstanceType = "c5.18xlarge"
+	InstanceTypeC5_24xlarge          InstanceType = "c5.24xlarge"
+	InstanceTypeC5_2xlarge           InstanceType = "c5.2xlarge"
+	InstanceTypeC5_4xlarge           InstanceType = "c5.4xlarge"
+	InstanceTypeC5_9xlarge           InstanceType = "c5.9xlarge"
+	InstanceTypeC5_large             InstanceType = "c5.large"
+	InstanceTypeC5_metal             InstanceType = "c5.metal"
+	InstanceTypeC5_xlarge            InstanceType = "c5.xlarge"
+	InstanceTypeC5a_12xlarge         InstanceType = "c5a.12xlarge"
+	InstanceTypeC5a_16xlarge         InstanceType = "c5a.16xlarge"
+	InstanceTypeC5a_24xlarge         InstanceType = "c5a.24xlarge"
+	InstanceTypeC5a_2xlarge          InstanceType = "c5a.2xlarge"
+	InstanceTypeC5a_4xlarge          InstanceType = "c5a.4xlarge"
+	InstanceTypeC5a_8xlarge          InstanceType = "c5a.8xlarge"
+	InstanceTypeC5a_large            InstanceType = "c5a.large"
+	InstanceTypeC5a_xlarge           InstanceType = "c5a.xlarge"
+	InstanceTypeC5ad_12xlarge        InstanceType = "c5ad.12xlarge"
+	InstanceTypeC5ad_16xlarge        InstanceType = "c5ad.16xlarge"
+	InstanceTypeC5ad_24xlarge        InstanceType = "c5ad.24xlarge"
+	InstanceTypeC5ad_2xlarge         InstanceType = "c5ad.2xlarge"
+	InstanceTypeC5ad_4xlarge         InstanceType = "c5ad.4xlarge"
+	InstanceTypeC5ad_8xlarge         InstanceType = "c5ad.8xlarge"
+	InstanceTypeC5ad_large           InstanceType = "c5ad.large"
+	InstanceTypeC5ad_xlarge          InstanceType = "c5ad.xlarge"
+	InstanceTypeC5d_12xlarge         InstanceType = "c5d.12xlarge"
+	InstanceTypeC5d_18xlarge         InstanceType = "c5d.18xlarge"
+	InstanceTypeC5d_24xlarge         InstanceType = "c5d.24xlarge"
+	InstanceTypeC5d_2xlarge          InstanceType = "c5d.2xlarge"
+	InstanceTypeC5d_4xlarge          InstanceType = "c5d.4xlarge"
+	InstanceTypeC5d_9xlarge          InstanceType = "c5d.9xlarge"
+	InstanceTypeC5d_large            InstanceType = "c5d.large"
+	InstanceTypeC5d_metal            InstanceType = "c5d.metal"
+	InstanceTypeC5d_xlarge           InstanceType = "c5d.xlarge"
+	InstanceTypeC5n_18xlarge         InstanceType = "c5n.18xlarge"
+	InstanceTypeC5n_2xlarge          InstanceType = "c5n.2xlarge"
+	InstanceTypeC5n_4xlarge          InstanceType = "c5n.4xlarge"
+	InstanceTypeC5n_9xlarge          InstanceType = "c5n.9xlarge"
+	InstanceTypeC5n_large            InstanceType = "c5n.large"
+	InstanceTypeC5n_metal            InstanceType = "c5n.metal"
+	InstanceTypeC5n_xlarge           InstanceType = "c5n.xlarge"
+	InstanceTypeC6a_12xlarge         InstanceType = "c6a.12xlarge"
+	InstanceTypeC6a_16xlarge         InstanceType = "c6a.16xlarge"
+	InstanceTypeC6a_24xlarge         InstanceType = "c6a.24xlarge"
+	InstanceTypeC6a_2xlarge          InstanceType = "c6a.2xlarge"
+	InstanceTypeC6a_32xlarge         InstanceType = "c6a.32xlarge"
+	InstanceTypeC6a_48xlarge         InstanceType = "c6a.48xlarge"
+	InstanceTypeC6a_4xlarge          InstanceType = "c6a.4xlarge"
+	InstanceTypeC6a_8xlarge          InstanceType = "c6a.8xlarge"
+	InstanceTypeC6a_large            InstanceType = "c6a.large"
+	InstanceTypeC6a_metal            InstanceType = "c6a.metal"
+	InstanceTypeC6a_xlarge           InstanceType = "c6a.xlarge"
+	InstanceTypeC6g_12xlarge         InstanceType = "c6g.12xlarge"
+	InstanceTypeC6g_16xlarge         InstanceType = "c6g.16xlarge"
+	InstanceTypeC6g_2xlarge          InstanceType = "c6g.2xlarge"
+	InstanceTypeC6g_4xlarge          InstanceType = "c6g.4xlarge"
+	InstanceTypeC6g_8xlarge          InstanceType = "c6g.8xlarge"
+	InstanceTypeC6g_large            InstanceType = "c6g.large"
+	InstanceTypeC6g_medium           InstanceType = "c6g.medium"
+	InstanceTypeC6g_metal            InstanceType = "c6g.metal"
+	InstanceTypeC6g_xlarge           InstanceType = "c6g.xlarge"
+	InstanceTypeC6gd_12xlarge        InstanceType = "c6gd.12xlarge"
+	InstanceTypeC6gd_16xlarge        InstanceType = "c6gd.16xlarge"
+	InstanceTypeC6gd_2xlarge         InstanceType = "c6gd.2xlarge"
+	InstanceTypeC6gd_4xlarge         InstanceType = "c6gd.4xlarge"
+	InstanceTypeC6gd_8xlarge         InstanceType = "c6gd.8xlarge"
+	InstanceTypeC6gd_large           InstanceType = "c6gd.large"
+	InstanceTypeC6gd_medium          InstanceType = "c6gd.medium"
+	InstanceTypeC6gd_metal           InstanceType = "c6gd.metal"
+	InstanceTypeC6gd_xlarge          InstanceType = "c6gd.xlarge"
+	InstanceTypeC6gn_12xlarge        InstanceType = "c6gn.12xlarge"
+	InstanceTypeC6gn_16xlarge        InstanceType = "c6gn.16xlarge"
+	InstanceTypeC6gn_2xlarge         InstanceType = "c6gn.2xlarge"
+	InstanceTypeC6gn_4xlarge         InstanceType = "c6gn.4xlarge"
+	InstanceTypeC6gn_8xlarge         InstanceType = "c6gn.8xlarge"
+	InstanceTypeC6gn_large           InstanceType = "c6gn.large"
+	InstanceTypeC6gn_medium          InstanceType = "c6gn.medium"
+	InstanceTypeC6gn_xlarge          InstanceType = "c6gn.xlarge"
+	InstanceTypeC6i_12xlarge         InstanceType = "c6i.12xlarge"
+	InstanceTypeC6i_16xlarge         InstanceType = "c6i.16xlarge"
+	InstanceTypeC6i_24xlarge         InstanceType = "c6i.24xlarge"
+	InstanceTypeC6i_2xlarge          InstanceType = "c6i.2xlarge"
+	InstanceTypeC6i_32xlarge         InstanceType = "c6i.32xlarge"
+	InstanceTypeC6i_4xlarge          InstanceType = "c6i.4xlarge"
+	InstanceTypeC6i_8xlarge          InstanceType = "c6i.8xlarge"
+	InstanceTypeC6i_large            InstanceType = "c6i.large"
+	InstanceTypeC6i_metal            InstanceType = "c6i.metal"
+	InstanceTypeC6i_xlarge           InstanceType = "c6i.xlarge"
+	InstanceTypeC6id_12xlarge        InstanceType = "c6id.12xlarge"
+	InstanceTypeC6id_16xlarge        InstanceType = "c6id.16xlarge"
+	InstanceTypeC6id_24xlarge        InstanceType = "c6id.24xlarge"
+	InstanceTypeC6id_2xlarge         InstanceType = "c6id.2xlarge"
+	InstanceTypeC6id_32xlarge        InstanceType = "c6id.32xlarge"
+	InstanceTypeC6id_4xlarge         InstanceType = "c6id.4xlarge"
+	InstanceTypeC6id_8xlarge         InstanceType = "c6id.8xlarge"
+	InstanceTypeC6id_large           InstanceType = "c6id.large"
+	InstanceTypeC6id_metal           InstanceType = "c6id.metal"
+	InstanceTypeC6id_xlarge          InstanceType = "c6id.xlarge"
+	InstanceTypeC6in_12xlarge        InstanceType = "c6in.12xlarge"
+	InstanceTypeC6in_16xlarge        InstanceType = "c6in.16xlarge"
+	InstanceTypeC6in_24xlarge        InstanceType = "c6in.24xlarge"
+	InstanceTypeC6in_2xlarge         InstanceType = "c6in.2xlarge"
+	InstanceTypeC6in_32xlarge        InstanceType = "c6in.32xlarge"
+	InstanceTypeC6in_4xlarge         InstanceType = "c6in.4xlarge"
+	InstanceTypeC6in_8xlarge         InstanceType = "c6in.8xlarge"
+	InstanceTypeC6in_large           InstanceType = "c6in.large"
+	InstanceTypeC6in_metal           InstanceType = "c6in.metal"
+	InstanceTypeC6in_xlarge          InstanceType = "c6in.xlarge"
+	InstanceTypeC7a_12xlarge         InstanceType = "c7a.12xlarge"
+	InstanceTypeC7a_16xlarge         InstanceType = "c7a.16xlarge"
+	InstanceTypeC7a_24xlarge         InstanceType = "c7a.24xlarge"
+	InstanceTypeC7a_2xlarge          InstanceType = "c7a.2xlarge"
+	InstanceTypeC7a_32xlarge         InstanceType = "c7a.32xlarge"
+	InstanceTypeC7a_48xlarge         InstanceType = "c7a.48xlarge"
+	InstanceTypeC7a_4xlarge          InstanceType = "c7a.4xlarge"
+	InstanceTypeC7a_8xlarge          InstanceType = "c7a.8xlarge"
+	InstanceTypeC7a_large            InstanceType = "c7a.large"
+	InstanceTypeC7a_medium           InstanceType = "c7a.medium"
+	InstanceTypeC7a_metal_48xl       InstanceType = "c7a.metal-48xl"
+	InstanceTypeC7a_xlarge           InstanceType = "c7a.xlarge"
+	InstanceTypeC7g_12xlarge         InstanceType = "c7g.12xlarge"
+	InstanceTypeC7g_16xlarge         InstanceType = "c7g.16xlarge"
+	InstanceTypeC7g_2xlarge          InstanceType = "c7g.2xlarge"
+	InstanceTypeC7g_4xlarge          InstanceType = "c7g.4xlarge"
+	InstanceTypeC7g_8xlarge          InstanceType = "c7g.8xlarge"
+	InstanceTypeC7g_large            InstanceType = "c7g.large"
+	InstanceTypeC7g_medium           InstanceType = "c7g.medium"
+	InstanceTypeC7g_metal            InstanceType = "c7g.metal"
+	InstanceTypeC7g_xlarge           InstanceType = "c7g.xlarge"
+	InstanceTypeC7gd_12xlarge        InstanceType = "c7gd.12xlarge"
+	InstanceTypeC7gd_16xlarge        InstanceType = "c7gd.16xlarge"
+	InstanceTypeC7gd_2xlarge         InstanceType = "c7gd.2xlarge"
+	InstanceTypeC7gd_4xlarge         InstanceType = "c7gd.4xlarge"
+	InstanceTypeC7gd_8xlarge         InstanceType = "c7gd.8xlarge"
+	InstanceTypeC7gd_large           InstanceType = "c7gd.large"
+	InstanceTypeC7gd_medium          InstanceType = "c7gd.medium"
+	InstanceTypeC7gd_metal           InstanceType = "c7gd.metal"
+	InstanceTypeC7gd_xlarge          InstanceType = "c7gd.xlarge"
+	InstanceTypeC7gn_12xlarge        InstanceType = "c7gn.12xlarge"
+	InstanceTypeC7gn_16xlarge        InstanceType = "c7gn.16xlarge"
+	InstanceTypeC7gn_2xlarge         InstanceType = "c7gn.2xlarge"
+	InstanceTypeC7gn_4xlarge         InstanceType = "c7gn.4xlarge"
+	InstanceTypeC7gn_8xlarge         InstanceType = "c7gn.8xlarge"
+	InstanceTypeC7gn_large           InstanceType = "c7gn.large"
+	InstanceTypeC7gn_medium          InstanceType = "c7gn.medium"
+	InstanceTypeC7gn_metal           InstanceType = "c7gn.metal"
+	InstanceTypeC7gn_xlarge          InstanceType = "c7gn.xlarge"
+	InstanceTypeC7i_12xlarge         InstanceType = "c7i.12xlarge"
+	InstanceTypeC7i_16xlarge         InstanceType = "c7i.16xlarge"
+	InstanceTypeC7i_24xlarge         InstanceType = "c7i.24xlarge"
+	InstanceTypeC7i_2xlarge          InstanceType = "c7i.2xlarge"
+	InstanceTypeC7i_48xlarge         InstanceType = "c7i.48xlarge"
+	InstanceTypeC7i_4xlarge          InstanceType = "c7i.4xlarge"
+	InstanceTypeC7i_8xlarge          InstanceType = "c7i.8xlarge"
+	InstanceTypeC7i_flex_12xlarge    InstanceType = "c7i-flex.12xlarge"
+	InstanceTypeC7i_flex_16xlarge    InstanceType = "c7i-flex.16xlarge"
+	InstanceTypeC7i_flex_2xlarge     InstanceType = "c7i-flex.2xlarge"
+	InstanceTypeC7i_flex_4xlarge     InstanceType = "c7i-flex.4xlarge"
+	InstanceTypeC7i_flex_8xlarge     InstanceType = "c7i-flex.8xlarge"
+	InstanceTypeC7i_flex_large       InstanceType = "c7i-flex.large"
+	InstanceTypeC7i_flex_xlarge      InstanceType = "c7i-flex.xlarge"
+	InstanceTypeC7i_large            InstanceType = "c7i.large"
+	InstanceTypeC7i_metal_24xl       InstanceType = "c7i.metal-24xl"
+	InstanceTypeC7i_metal_48xl       InstanceType = "c7i.metal-48xl"
+	InstanceTypeC7i_xlarge           InstanceType = "c7i.xlarge"
+	InstanceTypeC8a_12xlarge         InstanceType = "c8a.12xlarge"
+	InstanceTypeC8a_16xlarge         InstanceType = "c8a.16xlarge"
+	InstanceTypeC8a_24xlarge         InstanceType = "c8a.24xlarge"
+	InstanceTypeC8a_2xlarge          InstanceType = "c8a.2xlarge"
+	InstanceTypeC8a_48xlarge         InstanceType = "c8a.48xlarge"
+	InstanceTypeC8a_4xlarge          InstanceType = "c8a.4xlarge"
+	InstanceTypeC8a_8xlarge          InstanceType = "c8a.8xlarge"
+	InstanceTypeC8a_large            InstanceType = "c8a.large"
+	InstanceTypeC8a_medium           InstanceType = "c8a.medium"
+	InstanceTypeC8a_metal_24xl       InstanceType = "c8a.metal-24xl"
+	InstanceTypeC8a_metal_48xl       InstanceType = "c8a.metal-48xl"
+	InstanceTypeC8a_xlarge           InstanceType = "c8a.xlarge"
+	InstanceTypeC8g_12xlarge         InstanceType = "c8g.12xlarge"
+	InstanceTypeC8g_16xlarge         InstanceType = "c8g.16xlarge"
+	InstanceTypeC8g_24xlarge         InstanceType = "c8g.24xlarge"
+	InstanceTypeC8g_2xlarge          InstanceType = "c8g.2xlarge"
+	InstanceTypeC8g_48xlarge         InstanceType = "c8g.48xlarge"
+	InstanceTypeC8g_4xlarge          InstanceType = "c8g.4xlarge"
+	InstanceTypeC8g_8xlarge          InstanceType = "c8g.8xlarge"
+	InstanceTypeC8g_large            InstanceType = "c8g.large"
+	InstanceTypeC8g_medium           InstanceType = "c8g.medium"
+	InstanceTypeC8g_metal_24xl       InstanceType = "c8g.metal-24xl"
+	InstanceTypeC8g_metal_48xl       InstanceType = "c8g.metal-48xl"
+	InstanceTypeC8g_xlarge           InstanceType = "c8g.xlarge"
+	InstanceTypeC8gb_12xlarge        InstanceType = "c8gb.12xlarge"
+	InstanceTypeC8gb_16xlarge        InstanceType = "c8gb.16xlarge"
+	InstanceTypeC8gb_24xlarge        InstanceType = "c8gb.24xlarge"
+	InstanceTypeC8gb_2xlarge         InstanceType = "c8gb.2xlarge"
+	InstanceTypeC8gb_48xlarge        InstanceType = "c8gb.48xlarge"
+	InstanceTypeC8gb_4xlarge         InstanceType = "c8gb.4xlarge"
+	InstanceTypeC8gb_8xlarge         InstanceType = "c8gb.8xlarge"
+	InstanceTypeC8gb_large           InstanceType = "c8gb.large"
+	InstanceTypeC8gb_medium          InstanceType = "c8gb.medium"
+	InstanceTypeC8gb_metal_24xl      InstanceType = "c8gb.metal-24xl"
+	InstanceTypeC8gb_metal_48xl      InstanceType = "c8gb.metal-48xl"
+	InstanceTypeC8gb_xlarge          InstanceType = "c8gb.xlarge"
+	InstanceTypeC8gd_12xlarge        InstanceType = "c8gd.12xlarge"
+	InstanceTypeC8gd_16xlarge        InstanceType = "c8gd.16xlarge"
+	InstanceTypeC8gd_24xlarge        InstanceType = "c8gd.24xlarge"
+	InstanceTypeC8gd_2xlarge         InstanceType = "c8gd.2xlarge"
+	InstanceTypeC8gd_48xlarge        InstanceType = "c8gd.48xlarge"
+	InstanceTypeC8gd_4xlarge         InstanceType = "c8gd.4xlarge"
+	InstanceTypeC8gd_8xlarge         InstanceType = "c8gd.8xlarge"
+	InstanceTypeC8gd_large           InstanceType = "c8gd.large"
+	InstanceTypeC8gd_medium          InstanceType = "c8gd.medium"
+	InstanceTypeC8gd_metal_24xl      InstanceType = "c8gd.metal-24xl"
+	InstanceTypeC8gd_metal_48xl      InstanceType = "c8gd.metal-48xl"
+	InstanceTypeC8gd_xlarge          InstanceType = "c8gd.xlarge"
+	InstanceTypeC8gn_12xlarge        InstanceType = "c8gn.12xlarge"
+	InstanceTypeC8gn_16xlarge        InstanceType = "c8gn.16xlarge"
+	InstanceTypeC8gn_24xlarge        InstanceType = "c8gn.24xlarge"
+	InstanceTypeC8gn_2xlarge         InstanceType = "c8gn.2xlarge"
+	InstanceTypeC8gn_48xlarge        InstanceType = "c8gn.48xlarge"
+	InstanceTypeC8gn_4xlarge         InstanceType = "c8gn.4xlarge"
+	InstanceTypeC8gn_8xlarge         InstanceType = "c8gn.8xlarge"
+	InstanceTypeC8gn_large           InstanceType = "c8gn.large"
+	InstanceTypeC8gn_medium          InstanceType = "c8gn.medium"
+	InstanceTypeC8gn_metal_24xl      InstanceType = "c8gn.metal-24xl"
+	InstanceTypeC8gn_metal_48xl      InstanceType = "c8gn.metal-48xl"
+	InstanceTypeC8gn_xlarge          InstanceType = "c8gn.xlarge"
+	InstanceTypeC8i_12xlarge         InstanceType = "c8i.12xlarge"
+	InstanceTypeC8i_16xlarge         InstanceType = "c8i.16xlarge"
+	InstanceTypeC8i_24xlarge         InstanceType = "c8i.24xlarge"
+	InstanceTypeC8i_2xlarge          InstanceType = "c8i.2xlarge"
+	InstanceTypeC8i_32xlarge         InstanceType = "c8i.32xlarge"
+	InstanceTypeC8i_48xlarge         InstanceType = "c8i.48xlarge"
+	InstanceTypeC8i_4xlarge          InstanceType = "c8i.4xlarge"
+	InstanceTypeC8i_8xlarge          InstanceType = "c8i.8xlarge"
+	InstanceTypeC8i_96xlarge         InstanceType = "c8i.96xlarge"
+	InstanceTypeC8i_flex_12xlarge    InstanceType = "c8i-flex.12xlarge"
+	InstanceTypeC8i_flex_16xlarge    InstanceType = "c8i-flex.16xlarge"
+	InstanceTypeC8i_flex_2xlarge     InstanceType = "c8i-flex.2xlarge"
+	InstanceTypeC8i_flex_4xlarge     InstanceType = "c8i-flex.4xlarge"
+	InstanceTypeC8i_flex_8xlarge     InstanceType = "c8i-flex.8xlarge"
+	InstanceTypeC8i_flex_large       InstanceType = "c8i-flex.large"
+	InstanceTypeC8i_flex_xlarge      InstanceType = "c8i-flex.xlarge"
+	InstanceTypeC8i_large            InstanceType = "c8i.large"
+	InstanceTypeC8i_metal_48xl       InstanceType = "c8i.metal-48xl"
+	InstanceTypeC8i_metal_96xl       InstanceType = "c8i.metal-96xl"
+	InstanceTypeC8i_xlarge           InstanceType = "c8i.xlarge"
+	InstanceTypeC8id_12xlarge        InstanceType = "c8id.12xlarge"
+	InstanceTypeC8id_16xlarge        InstanceType = "c8id.16xlarge"
+	InstanceTypeC8id_24xlarge        InstanceType = "c8id.24xlarge"
+	InstanceTypeC8id_2xlarge         InstanceType = "c8id.2xlarge"
+	InstanceTypeC8id_32xlarge        InstanceType = "c8id.32xlarge"
+	InstanceTypeC8id_48xlarge        InstanceType = "c8id.48xlarge"
+	InstanceTypeC8id_4xlarge         InstanceType = "c8id.4xlarge"
+	InstanceTypeC8id_8xlarge         InstanceType = "c8id.8xlarge"
+	InstanceTypeC8id_96xlarge        InstanceType = "c8id.96xlarge"
+	InstanceTypeC8id_large           InstanceType = "c8id.large"
+	InstanceTypeC8id_metal_48xl      InstanceType = "c8id.metal-48xl"
+	InstanceTypeC8id_metal_96xl      InstanceType = "c8id.metal-96xl"
+	InstanceTypeC8id_xlarge          InstanceType = "c8id.xlarge"
+	InstanceTypeCc1_4xlarge          InstanceType = "cc1.4xlarge"
+	InstanceTypeCc2_8xlarge          InstanceType = "cc2.8xlarge"
+	InstanceTypeCg1_4xlarge          InstanceType = "cg1.4xlarge"
+	InstanceTypeCr1_8xlarge          InstanceType = "cr1.8xlarge"
+	InstanceTypeD2_2xlarge           InstanceType = "d2.2xlarge"
+	InstanceTypeD2_4xlarge           InstanceType = "d2.4xlarge"
+	InstanceTypeD2_8xlarge           InstanceType = "d2.8xlarge"
+	InstanceTypeD2_xlarge            InstanceType = "d2.xlarge"
+	InstanceTypeD3_2xlarge           InstanceType = "d3.2xlarge"
+	InstanceTypeD3_4xlarge           InstanceType = "d3.4xlarge"
+	InstanceTypeD3_8xlarge           InstanceType = "d3.8xlarge"
+	InstanceTypeD3_xlarge            InstanceType = "d3.xlarge"
+	InstanceTypeD3en_12xlarge        InstanceType = "d3en.12xlarge"
+	InstanceTypeD3en_2xlarge         InstanceType = "d3en.2xlarge"
+	InstanceTypeD3en_4xlarge         InstanceType = "d3en.4xlarge"
+	InstanceTypeD3en_6xlarge         InstanceType = "d3en.6xlarge"
+	InstanceTypeD3en_8xlarge         InstanceType = "d3en.8xlarge"
+	InstanceTypeD3en_xlarge          InstanceType = "d3en.xlarge"
+	InstanceTypeDl1_24xlarge         InstanceType = "dl1.24xlarge"
+	InstanceTypeDl2q_24xlarge        InstanceType = "dl2q.24xlarge"
+	InstanceTypeF1_16xlarge          InstanceType = "f1.16xlarge"
+	InstanceTypeF1_2xlarge           InstanceType = "f1.2xlarge"
+	InstanceTypeF1_4xlarge           InstanceType = "f1.4xlarge"
+	InstanceTypeF2_12xlarge          InstanceType = "f2.12xlarge"
+	InstanceTypeF2_48xlarge          InstanceType = "f2.48xlarge"
+	InstanceTypeF2_6xlarge           InstanceType = "f2.6xlarge"
+	InstanceTypeG2_2xlarge           InstanceType = "g2.2xlarge"
+	InstanceTypeG2_8xlarge           InstanceType = "g2.8xlarge"
+	InstanceTypeG3_16xlarge          InstanceType = "g3.16xlarge"
+	InstanceTypeG3_4xlarge           InstanceType = "g3.4xlarge"
+	InstanceTypeG3_8xlarge           InstanceType = "g3.8xlarge"
+	InstanceTypeG3s_xlarge           InstanceType = "g3s.xlarge"
+	InstanceTypeG4ad_16xlarge        InstanceType = "g4ad.16xlarge"
+	InstanceTypeG4ad_2xlarge         InstanceType = "g4ad.2xlarge"
+	InstanceTypeG4ad_4xlarge         InstanceType = "g4ad.4xlarge"
+	InstanceTypeG4ad_8xlarge         InstanceType = "g4ad.8xlarge"
+	InstanceTypeG4ad_xlarge          InstanceType = "g4ad.xlarge"
+	InstanceTypeG4dn_12xlarge        InstanceType = "g4dn.12xlarge"
+	InstanceTypeG4dn_16xlarge        InstanceType = "g4dn.16xlarge"
+	InstanceTypeG4dn_2xlarge         InstanceType = "g4dn.2xlarge"
+	InstanceTypeG4dn_4xlarge         InstanceType = "g4dn.4xlarge"
+	InstanceTypeG4dn_8xlarge         InstanceType = "g4dn.8xlarge"
+	InstanceTypeG4dn_metal           InstanceType = "g4dn.metal"
+	InstanceTypeG4dn_xlarge          InstanceType = "g4dn.xlarge"
+	InstanceTypeG5_12xlarge          InstanceType = "g5.12xlarge"
+	InstanceTypeG5_16xlarge          InstanceType = "g5.16xlarge"
+	InstanceTypeG5_24xlarge          InstanceType = "g5.24xlarge"
+	InstanceTypeG5_2xlarge           InstanceType = "g5.2xlarge"
+	InstanceTypeG5_48xlarge          InstanceType = "g5.48xlarge"
+	InstanceTypeG5_4xlarge           InstanceType = "g5.4xlarge"
+	InstanceTypeG5_8xlarge           InstanceType = "g5.8xlarge"
+	InstanceTypeG5_xlarge            InstanceType = "g5.xlarge"
+	InstanceTypeG5g_16xlarge         InstanceType = "g5g.16xlarge"
+	InstanceTypeG5g_2xlarge          InstanceType = "g5g.2xlarge"
+	InstanceTypeG5g_4xlarge          InstanceType = "g5g.4xlarge"
+	InstanceTypeG5g_8xlarge          InstanceType = "g5g.8xlarge"
+	InstanceTypeG5g_metal            InstanceType = "g5g.metal"
+	InstanceTypeG5g_xlarge           InstanceType = "g5g.xlarge"
+	InstanceTypeG6_12xlarge          InstanceType = "g6.12xlarge"
+	InstanceTypeG6_16xlarge          InstanceType = "g6.16xlarge"
+	InstanceTypeG6_24xlarge          InstanceType = "g6.24xlarge"
+	InstanceTypeG6_2xlarge           InstanceType = "g6.2xlarge"
+	InstanceTypeG6_48xlarge          InstanceType = "g6.48xlarge"
+	InstanceTypeG6_4xlarge           InstanceType = "g6.4xlarge"
+	InstanceTypeG6_8xlarge           InstanceType = "g6.8xlarge"
+	InstanceTypeG6_xlarge            InstanceType = "g6.xlarge"
+	InstanceTypeG6e_12xlarge         InstanceType = "g6e.12xlarge"
+	InstanceTypeG6e_16xlarge         InstanceType = "g6e.16xlarge"
+	InstanceTypeG6e_24xlarge         InstanceType = "g6e.24xlarge"
+	InstanceTypeG6e_2xlarge          InstanceType = "g6e.2xlarge"
+	InstanceTypeG6e_48xlarge         InstanceType = "g6e.48xlarge"
+	InstanceTypeG6e_4xlarge          InstanceType = "g6e.4xlarge"
+	InstanceTypeG6e_8xlarge          InstanceType = "g6e.8xlarge"
+	InstanceTypeG6e_xlarge           InstanceType = "g6e.xlarge"
+	InstanceTypeG6f_2xlarge          InstanceType = "g6f.2xlarge"
+	InstanceTypeG6f_4xlarge          InstanceType = "g6f.4xlarge"
+	InstanceTypeG6f_large            InstanceType = "g6f.large"
+	InstanceTypeG6f_xlarge           InstanceType = "g6f.xlarge"
+	InstanceTypeG7e_12xlarge         InstanceType = "g7e.12xlarge"
+	InstanceTypeG7e_24xlarge         InstanceType = "g7e.24xlarge"
+	InstanceTypeG7e_2xlarge          InstanceType = "g7e.2xlarge"
+	InstanceTypeG7e_48xlarge         InstanceType = "g7e.48xlarge"
+	InstanceTypeG7e_4xlarge          InstanceType = "g7e.4xlarge"
+	InstanceTypeG7e_8xlarge          InstanceType = "g7e.8xlarge"
+	InstanceTypeGr6_4xlarge          InstanceType = "gr6.4xlarge"
+	InstanceTypeGr6_8xlarge          InstanceType = "gr6.8xlarge"
+	InstanceTypeGr6f_4xlarge         InstanceType = "gr6f.4xlarge"
+	InstanceTypeH1_16xlarge          InstanceType = "h1.16xlarge"
+	InstanceTypeH1_2xlarge           InstanceType = "h1.2xlarge"
+	InstanceTypeH1_4xlarge           InstanceType = "h1.4xlarge"
+	InstanceTypeH1_8xlarge           InstanceType = "h1.8xlarge"
+	InstanceTypeHi1_4xlarge          InstanceType = "hi1.4xlarge"
+	InstanceTypeHpc6a_48xlarge       InstanceType = "hpc6a.48xlarge"
+	InstanceTypeHpc6id_32xlarge      InstanceType = "hpc6id.32xlarge"
+	InstanceTypeHpc7a_12xlarge       InstanceType = "hpc7a.12xlarge"
+	InstanceTypeHpc7a_24xlarge       InstanceType = "hpc7a.24xlarge"
+	InstanceTypeHpc7a_48xlarge       InstanceType = "hpc7a.48xlarge"
+	InstanceTypeHpc7a_96xlarge       InstanceType = "hpc7a.96xlarge"
+	InstanceTypeHpc7g_16xlarge       InstanceType = "hpc7g.16xlarge"
+	InstanceTypeHpc7g_4xlarge        InstanceType = "hpc7g.4xlarge"
+	InstanceTypeHpc7g_8xlarge        InstanceType = "hpc7g.8xlarge"
+	InstanceTypeHpc8a_96xlarge       InstanceType = "hpc8a.96xlarge"
+	InstanceTypeHs1_8xlarge          InstanceType = "hs1.8xlarge"
+	InstanceTypeI2_2xlarge           InstanceType = "i2.2xlarge"
+	InstanceTypeI2_4xlarge           InstanceType = "i2.4xlarge"
+	InstanceTypeI2_8xlarge           InstanceType = "i2.8xlarge"
+	InstanceTypeI2_xlarge            InstanceType = "i2.xlarge"
+	InstanceTypeI3_16xlarge          InstanceType = "i3.16xlarge"
+	InstanceTypeI3_2xlarge           InstanceType = "i3.2xlarge"
+	InstanceTypeI3_4xlarge           InstanceType = "i3.4xlarge"
+	InstanceTypeI3_8xlarge           InstanceType = "i3.8xlarge"
+	InstanceTypeI3_large             InstanceType = "i3.large"
+	InstanceTypeI3_metal             InstanceType = "i3.metal"
+	InstanceTypeI3_xlarge            InstanceType = "i3.xlarge"
+	InstanceTypeI3en_12xlarge        InstanceType = "i3en.12xlarge"
+	InstanceTypeI3en_24xlarge        InstanceType = "i3en.24xlarge"
+	InstanceTypeI3en_2xlarge         InstanceType = "i3en.2xlarge"
+	InstanceTypeI3en_3xlarge         InstanceType = "i3en.3xlarge"
+	InstanceTypeI3en_6xlarge         InstanceType = "i3en.6xlarge"
+	InstanceTypeI3en_large           InstanceType = "i3en.large"
+	InstanceTypeI3en_metal           InstanceType = "i3en.metal"
+	InstanceTypeI3en_xlarge          InstanceType = "i3en.xlarge"
+	InstanceTypeI4g_16xlarge         InstanceType = "i4g.16xlarge"
+	InstanceTypeI4g_2xlarge          InstanceType = "i4g.2xlarge"
+	InstanceTypeI4g_4xlarge          InstanceType = "i4g.4xlarge"
+	InstanceTypeI4g_8xlarge          InstanceType = "i4g.8xlarge"
+	InstanceTypeI4g_large            InstanceType = "i4g.large"
+	InstanceTypeI4g_xlarge           InstanceType = "i4g.xlarge"
+	InstanceTypeI4i_12xlarge         InstanceType = "i4i.12xlarge"
+	InstanceTypeI4i_16xlarge         InstanceType = "i4i.16xlarge"
+	InstanceTypeI4i_24xlarge         InstanceType = "i4i.24xlarge"
+	InstanceTypeI4i_2xlarge          InstanceType = "i4i.2xlarge"
+	InstanceTypeI4i_32xlarge         InstanceType = "i4i.32xlarge"
+	InstanceTypeI4i_4xlarge          InstanceType = "i4i.4xlarge"
+	InstanceTypeI4i_8xlarge          InstanceType = "i4i.8xlarge"
+	InstanceTypeI4i_large            InstanceType = "i4i.large"
+	InstanceTypeI4i_metal            InstanceType = "i4i.metal"
+	InstanceTypeI4i_xlarge           InstanceType = "i4i.xlarge"
+	InstanceTypeI7i_12xlarge         InstanceType = "i7i.12xlarge"
+	InstanceTypeI7i_16xlarge         InstanceType = "i7i.16xlarge"
+	InstanceTypeI7i_24xlarge         InstanceType = "i7i.24xlarge"
+	InstanceTypeI7i_2xlarge          InstanceType = "i7i.2xlarge"
+	InstanceTypeI7i_48xlarge         InstanceType = "i7i.48xlarge"
+	InstanceTypeI7i_4xlarge          InstanceType = "i7i.4xlarge"
+	InstanceTypeI7i_8xlarge          InstanceType = "i7i.8xlarge"
+	InstanceTypeI7i_large            InstanceType = "i7i.large"
+	InstanceTypeI7i_metal_24xl       InstanceType = "i7i.metal-24xl"
+	InstanceTypeI7i_metal_48xl       InstanceType = "i7i.metal-48xl"
+	InstanceTypeI7i_xlarge           InstanceType = "i7i.xlarge"
+	InstanceTypeI7ie_12xlarge        InstanceType = "i7ie.12xlarge"
+	InstanceTypeI7ie_18xlarge        InstanceType = "i7ie.18xlarge"
+	InstanceTypeI7ie_24xlarge        InstanceType = "i7ie.24xlarge"
+	InstanceTypeI7ie_2xlarge         InstanceType = "i7ie.2xlarge"
+	InstanceTypeI7ie_3xlarge         InstanceType = "i7ie.3xlarge"
+	InstanceTypeI7ie_48xlarge        InstanceType = "i7ie.48xlarge"
+	InstanceTypeI7ie_6xlarge         InstanceType = "i7ie.6xlarge"
+	InstanceTypeI7ie_large           InstanceType = "i7ie.large"
+	InstanceTypeI7ie_metal_24xl      InstanceType = "i7ie.metal-24xl"
+	InstanceTypeI7ie_metal_48xl      InstanceType = "i7ie.metal-48xl"
+	InstanceTypeI7ie_xlarge          InstanceType = "i7ie.xlarge"
+	InstanceTypeI8g_12xlarge         InstanceType = "i8g.12xlarge"
+	InstanceTypeI8g_16xlarge         InstanceType = "i8g.16xlarge"
+	InstanceTypeI8g_24xlarge         InstanceType = "i8g.24xlarge"
+	InstanceTypeI8g_2xlarge          InstanceType = "i8g.2xlarge"
+	InstanceTypeI8g_48xlarge         InstanceType = "i8g.48xlarge"
+	InstanceTypeI8g_4xlarge          InstanceType = "i8g.4xlarge"
+	InstanceTypeI8g_8xlarge          InstanceType = "i8g.8xlarge"
+	InstanceTypeI8g_large            InstanceType = "i8g.large"
+	InstanceTypeI8g_metal_24xl       InstanceType = "i8g.metal-24xl"
+	InstanceTypeI8g_xlarge           InstanceType = "i8g.xlarge"
+	InstanceTypeI8ge_12xlarge        InstanceType = "i8ge.12xlarge"
+	InstanceTypeI8ge_18xlarge        InstanceType = "i8ge.18xlarge"
+	InstanceTypeI8ge_24xlarge        InstanceType = "i8ge.24xlarge"
+	InstanceTypeI8ge_2xlarge         InstanceType = "i8ge.2xlarge"
+	InstanceTypeI8ge_3xlarge         InstanceType = "i8ge.3xlarge"
+	InstanceTypeI8ge_48xlarge        InstanceType = "i8ge.48xlarge"
+	InstanceTypeI8ge_6xlarge         InstanceType = "i8ge.6xlarge"
+	InstanceTypeI8ge_large           InstanceType = "i8ge.large"
+	InstanceTypeI8ge_metal_24xl      InstanceType = "i8ge.metal-24xl"
+	InstanceTypeI8ge_metal_48xl      InstanceType = "i8ge.metal-48xl"
+	InstanceTypeI8ge_xlarge          InstanceType = "i8ge.xlarge"
+	InstanceTypeIm4gn_16xlarge       InstanceType = "im4gn.16xlarge"
+	InstanceTypeIm4gn_2xlarge        InstanceType = "im4gn.2xlarge"
+	InstanceTypeIm4gn_4xlarge        InstanceType = "im4gn.4xlarge"
+	InstanceTypeIm4gn_8xlarge        InstanceType = "im4gn.8xlarge"
+	InstanceTypeIm4gn_large          InstanceType = "im4gn.large"
+	InstanceTypeIm4gn_xlarge         InstanceType = "im4gn.xlarge"
+	InstanceTypeInf1_24xlarge        InstanceType = "inf1.24xlarge"
+	InstanceTypeInf1_2xlarge         InstanceType = "inf1.2xlarge"
+	InstanceTypeInf1_6xlarge         InstanceType = "inf1.6xlarge"
+	InstanceTypeInf1_xlarge          InstanceType = "inf1.xlarge"
+	InstanceTypeInf2_24xlarge        InstanceType = "inf2.24xlarge"
+	InstanceTypeInf2_48xlarge        InstanceType = "inf2.48xlarge"
+	InstanceTypeInf2_8xlarge         InstanceType = "inf2.8xlarge"
+	InstanceTypeInf2_xlarge          InstanceType = "inf2.xlarge"
+	InstanceTypeIs4gen_2xlarge       InstanceType = "is4gen.2xlarge"
+	InstanceTypeIs4gen_4xlarge       InstanceType = "is4gen.4xlarge"
+	InstanceTypeIs4gen_8xlarge       InstanceType = "is4gen.8xlarge"
+	InstanceTypeIs4gen_large         InstanceType = "is4gen.large"
+	InstanceTypeIs4gen_medium        InstanceType = "is4gen.medium"
+	InstanceTypeIs4gen_xlarge        InstanceType = "is4gen.xlarge"
+	InstanceTypeM1_large             InstanceType = "m1.large"
+	InstanceTypeM1_medium            InstanceType = "m1.medium"
+	InstanceTypeM1_small             InstanceType = "m1.small"
+	InstanceTypeM1_xlarge            InstanceType = "m1.xlarge"
+	InstanceTypeM2_2xlarge           InstanceType = "m2.2xlarge"
+	InstanceTypeM2_4xlarge           InstanceType = "m2.4xlarge"
+	InstanceTypeM2_xlarge            InstanceType = "m2.xlarge"
+	InstanceTypeM3_2xlarge           InstanceType = "m3.2xlarge"
+	InstanceTypeM3_large             InstanceType = "m3.large"
+	InstanceTypeM3_medium            InstanceType = "m3.medium"
+	InstanceTypeM3_xlarge            InstanceType = "m3.xlarge"
+	InstanceTypeM4_10xlarge          InstanceType = "m4.10xlarge"
+	InstanceTypeM4_16xlarge          InstanceType = "m4.16xlarge"
+	InstanceTypeM4_2xlarge           InstanceType = "m4.2xlarge"
+	InstanceTypeM4_4xlarge           InstanceType = "m4.4xlarge"
+	InstanceTypeM4_large             InstanceType = "m4.large"
+	InstanceTypeM4_xlarge            InstanceType = "m4.xlarge"
+	InstanceTypeM5_12xlarge          InstanceType = "m5.12xlarge"
+	InstanceTypeM5_16xlarge          InstanceType = "m5.16xlarge"
+	InstanceTypeM5_24xlarge          InstanceType = "m5.24xlarge"
+	InstanceTypeM5_2xlarge           InstanceType = "m5.2xlarge"
+	InstanceTypeM5_4xlarge           InstanceType = "m5.4xlarge"
+	InstanceTypeM5_8xlarge           InstanceType = "m5.8xlarge"
+	InstanceTypeM5_large             InstanceType = "m5.large"
+	InstanceTypeM5_metal             InstanceType = "m5.metal"
+	InstanceTypeM5_xlarge            InstanceType = "m5.xlarge"
+	InstanceTypeM5a_12xlarge         InstanceType = "m5a.12xlarge"
+	InstanceTypeM5a_16xlarge         InstanceType = "m5a.16xlarge"
+	InstanceTypeM5a_24xlarge         InstanceType = "m5a.24xlarge"
+	InstanceTypeM5a_2xlarge          InstanceType = "m5a.2xlarge"
+	InstanceTypeM5a_4xlarge          InstanceType = "m5a.4xlarge"
+	InstanceTypeM5a_8xlarge          InstanceType = "m5a.8xlarge"
+	InstanceTypeM5a_large            InstanceType = "m5a.large"
+	InstanceTypeM5a_xlarge           InstanceType = "m5a.xlarge"
+	InstanceTypeM5ad_12xlarge        InstanceType = "m5ad.12xlarge"
+	InstanceTypeM5ad_16xlarge        InstanceType = "m5ad.16xlarge"
+	InstanceTypeM5ad_24xlarge        InstanceType = "m5ad.24xlarge"
+	InstanceTypeM5ad_2xlarge         InstanceType = "m5ad.2xlarge"
+	InstanceTypeM5ad_4xlarge         InstanceType = "m5ad.4xlarge"
+	InstanceTypeM5ad_8xlarge         InstanceType = "m5ad.8xlarge"
+	InstanceTypeM5ad_large           InstanceType = "m5ad.large"
+	InstanceTypeM5ad_xlarge          InstanceType = "m5ad.xlarge"
+	InstanceTypeM5d_12xlarge         InstanceType = "m5d.12xlarge"
+	InstanceTypeM5d_16xlarge         InstanceType = "m5d.16xlarge"
+	InstanceTypeM5d_24xlarge         InstanceType = "m5d.24xlarge"
+	InstanceTypeM5d_2xlarge          InstanceType = "m5d.2xlarge"
+	InstanceTypeM5d_4xlarge          InstanceType = "m5d.4xlarge"
+	InstanceTypeM5d_8xlarge          InstanceType = "m5d.8xlarge"
+	InstanceTypeM5d_large            InstanceType = "m5d.large"
+	InstanceTypeM5d_metal            InstanceType = "m5d.metal"
+	InstanceTypeM5d_xlarge           InstanceType = "m5d.xlarge"
+	InstanceTypeM5dn_12xlarge        InstanceType = "m5dn.12xlarge"
+	InstanceTypeM5dn_16xlarge        InstanceType = "m5dn.16xlarge"
+	InstanceTypeM5dn_24xlarge        InstanceType = "m5dn.24xlarge"
+	InstanceTypeM5dn_2xlarge         InstanceType = "m5dn.2xlarge"
+	InstanceTypeM5dn_4xlarge         InstanceType = "m5dn.4xlarge"
+	InstanceTypeM5dn_8xlarge         InstanceType = "m5dn.8xlarge"
+	InstanceTypeM5dn_large           InstanceType = "m5dn.large"
+	InstanceTypeM5dn_metal           InstanceType = "m5dn.metal"
+	InstanceTypeM5dn_xlarge          InstanceType = "m5dn.xlarge"
+	InstanceTypeM5n_12xlarge         InstanceType = "m5n.12xlarge"
+	InstanceTypeM5n_16xlarge         InstanceType = "m5n.16xlarge"
+	InstanceTypeM5n_24xlarge         InstanceType = "m5n.24xlarge"
+	InstanceTypeM5n_2xlarge          InstanceType = "m5n.2xlarge"
+	InstanceTypeM5n_4xlarge          InstanceType = "m5n.4xlarge"
+	InstanceTypeM5n_8xlarge          InstanceType = "m5n.8xlarge"
+	InstanceTypeM5n_large            InstanceType = "m5n.large"
+	InstanceTypeM5n_metal            InstanceType = "m5n.metal"
+	InstanceTypeM5n_xlarge           InstanceType = "m5n.xlarge"
+	InstanceTypeM5zn_12xlarge        InstanceType = "m5zn.12xlarge"
+	InstanceTypeM5zn_2xlarge         InstanceType = "m5zn.2xlarge"
+	InstanceTypeM5zn_3xlarge         InstanceType = "m5zn.3xlarge"
+	InstanceTypeM5zn_6xlarge         InstanceType = "m5zn.6xlarge"
+	InstanceTypeM5zn_large           InstanceType = "m5zn.large"
+	InstanceTypeM5zn_metal           InstanceType = "m5zn.metal"
+	InstanceTypeM5zn_xlarge          InstanceType = "m5zn.xlarge"
+	InstanceTypeM6a_12xlarge         InstanceType = "m6a.12xlarge"
+	InstanceTypeM6a_16xlarge         InstanceType = "m6a.16xlarge"
+	InstanceTypeM6a_24xlarge         InstanceType = "m6a.24xlarge"
+	InstanceTypeM6a_2xlarge          InstanceType = "m6a.2xlarge"
+	InstanceTypeM6a_32xlarge         InstanceType = "m6a.32xlarge"
+	InstanceTypeM6a_48xlarge         InstanceType = "m6a.48xlarge"
+	InstanceTypeM6a_4xlarge          InstanceType = "m6a.4xlarge"
+	InstanceTypeM6a_8xlarge          InstanceType = "m6a.8xlarge"
+	InstanceTypeM6a_large            InstanceType = "m6a.large"
+	InstanceTypeM6a_metal            InstanceType = "m6a.metal"
+	InstanceTypeM6a_xlarge           InstanceType = "m6a.xlarge"
+	InstanceTypeM6g_12xlarge         InstanceType = "m6g.12xlarge"
+	InstanceTypeM6g_16xlarge         InstanceType = "m6g.16xlarge"
+	InstanceTypeM6g_2xlarge          InstanceType = "m6g.2xlarge"
+	InstanceTypeM6g_4xlarge          InstanceType = "m6g.4xlarge"
+	InstanceTypeM6g_8xlarge          InstanceType = "m6g.8xlarge"
+	InstanceTypeM6g_large            InstanceType = "m6g.large"
+	InstanceTypeM6g_medium           InstanceType = "m6g.medium"
+	InstanceTypeM6g_metal            InstanceType = "m6g.metal"
+	InstanceTypeM6g_xlarge           InstanceType = "m6g.xlarge"
+	InstanceTypeM6gd_12xlarge        InstanceType = "m6gd.12xlarge"
+	InstanceTypeM6gd_16xlarge        InstanceType = "m6gd.16xlarge"
+	InstanceTypeM6gd_2xlarge         InstanceType = "m6gd.2xlarge"
+	InstanceTypeM6gd_4xlarge         InstanceType = "m6gd.4xlarge"
+	InstanceTypeM6gd_8xlarge         InstanceType = "m6gd.8xlarge"
+	InstanceTypeM6gd_large           InstanceType = "m6gd.large"
+	InstanceTypeM6gd_medium          InstanceType = "m6gd.medium"
+	InstanceTypeM6gd_metal           InstanceType = "m6gd.metal"
+	InstanceTypeM6gd_xlarge          InstanceType = "m6gd.xlarge"
+	InstanceTypeM6i_12xlarge         InstanceType = "m6i.12xlarge"
+	InstanceTypeM6i_16xlarge         InstanceType = "m6i.16xlarge"
+	InstanceTypeM6i_24xlarge         InstanceType = "m6i.24xlarge"
+	InstanceTypeM6i_2xlarge          InstanceType = "m6i.2xlarge"
+	InstanceTypeM6i_32xlarge         InstanceType = "m6i.32xlarge"
+	InstanceTypeM6i_4xlarge          InstanceType = "m6i.4xlarge"
+	InstanceTypeM6i_8xlarge          InstanceType = "m6i.8xlarge"
+	InstanceTypeM6i_large            InstanceType = "m6i.large"
+	InstanceTypeM6i_metal            InstanceType = "m6i.metal"
+	InstanceTypeM6i_xlarge           InstanceType = "m6i.xlarge"
+	InstanceTypeM6id_12xlarge        InstanceType = "m6id.12xlarge"
+	InstanceTypeM6id_16xlarge        InstanceType = "m6id.16xlarge"
+	InstanceTypeM6id_24xlarge        InstanceType = "m6id.24xlarge"
+	InstanceTypeM6id_2xlarge         InstanceType = "m6id.2xlarge"
+	InstanceTypeM6id_32xlarge        InstanceType = "m6id.32xlarge"
+	InstanceTypeM6id_4xlarge         InstanceType = "m6id.4xlarge"
+	InstanceTypeM6id_8xlarge         InstanceType = "m6id.8xlarge"
+	InstanceTypeM6id_large           InstanceType = "m6id.large"
+	InstanceTypeM6id_metal           InstanceType = "m6id.metal"
+	InstanceTypeM6id_xlarge          InstanceType = "m6id.xlarge"
+	InstanceTypeM6idn_12xlarge       InstanceType = "m6idn.12xlarge"
+	InstanceTypeM6idn_16xlarge       InstanceType = "m6idn.16xlarge"
+	InstanceTypeM6idn_24xlarge       InstanceType = "m6idn.24xlarge"
+	InstanceTypeM6idn_2xlarge        InstanceType = "m6idn.2xlarge"
+	InstanceTypeM6idn_32xlarge       InstanceType = "m6idn.32xlarge"
+	InstanceTypeM6idn_4xlarge        InstanceType = "m6idn.4xlarge"
+	InstanceTypeM6idn_8xlarge        InstanceType = "m6idn.8xlarge"
+	InstanceTypeM6idn_large          InstanceType = "m6idn.large"
+	InstanceTypeM6idn_metal          InstanceType = "m6idn.metal"
+	InstanceTypeM6idn_xlarge         InstanceType = "m6idn.xlarge"
+	InstanceTypeM6in_12xlarge        InstanceType = "m6in.12xlarge"
+	InstanceTypeM6in_16xlarge        InstanceType = "m6in.16xlarge"
+	InstanceTypeM6in_24xlarge        InstanceType = "m6in.24xlarge"
+	InstanceTypeM6in_2xlarge         InstanceType = "m6in.2xlarge"
+	InstanceTypeM6in_32xlarge        InstanceType = "m6in.32xlarge"
+	InstanceTypeM6in_4xlarge         InstanceType = "m6in.4xlarge"
+	InstanceTypeM6in_8xlarge         InstanceType = "m6in.8xlarge"
+	InstanceTypeM6in_large           InstanceType = "m6in.large"
+	InstanceTypeM6in_metal           InstanceType = "m6in.metal"
+	InstanceTypeM6in_xlarge          InstanceType = "m6in.xlarge"
+	InstanceTypeM7a_12xlarge         InstanceType = "m7a.12xlarge"
+	InstanceTypeM7a_16xlarge         InstanceType = "m7a.16xlarge"
+	InstanceTypeM7a_24xlarge         InstanceType = "m7a.24xlarge"
+	InstanceTypeM7a_2xlarge          InstanceType = "m7a.2xlarge"
+	InstanceTypeM7a_32xlarge         InstanceType = "m7a.32xlarge"
+	InstanceTypeM7a_48xlarge         InstanceType = "m7a.48xlarge"
+	InstanceTypeM7a_4xlarge          InstanceType = "m7a.4xlarge"
+	InstanceTypeM7a_8xlarge          InstanceType = "m7a.8xlarge"
+	InstanceTypeM7a_large            InstanceType = "m7a.large"
+	InstanceTypeM7a_medium           InstanceType = "m7a.medium"
+	InstanceTypeM7a_metal_48xl       InstanceType = "m7a.metal-48xl"
+	InstanceTypeM7a_xlarge           InstanceType = "m7a.xlarge"
+	InstanceTypeM7g_12xlarge         InstanceType = "m7g.12xlarge"
+	InstanceTypeM7g_16xlarge         InstanceType = "m7g.16xlarge"
+	InstanceTypeM7g_2xlarge          InstanceType = "m7g.2xlarge"
+	InstanceTypeM7g_4xlarge          InstanceType = "m7g.4xlarge"
+	InstanceTypeM7g_8xlarge          InstanceType = "m7g.8xlarge"
+	InstanceTypeM7g_large            InstanceType = "m7g.large"
+	InstanceTypeM7g_medium           InstanceType = "m7g.medium"
+	InstanceTypeM7g_metal            InstanceType = "m7g.metal"
+	InstanceTypeM7g_xlarge           InstanceType = "m7g.xlarge"
+	InstanceTypeM7gd_12xlarge        InstanceType = "m7gd.12xlarge"
+	InstanceTypeM7gd_16xlarge        InstanceType = "m7gd.16xlarge"
+	InstanceTypeM7gd_2xlarge         InstanceType = "m7gd.2xlarge"
+	InstanceTypeM7gd_4xlarge         InstanceType = "m7gd.4xlarge"
+	InstanceTypeM7gd_8xlarge         InstanceType = "m7gd.8xlarge"
+	InstanceTypeM7gd_large           InstanceType = "m7gd.large"
+	InstanceTypeM7gd_medium          InstanceType = "m7gd.medium"
+	InstanceTypeM7gd_metal           InstanceType = "m7gd.metal"
+	InstanceTypeM7gd_xlarge          InstanceType = "m7gd.xlarge"
+	InstanceTypeM7i_12xlarge         InstanceType = "m7i.12xlarge"
+	InstanceTypeM7i_16xlarge         InstanceType = "m7i.16xlarge"
+	InstanceTypeM7i_24xlarge         InstanceType = "m7i.24xlarge"
+	InstanceTypeM7i_2xlarge          InstanceType = "m7i.2xlarge"
+	InstanceTypeM7i_48xlarge         InstanceType = "m7i.48xlarge"
+	InstanceTypeM7i_4xlarge          InstanceType = "m7i.4xlarge"
+	InstanceTypeM7i_8xlarge          InstanceType = "m7i.8xlarge"
+	InstanceTypeM7i_flex_12xlarge    InstanceType = "m7i-flex.12xlarge"
+	InstanceTypeM7i_flex_16xlarge    InstanceType = "m7i-flex.16xlarge"
+	InstanceTypeM7i_flex_2xlarge     InstanceType = "m7i-flex.2xlarge"
+	InstanceTypeM7i_flex_4xlarge     InstanceType = "m7i-flex.4xlarge"
+	InstanceTypeM7i_flex_8xlarge     InstanceType = "m7i-flex.8xlarge"
+	InstanceTypeM7i_flex_large       InstanceType = "m7i-flex.large"
+	InstanceTypeM7i_flex_xlarge      InstanceType = "m7i-flex.xlarge"
+	InstanceTypeM7i_large            InstanceType = "m7i.large"
+	InstanceTypeM7i_metal_24xl       InstanceType = "m7i.metal-24xl"
+	InstanceTypeM7i_metal_48xl       InstanceType = "m7i.metal-48xl"
+	InstanceTypeM7i_xlarge           InstanceType = "m7i.xlarge"
+	InstanceTypeM8a_12xlarge         InstanceType = "m8a.12xlarge"
+	InstanceTypeM8a_16xlarge         InstanceType = "m8a.16xlarge"
+	InstanceTypeM8a_24xlarge         InstanceType = "m8a.24xlarge"
+	InstanceTypeM8a_2xlarge          InstanceType = "m8a.2xlarge"
+	InstanceTypeM8a_48xlarge         InstanceType = "m8a.48xlarge"
+	InstanceTypeM8a_4xlarge          InstanceType = "m8a.4xlarge"
+	InstanceTypeM8a_8xlarge          InstanceType = "m8a.8xlarge"
+	InstanceTypeM8a_large            InstanceType = "m8a.large"
+	InstanceTypeM8a_medium           InstanceType = "m8a.medium"
+	InstanceTypeM8a_metal_24xl       InstanceType = "m8a.metal-24xl"
+	InstanceTypeM8a_metal_48xl       InstanceType = "m8a.metal-48xl"
+	InstanceTypeM8a_xlarge           InstanceType = "m8a.xlarge"
+	InstanceTypeM8azn_12xlarge       InstanceType = "m8azn.12xlarge"
+	InstanceTypeM8azn_24xlarge       InstanceType = "m8azn.24xlarge"
+	InstanceTypeM8azn_3xlarge        InstanceType = "m8azn.3xlarge"
+	InstanceTypeM8azn_6xlarge        InstanceType = "m8azn.6xlarge"
+	InstanceTypeM8azn_large          InstanceType = "m8azn.large"
+	InstanceTypeM8azn_medium         InstanceType = "m8azn.medium"
+	InstanceTypeM8azn_metal_12xl     InstanceType = "m8azn.metal-12xl"
+	InstanceTypeM8azn_metal_24xl     InstanceType = "m8azn.metal-24xl"
+	InstanceTypeM8azn_xlarge         InstanceType = "m8azn.xlarge"
+	InstanceTypeM8g_12xlarge         InstanceType = "m8g.12xlarge"
+	InstanceTypeM8g_16xlarge         InstanceType = "m8g.16xlarge"
+	InstanceTypeM8g_24xlarge         InstanceType = "m8g.24xlarge"
+	InstanceTypeM8g_2xlarge          InstanceType = "m8g.2xlarge"
+	InstanceTypeM8g_48xlarge         InstanceType = "m8g.48xlarge"
+	InstanceTypeM8g_4xlarge          InstanceType = "m8g.4xlarge"
+	InstanceTypeM8g_8xlarge          InstanceType = "m8g.8xlarge"
+	InstanceTypeM8g_large            InstanceType = "m8g.large"
+	InstanceTypeM8g_medium           InstanceType = "m8g.medium"
+	InstanceTypeM8g_metal_24xl       InstanceType = "m8g.metal-24xl"
+	InstanceTypeM8g_metal_48xl       InstanceType = "m8g.metal-48xl"
+	InstanceTypeM8g_xlarge           InstanceType = "m8g.xlarge"
+	InstanceTypeM8gb_12xlarge        InstanceType = "m8gb.12xlarge"
+	InstanceTypeM8gb_16xlarge        InstanceType = "m8gb.16xlarge"
+	InstanceTypeM8gb_24xlarge        InstanceType = "m8gb.24xlarge"
+	InstanceTypeM8gb_2xlarge         InstanceType = "m8gb.2xlarge"
+	InstanceTypeM8gb_48xlarge        InstanceType = "m8gb.48xlarge"
+	InstanceTypeM8gb_4xlarge         InstanceType = "m8gb.4xlarge"
+	InstanceTypeM8gb_8xlarge         InstanceType = "m8gb.8xlarge"
+	InstanceTypeM8gb_large           InstanceType = "m8gb.large"
+	InstanceTypeM8gb_medium          InstanceType = "m8gb.medium"
+	InstanceTypeM8gb_metal_24xl      InstanceType = "m8gb.metal-24xl"
+	InstanceTypeM8gb_metal_48xl      InstanceType = "m8gb.metal-48xl"
+	InstanceTypeM8gb_xlarge          InstanceType = "m8gb.xlarge"
+	InstanceTypeM8gd_12xlarge        InstanceType = "m8gd.12xlarge"
+	InstanceTypeM8gd_16xlarge        InstanceType = "m8gd.16xlarge"
+	InstanceTypeM8gd_24xlarge        InstanceType = "m8gd.24xlarge"
+	InstanceTypeM8gd_2xlarge         InstanceType = "m8gd.2xlarge"
+	InstanceTypeM8gd_48xlarge        InstanceType = "m8gd.48xlarge"
+	InstanceTypeM8gd_4xlarge         InstanceType = "m8gd.4xlarge"
+	InstanceTypeM8gd_8xlarge         InstanceType = "m8gd.8xlarge"
+	InstanceTypeM8gd_large           InstanceType = "m8gd.large"
+	InstanceTypeM8gd_medium          InstanceType = "m8gd.medium"
+	InstanceTypeM8gd_metal_24xl      InstanceType = "m8gd.metal-24xl"
+	InstanceTypeM8gd_metal_48xl      InstanceType = "m8gd.metal-48xl"
+	InstanceTypeM8gd_xlarge          InstanceType = "m8gd.xlarge"
+	InstanceTypeM8gn_12xlarge        InstanceType = "m8gn.12xlarge"
+	InstanceTypeM8gn_16xlarge        InstanceType = "m8gn.16xlarge"
+	InstanceTypeM8gn_24xlarge        InstanceType = "m8gn.24xlarge"
+	InstanceTypeM8gn_2xlarge         InstanceType = "m8gn.2xlarge"
+	InstanceTypeM8gn_48xlarge        InstanceType = "m8gn.48xlarge"
+	InstanceTypeM8gn_4xlarge         InstanceType = "m8gn.4xlarge"
+	InstanceTypeM8gn_8xlarge         InstanceType = "m8gn.8xlarge"
+	InstanceTypeM8gn_large           InstanceType = "m8gn.large"
+	InstanceTypeM8gn_medium          InstanceType = "m8gn.medium"
+	InstanceTypeM8gn_metal_24xl      InstanceType = "m8gn.metal-24xl"
+	InstanceTypeM8gn_metal_48xl      InstanceType = "m8gn.metal-48xl"
+	InstanceTypeM8gn_xlarge          InstanceType = "m8gn.xlarge"
+	InstanceTypeM8i_12xlarge         InstanceType = "m8i.12xlarge"
+	InstanceTypeM8i_16xlarge         InstanceType = "m8i.16xlarge"
+	InstanceTypeM8i_24xlarge         InstanceType = "m8i.24xlarge"
+	InstanceTypeM8i_2xlarge          InstanceType = "m8i.2xlarge"
+	InstanceTypeM8i_32xlarge         InstanceType = "m8i.32xlarge"
+	InstanceTypeM8i_48xlarge         InstanceType = "m8i.48xlarge"
+	InstanceTypeM8i_4xlarge          InstanceType = "m8i.4xlarge"
+	InstanceTypeM8i_8xlarge          InstanceType = "m8i.8xlarge"
+	InstanceTypeM8i_96xlarge         InstanceType = "m8i.96xlarge"
+	InstanceTypeM8i_flex_12xlarge    InstanceType = "m8i-flex.12xlarge"
+	InstanceTypeM8i_flex_16xlarge    InstanceType = "m8i-flex.16xlarge"
+	InstanceTypeM8i_flex_2xlarge     InstanceType = "m8i-flex.2xlarge"
+	InstanceTypeM8i_flex_4xlarge     InstanceType = "m8i-flex.4xlarge"
+	InstanceTypeM8i_flex_8xlarge     InstanceType = "m8i-flex.8xlarge"
+	InstanceTypeM8i_flex_large       InstanceType = "m8i-flex.large"
+	InstanceTypeM8i_flex_xlarge      InstanceType = "m8i-flex.xlarge"
+	InstanceTypeM8i_large            InstanceType = "m8i.large"
+	InstanceTypeM8i_metal_48xl       InstanceType = "m8i.metal-48xl"
+	InstanceTypeM8i_metal_96xl       InstanceType = "m8i.metal-96xl"
+	InstanceTypeM8i_xlarge           InstanceType = "m8i.xlarge"
+	InstanceTypeM8id_12xlarge        InstanceType = "m8id.12xlarge"
+	InstanceTypeM8id_16xlarge        InstanceType = "m8id.16xlarge"
+	InstanceTypeM8id_24xlarge        InstanceType = "m8id.24xlarge"
+	InstanceTypeM8id_2xlarge         InstanceType = "m8id.2xlarge"
+	InstanceTypeM8id_32xlarge        InstanceType = "m8id.32xlarge"
+	InstanceTypeM8id_48xlarge        InstanceType = "m8id.48xlarge"
+	InstanceTypeM8id_4xlarge         InstanceType = "m8id.4xlarge"
+	InstanceTypeM8id_8xlarge         InstanceType = "m8id.8xlarge"
+	InstanceTypeM8id_96xlarge        InstanceType = "m8id.96xlarge"
+	InstanceTypeM8id_large           InstanceType = "m8id.large"
+	InstanceTypeM8id_metal_48xl      InstanceType = "m8id.metal-48xl"
+	InstanceTypeM8id_metal_96xl      InstanceType = "m8id.metal-96xl"
+	InstanceTypeM8id_xlarge          InstanceType = "m8id.xlarge"
+	InstanceTypeMac1_metal           InstanceType = "mac1.metal"
+	InstanceTypeMac2_m1ultra_metal   InstanceType = "mac2-m1ultra.metal"
+	InstanceTypeMac2_m2_metal        InstanceType = "mac2-m2.metal"
+	InstanceTypeMac2_m2pro_metal     InstanceType = "mac2-m2pro.metal"
+	InstanceTypeMac2_metal           InstanceType = "mac2.metal"
+	InstanceTypeMac_m4_metal         InstanceType = "mac-m4.metal"
+	InstanceTypeMac_m4max_metal      InstanceType = "mac-m4max.metal"
+	InstanceTypeMac_m4pro_metal      InstanceType = "mac-m4pro.metal"
+	InstanceTypeP2_16xlarge          InstanceType = "p2.16xlarge"
+	InstanceTypeP2_8xlarge           InstanceType = "p2.8xlarge"
+	InstanceTypeP2_xlarge            InstanceType = "p2.xlarge"
+	InstanceTypeP3_16xlarge          InstanceType = "p3.16xlarge"
+	InstanceTypeP3_2xlarge           InstanceType = "p3.2xlarge"
+	InstanceTypeP3_8xlarge           InstanceType = "p3.8xlarge"
+	InstanceTypeP3dn_24xlarge        InstanceType = "p3dn.24xlarge"
+	InstanceTypeP4d_24xlarge         InstanceType = "p4d.24xlarge"
+	InstanceTypeP4de_24xlarge        InstanceType = "p4de.24xlarge"
+	InstanceTypeP5_48xlarge          InstanceType = "p5.48xlarge"
+	InstanceTypeP5_4xlarge           InstanceType = "p5.4xlarge"
+	InstanceTypeP5e_48xlarge         InstanceType = "p5e.48xlarge"
+	InstanceTypeP5en_48xlarge        InstanceType = "p5en.48xlarge"
+	InstanceTypeP6_b200_48xlarge     InstanceType = "p6-b200.48xlarge"
+	InstanceTypeP6_b300_48xlarge     InstanceType = "p6-b300.48xlarge"
+	InstanceTypeP6e_gb200_36xlarge   InstanceType = "p6e-gb200.36xlarge"
+	InstanceTypeR3_2xlarge           InstanceType = "r3.2xlarge"
+	InstanceTypeR3_4xlarge           InstanceType = "r3.4xlarge"
+	InstanceTypeR3_8xlarge           InstanceType = "r3.8xlarge"
+	InstanceTypeR3_large             InstanceType = "r3.large"
+	InstanceTypeR3_xlarge            InstanceType = "r3.xlarge"
+	InstanceTypeR4_16xlarge          InstanceType = "r4.16xlarge"
+	InstanceTypeR4_2xlarge           InstanceType = "r4.2xlarge"
+	InstanceTypeR4_4xlarge           InstanceType = "r4.4xlarge"
+	InstanceTypeR4_8xlarge           InstanceType = "r4.8xlarge"
+	InstanceTypeR4_large             InstanceType = "r4.large"
+	InstanceTypeR4_xlarge            InstanceType = "r4.xlarge"
+	InstanceTypeR5_12xlarge          InstanceType = "r5.12xlarge"
+	InstanceTypeR5_16xlarge          InstanceType = "r5.16xlarge"
+	InstanceTypeR5_24xlarge          InstanceType = "r5.24xlarge"
+	InstanceTypeR5_2xlarge           InstanceType = "r5.2xlarge"
+	InstanceTypeR5_4xlarge           InstanceType = "r5.4xlarge"
+	InstanceTypeR5_8xlarge           InstanceType = "r5.8xlarge"
+	InstanceTypeR5_large             InstanceType = "r5.large"
+	InstanceTypeR5_metal             InstanceType = "r5.metal"
+	InstanceTypeR5_xlarge            InstanceType = "r5.xlarge"
+	InstanceTypeR5a_12xlarge         InstanceType = "r5a.12xlarge"
+	InstanceTypeR5a_16xlarge         InstanceType = "r5a.16xlarge"
+	InstanceTypeR5a_24xlarge         InstanceType = "r5a.24xlarge"
+	InstanceTypeR5a_2xlarge          InstanceType = "r5a.2xlarge"
+	InstanceTypeR5a_4xlarge          InstanceType = "r5a.4xlarge"
+	InstanceTypeR5a_8xlarge          InstanceType = "r5a.8xlarge"
+	InstanceTypeR5a_large            InstanceType = "r5a.large"
+	InstanceTypeR5a_xlarge           InstanceType = "r5a.xlarge"
+	InstanceTypeR5ad_12xlarge        InstanceType = "r5ad.12xlarge"
+	InstanceTypeR5ad_16xlarge        InstanceType = "r5ad.16xlarge"
+	InstanceTypeR5ad_24xlarge        InstanceType = "r5ad.24xlarge"
+	InstanceTypeR5ad_2xlarge         InstanceType = "r5ad.2xlarge"
+	InstanceTypeR5ad_4xlarge         InstanceType = "r5ad.4xlarge"
+	InstanceTypeR5ad_8xlarge         InstanceType = "r5ad.8xlarge"
+	InstanceTypeR5ad_large           InstanceType = "r5ad.large"
+	InstanceTypeR5ad_xlarge          InstanceType = "r5ad.xlarge"
+	InstanceTypeR5b_12xlarge         InstanceType = "r5b.12xlarge"
+	InstanceTypeR5b_16xlarge         InstanceType = "r5b.16xlarge"
+	InstanceTypeR5b_24xlarge         InstanceType = "r5b.24xlarge"
+	InstanceTypeR5b_2xlarge          InstanceType = "r5b.2xlarge"
+	InstanceTypeR5b_4xlarge          InstanceType = "r5b.4xlarge"
+	InstanceTypeR5b_8xlarge          InstanceType = "r5b.8xlarge"
+	InstanceTypeR5b_large            InstanceType = "r5b.large"
+	InstanceTypeR5b_metal            InstanceType = "r5b.metal"
+	InstanceTypeR5b_xlarge           InstanceType = "r5b.xlarge"
+	InstanceTypeR5d_12xlarge         InstanceType = "r5d.12xlarge"
+	InstanceTypeR5d_16xlarge         InstanceType = "r5d.16xlarge"
+	InstanceTypeR5d_24xlarge         InstanceType = "r5d.24xlarge"
+	InstanceTypeR5d_2xlarge          InstanceType = "r5d.2xlarge"
+	InstanceTypeR5d_4xlarge          InstanceType = "r5d.4xlarge"
+	InstanceTypeR5d_8xlarge          InstanceType = "r5d.8xlarge"
+	InstanceTypeR5d_large            InstanceType = "r5d.large"
+	InstanceTypeR5d_metal            InstanceType = "r5d.metal"
+	InstanceTypeR5d_xlarge           InstanceType = "r5d.xlarge"
+	InstanceTypeR5dn_12xlarge        InstanceType = "r5dn.12xlarge"
+	InstanceTypeR5dn_16xlarge        InstanceType = "r5dn.16xlarge"
+	InstanceTypeR5dn_24xlarge        InstanceType = "r5dn.24xlarge"
+	InstanceTypeR5dn_2xlarge         InstanceType = "r5dn.2xlarge"
+	InstanceTypeR5dn_4xlarge         InstanceType = "r5dn.4xlarge"
+	InstanceTypeR5dn_8xlarge         InstanceType = "r5dn.8xlarge"
+	InstanceTypeR5dn_large           InstanceType = "r5dn.large"
+	InstanceTypeR5dn_metal           InstanceType = "r5dn.metal"
+	InstanceTypeR5dn_xlarge          InstanceType = "r5dn.xlarge"
+	InstanceTypeR5n_12xlarge         InstanceType = "r5n.12xlarge"
+	InstanceTypeR5n_16xlarge         InstanceType = "r5n.16xlarge"
+	InstanceTypeR5n_24xlarge         InstanceType = "r5n.24xlarge"
+	InstanceTypeR5n_2xlarge          InstanceType = "r5n.2xlarge"
+	InstanceTypeR5n_4xlarge          InstanceType = "r5n.4xlarge"
+	InstanceTypeR5n_8xlarge          InstanceType = "r5n.8xlarge"
+	InstanceTypeR5n_large            InstanceType = "r5n.large"
+	InstanceTypeR5n_metal            InstanceType = "r5n.metal"
+	InstanceTypeR5n_xlarge           InstanceType = "r5n.xlarge"
+	InstanceTypeR6a_12xlarge         InstanceType = "r6a.12xlarge"
+	InstanceTypeR6a_16xlarge         InstanceType = "r6a.16xlarge"
+	InstanceTypeR6a_24xlarge         InstanceType = "r6a.24xlarge"
+	InstanceTypeR6a_2xlarge          InstanceType = "r6a.2xlarge"
+	InstanceTypeR6a_32xlarge         InstanceType = "r6a.32xlarge"
+	InstanceTypeR6a_48xlarge         InstanceType = "r6a.48xlarge"
+	InstanceTypeR6a_4xlarge          InstanceType = "r6a.4xlarge"
+	InstanceTypeR6a_8xlarge          InstanceType = "r6a.8xlarge"
+	InstanceTypeR6a_large            InstanceType = "r6a.large"
+	InstanceTypeR6a_metal            InstanceType = "r6a.metal"
+	InstanceTypeR6a_xlarge           InstanceType = "r6a.xlarge"
+	InstanceTypeR6g_12xlarge         InstanceType = "r6g.12xlarge"
+	InstanceTypeR6g_16xlarge         InstanceType = "r6g.16xlarge"
+	InstanceTypeR6g_2xlarge          InstanceType = "r6g.2xlarge"
+	InstanceTypeR6g_4xlarge          InstanceType = "r6g.4xlarge"
+	InstanceTypeR6g_8xlarge          InstanceType = "r6g.8xlarge"
+	InstanceTypeR6g_large            InstanceType = "r6g.large"
+	InstanceTypeR6g_medium           InstanceType = "r6g.medium"
+	InstanceTypeR6g_metal            InstanceType = "r6g.metal"
+	InstanceTypeR6g_xlarge           InstanceType = "r6g.xlarge"
+	InstanceTypeR6gd_12xlarge        InstanceType = "r6gd.12xlarge"
+	InstanceTypeR6gd_16xlarge        InstanceType = "r6gd.16xlarge"
+	InstanceTypeR6gd_2xlarge         InstanceType = "r6gd.2xlarge"
+	InstanceTypeR6gd_4xlarge         InstanceType = "r6gd.4xlarge"
+	InstanceTypeR6gd_8xlarge         InstanceType = "r6gd.8xlarge"
+	InstanceTypeR6gd_large           InstanceType = "r6gd.large"
+	InstanceTypeR6gd_medium          InstanceType = "r6gd.medium"
+	InstanceTypeR6gd_metal           InstanceType = "r6gd.metal"
+	InstanceTypeR6gd_xlarge          InstanceType = "r6gd.xlarge"
+	InstanceTypeR6i_12xlarge         InstanceType = "r6i.12xlarge"
+	InstanceTypeR6i_16xlarge         InstanceType = "r6i.16xlarge"
+	InstanceTypeR6i_24xlarge         InstanceType = "r6i.24xlarge"
+	InstanceTypeR6i_2xlarge          InstanceType = "r6i.2xlarge"
+	InstanceTypeR6i_32xlarge         InstanceType = "r6i.32xlarge"
+	InstanceTypeR6i_4xlarge          InstanceType = "r6i.4xlarge"
+	InstanceTypeR6i_8xlarge          InstanceType = "r6i.8xlarge"
+	InstanceTypeR6i_large            InstanceType = "r6i.large"
+	InstanceTypeR6i_metal            InstanceType = "r6i.metal"
+	InstanceTypeR6i_xlarge           InstanceType = "r6i.xlarge"
+	InstanceTypeR6id_12xlarge        InstanceType = "r6id.12xlarge"
+	InstanceTypeR6id_16xlarge        InstanceType = "r6id.16xlarge"
+	InstanceTypeR6id_24xlarge        InstanceType = "r6id.24xlarge"
+	InstanceTypeR6id_2xlarge         InstanceType = "r6id.2xlarge"
+	InstanceTypeR6id_32xlarge        InstanceType = "r6id.32xlarge"
+	InstanceTypeR6id_4xlarge         InstanceType = "r6id.4xlarge"
+	InstanceTypeR6id_8xlarge         InstanceType = "r6id.8xlarge"
+	InstanceTypeR6id_large           InstanceType = "r6id.large"
+	InstanceTypeR6id_metal           InstanceType = "r6id.metal"
+	InstanceTypeR6id_xlarge          InstanceType = "r6id.xlarge"
+	InstanceTypeR6idn_12xlarge       InstanceType = "r6idn.12xlarge"
+	InstanceTypeR6idn_16xlarge       InstanceType = "r6idn.16xlarge"
+	InstanceTypeR6idn_24xlarge       InstanceType = "r6idn.24xlarge"
+	InstanceTypeR6idn_2xlarge        InstanceType = "r6idn.2xlarge"
+	InstanceTypeR6idn_32xlarge       InstanceType = "r6idn.32xlarge"
+	InstanceTypeR6idn_4xlarge        InstanceType = "r6idn.4xlarge"
+	InstanceTypeR6idn_8xlarge        InstanceType = "r6idn.8xlarge"
+	InstanceTypeR6idn_large          InstanceType = "r6idn.large"
+	InstanceTypeR6idn_metal          InstanceType = "r6idn.metal"
+	InstanceTypeR6idn_xlarge         InstanceType = "r6idn.xlarge"
+	InstanceTypeR6in_12xlarge        InstanceType = "r6in.12xlarge"
+	InstanceTypeR6in_16xlarge        InstanceType = "r6in.16xlarge"
+	InstanceTypeR6in_24xlarge        InstanceType = "r6in.24xlarge"
+	InstanceTypeR6in_2xlarge         InstanceType = "r6in.2xlarge"
+	InstanceTypeR6in_32xlarge        InstanceType = "r6in.32xlarge"
+	InstanceTypeR6in_4xlarge         InstanceType = "r6in.4xlarge"
+	InstanceTypeR6in_8xlarge         InstanceType = "r6in.8xlarge"
+	InstanceTypeR6in_large           InstanceType = "r6in.large"
+	InstanceTypeR6in_metal           InstanceType = "r6in.metal"
+	InstanceTypeR6in_xlarge          InstanceType = "r6in.xlarge"
+	InstanceTypeR7a_12xlarge         InstanceType = "r7a.12xlarge"
+	InstanceTypeR7a_16xlarge         InstanceType = "r7a.16xlarge"
+	InstanceTypeR7a_24xlarge         InstanceType = "r7a.24xlarge"
+	InstanceTypeR7a_2xlarge          InstanceType = "r7a.2xlarge"
+	InstanceTypeR7a_32xlarge         InstanceType = "r7a.32xlarge"
+	InstanceTypeR7a_48xlarge         InstanceType = "r7a.48xlarge"
+	InstanceTypeR7a_4xlarge          InstanceType = "r7a.4xlarge"
+	InstanceTypeR7a_8xlarge          InstanceType = "r7a.8xlarge"
+	InstanceTypeR7a_large            InstanceType = "r7a.large"
+	InstanceTypeR7a_medium           InstanceType = "r7a.medium"
+	InstanceTypeR7a_metal_48xl       InstanceType = "r7a.metal-48xl"
+	InstanceTypeR7a_xlarge           InstanceType = "r7a.xlarge"
+	InstanceTypeR7g_12xlarge         InstanceType = "r7g.12xlarge"
+	InstanceTypeR7g_16xlarge         InstanceType = "r7g.16xlarge"
+	InstanceTypeR7g_2xlarge          InstanceType = "r7g.2xlarge"
+	InstanceTypeR7g_4xlarge          InstanceType = "r7g.4xlarge"
+	InstanceTypeR7g_8xlarge          InstanceType = "r7g.8xlarge"
+	InstanceTypeR7g_large            InstanceType = "r7g.large"
+	InstanceTypeR7g_medium           InstanceType = "r7g.medium"
+	InstanceTypeR7g_metal            InstanceType = "r7g.metal"
+	InstanceTypeR7g_xlarge           InstanceType = "r7g.xlarge"
+	InstanceTypeR7gd_12xlarge        InstanceType = "r7gd.12xlarge"
+	InstanceTypeR7gd_16xlarge        InstanceType = "r7gd.16xlarge"
+	InstanceTypeR7gd_2xlarge         InstanceType = "r7gd.2xlarge"
+	InstanceTypeR7gd_4xlarge         InstanceType = "r7gd.4xlarge"
+	InstanceTypeR7gd_8xlarge         InstanceType = "r7gd.8xlarge"
+	InstanceTypeR7gd_large           InstanceType = "r7gd.large"
+	InstanceTypeR7gd_medium          InstanceType = "r7gd.medium"
+	InstanceTypeR7gd_metal           InstanceType = "r7gd.metal"
+	InstanceTypeR7gd_xlarge          InstanceType = "r7gd.xlarge"
+	InstanceTypeR7i_12xlarge         InstanceType = "r7i.12xlarge"
+	InstanceTypeR7i_16xlarge         InstanceType = "r7i.16xlarge"
+	InstanceTypeR7i_24xlarge         InstanceType = "r7i.24xlarge"
+	InstanceTypeR7i_2xlarge          InstanceType = "r7i.2xlarge"
+	InstanceTypeR7i_48xlarge         InstanceType = "r7i.48xlarge"
+	InstanceTypeR7i_4xlarge          InstanceType = "r7i.4xlarge"
+	InstanceTypeR7i_8xlarge          InstanceType = "r7i.8xlarge"
+	InstanceTypeR7i_large            InstanceType = "r7i.large"
+	InstanceTypeR7i_metal_24xl       InstanceType = "r7i.metal-24xl"
+	InstanceTypeR7i_metal_48xl       InstanceType = "r7i.metal-48xl"
+	InstanceTypeR7i_xlarge           InstanceType = "r7i.xlarge"
+	InstanceTypeR7iz_12xlarge        InstanceType = "r7iz.12xlarge"
+	InstanceTypeR7iz_16xlarge        InstanceType = "r7iz.16xlarge"
+	InstanceTypeR7iz_2xlarge         InstanceType = "r7iz.2xlarge"
+	InstanceTypeR7iz_32xlarge        InstanceType = "r7iz.32xlarge"
+	InstanceTypeR7iz_4xlarge         InstanceType = "r7iz.4xlarge"
+	InstanceTypeR7iz_8xlarge         InstanceType = "r7iz.8xlarge"
+	InstanceTypeR7iz_large           InstanceType = "r7iz.large"
+	InstanceTypeR7iz_metal_16xl      InstanceType = "r7iz.metal-16xl"
+	InstanceTypeR7iz_metal_32xl      InstanceType = "r7iz.metal-32xl"
+	InstanceTypeR7iz_xlarge          InstanceType = "r7iz.xlarge"
+	InstanceTypeR8a_12xlarge         InstanceType = "r8a.12xlarge"
+	InstanceTypeR8a_16xlarge         InstanceType = "r8a.16xlarge"
+	InstanceTypeR8a_24xlarge         InstanceType = "r8a.24xlarge"
+	InstanceTypeR8a_2xlarge          InstanceType = "r8a.2xlarge"
+	InstanceTypeR8a_48xlarge         InstanceType = "r8a.48xlarge"
+	InstanceTypeR8a_4xlarge          InstanceType = "r8a.4xlarge"
+	InstanceTypeR8a_8xlarge          InstanceType = "r8a.8xlarge"
+	InstanceTypeR8a_large            InstanceType = "r8a.large"
+	InstanceTypeR8a_medium           InstanceType = "r8a.medium"
+	InstanceTypeR8a_metal_24xl       InstanceType = "r8a.metal-24xl"
+	InstanceTypeR8a_metal_48xl       InstanceType = "r8a.metal-48xl"
+	InstanceTypeR8a_xlarge           InstanceType = "r8a.xlarge"
+	InstanceTypeR8g_12xlarge         InstanceType = "r8g.12xlarge"
+	InstanceTypeR8g_16xlarge         InstanceType = "r8g.16xlarge"
+	InstanceTypeR8g_24xlarge         InstanceType = "r8g.24xlarge"
+	InstanceTypeR8g_2xlarge          InstanceType = "r8g.2xlarge"
+	InstanceTypeR8g_48xlarge         InstanceType = "r8g.48xlarge"
+	InstanceTypeR8g_4xlarge          InstanceType = "r8g.4xlarge"
+	InstanceTypeR8g_8xlarge          InstanceType = "r8g.8xlarge"
+	InstanceTypeR8g_large            InstanceType = "r8g.large"
+	InstanceTypeR8g_medium           InstanceType = "r8g.medium"
+	InstanceTypeR8g_metal_24xl       InstanceType = "r8g.metal-24xl"
+	InstanceTypeR8g_metal_48xl       InstanceType = "r8g.metal-48xl"
+	InstanceTypeR8g_xlarge           InstanceType = "r8g.xlarge"
+	InstanceTypeR8gb_12xlarge        InstanceType = "r8gb.12xlarge"
+	InstanceTypeR8gb_16xlarge        InstanceType = "r8gb.16xlarge"
+	InstanceTypeR8gb_24xlarge        InstanceType = "r8gb.24xlarge"
+	InstanceTypeR8gb_2xlarge         InstanceType = "r8gb.2xlarge"
+	InstanceTypeR8gb_4xlarge         InstanceType = "r8gb.4xlarge"
+	InstanceTypeR8gb_8xlarge         InstanceType = "r8gb.8xlarge"
+	InstanceTypeR8gb_large           InstanceType = "r8gb.large"
+	InstanceTypeR8gb_medium          InstanceType = "r8gb.medium"
+	InstanceTypeR8gb_metal_24xl      InstanceType = "r8gb.metal-24xl"
+	InstanceTypeR8gb_xlarge          InstanceType = "r8gb.xlarge"
+	InstanceTypeR8gd_12xlarge        InstanceType = "r8gd.12xlarge"
+	InstanceTypeR8gd_16xlarge        InstanceType = "r8gd.16xlarge"
+	InstanceTypeR8gd_24xlarge        InstanceType = "r8gd.24xlarge"
+	InstanceTypeR8gd_2xlarge         InstanceType = "r8gd.2xlarge"
+	InstanceTypeR8gd_48xlarge        InstanceType = "r8gd.48xlarge"
+	InstanceTypeR8gd_4xlarge         InstanceType = "r8gd.4xlarge"
+	InstanceTypeR8gd_8xlarge         InstanceType = "r8gd.8xlarge"
+	InstanceTypeR8gd_large           InstanceType = "r8gd.large"
+	InstanceTypeR8gd_medium          InstanceType = "r8gd.medium"
+	InstanceTypeR8gd_metal_24xl      InstanceType = "r8gd.metal-24xl"
+	InstanceTypeR8gd_metal_48xl      InstanceType = "r8gd.metal-48xl"
+	InstanceTypeR8gd_xlarge          InstanceType = "r8gd.xlarge"
+	InstanceTypeR8gn_12xlarge        InstanceType = "r8gn.12xlarge"
+	InstanceTypeR8gn_16xlarge        InstanceType = "r8gn.16xlarge"
+	InstanceTypeR8gn_24xlarge        InstanceType = "r8gn.24xlarge"
+	InstanceTypeR8gn_2xlarge         InstanceType = "r8gn.2xlarge"
+	InstanceTypeR8gn_48xlarge        InstanceType = "r8gn.48xlarge"
+	InstanceTypeR8gn_4xlarge         InstanceType = "r8gn.4xlarge"
+	InstanceTypeR8gn_8xlarge         InstanceType = "r8gn.8xlarge"
+	InstanceTypeR8gn_large           InstanceType = "r8gn.large"
+	InstanceTypeR8gn_medium          InstanceType = "r8gn.medium"
+	InstanceTypeR8gn_metal_24xl      InstanceType = "r8gn.metal-24xl"
+	InstanceTypeR8gn_metal_48xl      InstanceType = "r8gn.metal-48xl"
+	InstanceTypeR8gn_xlarge          InstanceType = "r8gn.xlarge"
+	InstanceTypeR8i_12xlarge         InstanceType = "r8i.12xlarge"
+	InstanceTypeR8i_16xlarge         InstanceType = "r8i.16xlarge"
+	InstanceTypeR8i_24xlarge         InstanceType = "r8i.24xlarge"
+	InstanceTypeR8i_2xlarge          InstanceType = "r8i.2xlarge"
+	InstanceTypeR8i_32xlarge         InstanceType = "r8i.32xlarge"
+	InstanceTypeR8i_48xlarge         InstanceType = "r8i.48xlarge"
+	InstanceTypeR8i_4xlarge          InstanceType = "r8i.4xlarge"
+	InstanceTypeR8i_8xlarge          InstanceType = "r8i.8xlarge"
+	InstanceTypeR8i_96xlarge         InstanceType = "r8i.96xlarge"
+	InstanceTypeR8i_flex_12xlarge    InstanceType = "r8i-flex.12xlarge"
+	InstanceTypeR8i_flex_16xlarge    InstanceType = "r8i-flex.16xlarge"
+	InstanceTypeR8i_flex_2xlarge     InstanceType = "r8i-flex.2xlarge"
+	InstanceTypeR8i_flex_4xlarge     InstanceType = "r8i-flex.4xlarge"
+	InstanceTypeR8i_flex_8xlarge     InstanceType = "r8i-flex.8xlarge"
+	InstanceTypeR8i_flex_large       InstanceType = "r8i-flex.large"
+	InstanceTypeR8i_flex_xlarge      InstanceType = "r8i-flex.xlarge"
+	InstanceTypeR8i_large            InstanceType = "r8i.large"
+	InstanceTypeR8i_metal_48xl       InstanceType = "r8i.metal-48xl"
+	InstanceTypeR8i_metal_96xl       InstanceType = "r8i.metal-96xl"
+	InstanceTypeR8i_xlarge           InstanceType = "r8i.xlarge"
+	InstanceTypeR8id_12xlarge        InstanceType = "r8id.12xlarge"
+	InstanceTypeR8id_16xlarge        InstanceType = "r8id.16xlarge"
+	InstanceTypeR8id_24xlarge        InstanceType = "r8id.24xlarge"
+	InstanceTypeR8id_2xlarge         InstanceType = "r8id.2xlarge"
+	InstanceTypeR8id_32xlarge        InstanceType = "r8id.32xlarge"
+	InstanceTypeR8id_48xlarge        InstanceType = "r8id.48xlarge"
+	InstanceTypeR8id_4xlarge         InstanceType = "r8id.4xlarge"
+	InstanceTypeR8id_8xlarge         InstanceType = "r8id.8xlarge"
+	InstanceTypeR8id_96xlarge        InstanceType = "r8id.96xlarge"
+	InstanceTypeR8id_large           InstanceType = "r8id.large"
+	InstanceTypeR8id_metal_48xl      InstanceType = "r8id.metal-48xl"
+	InstanceTypeR8id_metal_96xl      InstanceType = "r8id.metal-96xl"
+	InstanceTypeR8id_xlarge          InstanceType = "r8id.xlarge"
+	InstanceTypeT1_micro             InstanceType = "t1.micro"
+	InstanceTypeT2_2xlarge           InstanceType = "t2.2xlarge"
+	InstanceTypeT2_large             InstanceType = "t2.large"
+	InstanceTypeT2_medium            InstanceType = "t2.medium"
+	InstanceTypeT2_micro             InstanceType = "t2.micro"
+	InstanceTypeT2_nano              InstanceType = "t2.nano"
+	InstanceTypeT2_small             InstanceType = "t2.small"
+	InstanceTypeT2_xlarge            InstanceType = "t2.xlarge"
+	InstanceTypeT3_2xlarge           InstanceType = "t3.2xlarge"
+	InstanceTypeT3_large             InstanceType = "t3.large"
+	InstanceTypeT3_medium            InstanceType = "t3.medium"
+	InstanceTypeT3_micro             InstanceType = "t3.micro"
+	InstanceTypeT3_nano              InstanceType = "t3.nano"
+	InstanceTypeT3_small             InstanceType = "t3.small"
+	InstanceTypeT3_xlarge            InstanceType = "t3.xlarge"
+	InstanceTypeT3a_2xlarge          InstanceType = "t3a.2xlarge"
+	InstanceTypeT3a_large            InstanceType = "t3a.large"
+	InstanceTypeT3a_medium           InstanceType = "t3a.medium"
+	InstanceTypeT3a_micro            InstanceType = "t3a.micro"
+	InstanceTypeT3a_nano             InstanceType = "t3a.nano"
+	InstanceTypeT3a_small            InstanceType = "t3a.small"
+	InstanceTypeT3a_xlarge           InstanceType = "t3a.xlarge"
+	InstanceTypeT4g_2xlarge          InstanceType = "t4g.2xlarge"
+	InstanceTypeT4g_large            InstanceType = "t4g.large"
+	InstanceTypeT4g_medium           InstanceType = "t4g.medium"
+	InstanceTypeT4g_micro            InstanceType = "t4g.micro"
+	InstanceTypeT4g_nano             InstanceType = "t4g.nano"
+	InstanceTypeT4g_small            InstanceType = "t4g.small"
+	InstanceTypeT4g_xlarge           InstanceType = "t4g.xlarge"
+	InstanceTypeTrn1_2xlarge         InstanceType = "trn1.2xlarge"
+	InstanceTypeTrn1_32xlarge        InstanceType = "trn1.32xlarge"
+	InstanceTypeTrn1n_32xlarge       InstanceType = "trn1n.32xlarge"
+	InstanceTypeTrn2_3xlarge         InstanceType = "trn2.3xlarge"
+	InstanceTypeTrn2_48xlarge        InstanceType = "trn2.48xlarge"
+	InstanceTypeU7i_12tb_224xlarge   InstanceType = "u7i-12tb.224xlarge"
+	InstanceTypeU7i_6tb_112xlarge    InstanceType = "u7i-6tb.112xlarge"
+	InstanceTypeU7i_8tb_112xlarge    InstanceType = "u7i-8tb.112xlarge"
+	InstanceTypeU7ib_12tb_224xlarge  InstanceType = "u7ib-12tb.224xlarge"
+	InstanceTypeU7in_16tb_224xlarge  InstanceType = "u7in-16tb.224xlarge"
+	InstanceTypeU7in_24tb_224xlarge  InstanceType = "u7in-24tb.224xlarge"
+	InstanceTypeU7in_32tb_224xlarge  InstanceType = "u7in-32tb.224xlarge"
+	InstanceTypeU7inh_32tb_480xlarge InstanceType = "u7inh-32tb.480xlarge"
+	InstanceTypeU_12tb1_112xlarge    InstanceType = "u-12tb1.112xlarge"
+	InstanceTypeU_12tb1_metal        InstanceType = "u-12tb1.metal"
+	InstanceTypeU_18tb1_112xlarge    InstanceType = "u-18tb1.112xlarge"
+	InstanceTypeU_18tb1_metal        InstanceType = "u-18tb1.metal"
+	InstanceTypeU_24tb1_112xlarge    InstanceType = "u-24tb1.112xlarge"
+	InstanceTypeU_24tb1_metal        InstanceType = "u-24tb1.metal"
+	InstanceTypeU_3tb1_56xlarge      InstanceType = "u-3tb1.56xlarge"
+	InstanceTypeU_6tb1_112xlarge     InstanceType = "u-6tb1.112xlarge"
+	InstanceTypeU_6tb1_56xlarge      InstanceType = "u-6tb1.56xlarge"
+	InstanceTypeU_6tb1_metal         InstanceType = "u-6tb1.metal"
+	InstanceTypeU_9tb1_112xlarge     InstanceType = "u-9tb1.112xlarge"
+	InstanceTypeU_9tb1_metal         InstanceType = "u-9tb1.metal"
+	InstanceTypeVt1_24xlarge         InstanceType = "vt1.24xlarge"
+	InstanceTypeVt1_3xlarge          InstanceType = "vt1.3xlarge"
+	InstanceTypeVt1_6xlarge          InstanceType = "vt1.6xlarge"
+	InstanceTypeX1_16xlarge          InstanceType = "x1.16xlarge"
+	InstanceTypeX1_32xlarge          InstanceType = "x1.32xlarge"
+	InstanceTypeX1e_16xlarge         InstanceType = "x1e.16xlarge"
+	InstanceTypeX1e_2xlarge          InstanceType = "x1e.2xlarge"
+	InstanceTypeX1e_32xlarge         InstanceType = "x1e.32xlarge"
+	InstanceTypeX1e_4xlarge          InstanceType = "x1e.4xlarge"
+	InstanceTypeX1e_8xlarge          InstanceType = "x1e.8xlarge"
+	InstanceTypeX1e_xlarge           InstanceType = "x1e.xlarge"
+	InstanceTypeX2gd_12xlarge        InstanceType = "x2gd.12xlarge"
+	InstanceTypeX2gd_16xlarge        InstanceType = "x2gd.16xlarge"
+	InstanceTypeX2gd_2xlarge         InstanceType = "x2gd.2xlarge"
+	InstanceTypeX2gd_4xlarge         InstanceType = "x2gd.4xlarge"
+	InstanceTypeX2gd_8xlarge         InstanceType = "x2gd.8xlarge"
+	InstanceTypeX2gd_large           InstanceType = "x2gd.large"
+	InstanceTypeX2gd_medium          InstanceType = "x2gd.medium"
+	InstanceTypeX2gd_metal           InstanceType = "x2gd.metal"
+	InstanceTypeX2gd_xlarge          InstanceType = "x2gd.xlarge"
+	InstanceTypeX2idn_16xlarge       InstanceType = "x2idn.16xlarge"
+	InstanceTypeX2idn_24xlarge       InstanceType = "x2idn.24xlarge"
+	InstanceTypeX2idn_32xlarge       InstanceType = "x2idn.32xlarge"
+	InstanceTypeX2idn_metal          InstanceType = "x2idn.metal"
+	InstanceTypeX2iedn_16xlarge      InstanceType = "x2iedn.16xlarge"
+	InstanceTypeX2iedn_24xlarge      InstanceType = "x2iedn.24xlarge"
+	InstanceTypeX2iedn_2xlarge       InstanceType = "x2iedn.2xlarge"
+	InstanceTypeX2iedn_32xlarge      InstanceType = "x2iedn.32xlarge"
+	InstanceTypeX2iedn_4xlarge       InstanceType = "x2iedn.4xlarge"
+	InstanceTypeX2iedn_8xlarge       InstanceType = "x2iedn.8xlarge"
+	InstanceTypeX2iedn_metal         InstanceType = "x2iedn.metal"
+	InstanceTypeX2iedn_xlarge        InstanceType = "x2iedn.xlarge"
+	InstanceTypeX2iezn_12xlarge      InstanceType = "x2iezn.12xlarge"
+	InstanceTypeX2iezn_2xlarge       InstanceType = "x2iezn.2xlarge"
+	InstanceTypeX2iezn_4xlarge       InstanceType = "x2iezn.4xlarge"
+	InstanceTypeX2iezn_6xlarge       InstanceType = "x2iezn.6xlarge"
+	InstanceTypeX2iezn_8xlarge       InstanceType = "x2iezn.8xlarge"
+	InstanceTypeX2iezn_metal         InstanceType = "x2iezn.metal"
+	InstanceTypeX8aedz_12xlarge      InstanceType = "x8aedz.12xlarge"
+	InstanceTypeX8aedz_24xlarge      InstanceType = "x8aedz.24xlarge"
+	InstanceTypeX8aedz_3xlarge       InstanceType = "x8aedz.3xlarge"
+	InstanceTypeX8aedz_6xlarge       InstanceType = "x8aedz.6xlarge"
+	InstanceTypeX8aedz_large         InstanceType = "x8aedz.large"
+	InstanceTypeX8aedz_metal_12xl    InstanceType = "x8aedz.metal-12xl"
+	InstanceTypeX8aedz_metal_24xl    InstanceType = "x8aedz.metal-24xl"
+	InstanceTypeX8aedz_xlarge        InstanceType = "x8aedz.xlarge"
+	InstanceTypeX8g_12xlarge         InstanceType = "x8g.12xlarge"
+	InstanceTypeX8g_16xlarge         InstanceType = "x8g.16xlarge"
+	InstanceTypeX8g_24xlarge         InstanceType = "x8g.24xlarge"
+	InstanceTypeX8g_2xlarge          InstanceType = "x8g.2xlarge"
+	InstanceTypeX8g_48xlarge         InstanceType = "x8g.48xlarge"
+	InstanceTypeX8g_4xlarge          InstanceType = "x8g.4xlarge"
+	InstanceTypeX8g_8xlarge          InstanceType = "x8g.8xlarge"
+	InstanceTypeX8g_large            InstanceType = "x8g.large"
+	InstanceTypeX8g_medium           InstanceType = "x8g.medium"
+	InstanceTypeX8g_metal_24xl       InstanceType = "x8g.metal-24xl"
+	InstanceTypeX8g_metal_48xl       InstanceType = "x8g.metal-48xl"
+	InstanceTypeX8g_xlarge           InstanceType = "x8g.xlarge"
+	InstanceTypeX8i_12xlarge         InstanceType = "x8i.12xlarge"
+	InstanceTypeX8i_16xlarge         InstanceType = "x8i.16xlarge"
+	InstanceTypeX8i_24xlarge         InstanceType = "x8i.24xlarge"
+	InstanceTypeX8i_2xlarge          InstanceType = "x8i.2xlarge"
+	InstanceTypeX8i_32xlarge         InstanceType = "x8i.32xlarge"
+	InstanceTypeX8i_48xlarge         InstanceType = "x8i.48xlarge"
+	InstanceTypeX8i_4xlarge          InstanceType = "x8i.4xlarge"
+	InstanceTypeX8i_64xlarge         InstanceType = "x8i.64xlarge"
+	InstanceTypeX8i_8xlarge          InstanceType = "x8i.8xlarge"
+	InstanceTypeX8i_96xlarge         InstanceType = "x8i.96xlarge"
+	InstanceTypeX8i_large            InstanceType = "x8i.large"
+	InstanceTypeX8i_metal_48xl       InstanceType = "x8i.metal-48xl"
+	InstanceTypeX8i_metal_96xl       InstanceType = "x8i.metal-96xl"
+	InstanceTypeX8i_xlarge           InstanceType = "x8i.xlarge"
+	InstanceTypeZ1d_12xlarge         InstanceType = "z1d.12xlarge"
+	InstanceTypeZ1d_2xlarge          InstanceType = "z1d.2xlarge"
+	InstanceTypeZ1d_3xlarge          InstanceType = "z1d.3xlarge"
+	InstanceTypeZ1d_6xlarge          InstanceType = "z1d.6xlarge"
+	InstanceTypeZ1d_large            InstanceType = "z1d.large"
+	InstanceTypeZ1d_metal            InstanceType = "z1d.metal"
+	InstanceTypeZ1d_xlarge           InstanceType = "z1d.xlarge"
+)
+
+// InstanceAutoRecoveryState is a generated Smithy enum.
+type InstanceAutoRecoveryState string
+
+const (
+	InstanceAutoRecoveryStateDefault  InstanceAutoRecoveryState = "default"
+	InstanceAutoRecoveryStateDisabled InstanceAutoRecoveryState = "disabled"
+)
+
+// InstanceMetadataEndpointState is a generated Smithy enum.
+type InstanceMetadataEndpointState string
+
+const (
+	InstanceMetadataEndpointStateDisabled InstanceMetadataEndpointState = "disabled"
+	InstanceMetadataEndpointStateEnabled  InstanceMetadataEndpointState = "enabled"
+)
+
+// InstanceMetadataProtocolState is a generated Smithy enum.
+type InstanceMetadataProtocolState string
+
+const (
+	InstanceMetadataProtocolStateDisabled InstanceMetadataProtocolState = "disabled"
+	InstanceMetadataProtocolStateEnabled  InstanceMetadataProtocolState = "enabled"
+)
+
+// HttpTokensState is a generated Smithy enum.
+type HttpTokensState string
+
+const (
+	HttpTokensStateOptional HttpTokensState = "optional"
+	HttpTokensStateRequired HttpTokensState = "required"
+)
+
+// InstanceMetadataTagsState is a generated Smithy enum.
+type InstanceMetadataTagsState string
+
+const (
+	InstanceMetadataTagsStateDisabled InstanceMetadataTagsState = "disabled"
+	InstanceMetadataTagsStateEnabled  InstanceMetadataTagsState = "enabled"
+)
+
+// InstanceBandwidthWeighting is a generated Smithy enum.
+type InstanceBandwidthWeighting string
+
+const (
+	InstanceBandwidthWeightingDEFAULT InstanceBandwidthWeighting = "default"
+	InstanceBandwidthWeightingEBS_1   InstanceBandwidthWeighting = "ebs-1"
+	InstanceBandwidthWeightingVPC_1   InstanceBandwidthWeighting = "vpc-1"
+)
+
+// SecondaryInterfaceType is a generated Smithy enum.
+type SecondaryInterfaceType string
+
+const (
+	SecondaryInterfaceTypeSECONDARY SecondaryInterfaceType = "secondary"
+)
+
+// ArchitectureValues is a generated Smithy enum.
+type ArchitectureValues string
+
+const (
+	ArchitectureValuesArm64      ArchitectureValues = "arm64"
+	ArchitectureValuesArm64_mac  ArchitectureValues = "arm64_mac"
+	ArchitectureValuesI386       ArchitectureValues = "i386"
+	ArchitectureValuesX86_64     ArchitectureValues = "x86_64"
+	ArchitectureValuesX86_64_mac ArchitectureValues = "x86_64_mac"
+)
+
+// BootModeValues is a generated Smithy enum.
+type BootModeValues string
+
+const (
+	BootModeValuesLegacy_bios    BootModeValues = "legacy-bios"
+	BootModeValuesUefi           BootModeValues = "uefi"
+	BootModeValuesUefi_preferred BootModeValues = "uefi-preferred"
+)
+
+// InstanceBootModeValues is a generated Smithy enum.
+type InstanceBootModeValues string
+
+const (
+	InstanceBootModeValuesLegacy_bios InstanceBootModeValues = "legacy-bios"
+	InstanceBootModeValuesUefi        InstanceBootModeValues = "uefi"
+)
+
+// HypervisorType is a generated Smithy enum.
+type HypervisorType string
+
+const (
+	HypervisorTypeOvm HypervisorType = "ovm"
+	HypervisorTypeXen HypervisorType = "xen"
+)
+
+// InstanceLifecycleType is a generated Smithy enum.
+type InstanceLifecycleType string
+
+const (
+	InstanceLifecycleTypeCapacity_block                     InstanceLifecycleType = "capacity-block"
+	InstanceLifecycleTypeInterruptible_capacity_reservation InstanceLifecycleType = "interruptible-capacity-reservation"
+	InstanceLifecycleTypeScheduled                          InstanceLifecycleType = "scheduled"
+	InstanceLifecycleTypeSpot                               InstanceLifecycleType = "spot"
+)
+
+// InstanceRebootMigrationState is a generated Smithy enum.
+type InstanceRebootMigrationState string
+
+const (
+	InstanceRebootMigrationStateDefault  InstanceRebootMigrationState = "default"
+	InstanceRebootMigrationStateDisabled InstanceRebootMigrationState = "disabled"
+)
+
+// InstanceMetadataOptionsState is a generated Smithy enum.
+type InstanceMetadataOptionsState string
+
+const (
+	InstanceMetadataOptionsStateApplied InstanceMetadataOptionsState = "applied"
+	InstanceMetadataOptionsStatePending InstanceMetadataOptionsState = "pending"
+)
+
+// MonitoringState is a generated Smithy enum.
+type MonitoringState string
+
+const (
+	MonitoringStateDisabled  MonitoringState = "disabled"
+	MonitoringStateDisabling MonitoringState = "disabling"
+	MonitoringStateEnabled   MonitoringState = "enabled"
+	MonitoringStatePending   MonitoringState = "pending"
+)
+
+// PlatformValues is a generated Smithy enum.
+type PlatformValues string
+
+const (
+	PlatformValuesWindows PlatformValues = "Windows"
+)
+
+// ProductCodeValues is a generated Smithy enum.
+type ProductCodeValues string
+
+const (
+	ProductCodeValuesDevpay      ProductCodeValues = "devpay"
+	ProductCodeValuesMarketplace ProductCodeValues = "marketplace"
+)
+
+// DeviceType is a generated Smithy enum.
+type DeviceType string
+
+const (
+	DeviceTypeEbs            DeviceType = "ebs"
+	DeviceTypeInstance_store DeviceType = "instance-store"
+)
+
+// SecondaryInterfaceStatus is a generated Smithy enum.
+type SecondaryInterfaceStatus string
+
+const (
+	SecondaryInterfaceStatusAvailable SecondaryInterfaceStatus = "available"
+	SecondaryInterfaceStatusIn_use    SecondaryInterfaceStatus = "in-use"
+)
+
+// InstanceStateName is a generated Smithy enum.
+type InstanceStateName string
+
+const (
+	InstanceStateNamePending       InstanceStateName = "pending"
+	InstanceStateNameRunning       InstanceStateName = "running"
+	InstanceStateNameShutting_down InstanceStateName = "shutting-down"
+	InstanceStateNameStopped       InstanceStateName = "stopped"
+	InstanceStateNameStopping      InstanceStateName = "stopping"
+	InstanceStateNameTerminated    InstanceStateName = "terminated"
+)
+
+// VirtualizationType is a generated Smithy enum.
+type VirtualizationType string
+
+const (
+	VirtualizationTypeHvm         VirtualizationType = "hvm"
+	VirtualizationTypeParavirtual VirtualizationType = "paravirtual"
+)
+
+// AttachmentLimitType is a generated Smithy enum.
+type AttachmentLimitType string
+
+const (
+	AttachmentLimitTypeDEDICATED AttachmentLimitType = "dedicated"
+	AttachmentLimitTypeSHARED    AttachmentLimitType = "shared"
+)
+
+// EbsOptimizedSupport is a generated Smithy enum.
+type EbsOptimizedSupport string
+
+const (
+	EbsOptimizedSupportDefault     EbsOptimizedSupport = "default"
+	EbsOptimizedSupportSupported   EbsOptimizedSupport = "supported"
+	EbsOptimizedSupportUnsupported EbsOptimizedSupport = "unsupported"
+)
+
+// EbsEncryptionSupport is a generated Smithy enum.
+type EbsEncryptionSupport string
+
+const (
+	EbsEncryptionSupportSupported   EbsEncryptionSupport = "supported"
+	EbsEncryptionSupportUnsupported EbsEncryptionSupport = "unsupported"
+)
+
+// EbsNvmeSupport is a generated Smithy enum.
+type EbsNvmeSupport string
+
+const (
+	EbsNvmeSupportREQUIRED    EbsNvmeSupport = "required"
+	EbsNvmeSupportSUPPORTED   EbsNvmeSupport = "supported"
+	EbsNvmeSupportUNSUPPORTED EbsNvmeSupport = "unsupported"
+)
+
+// InstanceTypeHypervisor is a generated Smithy enum.
+type InstanceTypeHypervisor string
+
+const (
+	InstanceTypeHypervisorNITRO InstanceTypeHypervisor = "nitro"
+	InstanceTypeHypervisorXEN   InstanceTypeHypervisor = "xen"
+)
+
+// DiskType is a generated Smithy enum.
+type DiskType string
+
+const (
+	DiskTypeHdd DiskType = "hdd"
+	DiskTypeSsd DiskType = "ssd"
+)
+
+// InstanceStorageEncryptionSupport is a generated Smithy enum.
+type InstanceStorageEncryptionSupport string
+
+const (
+	InstanceStorageEncryptionSupportRequired    InstanceStorageEncryptionSupport = "required"
+	InstanceStorageEncryptionSupportUnsupported InstanceStorageEncryptionSupport = "unsupported"
+)
+
+// EphemeralNvmeSupport is a generated Smithy enum.
+type EphemeralNvmeSupport string
+
+const (
+	EphemeralNvmeSupportREQUIRED    EphemeralNvmeSupport = "required"
+	EphemeralNvmeSupportSUPPORTED   EphemeralNvmeSupport = "supported"
+	EphemeralNvmeSupportUNSUPPORTED EphemeralNvmeSupport = "unsupported"
+)
+
+// BandwidthWeightingType is a generated Smithy enum.
+type BandwidthWeightingType string
+
+const (
+	BandwidthWeightingTypeDEFAULT BandwidthWeightingType = "default"
+	BandwidthWeightingTypeEBS_1   BandwidthWeightingType = "ebs-1"
+	BandwidthWeightingTypeVPC_1   BandwidthWeightingType = "vpc-1"
+)
+
+// EnaSupport is a generated Smithy enum.
+type EnaSupport string
+
+const (
+	EnaSupportRequired    EnaSupport = "required"
+	EnaSupportSupported   EnaSupport = "supported"
+	EnaSupportUnsupported EnaSupport = "unsupported"
+)
+
+// FlexibleEnaQueuesSupport is a generated Smithy enum.
+type FlexibleEnaQueuesSupport string
+
+const (
+	FlexibleEnaQueuesSupportSUPPORTED   FlexibleEnaQueuesSupport = "supported"
+	FlexibleEnaQueuesSupportUNSUPPORTED FlexibleEnaQueuesSupport = "unsupported"
+)
+
+// NitroEnclavesSupport is a generated Smithy enum.
+type NitroEnclavesSupport string
+
+const (
+	NitroEnclavesSupportSUPPORTED   NitroEnclavesSupport = "supported"
+	NitroEnclavesSupportUNSUPPORTED NitroEnclavesSupport = "unsupported"
+)
+
+// NitroTpmSupport is a generated Smithy enum.
+type NitroTpmSupport string
+
+const (
+	NitroTpmSupportSUPPORTED   NitroTpmSupport = "supported"
+	NitroTpmSupportUNSUPPORTED NitroTpmSupport = "unsupported"
+)
+
+// PhcSupport is a generated Smithy enum.
+type PhcSupport string
+
+const (
+	PhcSupportSUPPORTED   PhcSupport = "supported"
+	PhcSupportUNSUPPORTED PhcSupport = "unsupported"
+)
+
+// PlacementGroupStrategy is a generated Smithy enum.
+type PlacementGroupStrategy string
+
+const (
+	PlacementGroupStrategyCluster   PlacementGroupStrategy = "cluster"
+	PlacementGroupStrategyPartition PlacementGroupStrategy = "partition"
+	PlacementGroupStrategySpread    PlacementGroupStrategy = "spread"
+)
+
+// ArchitectureType is a generated Smithy enum.
+type ArchitectureType string
+
+const (
+	ArchitectureTypeArm64      ArchitectureType = "arm64"
+	ArchitectureTypeArm64_mac  ArchitectureType = "arm64_mac"
+	ArchitectureTypeI386       ArchitectureType = "i386"
+	ArchitectureTypeX86_64     ArchitectureType = "x86_64"
+	ArchitectureTypeX86_64_mac ArchitectureType = "x86_64_mac"
+)
+
+// SupportedAdditionalProcessorFeature is a generated Smithy enum.
+type SupportedAdditionalProcessorFeature string
+
+const (
+	SupportedAdditionalProcessorFeatureAMD_SEV_SNP           SupportedAdditionalProcessorFeature = "amd-sev-snp"
+	SupportedAdditionalProcessorFeatureNESTED_VIRTUALIZATION SupportedAdditionalProcessorFeature = "nested-virtualization"
+)
+
+// RebootMigrationSupport is a generated Smithy enum.
+type RebootMigrationSupport string
+
+const (
+	RebootMigrationSupportSUPPORTED   RebootMigrationSupport = "supported"
+	RebootMigrationSupportUNSUPPORTED RebootMigrationSupport = "unsupported"
+)
+
+// BootModeType is a generated Smithy enum.
+type BootModeType string
+
+const (
+	BootModeTypeLegacy_bios BootModeType = "legacy-bios"
+	BootModeTypeUefi        BootModeType = "uefi"
+)
+
+// RootDeviceType is a generated Smithy enum.
+type RootDeviceType string
+
+const (
+	RootDeviceTypeEbs            RootDeviceType = "ebs"
+	RootDeviceTypeInstance_store RootDeviceType = "instance-store"
+)
+
+// UsageClassType is a generated Smithy enum.
+type UsageClassType string
+
+const (
+	UsageClassTypeCapacity_block UsageClassType = "capacity-block"
+	UsageClassTypeOn_demand      UsageClassType = "on-demand"
+	UsageClassTypeSpot           UsageClassType = "spot"
+)
+
 // TagList is a generated Smithy list. The Member field is
 // XML-tagged with the element name from the spec's @xmlName trait
 // (defaulting to the target shape's short name when absent).
@@ -657,6 +2304,456 @@ type ResourceIdList struct {
 // ec2Query list shapes.
 type TagDescriptionList struct {
 	Member []TagDescription `xml:"item"`
+}
+
+// BlockDeviceMappingRequestList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type BlockDeviceMappingRequestList struct {
+	Member []BlockDeviceMapping `xml:"BlockDeviceMapping"`
+}
+
+// ElasticGpuSpecifications is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type ElasticGpuSpecifications struct {
+	Member []ElasticGpuSpecification `xml:"item"`
+}
+
+// ElasticInferenceAccelerators is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type ElasticInferenceAccelerators struct {
+	Member []ElasticInferenceAccelerator `xml:"item"`
+}
+
+// InstanceIpv6AddressList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type InstanceIpv6AddressList struct {
+	Member []InstanceIpv6Address `xml:"item"`
+}
+
+// LicenseSpecificationListRequest is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type LicenseSpecificationListRequest struct {
+	Member []LicenseConfigurationRequest `xml:"item"`
+}
+
+// SecurityGroupIdStringList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type SecurityGroupIdStringList struct {
+	Member []string `xml:"SecurityGroupId"`
+}
+
+// Ipv4PrefixList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type Ipv4PrefixList struct {
+	Member []Ipv4PrefixSpecificationRequest `xml:"item"`
+}
+
+// Ipv6PrefixList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type Ipv6PrefixList struct {
+	Member []Ipv6PrefixSpecificationRequest `xml:"item"`
+}
+
+// PrivateIpAddressSpecificationList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type PrivateIpAddressSpecificationList struct {
+	Member []PrivateIpAddressSpecification `xml:"item"`
+}
+
+// InstanceNetworkInterfaceSpecificationList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type InstanceNetworkInterfaceSpecificationList struct {
+	Member []InstanceNetworkInterfaceSpecification `xml:"item"`
+}
+
+// InstanceSecondaryInterfacePrivateIpAddressListRequest is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type InstanceSecondaryInterfacePrivateIpAddressListRequest struct {
+	Member []InstanceSecondaryInterfacePrivateIpAddressRequest `xml:"item"`
+}
+
+// InstanceSecondaryInterfaceSpecificationListRequest is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type InstanceSecondaryInterfaceSpecificationListRequest struct {
+	Member []InstanceSecondaryInterfaceSpecificationRequest `xml:"item"`
+}
+
+// SecurityGroupStringList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type SecurityGroupStringList struct {
+	Member []string `xml:"SecurityGroup"`
+}
+
+// InstanceBlockDeviceMappingList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type InstanceBlockDeviceMappingList struct {
+	Member []InstanceBlockDeviceMapping `xml:"item"`
+}
+
+// ElasticGpuAssociationList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type ElasticGpuAssociationList struct {
+	Member []ElasticGpuAssociation `xml:"item"`
+}
+
+// ElasticInferenceAcceleratorAssociationList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type ElasticInferenceAcceleratorAssociationList struct {
+	Member []ElasticInferenceAcceleratorAssociation `xml:"item"`
+}
+
+// LicenseList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type LicenseList struct {
+	Member []LicenseConfiguration `xml:"item"`
+}
+
+// InstanceIpv4PrefixList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type InstanceIpv4PrefixList struct {
+	Member []InstanceIpv4Prefix `xml:"item"`
+}
+
+// InstanceIpv6PrefixList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type InstanceIpv6PrefixList struct {
+	Member []InstanceIpv6Prefix `xml:"item"`
+}
+
+// InstancePrivateIpAddressList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type InstancePrivateIpAddressList struct {
+	Member []InstancePrivateIpAddress `xml:"item"`
+}
+
+// InstanceNetworkInterfaceList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type InstanceNetworkInterfaceList struct {
+	Member []InstanceNetworkInterface `xml:"item"`
+}
+
+// ProductCodeList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type ProductCodeList struct {
+	Member []ProductCode `xml:"item"`
+}
+
+// InstanceSecondaryInterfacePrivateIpAddressList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type InstanceSecondaryInterfacePrivateIpAddressList struct {
+	Member []InstanceSecondaryInterfacePrivateIpAddress `xml:"item"`
+}
+
+// InstanceSecondaryInterfaceList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type InstanceSecondaryInterfaceList struct {
+	Member []InstanceSecondaryInterface `xml:"item"`
+}
+
+// InstanceList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type InstanceList struct {
+	Member []Instance `xml:"item"`
+}
+
+// InstanceIdStringList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type InstanceIdStringList struct {
+	Member []string `xml:"InstanceId"`
+}
+
+// ReservationList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type ReservationList struct {
+	Member []Reservation `xml:"item"`
+}
+
+// InstanceStateChangeList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type InstanceStateChangeList struct {
+	Member []InstanceStateChange `xml:"item"`
+}
+
+// RequestInstanceTypeList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type RequestInstanceTypeList struct {
+	Member []InstanceType `xml:"InstanceType"`
+}
+
+// EbsCardInfoList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type EbsCardInfoList struct {
+	Member []EbsCardInfo `xml:"item"`
+}
+
+// FpgaDeviceInfoList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type FpgaDeviceInfoList struct {
+	Member []FpgaDeviceInfo `xml:"item"`
+}
+
+// WorkloadsList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type WorkloadsList struct {
+	Member []string `xml:"item"`
+}
+
+// GpuDeviceInfoList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type GpuDeviceInfoList struct {
+	Member []GpuDeviceInfo `xml:"item"`
+}
+
+// InferenceDeviceInfoList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type InferenceDeviceInfoList struct {
+	Member []InferenceDeviceInfo `xml:"InferenceDeviceInfo"`
+}
+
+// DiskInfoList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type DiskInfoList struct {
+	Member []DiskInfo `xml:"item"`
+}
+
+// MediaDeviceInfoList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type MediaDeviceInfoList struct {
+	Member []MediaDeviceInfo `xml:"item"`
+}
+
+// BandwidthWeightingTypeList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type BandwidthWeightingTypeList struct {
+	Member []BandwidthWeightingType `xml:"item"`
+}
+
+// NetworkCardInfoList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type NetworkCardInfoList struct {
+	Member []NetworkCardInfo `xml:"item"`
+}
+
+// NeuronDeviceInfoList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type NeuronDeviceInfoList struct {
+	Member []NeuronDeviceInfo `xml:"item"`
+}
+
+// NitroTpmSupportedVersionsList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type NitroTpmSupportedVersionsList struct {
+	Member []string `xml:"item"`
+}
+
+// PlacementGroupStrategyList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type PlacementGroupStrategyList struct {
+	Member []PlacementGroupStrategy `xml:"item"`
+}
+
+// ArchitectureTypeList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type ArchitectureTypeList struct {
+	Member []ArchitectureType `xml:"item"`
+}
+
+// SupportedAdditionalProcessorFeatureList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type SupportedAdditionalProcessorFeatureList struct {
+	Member []SupportedAdditionalProcessorFeature `xml:"item"`
+}
+
+// BootModeTypeList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type BootModeTypeList struct {
+	Member []BootModeType `xml:"item"`
+}
+
+// RootDeviceTypeList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type RootDeviceTypeList struct {
+	Member []RootDeviceType `xml:"item"`
+}
+
+// UsageClassTypeList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type UsageClassTypeList struct {
+	Member []UsageClassType `xml:"item"`
+}
+
+// VirtualizationTypeList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type VirtualizationTypeList struct {
+	Member []VirtualizationType `xml:"item"`
+}
+
+// CoreCountList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type CoreCountList struct {
+	Member []int32 `xml:"item"`
+}
+
+// ThreadsPerCoreList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type ThreadsPerCoreList struct {
+	Member []int32 `xml:"item"`
+}
+
+// InstanceTypeInfoList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type InstanceTypeInfoList struct {
+	Member []InstanceTypeInfo `xml:"item"`
 }
 
 // Tag is a generated Smithy structure.
@@ -1446,6 +3543,953 @@ type DescribeTagsResult struct {
 	Tags      TagDescriptionList `xml:"tagSet,omitempty"`
 }
 
+// EbsBlockDevice is a generated Smithy structure.
+type EbsBlockDevice struct {
+	AvailabilityZone         *string     `xml:"availabilityZone,omitempty"`
+	AvailabilityZoneId       *string     `xml:"AvailabilityZoneId,omitempty"`
+	DeleteOnTermination      *bool       `xml:"deleteOnTermination,omitempty"`
+	EbsCardIndex             *int32      `xml:"EbsCardIndex,omitempty"`
+	Encrypted                *bool       `xml:"encrypted,omitempty"`
+	Iops                     *int32      `xml:"iops,omitempty"`
+	KmsKeyId                 *string     `xml:"kmsKeyId,omitempty"`
+	OutpostArn               *string     `xml:"outpostArn,omitempty"`
+	SnapshotId               *string     `xml:"snapshotId,omitempty"`
+	Throughput               *int32      `xml:"throughput,omitempty"`
+	VolumeInitializationRate *int32      `xml:"VolumeInitializationRate,omitempty"`
+	VolumeSize               *int32      `xml:"volumeSize,omitempty"`
+	VolumeType               *VolumeType `xml:"volumeType,omitempty"`
+}
+
+// BlockDeviceMapping is a generated Smithy structure.
+type BlockDeviceMapping struct {
+	DeviceName  *string         `xml:"deviceName,omitempty"`
+	Ebs         *EbsBlockDevice `xml:"ebs,omitempty"`
+	NoDevice    *string         `xml:"noDevice,omitempty"`
+	VirtualName *string         `xml:"virtualName,omitempty"`
+}
+
+// CapacityReservationTarget is a generated Smithy structure.
+type CapacityReservationTarget struct {
+	CapacityReservationId               *string `xml:"CapacityReservationId,omitempty"`
+	CapacityReservationResourceGroupArn *string `xml:"CapacityReservationResourceGroupArn,omitempty"`
+}
+
+// CapacityReservationSpecification is a generated Smithy structure.
+type CapacityReservationSpecification struct {
+	CapacityReservationPreference *CapacityReservationPreference `xml:"CapacityReservationPreference,omitempty"`
+	CapacityReservationTarget     *CapacityReservationTarget     `xml:"CapacityReservationTarget,omitempty"`
+}
+
+// CpuOptionsRequest is a generated Smithy structure.
+type CpuOptionsRequest struct {
+	AmdSevSnp            *AmdSevSnpSpecification            `xml:"AmdSevSnp,omitempty"`
+	CoreCount            *int32                             `xml:"CoreCount,omitempty"`
+	NestedVirtualization *NestedVirtualizationSpecification `xml:"NestedVirtualization,omitempty"`
+	ThreadsPerCore       *int32                             `xml:"ThreadsPerCore,omitempty"`
+}
+
+// CreditSpecificationRequest is a generated Smithy structure.
+type CreditSpecificationRequest struct {
+	CpuCredits string `xml:"CpuCredits,omitempty"`
+}
+
+// ElasticGpuSpecification is a generated Smithy structure.
+type ElasticGpuSpecification struct {
+	Type string `xml:"Type,omitempty"`
+}
+
+// ElasticInferenceAccelerator is a generated Smithy structure.
+type ElasticInferenceAccelerator struct {
+	Count *int32 `xml:"Count,omitempty"`
+	Type  string `xml:"Type,omitempty"`
+}
+
+// EnclaveOptionsRequest is a generated Smithy structure.
+type EnclaveOptionsRequest struct {
+	Enabled *bool `xml:"Enabled,omitempty"`
+}
+
+// HibernationOptionsRequest is a generated Smithy structure.
+type HibernationOptionsRequest struct {
+	Configured *bool `xml:"Configured,omitempty"`
+}
+
+// IamInstanceProfileSpecification is a generated Smithy structure.
+type IamInstanceProfileSpecification struct {
+	Arn  *string `xml:"arn,omitempty"`
+	Name *string `xml:"name,omitempty"`
+}
+
+// SpotMarketOptions is a generated Smithy structure.
+type SpotMarketOptions struct {
+	BlockDurationMinutes         *int32                        `xml:"BlockDurationMinutes,omitempty"`
+	InstanceInterruptionBehavior *InstanceInterruptionBehavior `xml:"InstanceInterruptionBehavior,omitempty"`
+	MaxPrice                     *string                       `xml:"MaxPrice,omitempty"`
+	SpotInstanceType             *SpotInstanceType             `xml:"SpotInstanceType,omitempty"`
+	ValidUntil                   *time.Time                    `xml:"ValidUntil,omitempty"`
+}
+
+// InstanceMarketOptionsRequest is a generated Smithy structure.
+type InstanceMarketOptionsRequest struct {
+	MarketType  *MarketType        `xml:"MarketType,omitempty"`
+	SpotOptions *SpotMarketOptions `xml:"SpotOptions,omitempty"`
+}
+
+// InstanceIpv6Address is a generated Smithy structure.
+type InstanceIpv6Address struct {
+	Ipv6Address   *string `xml:"ipv6Address,omitempty"`
+	IsPrimaryIpv6 *bool   `xml:"isPrimaryIpv6,omitempty"`
+}
+
+// LaunchTemplateSpecification is a generated Smithy structure.
+type LaunchTemplateSpecification struct {
+	LaunchTemplateId   *string `xml:"LaunchTemplateId,omitempty"`
+	LaunchTemplateName *string `xml:"LaunchTemplateName,omitempty"`
+	Version            *string `xml:"Version,omitempty"`
+}
+
+// LicenseConfigurationRequest is a generated Smithy structure.
+type LicenseConfigurationRequest struct {
+	LicenseConfigurationArn *string `xml:"LicenseConfigurationArn,omitempty"`
+}
+
+// InstanceMaintenanceOptionsRequest is a generated Smithy structure.
+type InstanceMaintenanceOptionsRequest struct {
+	AutoRecovery *InstanceAutoRecoveryState `xml:"AutoRecovery,omitempty"`
+}
+
+// InstanceMetadataOptionsRequest is a generated Smithy structure.
+type InstanceMetadataOptionsRequest struct {
+	HttpEndpoint            *InstanceMetadataEndpointState `xml:"HttpEndpoint,omitempty"`
+	HttpProtocolIpv6        *InstanceMetadataProtocolState `xml:"HttpProtocolIpv6,omitempty"`
+	HttpPutResponseHopLimit *int32                         `xml:"HttpPutResponseHopLimit,omitempty"`
+	HttpTokens              *HttpTokensState               `xml:"HttpTokens,omitempty"`
+	InstanceMetadataTags    *InstanceMetadataTagsState     `xml:"InstanceMetadataTags,omitempty"`
+}
+
+// RunInstancesMonitoringEnabled is a generated Smithy structure.
+type RunInstancesMonitoringEnabled struct {
+	Enabled bool `xml:"enabled,omitempty"`
+}
+
+// ConnectionTrackingSpecificationRequest is a generated Smithy structure.
+type ConnectionTrackingSpecificationRequest struct {
+	TcpEstablishedTimeout *int32 `xml:"TcpEstablishedTimeout,omitempty"`
+	UdpStreamTimeout      *int32 `xml:"UdpStreamTimeout,omitempty"`
+	UdpTimeout            *int32 `xml:"UdpTimeout,omitempty"`
+}
+
+// EnaSrdUdpSpecificationRequest is a generated Smithy structure.
+type EnaSrdUdpSpecificationRequest struct {
+	EnaSrdUdpEnabled *bool `xml:"EnaSrdUdpEnabled,omitempty"`
+}
+
+// EnaSrdSpecificationRequest is a generated Smithy structure.
+type EnaSrdSpecificationRequest struct {
+	EnaSrdEnabled          *bool                          `xml:"EnaSrdEnabled,omitempty"`
+	EnaSrdUdpSpecification *EnaSrdUdpSpecificationRequest `xml:"EnaSrdUdpSpecification,omitempty"`
+}
+
+// Ipv4PrefixSpecificationRequest is a generated Smithy structure.
+type Ipv4PrefixSpecificationRequest struct {
+	Ipv4Prefix *string `xml:"Ipv4Prefix,omitempty"`
+}
+
+// Ipv6PrefixSpecificationRequest is a generated Smithy structure.
+type Ipv6PrefixSpecificationRequest struct {
+	Ipv6Prefix *string `xml:"Ipv6Prefix,omitempty"`
+}
+
+// PrivateIpAddressSpecification is a generated Smithy structure.
+type PrivateIpAddressSpecification struct {
+	Primary          *bool   `xml:"primary,omitempty"`
+	PrivateIpAddress *string `xml:"privateIpAddress,omitempty"`
+}
+
+// InstanceNetworkInterfaceSpecification is a generated Smithy structure.
+type InstanceNetworkInterfaceSpecification struct {
+	AssociateCarrierIpAddress       *bool                                   `xml:"AssociateCarrierIpAddress,omitempty"`
+	AssociatePublicIpAddress        *bool                                   `xml:"associatePublicIpAddress,omitempty"`
+	ConnectionTrackingSpecification *ConnectionTrackingSpecificationRequest `xml:"ConnectionTrackingSpecification,omitempty"`
+	DeleteOnTermination             *bool                                   `xml:"deleteOnTermination,omitempty"`
+	Description                     *string                                 `xml:"description,omitempty"`
+	DeviceIndex                     *int32                                  `xml:"deviceIndex,omitempty"`
+	EnaQueueCount                   *int32                                  `xml:"EnaQueueCount,omitempty"`
+	EnaSrdSpecification             *EnaSrdSpecificationRequest             `xml:"EnaSrdSpecification,omitempty"`
+	Groups                          SecurityGroupIdStringList               `xml:"SecurityGroupId,omitempty"`
+	InterfaceType                   *string                                 `xml:"InterfaceType,omitempty"`
+	Ipv4PrefixCount                 *int32                                  `xml:"Ipv4PrefixCount,omitempty"`
+	Ipv4Prefixes                    Ipv4PrefixList                          `xml:"Ipv4Prefix,omitempty"`
+	Ipv6AddressCount                *int32                                  `xml:"ipv6AddressCount,omitempty"`
+	Ipv6Addresses                   InstanceIpv6AddressList                 `xml:"ipv6AddressesSet,omitempty"`
+	Ipv6PrefixCount                 *int32                                  `xml:"Ipv6PrefixCount,omitempty"`
+	Ipv6Prefixes                    Ipv6PrefixList                          `xml:"Ipv6Prefix,omitempty"`
+	NetworkCardIndex                *int32                                  `xml:"NetworkCardIndex,omitempty"`
+	NetworkInterfaceId              *string                                 `xml:"networkInterfaceId,omitempty"`
+	PrimaryIpv6                     *bool                                   `xml:"PrimaryIpv6,omitempty"`
+	PrivateIpAddress                *string                                 `xml:"privateIpAddress,omitempty"`
+	PrivateIpAddresses              PrivateIpAddressSpecificationList       `xml:"privateIpAddressesSet,omitempty"`
+	SecondaryPrivateIpAddressCount  *int32                                  `xml:"secondaryPrivateIpAddressCount,omitempty"`
+	SubnetId                        *string                                 `xml:"subnetId,omitempty"`
+}
+
+// InstanceNetworkPerformanceOptionsRequest is a generated Smithy structure.
+type InstanceNetworkPerformanceOptionsRequest struct {
+	BandwidthWeighting *InstanceBandwidthWeighting `xml:"BandwidthWeighting,omitempty"`
+}
+
+// OperatorRequest is a generated Smithy structure.
+type OperatorRequest struct {
+	Principal *string `xml:"Principal,omitempty"`
+}
+
+// Placement is a generated Smithy structure.
+type Placement struct {
+	Affinity             *string  `xml:"affinity,omitempty"`
+	AvailabilityZone     *string  `xml:"availabilityZone,omitempty"`
+	AvailabilityZoneId   *string  `xml:"availabilityZoneId,omitempty"`
+	GroupId              *string  `xml:"groupId,omitempty"`
+	GroupName            *string  `xml:"groupName,omitempty"`
+	HostId               *string  `xml:"hostId,omitempty"`
+	HostResourceGroupArn *string  `xml:"hostResourceGroupArn,omitempty"`
+	PartitionNumber      *int32   `xml:"partitionNumber,omitempty"`
+	SpreadDomain         *string  `xml:"spreadDomain,omitempty"`
+	Tenancy              *Tenancy `xml:"tenancy,omitempty"`
+}
+
+// PrivateDnsNameOptionsRequest is a generated Smithy structure.
+type PrivateDnsNameOptionsRequest struct {
+	EnableResourceNameDnsAAAARecord *bool         `xml:"EnableResourceNameDnsAAAARecord,omitempty"`
+	EnableResourceNameDnsARecord    *bool         `xml:"EnableResourceNameDnsARecord,omitempty"`
+	HostnameType                    *HostnameType `xml:"HostnameType,omitempty"`
+}
+
+// InstanceSecondaryInterfacePrivateIpAddressRequest is a generated Smithy structure.
+type InstanceSecondaryInterfacePrivateIpAddressRequest struct {
+	PrivateIpAddress string `xml:"PrivateIpAddress,omitempty"`
+}
+
+// InstanceSecondaryInterfaceSpecificationRequest is a generated Smithy structure.
+type InstanceSecondaryInterfaceSpecificationRequest struct {
+	DeleteOnTermination   *bool                                                 `xml:"DeleteOnTermination,omitempty"`
+	DeviceIndex           *int32                                                `xml:"DeviceIndex,omitempty"`
+	InterfaceType         *SecondaryInterfaceType                               `xml:"InterfaceType,omitempty"`
+	NetworkCardIndex      *int32                                                `xml:"NetworkCardIndex,omitempty"`
+	PrivateIpAddressCount *int32                                                `xml:"PrivateIpAddressCount,omitempty"`
+	PrivateIpAddresses    InstanceSecondaryInterfacePrivateIpAddressListRequest `xml:"PrivateIpAddress,omitempty"`
+	SecondarySubnetId     *string                                               `xml:"SecondarySubnetId,omitempty"`
+}
+
+// RunInstancesRequest is a generated Smithy structure.
+type RunInstancesRequest struct {
+	AdditionalInfo                    *string                                            `xml:"additionalInfo,omitempty"`
+	BlockDeviceMappings               BlockDeviceMappingRequestList                      `xml:"BlockDeviceMapping,omitempty"`
+	CapacityReservationSpecification  *CapacityReservationSpecification                  `xml:"CapacityReservationSpecification,omitempty"`
+	ClientToken                       *string                                            `xml:"clientToken,omitempty"`
+	CpuOptions                        *CpuOptionsRequest                                 `xml:"CpuOptions,omitempty"`
+	CreditSpecification               *CreditSpecificationRequest                        `xml:"CreditSpecification,omitempty"`
+	DisableApiStop                    *bool                                              `xml:"DisableApiStop,omitempty"`
+	DisableApiTermination             *bool                                              `xml:"disableApiTermination,omitempty"`
+	DryRun                            *bool                                              `xml:"dryRun,omitempty"`
+	EbsOptimized                      *bool                                              `xml:"ebsOptimized,omitempty"`
+	ElasticGpuSpecification           ElasticGpuSpecifications                           `xml:"ElasticGpuSpecification,omitempty"`
+	ElasticInferenceAccelerators      ElasticInferenceAccelerators                       `xml:"ElasticInferenceAccelerator,omitempty"`
+	EnablePrimaryIpv6                 *bool                                              `xml:"EnablePrimaryIpv6,omitempty"`
+	EnclaveOptions                    *EnclaveOptionsRequest                             `xml:"EnclaveOptions,omitempty"`
+	HibernationOptions                *HibernationOptionsRequest                         `xml:"HibernationOptions,omitempty"`
+	IamInstanceProfile                *IamInstanceProfileSpecification                   `xml:"iamInstanceProfile,omitempty"`
+	ImageId                           *string                                            `xml:"ImageId,omitempty"`
+	InstanceInitiatedShutdownBehavior *ShutdownBehavior                                  `xml:"instanceInitiatedShutdownBehavior,omitempty"`
+	InstanceMarketOptions             *InstanceMarketOptionsRequest                      `xml:"InstanceMarketOptions,omitempty"`
+	InstanceType                      *InstanceType                                      `xml:"InstanceType,omitempty"`
+	Ipv6AddressCount                  *int32                                             `xml:"Ipv6AddressCount,omitempty"`
+	Ipv6Addresses                     InstanceIpv6AddressList                            `xml:"Ipv6Address,omitempty"`
+	KernelId                          *string                                            `xml:"KernelId,omitempty"`
+	KeyName                           *string                                            `xml:"KeyName,omitempty"`
+	LaunchTemplate                    *LaunchTemplateSpecification                       `xml:"LaunchTemplate,omitempty"`
+	LicenseSpecifications             LicenseSpecificationListRequest                    `xml:"LicenseSpecification,omitempty"`
+	MaintenanceOptions                *InstanceMaintenanceOptionsRequest                 `xml:"MaintenanceOptions,omitempty"`
+	MaxCount                          int32                                              `xml:"MaxCount,omitempty"`
+	MetadataOptions                   *InstanceMetadataOptionsRequest                    `xml:"MetadataOptions,omitempty"`
+	MinCount                          int32                                              `xml:"MinCount,omitempty"`
+	Monitoring                        *RunInstancesMonitoringEnabled                     `xml:"Monitoring,omitempty"`
+	NetworkInterfaces                 InstanceNetworkInterfaceSpecificationList          `xml:"networkInterface,omitempty"`
+	NetworkPerformanceOptions         *InstanceNetworkPerformanceOptionsRequest          `xml:"NetworkPerformanceOptions,omitempty"`
+	Operator                          *OperatorRequest                                   `xml:"Operator,omitempty"`
+	Placement                         *Placement                                         `xml:"Placement,omitempty"`
+	PrivateDnsNameOptions             *PrivateDnsNameOptionsRequest                      `xml:"PrivateDnsNameOptions,omitempty"`
+	PrivateIpAddress                  *string                                            `xml:"privateIpAddress,omitempty"`
+	RamdiskId                         *string                                            `xml:"RamdiskId,omitempty"`
+	SecondaryInterfaces               InstanceSecondaryInterfaceSpecificationListRequest `xml:"SecondaryInterface,omitempty"`
+	SecurityGroupIds                  SecurityGroupIdStringList                          `xml:"SecurityGroupId,omitempty"`
+	SecurityGroups                    SecurityGroupStringList                            `xml:"SecurityGroup,omitempty"`
+	SubnetId                          *string                                            `xml:"SubnetId,omitempty"`
+	TagSpecifications                 TagSpecificationList                               `xml:"TagSpecification,omitempty"`
+	UserData                          *string                                            `xml:"UserData,omitempty"`
+}
+
+// EbsInstanceBlockDevice is a generated Smithy structure.
+type EbsInstanceBlockDevice struct {
+	AssociatedResource  *string           `xml:"associatedResource,omitempty"`
+	AttachTime          *time.Time        `xml:"attachTime,omitempty"`
+	DeleteOnTermination *bool             `xml:"deleteOnTermination,omitempty"`
+	EbsCardIndex        *int32            `xml:"ebsCardIndex,omitempty"`
+	Operator            *OperatorResponse `xml:"operator,omitempty"`
+	Status              *AttachmentStatus `xml:"status,omitempty"`
+	VolumeId            *string           `xml:"volumeId,omitempty"`
+	VolumeOwnerId       *string           `xml:"volumeOwnerId,omitempty"`
+}
+
+// InstanceBlockDeviceMapping is a generated Smithy structure.
+type InstanceBlockDeviceMapping struct {
+	DeviceName *string                 `xml:"deviceName,omitempty"`
+	Ebs        *EbsInstanceBlockDevice `xml:"ebs,omitempty"`
+}
+
+// CapacityReservationTargetResponse is a generated Smithy structure.
+type CapacityReservationTargetResponse struct {
+	CapacityReservationId               *string `xml:"capacityReservationId,omitempty"`
+	CapacityReservationResourceGroupArn *string `xml:"capacityReservationResourceGroupArn,omitempty"`
+}
+
+// CapacityReservationSpecificationResponse is a generated Smithy structure.
+type CapacityReservationSpecificationResponse struct {
+	CapacityReservationPreference *CapacityReservationPreference     `xml:"capacityReservationPreference,omitempty"`
+	CapacityReservationTarget     *CapacityReservationTargetResponse `xml:"capacityReservationTarget,omitempty"`
+}
+
+// CpuOptions is a generated Smithy structure.
+type CpuOptions struct {
+	AmdSevSnp            *AmdSevSnpSpecification            `xml:"amdSevSnp,omitempty"`
+	CoreCount            *int32                             `xml:"coreCount,omitempty"`
+	NestedVirtualization *NestedVirtualizationSpecification `xml:"nestedVirtualization,omitempty"`
+	ThreadsPerCore       *int32                             `xml:"threadsPerCore,omitempty"`
+}
+
+// ElasticGpuAssociation is a generated Smithy structure.
+type ElasticGpuAssociation struct {
+	ElasticGpuAssociationId    *string `xml:"elasticGpuAssociationId,omitempty"`
+	ElasticGpuAssociationState *string `xml:"elasticGpuAssociationState,omitempty"`
+	ElasticGpuAssociationTime  *string `xml:"elasticGpuAssociationTime,omitempty"`
+	ElasticGpuId               *string `xml:"elasticGpuId,omitempty"`
+}
+
+// ElasticInferenceAcceleratorAssociation is a generated Smithy structure.
+type ElasticInferenceAcceleratorAssociation struct {
+	ElasticInferenceAcceleratorArn              *string    `xml:"elasticInferenceAcceleratorArn,omitempty"`
+	ElasticInferenceAcceleratorAssociationId    *string    `xml:"elasticInferenceAcceleratorAssociationId,omitempty"`
+	ElasticInferenceAcceleratorAssociationState *string    `xml:"elasticInferenceAcceleratorAssociationState,omitempty"`
+	ElasticInferenceAcceleratorAssociationTime  *time.Time `xml:"elasticInferenceAcceleratorAssociationTime,omitempty"`
+}
+
+// EnclaveOptions is a generated Smithy structure.
+type EnclaveOptions struct {
+	Enabled *bool `xml:"enabled,omitempty"`
+}
+
+// HibernationOptions is a generated Smithy structure.
+type HibernationOptions struct {
+	Configured *bool `xml:"configured,omitempty"`
+}
+
+// IamInstanceProfile is a generated Smithy structure.
+type IamInstanceProfile struct {
+	Arn *string `xml:"arn,omitempty"`
+	Id  *string `xml:"id,omitempty"`
+}
+
+// LicenseConfiguration is a generated Smithy structure.
+type LicenseConfiguration struct {
+	LicenseConfigurationArn *string `xml:"licenseConfigurationArn,omitempty"`
+}
+
+// InstanceMaintenanceOptions is a generated Smithy structure.
+type InstanceMaintenanceOptions struct {
+	AutoRecovery    *InstanceAutoRecoveryState    `xml:"autoRecovery,omitempty"`
+	RebootMigration *InstanceRebootMigrationState `xml:"rebootMigration,omitempty"`
+}
+
+// InstanceMetadataOptionsResponse is a generated Smithy structure.
+type InstanceMetadataOptionsResponse struct {
+	HttpEndpoint            *InstanceMetadataEndpointState `xml:"httpEndpoint,omitempty"`
+	HttpProtocolIpv6        *InstanceMetadataProtocolState `xml:"httpProtocolIpv6,omitempty"`
+	HttpPutResponseHopLimit *int32                         `xml:"httpPutResponseHopLimit,omitempty"`
+	HttpTokens              *HttpTokensState               `xml:"httpTokens,omitempty"`
+	InstanceMetadataTags    *InstanceMetadataTagsState     `xml:"instanceMetadataTags,omitempty"`
+	State                   *InstanceMetadataOptionsState  `xml:"state,omitempty"`
+}
+
+// Monitoring is a generated Smithy structure.
+type Monitoring struct {
+	State *MonitoringState `xml:"state,omitempty"`
+}
+
+// InstanceNetworkInterfaceAssociation is a generated Smithy structure.
+type InstanceNetworkInterfaceAssociation struct {
+	CarrierIp       *string `xml:"carrierIp,omitempty"`
+	CustomerOwnedIp *string `xml:"customerOwnedIp,omitempty"`
+	IpOwnerId       *string `xml:"ipOwnerId,omitempty"`
+	PublicDnsName   *string `xml:"publicDnsName,omitempty"`
+	PublicIp        *string `xml:"publicIp,omitempty"`
+}
+
+// InstanceAttachmentEnaSrdUdpSpecification is a generated Smithy structure.
+type InstanceAttachmentEnaSrdUdpSpecification struct {
+	EnaSrdUdpEnabled *bool `xml:"enaSrdUdpEnabled,omitempty"`
+}
+
+// InstanceAttachmentEnaSrdSpecification is a generated Smithy structure.
+type InstanceAttachmentEnaSrdSpecification struct {
+	EnaSrdEnabled          *bool                                     `xml:"enaSrdEnabled,omitempty"`
+	EnaSrdUdpSpecification *InstanceAttachmentEnaSrdUdpSpecification `xml:"enaSrdUdpSpecification,omitempty"`
+}
+
+// InstanceNetworkInterfaceAttachment is a generated Smithy structure.
+type InstanceNetworkInterfaceAttachment struct {
+	AttachTime          *time.Time                             `xml:"attachTime,omitempty"`
+	AttachmentId        *string                                `xml:"attachmentId,omitempty"`
+	DeleteOnTermination *bool                                  `xml:"deleteOnTermination,omitempty"`
+	DeviceIndex         *int32                                 `xml:"deviceIndex,omitempty"`
+	EnaQueueCount       *int32                                 `xml:"enaQueueCount,omitempty"`
+	EnaSrdSpecification *InstanceAttachmentEnaSrdSpecification `xml:"enaSrdSpecification,omitempty"`
+	NetworkCardIndex    *int32                                 `xml:"networkCardIndex,omitempty"`
+	Status              *AttachmentStatus                      `xml:"status,omitempty"`
+}
+
+// ConnectionTrackingSpecificationResponse is a generated Smithy structure.
+type ConnectionTrackingSpecificationResponse struct {
+	TcpEstablishedTimeout *int32 `xml:"tcpEstablishedTimeout,omitempty"`
+	UdpStreamTimeout      *int32 `xml:"udpStreamTimeout,omitempty"`
+	UdpTimeout            *int32 `xml:"udpTimeout,omitempty"`
+}
+
+// InstanceIpv4Prefix is a generated Smithy structure.
+type InstanceIpv4Prefix struct {
+	Ipv4Prefix *string `xml:"ipv4Prefix,omitempty"`
+}
+
+// InstanceIpv6Prefix is a generated Smithy structure.
+type InstanceIpv6Prefix struct {
+	Ipv6Prefix *string `xml:"ipv6Prefix,omitempty"`
+}
+
+// InstancePrivateIpAddress is a generated Smithy structure.
+type InstancePrivateIpAddress struct {
+	Association      *InstanceNetworkInterfaceAssociation `xml:"association,omitempty"`
+	Primary          *bool                                `xml:"primary,omitempty"`
+	PrivateDnsName   *string                              `xml:"privateDnsName,omitempty"`
+	PrivateIpAddress *string                              `xml:"privateIpAddress,omitempty"`
+}
+
+// InstanceNetworkInterface is a generated Smithy structure.
+type InstanceNetworkInterface struct {
+	Association                     *InstanceNetworkInterfaceAssociation     `xml:"association,omitempty"`
+	Attachment                      *InstanceNetworkInterfaceAttachment      `xml:"attachment,omitempty"`
+	ConnectionTrackingConfiguration *ConnectionTrackingSpecificationResponse `xml:"connectionTrackingConfiguration,omitempty"`
+	Description                     *string                                  `xml:"description,omitempty"`
+	Groups                          GroupIdentifierList                      `xml:"groupSet,omitempty"`
+	InterfaceType                   *string                                  `xml:"interfaceType,omitempty"`
+	Ipv4Prefixes                    InstanceIpv4PrefixList                   `xml:"ipv4PrefixSet,omitempty"`
+	Ipv6Addresses                   InstanceIpv6AddressList                  `xml:"ipv6AddressesSet,omitempty"`
+	Ipv6Prefixes                    InstanceIpv6PrefixList                   `xml:"ipv6PrefixSet,omitempty"`
+	MacAddress                      *string                                  `xml:"macAddress,omitempty"`
+	NetworkInterfaceId              *string                                  `xml:"networkInterfaceId,omitempty"`
+	Operator                        *OperatorResponse                        `xml:"operator,omitempty"`
+	OwnerId                         *string                                  `xml:"ownerId,omitempty"`
+	PrivateDnsName                  *string                                  `xml:"privateDnsName,omitempty"`
+	PrivateIpAddress                *string                                  `xml:"privateIpAddress,omitempty"`
+	PrivateIpAddresses              InstancePrivateIpAddressList             `xml:"privateIpAddressesSet,omitempty"`
+	SourceDestCheck                 *bool                                    `xml:"sourceDestCheck,omitempty"`
+	Status                          *NetworkInterfaceStatus                  `xml:"status,omitempty"`
+	SubnetId                        *string                                  `xml:"subnetId,omitempty"`
+	VpcId                           *string                                  `xml:"vpcId,omitempty"`
+}
+
+// InstanceNetworkPerformanceOptions is a generated Smithy structure.
+type InstanceNetworkPerformanceOptions struct {
+	BandwidthWeighting *InstanceBandwidthWeighting `xml:"bandwidthWeighting,omitempty"`
+}
+
+// PrivateDnsNameOptionsResponse is a generated Smithy structure.
+type PrivateDnsNameOptionsResponse struct {
+	EnableResourceNameDnsAAAARecord *bool         `xml:"enableResourceNameDnsAAAARecord,omitempty"`
+	EnableResourceNameDnsARecord    *bool         `xml:"enableResourceNameDnsARecord,omitempty"`
+	HostnameType                    *HostnameType `xml:"hostnameType,omitempty"`
+}
+
+// ProductCode is a generated Smithy structure.
+type ProductCode struct {
+	ProductCodeId   *string            `xml:"productCode,omitempty"`
+	ProductCodeType *ProductCodeValues `xml:"type,omitempty"`
+}
+
+// InstanceSecondaryInterfaceAttachment is a generated Smithy structure.
+type InstanceSecondaryInterfaceAttachment struct {
+	AttachTime          *time.Time        `xml:"attachTime,omitempty"`
+	AttachmentId        *string           `xml:"attachmentId,omitempty"`
+	DeleteOnTermination *bool             `xml:"deleteOnTermination,omitempty"`
+	DeviceIndex         *int32            `xml:"deviceIndex,omitempty"`
+	NetworkCardIndex    *int32            `xml:"networkCardIndex,omitempty"`
+	Status              *AttachmentStatus `xml:"status,omitempty"`
+}
+
+// InstanceSecondaryInterfacePrivateIpAddress is a generated Smithy structure.
+type InstanceSecondaryInterfacePrivateIpAddress struct {
+	PrivateIpAddress *string `xml:"privateIpAddress,omitempty"`
+}
+
+// InstanceSecondaryInterface is a generated Smithy structure.
+type InstanceSecondaryInterface struct {
+	Attachment           *InstanceSecondaryInterfaceAttachment          `xml:"attachment,omitempty"`
+	InterfaceType        *SecondaryInterfaceType                        `xml:"interfaceType,omitempty"`
+	MacAddress           *string                                        `xml:"macAddress,omitempty"`
+	OwnerId              *string                                        `xml:"ownerId,omitempty"`
+	PrivateIpAddresses   InstanceSecondaryInterfacePrivateIpAddressList `xml:"privateIpAddressSet,omitempty"`
+	SecondaryInterfaceId *string                                        `xml:"secondaryInterfaceId,omitempty"`
+	SecondaryNetworkId   *string                                        `xml:"secondaryNetworkId,omitempty"`
+	SecondarySubnetId    *string                                        `xml:"secondarySubnetId,omitempty"`
+	SourceDestCheck      *bool                                          `xml:"sourceDestCheck,omitempty"`
+	Status               *SecondaryInterfaceStatus                      `xml:"status,omitempty"`
+}
+
+// InstanceState is a generated Smithy structure.
+type InstanceState struct {
+	Code *int32             `xml:"code,omitempty"`
+	Name *InstanceStateName `xml:"name,omitempty"`
+}
+
+// StateReason is a generated Smithy structure.
+type StateReason struct {
+	Code    *string `xml:"code,omitempty"`
+	Message *string `xml:"message,omitempty"`
+}
+
+// Instance is a generated Smithy structure.
+type Instance struct {
+	AmiLaunchIndex                          *int32                                     `xml:"amiLaunchIndex,omitempty"`
+	Architecture                            *ArchitectureValues                        `xml:"architecture,omitempty"`
+	BlockDeviceMappings                     InstanceBlockDeviceMappingList             `xml:"blockDeviceMapping,omitempty"`
+	BootMode                                *BootModeValues                            `xml:"bootMode,omitempty"`
+	CapacityBlockId                         *string                                    `xml:"capacityBlockId,omitempty"`
+	CapacityReservationId                   *string                                    `xml:"capacityReservationId,omitempty"`
+	CapacityReservationSpecification        *CapacityReservationSpecificationResponse  `xml:"capacityReservationSpecification,omitempty"`
+	ClientToken                             *string                                    `xml:"clientToken,omitempty"`
+	CpuOptions                              *CpuOptions                                `xml:"cpuOptions,omitempty"`
+	CurrentInstanceBootMode                 *InstanceBootModeValues                    `xml:"currentInstanceBootMode,omitempty"`
+	EbsOptimized                            *bool                                      `xml:"ebsOptimized,omitempty"`
+	ElasticGpuAssociations                  ElasticGpuAssociationList                  `xml:"elasticGpuAssociationSet,omitempty"`
+	ElasticInferenceAcceleratorAssociations ElasticInferenceAcceleratorAssociationList `xml:"elasticInferenceAcceleratorAssociationSet,omitempty"`
+	EnaSupport                              *bool                                      `xml:"enaSupport,omitempty"`
+	EnclaveOptions                          *EnclaveOptions                            `xml:"enclaveOptions,omitempty"`
+	HibernationOptions                      *HibernationOptions                        `xml:"hibernationOptions,omitempty"`
+	Hypervisor                              *HypervisorType                            `xml:"hypervisor,omitempty"`
+	IamInstanceProfile                      *IamInstanceProfile                        `xml:"iamInstanceProfile,omitempty"`
+	ImageId                                 *string                                    `xml:"imageId,omitempty"`
+	InstanceId                              *string                                    `xml:"instanceId,omitempty"`
+	InstanceLifecycle                       *InstanceLifecycleType                     `xml:"instanceLifecycle,omitempty"`
+	InstanceType                            *InstanceType                              `xml:"instanceType,omitempty"`
+	Ipv6Address                             *string                                    `xml:"ipv6Address,omitempty"`
+	KernelId                                *string                                    `xml:"kernelId,omitempty"`
+	KeyName                                 *string                                    `xml:"keyName,omitempty"`
+	LaunchTime                              *time.Time                                 `xml:"launchTime,omitempty"`
+	Licenses                                LicenseList                                `xml:"licenseSet,omitempty"`
+	MaintenanceOptions                      *InstanceMaintenanceOptions                `xml:"maintenanceOptions,omitempty"`
+	MetadataOptions                         *InstanceMetadataOptionsResponse           `xml:"metadataOptions,omitempty"`
+	Monitoring                              *Monitoring                                `xml:"monitoring,omitempty"`
+	NetworkInterfaces                       InstanceNetworkInterfaceList               `xml:"networkInterfaceSet,omitempty"`
+	NetworkPerformanceOptions               *InstanceNetworkPerformanceOptions         `xml:"networkPerformanceOptions,omitempty"`
+	Operator                                *OperatorResponse                          `xml:"operator,omitempty"`
+	OutpostArn                              *string                                    `xml:"outpostArn,omitempty"`
+	Placement                               *Placement                                 `xml:"placement,omitempty"`
+	Platform                                *PlatformValues                            `xml:"platform,omitempty"`
+	PlatformDetails                         *string                                    `xml:"platformDetails,omitempty"`
+	PrivateDnsName                          *string                                    `xml:"privateDnsName,omitempty"`
+	PrivateDnsNameOptions                   *PrivateDnsNameOptionsResponse             `xml:"privateDnsNameOptions,omitempty"`
+	PrivateIpAddress                        *string                                    `xml:"privateIpAddress,omitempty"`
+	ProductCodes                            ProductCodeList                            `xml:"productCodes,omitempty"`
+	PublicDnsName                           *string                                    `xml:"dnsName,omitempty"`
+	PublicIpAddress                         *string                                    `xml:"ipAddress,omitempty"`
+	RamdiskId                               *string                                    `xml:"ramdiskId,omitempty"`
+	RootDeviceName                          *string                                    `xml:"rootDeviceName,omitempty"`
+	RootDeviceType                          *DeviceType                                `xml:"rootDeviceType,omitempty"`
+	SecondaryInterfaces                     InstanceSecondaryInterfaceList             `xml:"secondaryInterfaceSet,omitempty"`
+	SecurityGroups                          GroupIdentifierList                        `xml:"groupSet,omitempty"`
+	SourceDestCheck                         *bool                                      `xml:"sourceDestCheck,omitempty"`
+	SpotInstanceRequestId                   *string                                    `xml:"spotInstanceRequestId,omitempty"`
+	SriovNetSupport                         *string                                    `xml:"sriovNetSupport,omitempty"`
+	State                                   *InstanceState                             `xml:"instanceState,omitempty"`
+	StateReason                             *StateReason                               `xml:"stateReason,omitempty"`
+	StateTransitionReason                   *string                                    `xml:"reason,omitempty"`
+	SubnetId                                *string                                    `xml:"subnetId,omitempty"`
+	Tags                                    TagList                                    `xml:"tagSet,omitempty"`
+	TpmSupport                              *string                                    `xml:"tpmSupport,omitempty"`
+	UsageOperation                          *string                                    `xml:"usageOperation,omitempty"`
+	UsageOperationUpdateTime                *time.Time                                 `xml:"usageOperationUpdateTime,omitempty"`
+	VirtualizationType                      *VirtualizationType                        `xml:"virtualizationType,omitempty"`
+	VpcId                                   *string                                    `xml:"vpcId,omitempty"`
+}
+
+// Reservation is a generated Smithy structure.
+type Reservation struct {
+	Groups        GroupIdentifierList `xml:"groupSet,omitempty"`
+	Instances     InstanceList        `xml:"instancesSet,omitempty"`
+	OwnerId       *string             `xml:"ownerId,omitempty"`
+	RequesterId   *string             `xml:"requesterId,omitempty"`
+	ReservationId *string             `xml:"reservationId,omitempty"`
+}
+
+// DescribeInstancesRequest is a generated Smithy structure.
+type DescribeInstancesRequest struct {
+	DryRun                  *bool                `xml:"dryRun,omitempty"`
+	Filters                 FilterList           `xml:"Filter,omitempty"`
+	IncludeManagedResources *bool                `xml:"IncludeManagedResources,omitempty"`
+	InstanceIds             InstanceIdStringList `xml:"InstanceId,omitempty"`
+	MaxResults              *int32               `xml:"maxResults,omitempty"`
+	NextToken               *string              `xml:"nextToken,omitempty"`
+}
+
+// DescribeInstancesResult is a generated Smithy structure.
+type DescribeInstancesResult struct {
+	NextToken    *string         `xml:"nextToken,omitempty"`
+	Reservations ReservationList `xml:"reservationSet,omitempty"`
+}
+
+// StartInstancesRequest is a generated Smithy structure.
+type StartInstancesRequest struct {
+	AdditionalInfo *string              `xml:"additionalInfo,omitempty"`
+	DryRun         *bool                `xml:"dryRun,omitempty"`
+	InstanceIds    InstanceIdStringList `xml:"InstanceId,omitempty"`
+}
+
+// InstanceStateChange is a generated Smithy structure.
+type InstanceStateChange struct {
+	CurrentState  *InstanceState `xml:"currentState,omitempty"`
+	InstanceId    *string        `xml:"instanceId,omitempty"`
+	PreviousState *InstanceState `xml:"previousState,omitempty"`
+}
+
+// StartInstancesResult is a generated Smithy structure.
+type StartInstancesResult struct {
+	StartingInstances InstanceStateChangeList `xml:"instancesSet,omitempty"`
+}
+
+// StopInstancesRequest is a generated Smithy structure.
+type StopInstancesRequest struct {
+	DryRun         *bool                `xml:"dryRun,omitempty"`
+	Force          *bool                `xml:"force,omitempty"`
+	Hibernate      *bool                `xml:"Hibernate,omitempty"`
+	InstanceIds    InstanceIdStringList `xml:"InstanceId,omitempty"`
+	SkipOsShutdown *bool                `xml:"SkipOsShutdown,omitempty"`
+}
+
+// StopInstancesResult is a generated Smithy structure.
+type StopInstancesResult struct {
+	StoppingInstances InstanceStateChangeList `xml:"instancesSet,omitempty"`
+}
+
+// TerminateInstancesRequest is a generated Smithy structure.
+type TerminateInstancesRequest struct {
+	DryRun         *bool                `xml:"dryRun,omitempty"`
+	Force          *bool                `xml:"Force,omitempty"`
+	InstanceIds    InstanceIdStringList `xml:"InstanceId,omitempty"`
+	SkipOsShutdown *bool                `xml:"SkipOsShutdown,omitempty"`
+}
+
+// TerminateInstancesResult is a generated Smithy structure.
+type TerminateInstancesResult struct {
+	TerminatingInstances InstanceStateChangeList `xml:"instancesSet,omitempty"`
+}
+
+// RebootInstancesRequest is a generated Smithy structure.
+type RebootInstancesRequest struct {
+	DryRun      *bool                `xml:"dryRun,omitempty"`
+	InstanceIds InstanceIdStringList `xml:"InstanceId,omitempty"`
+}
+
+// DescribeInstanceTypesRequest is a generated Smithy structure.
+type DescribeInstanceTypesRequest struct {
+	DryRun                     *bool                   `xml:"DryRun,omitempty"`
+	Filters                    FilterList              `xml:"Filter,omitempty"`
+	IncludeUnsupportedInRegion *bool                   `xml:"IncludeUnsupportedInRegion,omitempty"`
+	InstanceTypes              RequestInstanceTypeList `xml:"InstanceType,omitempty"`
+	MaxResults                 *int32                  `xml:"MaxResults,omitempty"`
+	NextToken                  *string                 `xml:"NextToken,omitempty"`
+}
+
+// EbsCardInfo is a generated Smithy structure.
+type EbsCardInfo struct {
+	BaselineBandwidthInMbps  *int32   `xml:"baselineBandwidthInMbps,omitempty"`
+	BaselineIops             *int32   `xml:"baselineIops,omitempty"`
+	BaselineThroughputInMBps *float64 `xml:"baselineThroughputInMBps,omitempty"`
+	EbsCardIndex             *int32   `xml:"ebsCardIndex,omitempty"`
+	MaximumBandwidthInMbps   *int32   `xml:"maximumBandwidthInMbps,omitempty"`
+	MaximumIops              *int32   `xml:"maximumIops,omitempty"`
+	MaximumThroughputInMBps  *float64 `xml:"maximumThroughputInMBps,omitempty"`
+}
+
+// EbsOptimizedInfo is a generated Smithy structure.
+type EbsOptimizedInfo struct {
+	BaselineBandwidthInMbps  *int32   `xml:"baselineBandwidthInMbps,omitempty"`
+	BaselineIops             *int32   `xml:"baselineIops,omitempty"`
+	BaselineThroughputInMBps *float64 `xml:"baselineThroughputInMBps,omitempty"`
+	MaximumBandwidthInMbps   *int32   `xml:"maximumBandwidthInMbps,omitempty"`
+	MaximumIops              *int32   `xml:"maximumIops,omitempty"`
+	MaximumThroughputInMBps  *float64 `xml:"maximumThroughputInMBps,omitempty"`
+}
+
+// EbsInfo is a generated Smithy structure.
+type EbsInfo struct {
+	AttachmentLimitType   *AttachmentLimitType  `xml:"attachmentLimitType,omitempty"`
+	EbsCards              EbsCardInfoList       `xml:"ebsCardSet,omitempty"`
+	EbsOptimizedInfo      *EbsOptimizedInfo     `xml:"ebsOptimizedInfo,omitempty"`
+	EbsOptimizedSupport   *EbsOptimizedSupport  `xml:"ebsOptimizedSupport,omitempty"`
+	EncryptionSupport     *EbsEncryptionSupport `xml:"encryptionSupport,omitempty"`
+	MaximumEbsAttachments *int32                `xml:"maximumEbsAttachments,omitempty"`
+	MaximumEbsCards       *int32                `xml:"maximumEbsCards,omitempty"`
+	NvmeSupport           *EbsNvmeSupport       `xml:"nvmeSupport,omitempty"`
+}
+
+// FpgaDeviceMemoryInfo is a generated Smithy structure.
+type FpgaDeviceMemoryInfo struct {
+	SizeInMiB *int32 `xml:"sizeInMiB,omitempty"`
+}
+
+// FpgaDeviceInfo is a generated Smithy structure.
+type FpgaDeviceInfo struct {
+	Count        *int32                `xml:"count,omitempty"`
+	Manufacturer *string               `xml:"manufacturer,omitempty"`
+	MemoryInfo   *FpgaDeviceMemoryInfo `xml:"memoryInfo,omitempty"`
+	Name         *string               `xml:"name,omitempty"`
+}
+
+// FpgaInfo is a generated Smithy structure.
+type FpgaInfo struct {
+	Fpgas                FpgaDeviceInfoList `xml:"fpgas,omitempty"`
+	TotalFpgaMemoryInMiB *int32             `xml:"totalFpgaMemoryInMiB,omitempty"`
+}
+
+// GpuDeviceMemoryInfo is a generated Smithy structure.
+type GpuDeviceMemoryInfo struct {
+	SizeInMiB *int32 `xml:"sizeInMiB,omitempty"`
+}
+
+// GpuDeviceInfo is a generated Smithy structure.
+type GpuDeviceInfo struct {
+	Count            *int32               `xml:"count,omitempty"`
+	GpuPartitionSize *float64             `xml:"gpuPartitionSize,omitempty"`
+	LogicalGpuCount  *int32               `xml:"logicalGpuCount,omitempty"`
+	Manufacturer     *string              `xml:"manufacturer,omitempty"`
+	MemoryInfo       *GpuDeviceMemoryInfo `xml:"memoryInfo,omitempty"`
+	Name             *string              `xml:"name,omitempty"`
+	Workloads        WorkloadsList        `xml:"workloadSet,omitempty"`
+}
+
+// GpuInfo is a generated Smithy structure.
+type GpuInfo struct {
+	Gpus                GpuDeviceInfoList `xml:"gpus,omitempty"`
+	TotalGpuMemoryInMiB *int32            `xml:"totalGpuMemoryInMiB,omitempty"`
+}
+
+// InferenceDeviceMemoryInfo is a generated Smithy structure.
+type InferenceDeviceMemoryInfo struct {
+	SizeInMiB *int32 `xml:"sizeInMiB,omitempty"`
+}
+
+// InferenceDeviceInfo is a generated Smithy structure.
+type InferenceDeviceInfo struct {
+	Count        *int32                     `xml:"count,omitempty"`
+	Manufacturer *string                    `xml:"manufacturer,omitempty"`
+	MemoryInfo   *InferenceDeviceMemoryInfo `xml:"memoryInfo,omitempty"`
+	Name         *string                    `xml:"name,omitempty"`
+}
+
+// InferenceAcceleratorInfo is a generated Smithy structure.
+type InferenceAcceleratorInfo struct {
+	Accelerators              InferenceDeviceInfoList `xml:"accelerators,omitempty"`
+	TotalInferenceMemoryInMiB *int32                  `xml:"totalInferenceMemoryInMiB,omitempty"`
+}
+
+// DiskInfo is a generated Smithy structure.
+type DiskInfo struct {
+	Count    *int32    `xml:"count,omitempty"`
+	SizeInGB *int64    `xml:"sizeInGB,omitempty"`
+	Type     *DiskType `xml:"type,omitempty"`
+}
+
+// InstanceStorageInfo is a generated Smithy structure.
+type InstanceStorageInfo struct {
+	Disks             DiskInfoList                      `xml:"disks,omitempty"`
+	EncryptionSupport *InstanceStorageEncryptionSupport `xml:"encryptionSupport,omitempty"`
+	NvmeSupport       *EphemeralNvmeSupport             `xml:"nvmeSupport,omitempty"`
+	TotalSizeInGB     *int64                            `xml:"totalSizeInGB,omitempty"`
+}
+
+// MediaDeviceMemoryInfo is a generated Smithy structure.
+type MediaDeviceMemoryInfo struct {
+	SizeInMiB *int32 `xml:"sizeInMiB,omitempty"`
+}
+
+// MediaDeviceInfo is a generated Smithy structure.
+type MediaDeviceInfo struct {
+	Count        *int32                 `xml:"count,omitempty"`
+	Manufacturer *string                `xml:"manufacturer,omitempty"`
+	MemoryInfo   *MediaDeviceMemoryInfo `xml:"memoryInfo,omitempty"`
+	Name         *string                `xml:"name,omitempty"`
+}
+
+// MediaAcceleratorInfo is a generated Smithy structure.
+type MediaAcceleratorInfo struct {
+	Accelerators          MediaDeviceInfoList `xml:"accelerators,omitempty"`
+	TotalMediaMemoryInMiB *int32              `xml:"totalMediaMemoryInMiB,omitempty"`
+}
+
+// MemoryInfo is a generated Smithy structure.
+type MemoryInfo struct {
+	SizeInMiB *int64 `xml:"sizeInMiB,omitempty"`
+}
+
+// DefaultConnectionTrackingConfiguration is a generated Smithy structure.
+type DefaultConnectionTrackingConfiguration struct {
+	DefaultTcpEstablishedTimeout *int32 `xml:"defaultTcpEstablishedTimeout,omitempty"`
+	DefaultUdpStreamTimeout      *int32 `xml:"defaultUdpStreamTimeout,omitempty"`
+	DefaultUdpTimeout            *int32 `xml:"defaultUdpTimeout,omitempty"`
+}
+
+// EfaInfo is a generated Smithy structure.
+type EfaInfo struct {
+	MaximumEfaInterfaces *int32 `xml:"maximumEfaInterfaces,omitempty"`
+}
+
+// NetworkCardInfo is a generated Smithy structure.
+type NetworkCardInfo struct {
+	AdditionalFlexibleNetworkInterfaces *int32   `xml:"additionalFlexibleNetworkInterfaces,omitempty"`
+	BaselineBandwidthInGbps             *float64 `xml:"baselineBandwidthInGbps,omitempty"`
+	DefaultEnaQueueCountPerInterface    *int32   `xml:"defaultEnaQueueCountPerInterface,omitempty"`
+	MaximumEnaQueueCount                *int32   `xml:"maximumEnaQueueCount,omitempty"`
+	MaximumEnaQueueCountPerInterface    *int32   `xml:"maximumEnaQueueCountPerInterface,omitempty"`
+	MaximumNetworkInterfaces            *int32   `xml:"maximumNetworkInterfaces,omitempty"`
+	NetworkCardIndex                    *int32   `xml:"networkCardIndex,omitempty"`
+	NetworkPerformance                  *string  `xml:"networkPerformance,omitempty"`
+	PeakBandwidthInGbps                 *float64 `xml:"peakBandwidthInGbps,omitempty"`
+}
+
+// NetworkInfo is a generated Smithy structure.
+type NetworkInfo struct {
+	BandwidthWeightings                BandwidthWeightingTypeList              `xml:"bandwidthWeightings,omitempty"`
+	ConnectionTrackingConfiguration    *DefaultConnectionTrackingConfiguration `xml:"connectionTrackingConfiguration,omitempty"`
+	DefaultNetworkCardIndex            *int32                                  `xml:"defaultNetworkCardIndex,omitempty"`
+	EfaInfo                            *EfaInfo                                `xml:"efaInfo,omitempty"`
+	EfaSupported                       *bool                                   `xml:"efaSupported,omitempty"`
+	EnaSrdSupported                    *bool                                   `xml:"enaSrdSupported,omitempty"`
+	EnaSupport                         *EnaSupport                             `xml:"enaSupport,omitempty"`
+	EncryptionInTransitSupported       *bool                                   `xml:"encryptionInTransitSupported,omitempty"`
+	FlexibleEnaQueuesSupport           *FlexibleEnaQueuesSupport               `xml:"flexibleEnaQueuesSupport,omitempty"`
+	Ipv4AddressesPerInterface          *int32                                  `xml:"ipv4AddressesPerInterface,omitempty"`
+	Ipv4AddressesPerSecondaryInterface *int32                                  `xml:"ipv4AddressesPerSecondaryInterface,omitempty"`
+	Ipv6AddressesPerInterface          *int32                                  `xml:"ipv6AddressesPerInterface,omitempty"`
+	Ipv6Supported                      *bool                                   `xml:"ipv6Supported,omitempty"`
+	MaximumNetworkCards                *int32                                  `xml:"maximumNetworkCards,omitempty"`
+	MaximumNetworkInterfaces           *int32                                  `xml:"maximumNetworkInterfaces,omitempty"`
+	MaximumSecondaryNetworkInterfaces  *int32                                  `xml:"maximumSecondaryNetworkInterfaces,omitempty"`
+	NetworkCards                       NetworkCardInfoList                     `xml:"networkCards,omitempty"`
+	NetworkPerformance                 *string                                 `xml:"networkPerformance,omitempty"`
+	SecondaryNetworkSupported          *bool                                   `xml:"secondaryNetworkSupported,omitempty"`
+}
+
+// NeuronDeviceCoreInfo is a generated Smithy structure.
+type NeuronDeviceCoreInfo struct {
+	Count   *int32 `xml:"count,omitempty"`
+	Version *int32 `xml:"version,omitempty"`
+}
+
+// NeuronDeviceMemoryInfo is a generated Smithy structure.
+type NeuronDeviceMemoryInfo struct {
+	SizeInMiB *int32 `xml:"sizeInMiB,omitempty"`
+}
+
+// NeuronDeviceInfo is a generated Smithy structure.
+type NeuronDeviceInfo struct {
+	CoreInfo   *NeuronDeviceCoreInfo   `xml:"coreInfo,omitempty"`
+	Count      *int32                  `xml:"count,omitempty"`
+	MemoryInfo *NeuronDeviceMemoryInfo `xml:"memoryInfo,omitempty"`
+	Name       *string                 `xml:"name,omitempty"`
+}
+
+// NeuronInfo is a generated Smithy structure.
+type NeuronInfo struct {
+	NeuronDevices                NeuronDeviceInfoList `xml:"neuronDevices,omitempty"`
+	TotalNeuronDeviceMemoryInMiB *int32               `xml:"totalNeuronDeviceMemoryInMiB,omitempty"`
+}
+
+// NitroTpmInfo is a generated Smithy structure.
+type NitroTpmInfo struct {
+	SupportedVersions NitroTpmSupportedVersionsList `xml:"supportedVersions,omitempty"`
+}
+
+// PlacementGroupInfo is a generated Smithy structure.
+type PlacementGroupInfo struct {
+	SupportedStrategies PlacementGroupStrategyList `xml:"supportedStrategies,omitempty"`
+}
+
+// ProcessorInfo is a generated Smithy structure.
+type ProcessorInfo struct {
+	Manufacturer             *string                                 `xml:"manufacturer,omitempty"`
+	SupportedArchitectures   ArchitectureTypeList                    `xml:"supportedArchitectures,omitempty"`
+	SupportedFeatures        SupportedAdditionalProcessorFeatureList `xml:"supportedFeatures,omitempty"`
+	SustainedClockSpeedInGhz *float64                                `xml:"sustainedClockSpeedInGhz,omitempty"`
+}
+
+// VCpuInfo is a generated Smithy structure.
+type VCpuInfo struct {
+	DefaultCores          *int32             `xml:"defaultCores,omitempty"`
+	DefaultThreadsPerCore *int32             `xml:"defaultThreadsPerCore,omitempty"`
+	DefaultVCpus          *int32             `xml:"defaultVCpus,omitempty"`
+	ValidCores            CoreCountList      `xml:"validCores,omitempty"`
+	ValidThreadsPerCore   ThreadsPerCoreList `xml:"validThreadsPerCore,omitempty"`
+}
+
+// InstanceTypeInfo is a generated Smithy structure.
+type InstanceTypeInfo struct {
+	AutoRecoverySupported         *bool                     `xml:"autoRecoverySupported,omitempty"`
+	BareMetal                     *bool                     `xml:"bareMetal,omitempty"`
+	BurstablePerformanceSupported *bool                     `xml:"burstablePerformanceSupported,omitempty"`
+	CurrentGeneration             *bool                     `xml:"currentGeneration,omitempty"`
+	DedicatedHostsSupported       *bool                     `xml:"dedicatedHostsSupported,omitempty"`
+	EbsInfo                       *EbsInfo                  `xml:"ebsInfo,omitempty"`
+	FpgaInfo                      *FpgaInfo                 `xml:"fpgaInfo,omitempty"`
+	FreeTierEligible              *bool                     `xml:"freeTierEligible,omitempty"`
+	GpuInfo                       *GpuInfo                  `xml:"gpuInfo,omitempty"`
+	HibernationSupported          *bool                     `xml:"hibernationSupported,omitempty"`
+	Hypervisor                    *InstanceTypeHypervisor   `xml:"hypervisor,omitempty"`
+	InferenceAcceleratorInfo      *InferenceAcceleratorInfo `xml:"inferenceAcceleratorInfo,omitempty"`
+	InstanceStorageInfo           *InstanceStorageInfo      `xml:"instanceStorageInfo,omitempty"`
+	InstanceStorageSupported      *bool                     `xml:"instanceStorageSupported,omitempty"`
+	InstanceType                  *InstanceType             `xml:"instanceType,omitempty"`
+	MediaAcceleratorInfo          *MediaAcceleratorInfo     `xml:"mediaAcceleratorInfo,omitempty"`
+	MemoryInfo                    *MemoryInfo               `xml:"memoryInfo,omitempty"`
+	NetworkInfo                   *NetworkInfo              `xml:"networkInfo,omitempty"`
+	NeuronInfo                    *NeuronInfo               `xml:"neuronInfo,omitempty"`
+	NitroEnclavesSupport          *NitroEnclavesSupport     `xml:"nitroEnclavesSupport,omitempty"`
+	NitroTpmInfo                  *NitroTpmInfo             `xml:"nitroTpmInfo,omitempty"`
+	NitroTpmSupport               *NitroTpmSupport          `xml:"nitroTpmSupport,omitempty"`
+	PhcSupport                    *PhcSupport               `xml:"phcSupport,omitempty"`
+	PlacementGroupInfo            *PlacementGroupInfo       `xml:"placementGroupInfo,omitempty"`
+	ProcessorInfo                 *ProcessorInfo            `xml:"processorInfo,omitempty"`
+	RebootMigrationSupport        *RebootMigrationSupport   `xml:"rebootMigrationSupport,omitempty"`
+	SupportedBootModes            BootModeTypeList          `xml:"supportedBootModes,omitempty"`
+	SupportedInRegion             *bool                     `xml:"supportedInRegion,omitempty"`
+	SupportedRootDeviceTypes      RootDeviceTypeList        `xml:"supportedRootDeviceTypes,omitempty"`
+	SupportedUsageClasses         UsageClassTypeList        `xml:"supportedUsageClasses,omitempty"`
+	SupportedVirtualizationTypes  VirtualizationTypeList    `xml:"supportedVirtualizationTypes,omitempty"`
+	VCpuInfo                      *VCpuInfo                 `xml:"vCpuInfo,omitempty"`
+}
+
+// DescribeInstanceTypesResult is a generated Smithy structure.
+type DescribeInstanceTypesResult struct {
+	InstanceTypes InstanceTypeInfoList `xml:"instanceTypeSet,omitempty"`
+	NextToken     *string              `xml:"nextToken,omitempty"`
+}
+
 // EC2Backend is the union of every per-operation
 // backend interface emitted from the spec.
 type EC2Backend interface {
@@ -1475,6 +4519,13 @@ type EC2Backend interface {
 	CreateTagsBackend
 	DeleteTagsBackend
 	DescribeTagsBackend
+	RunInstancesBackend
+	DescribeInstancesBackend
+	StartInstancesBackend
+	StopInstancesBackend
+	TerminateInstancesBackend
+	RebootInstancesBackend
+	DescribeInstanceTypesBackend
 }
 
 // RegisterEC2Routes mounts every shimmed operation
@@ -1508,6 +4559,13 @@ func RegisterEC2Routes(b EC2Backend) *ec2query.Router {
 	rt.Register("CreateTags", CreateTagsHandler(b))
 	rt.Register("DeleteTags", DeleteTagsHandler(b))
 	rt.Register("DescribeTags", DescribeTagsHandler(b))
+	rt.Register("RunInstances", RunInstancesHandler(b))
+	rt.Register("DescribeInstances", DescribeInstancesHandler(b))
+	rt.Register("StartInstances", StartInstancesHandler(b))
+	rt.Register("StopInstances", StopInstancesHandler(b))
+	rt.Register("TerminateInstances", TerminateInstancesHandler(b))
+	rt.Register("RebootInstances", RebootInstancesHandler(b))
+	rt.Register("DescribeInstanceTypes", DescribeInstanceTypesHandler(b))
 	return rt
 }
 
@@ -1657,10 +4715,10 @@ func DescribeVpcsHandler(b DescribeVpcsBackend) http.Handler {
 			s := v
 			in.NextToken = &s
 		}
-		// list<string> via `VpcIds.N` (ec2Query flattened — no
+		// list<string> via `VpcId.N` (ec2Query flattened — no
 		// `.member.` interfix unlike awsQuery).
 		for i := 1; ; i++ {
-			v := r.Form.Get("VpcIds." + strconv.Itoa(i))
+			v := r.Form.Get("VpcId." + strconv.Itoa(i))
 			if v == "" {
 				break
 			}
@@ -1712,10 +4770,10 @@ func DescribeNetworkInterfacesHandler(b DescribeNetworkInterfacesBackend) http.H
 				in.MaxResults = &x
 			}
 		}
-		// list<string> via `NetworkInterfaceIds.N` (ec2Query flattened — no
+		// list<string> via `NetworkInterfaceId.N` (ec2Query flattened — no
 		// `.member.` interfix unlike awsQuery).
 		for i := 1; ; i++ {
-			v := r.Form.Get("NetworkInterfaceIds." + strconv.Itoa(i))
+			v := r.Form.Get("NetworkInterfaceId." + strconv.Itoa(i))
 			if v == "" {
 				break
 			}
@@ -1952,10 +5010,10 @@ func DescribeSubnetsHandler(b DescribeSubnetsBackend) http.Handler {
 			s := v
 			in.NextToken = &s
 		}
-		// list<string> via `SubnetIds.N` (ec2Query flattened — no
+		// list<string> via `SubnetId.N` (ec2Query flattened — no
 		// `.member.` interfix unlike awsQuery).
 		for i := 1; ; i++ {
-			v := r.Form.Get("SubnetIds." + strconv.Itoa(i))
+			v := r.Form.Get("SubnetId." + strconv.Itoa(i))
 			if v == "" {
 				break
 			}
@@ -2120,19 +5178,19 @@ func DescribeSecurityGroupsHandler(b DescribeSecurityGroupsBackend) http.Handler
 				in.DryRun = &x
 			}
 		}
-		// list<string> via `GroupIds.N` (ec2Query flattened — no
+		// list<string> via `GroupId.N` (ec2Query flattened — no
 		// `.member.` interfix unlike awsQuery).
 		for i := 1; ; i++ {
-			v := r.Form.Get("GroupIds." + strconv.Itoa(i))
+			v := r.Form.Get("GroupId." + strconv.Itoa(i))
 			if v == "" {
 				break
 			}
 			in.GroupIds.Member = append(in.GroupIds.Member, v)
 		}
-		// list<string> via `GroupNames.N` (ec2Query flattened — no
+		// list<string> via `GroupName.N` (ec2Query flattened — no
 		// `.member.` interfix unlike awsQuery).
 		for i := 1; ; i++ {
-			v := r.Form.Get("GroupNames." + strconv.Itoa(i))
+			v := r.Form.Get("GroupName." + strconv.Itoa(i))
 			if v == "" {
 				break
 			}
@@ -2276,10 +5334,10 @@ func RevokeSecurityGroupIngressHandler(b RevokeSecurityGroupIngressBackend) http
 			s := v
 			in.IpProtocol = &s
 		}
-		// list<string> via `SecurityGroupRuleIds.N` (ec2Query flattened — no
+		// list<string> via `SecurityGroupRuleId.N` (ec2Query flattened — no
 		// `.member.` interfix unlike awsQuery).
 		for i := 1; ; i++ {
-			v := r.Form.Get("SecurityGroupRuleIds." + strconv.Itoa(i))
+			v := r.Form.Get("SecurityGroupRuleId." + strconv.Itoa(i))
 			if v == "" {
 				break
 			}
@@ -2413,10 +5471,10 @@ func RevokeSecurityGroupEgressHandler(b RevokeSecurityGroupEgressBackend) http.H
 			s := v
 			in.IpProtocol = &s
 		}
-		// list<string> via `SecurityGroupRuleIds.N` (ec2Query flattened — no
+		// list<string> via `SecurityGroupRuleId.N` (ec2Query flattened — no
 		// `.member.` interfix unlike awsQuery).
 		for i := 1; ; i++ {
-			v := r.Form.Get("SecurityGroupRuleIds." + strconv.Itoa(i))
+			v := r.Form.Get("SecurityGroupRuleId." + strconv.Itoa(i))
 			if v == "" {
 				break
 			}
@@ -2481,10 +5539,10 @@ func DescribeSecurityGroupRulesHandler(b DescribeSecurityGroupRulesBackend) http
 			s := v
 			in.NextToken = &s
 		}
-		// list<string> via `SecurityGroupRuleIds.N` (ec2Query flattened — no
+		// list<string> via `SecurityGroupRuleId.N` (ec2Query flattened — no
 		// `.member.` interfix unlike awsQuery).
 		for i := 1; ; i++ {
-			v := r.Form.Get("SecurityGroupRuleIds." + strconv.Itoa(i))
+			v := r.Form.Get("SecurityGroupRuleId." + strconv.Itoa(i))
 			if v == "" {
 				break
 			}
@@ -2723,10 +5781,10 @@ func DescribeAddressesHandler(b DescribeAddressesBackend) http.Handler {
 		// form fields. EC2 ec2Query serialises lists as flat `Field.N`
 		// pairs (no `.member.` interfix) and maps as
 		// `Field.N.key + Field.N.value` pairs.
-		// list<string> via `AllocationIds.N` (ec2Query flattened — no
+		// list<string> via `AllocationId.N` (ec2Query flattened — no
 		// `.member.` interfix unlike awsQuery).
 		for i := 1; ; i++ {
-			v := r.Form.Get("AllocationIds." + strconv.Itoa(i))
+			v := r.Form.Get("AllocationId." + strconv.Itoa(i))
 			if v == "" {
 				break
 			}
@@ -2737,10 +5795,10 @@ func DescribeAddressesHandler(b DescribeAddressesBackend) http.Handler {
 				in.DryRun = &x
 			}
 		}
-		// list<string> via `PublicIps.N` (ec2Query flattened — no
+		// list<string> via `PublicIp.N` (ec2Query flattened — no
 		// `.member.` interfix unlike awsQuery).
 		for i := 1; ; i++ {
-			v := r.Form.Get("PublicIps." + strconv.Itoa(i))
+			v := r.Form.Get("PublicIp." + strconv.Itoa(i))
 			if v == "" {
 				break
 			}
@@ -2781,10 +5839,10 @@ func CreateTagsHandler(b CreateTagsBackend) http.Handler {
 				in.DryRun = &x
 			}
 		}
-		// list<string> via `Resources.N` (ec2Query flattened — no
+		// list<string> via `ResourceId.N` (ec2Query flattened — no
 		// `.member.` interfix unlike awsQuery).
 		for i := 1; ; i++ {
-			v := r.Form.Get("Resources." + strconv.Itoa(i))
+			v := r.Form.Get("ResourceId." + strconv.Itoa(i))
 			if v == "" {
 				break
 			}
@@ -2824,10 +5882,10 @@ func DeleteTagsHandler(b DeleteTagsBackend) http.Handler {
 				in.DryRun = &x
 			}
 		}
-		// list<string> via `Resources.N` (ec2Query flattened — no
+		// list<string> via `resourceId.N` (ec2Query flattened — no
 		// `.member.` interfix unlike awsQuery).
 		for i := 1; ; i++ {
-			v := r.Form.Get("Resources." + strconv.Itoa(i))
+			v := r.Form.Get("resourceId." + strconv.Itoa(i))
 			if v == "" {
 				break
 			}
@@ -2884,5 +5942,443 @@ func DescribeTagsHandler(b DescribeTagsBackend) http.Handler {
 			return
 		}
 		ec2query.WriteResult(w, "DescribeTags", out)
+	})
+}
+
+// RunInstancesBackend serves the RunInstances operation.
+type RunInstancesBackend interface {
+	RunInstances(ctx context.Context, in *RunInstancesRequest) (*Reservation, error)
+}
+
+// RunInstancesHandler decodes a RunInstances request, dispatches
+// to the backend, and encodes the response per ec2Query semantics.
+// Form-encoded request bodies are decoded field-by-field for scalars
+// and list<string> shapes. EC2 flattened lists use `Field.N` (no
+// `.member.` interfix). Complex shapes (e.g. Filter structs, nested
+// tagged lists) are available via ec2query.FormFromContext(ctx).
+func RunInstancesHandler(b RunInstancesBackend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := ec2query.WithForm(r.Context(), r.Form)
+		in := &RunInstancesRequest{}
+		_ = in
+		// Decode top-level scalar + map<string,string> + list<string>
+		// form fields. EC2 ec2Query serialises lists as flat `Field.N`
+		// pairs (no `.member.` interfix) and maps as
+		// `Field.N.key + Field.N.value` pairs.
+		if v := r.Form.Get("AdditionalInfo"); v != "" {
+			s := v
+			in.AdditionalInfo = &s
+		}
+		if v := r.Form.Get("ClientToken"); v != "" {
+			s := v
+			in.ClientToken = &s
+		}
+		if v := r.Form.Get("DisableApiStop"); v != "" {
+			if x, err := strconv.ParseBool(v); err == nil {
+				in.DisableApiStop = &x
+			}
+		}
+		if v := r.Form.Get("DisableApiTermination"); v != "" {
+			if x, err := strconv.ParseBool(v); err == nil {
+				in.DisableApiTermination = &x
+			}
+		}
+		if v := r.Form.Get("DryRun"); v != "" {
+			if x, err := strconv.ParseBool(v); err == nil {
+				in.DryRun = &x
+			}
+		}
+		if v := r.Form.Get("EbsOptimized"); v != "" {
+			if x, err := strconv.ParseBool(v); err == nil {
+				in.EbsOptimized = &x
+			}
+		}
+		if v := r.Form.Get("EnablePrimaryIpv6"); v != "" {
+			if x, err := strconv.ParseBool(v); err == nil {
+				in.EnablePrimaryIpv6 = &x
+			}
+		}
+		if v := r.Form.Get("ImageId"); v != "" {
+			s := v
+			in.ImageId = &s
+		}
+		if v := r.Form.Get("Ipv6AddressCount"); v != "" {
+			if n, err := strconv.Atoi(v); err == nil {
+				x := int32(n)
+				in.Ipv6AddressCount = &x
+			}
+		}
+		if v := r.Form.Get("KernelId"); v != "" {
+			s := v
+			in.KernelId = &s
+		}
+		if v := r.Form.Get("KeyName"); v != "" {
+			s := v
+			in.KeyName = &s
+		}
+		if v := r.Form.Get("MaxCount"); v != "" {
+			if n, err := strconv.Atoi(v); err == nil {
+				in.MaxCount = int32(n)
+			}
+		}
+		if v := r.Form.Get("MinCount"); v != "" {
+			if n, err := strconv.Atoi(v); err == nil {
+				in.MinCount = int32(n)
+			}
+		}
+		if v := r.Form.Get("PrivateIpAddress"); v != "" {
+			s := v
+			in.PrivateIpAddress = &s
+		}
+		if v := r.Form.Get("RamdiskId"); v != "" {
+			s := v
+			in.RamdiskId = &s
+		}
+		// list<string> via `SecurityGroupId.N` (ec2Query flattened — no
+		// `.member.` interfix unlike awsQuery).
+		for i := 1; ; i++ {
+			v := r.Form.Get("SecurityGroupId." + strconv.Itoa(i))
+			if v == "" {
+				break
+			}
+			in.SecurityGroupIds.Member = append(in.SecurityGroupIds.Member, v)
+		}
+		// list<string> via `SecurityGroup.N` (ec2Query flattened — no
+		// `.member.` interfix unlike awsQuery).
+		for i := 1; ; i++ {
+			v := r.Form.Get("SecurityGroup." + strconv.Itoa(i))
+			if v == "" {
+				break
+			}
+			in.SecurityGroups.Member = append(in.SecurityGroups.Member, v)
+		}
+		if v := r.Form.Get("SubnetId"); v != "" {
+			s := v
+			in.SubnetId = &s
+		}
+		if v := r.Form.Get("UserData"); v != "" {
+			s := v
+			in.UserData = &s
+		}
+
+		out, err := b.RunInstances(ctx, in)
+		if err != nil {
+			ec2query.WriteBackendError(w, err)
+			return
+		}
+		ec2query.WriteResult(w, "RunInstances", out)
+	})
+}
+
+// DescribeInstancesBackend serves the DescribeInstances operation.
+type DescribeInstancesBackend interface {
+	DescribeInstances(ctx context.Context, in *DescribeInstancesRequest) (*DescribeInstancesResult, error)
+}
+
+// DescribeInstancesHandler decodes a DescribeInstances request, dispatches
+// to the backend, and encodes the response per ec2Query semantics.
+// Form-encoded request bodies are decoded field-by-field for scalars
+// and list<string> shapes. EC2 flattened lists use `Field.N` (no
+// `.member.` interfix). Complex shapes (e.g. Filter structs, nested
+// tagged lists) are available via ec2query.FormFromContext(ctx).
+func DescribeInstancesHandler(b DescribeInstancesBackend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := ec2query.WithForm(r.Context(), r.Form)
+		in := &DescribeInstancesRequest{}
+		_ = in
+		// Decode top-level scalar + map<string,string> + list<string>
+		// form fields. EC2 ec2Query serialises lists as flat `Field.N`
+		// pairs (no `.member.` interfix) and maps as
+		// `Field.N.key + Field.N.value` pairs.
+		if v := r.Form.Get("DryRun"); v != "" {
+			if x, err := strconv.ParseBool(v); err == nil {
+				in.DryRun = &x
+			}
+		}
+		if v := r.Form.Get("IncludeManagedResources"); v != "" {
+			if x, err := strconv.ParseBool(v); err == nil {
+				in.IncludeManagedResources = &x
+			}
+		}
+		// list<string> via `InstanceId.N` (ec2Query flattened — no
+		// `.member.` interfix unlike awsQuery).
+		for i := 1; ; i++ {
+			v := r.Form.Get("InstanceId." + strconv.Itoa(i))
+			if v == "" {
+				break
+			}
+			in.InstanceIds.Member = append(in.InstanceIds.Member, v)
+		}
+		if v := r.Form.Get("MaxResults"); v != "" {
+			if n, err := strconv.Atoi(v); err == nil {
+				x := int32(n)
+				in.MaxResults = &x
+			}
+		}
+		if v := r.Form.Get("NextToken"); v != "" {
+			s := v
+			in.NextToken = &s
+		}
+
+		out, err := b.DescribeInstances(ctx, in)
+		if err != nil {
+			ec2query.WriteBackendError(w, err)
+			return
+		}
+		ec2query.WriteResult(w, "DescribeInstances", out)
+	})
+}
+
+// StartInstancesBackend serves the StartInstances operation.
+type StartInstancesBackend interface {
+	StartInstances(ctx context.Context, in *StartInstancesRequest) (*StartInstancesResult, error)
+}
+
+// StartInstancesHandler decodes a StartInstances request, dispatches
+// to the backend, and encodes the response per ec2Query semantics.
+// Form-encoded request bodies are decoded field-by-field for scalars
+// and list<string> shapes. EC2 flattened lists use `Field.N` (no
+// `.member.` interfix). Complex shapes (e.g. Filter structs, nested
+// tagged lists) are available via ec2query.FormFromContext(ctx).
+func StartInstancesHandler(b StartInstancesBackend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := ec2query.WithForm(r.Context(), r.Form)
+		in := &StartInstancesRequest{}
+		_ = in
+		// Decode top-level scalar + map<string,string> + list<string>
+		// form fields. EC2 ec2Query serialises lists as flat `Field.N`
+		// pairs (no `.member.` interfix) and maps as
+		// `Field.N.key + Field.N.value` pairs.
+		if v := r.Form.Get("AdditionalInfo"); v != "" {
+			s := v
+			in.AdditionalInfo = &s
+		}
+		if v := r.Form.Get("DryRun"); v != "" {
+			if x, err := strconv.ParseBool(v); err == nil {
+				in.DryRun = &x
+			}
+		}
+		// list<string> via `InstanceId.N` (ec2Query flattened — no
+		// `.member.` interfix unlike awsQuery).
+		for i := 1; ; i++ {
+			v := r.Form.Get("InstanceId." + strconv.Itoa(i))
+			if v == "" {
+				break
+			}
+			in.InstanceIds.Member = append(in.InstanceIds.Member, v)
+		}
+
+		out, err := b.StartInstances(ctx, in)
+		if err != nil {
+			ec2query.WriteBackendError(w, err)
+			return
+		}
+		ec2query.WriteResult(w, "StartInstances", out)
+	})
+}
+
+// StopInstancesBackend serves the StopInstances operation.
+type StopInstancesBackend interface {
+	StopInstances(ctx context.Context, in *StopInstancesRequest) (*StopInstancesResult, error)
+}
+
+// StopInstancesHandler decodes a StopInstances request, dispatches
+// to the backend, and encodes the response per ec2Query semantics.
+// Form-encoded request bodies are decoded field-by-field for scalars
+// and list<string> shapes. EC2 flattened lists use `Field.N` (no
+// `.member.` interfix). Complex shapes (e.g. Filter structs, nested
+// tagged lists) are available via ec2query.FormFromContext(ctx).
+func StopInstancesHandler(b StopInstancesBackend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := ec2query.WithForm(r.Context(), r.Form)
+		in := &StopInstancesRequest{}
+		_ = in
+		// Decode top-level scalar + map<string,string> + list<string>
+		// form fields. EC2 ec2Query serialises lists as flat `Field.N`
+		// pairs (no `.member.` interfix) and maps as
+		// `Field.N.key + Field.N.value` pairs.
+		if v := r.Form.Get("DryRun"); v != "" {
+			if x, err := strconv.ParseBool(v); err == nil {
+				in.DryRun = &x
+			}
+		}
+		if v := r.Form.Get("Force"); v != "" {
+			if x, err := strconv.ParseBool(v); err == nil {
+				in.Force = &x
+			}
+		}
+		if v := r.Form.Get("Hibernate"); v != "" {
+			if x, err := strconv.ParseBool(v); err == nil {
+				in.Hibernate = &x
+			}
+		}
+		// list<string> via `InstanceId.N` (ec2Query flattened — no
+		// `.member.` interfix unlike awsQuery).
+		for i := 1; ; i++ {
+			v := r.Form.Get("InstanceId." + strconv.Itoa(i))
+			if v == "" {
+				break
+			}
+			in.InstanceIds.Member = append(in.InstanceIds.Member, v)
+		}
+		if v := r.Form.Get("SkipOsShutdown"); v != "" {
+			if x, err := strconv.ParseBool(v); err == nil {
+				in.SkipOsShutdown = &x
+			}
+		}
+
+		out, err := b.StopInstances(ctx, in)
+		if err != nil {
+			ec2query.WriteBackendError(w, err)
+			return
+		}
+		ec2query.WriteResult(w, "StopInstances", out)
+	})
+}
+
+// TerminateInstancesBackend serves the TerminateInstances operation.
+type TerminateInstancesBackend interface {
+	TerminateInstances(ctx context.Context, in *TerminateInstancesRequest) (*TerminateInstancesResult, error)
+}
+
+// TerminateInstancesHandler decodes a TerminateInstances request, dispatches
+// to the backend, and encodes the response per ec2Query semantics.
+// Form-encoded request bodies are decoded field-by-field for scalars
+// and list<string> shapes. EC2 flattened lists use `Field.N` (no
+// `.member.` interfix). Complex shapes (e.g. Filter structs, nested
+// tagged lists) are available via ec2query.FormFromContext(ctx).
+func TerminateInstancesHandler(b TerminateInstancesBackend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := ec2query.WithForm(r.Context(), r.Form)
+		in := &TerminateInstancesRequest{}
+		_ = in
+		// Decode top-level scalar + map<string,string> + list<string>
+		// form fields. EC2 ec2Query serialises lists as flat `Field.N`
+		// pairs (no `.member.` interfix) and maps as
+		// `Field.N.key + Field.N.value` pairs.
+		if v := r.Form.Get("DryRun"); v != "" {
+			if x, err := strconv.ParseBool(v); err == nil {
+				in.DryRun = &x
+			}
+		}
+		if v := r.Form.Get("Force"); v != "" {
+			if x, err := strconv.ParseBool(v); err == nil {
+				in.Force = &x
+			}
+		}
+		// list<string> via `InstanceId.N` (ec2Query flattened — no
+		// `.member.` interfix unlike awsQuery).
+		for i := 1; ; i++ {
+			v := r.Form.Get("InstanceId." + strconv.Itoa(i))
+			if v == "" {
+				break
+			}
+			in.InstanceIds.Member = append(in.InstanceIds.Member, v)
+		}
+		if v := r.Form.Get("SkipOsShutdown"); v != "" {
+			if x, err := strconv.ParseBool(v); err == nil {
+				in.SkipOsShutdown = &x
+			}
+		}
+
+		out, err := b.TerminateInstances(ctx, in)
+		if err != nil {
+			ec2query.WriteBackendError(w, err)
+			return
+		}
+		ec2query.WriteResult(w, "TerminateInstances", out)
+	})
+}
+
+// RebootInstancesBackend serves the RebootInstances operation.
+type RebootInstancesBackend interface {
+	RebootInstances(ctx context.Context, in *RebootInstancesRequest) (struct{}, error)
+}
+
+// RebootInstancesHandler decodes a RebootInstances request, dispatches
+// to the backend, and encodes the response per ec2Query semantics.
+// Form-encoded request bodies are decoded field-by-field for scalars
+// and list<string> shapes. EC2 flattened lists use `Field.N` (no
+// `.member.` interfix). Complex shapes (e.g. Filter structs, nested
+// tagged lists) are available via ec2query.FormFromContext(ctx).
+func RebootInstancesHandler(b RebootInstancesBackend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := ec2query.WithForm(r.Context(), r.Form)
+		in := &RebootInstancesRequest{}
+		_ = in
+		// Decode top-level scalar + map<string,string> + list<string>
+		// form fields. EC2 ec2Query serialises lists as flat `Field.N`
+		// pairs (no `.member.` interfix) and maps as
+		// `Field.N.key + Field.N.value` pairs.
+		if v := r.Form.Get("DryRun"); v != "" {
+			if x, err := strconv.ParseBool(v); err == nil {
+				in.DryRun = &x
+			}
+		}
+		// list<string> via `InstanceId.N` (ec2Query flattened — no
+		// `.member.` interfix unlike awsQuery).
+		for i := 1; ; i++ {
+			v := r.Form.Get("InstanceId." + strconv.Itoa(i))
+			if v == "" {
+				break
+			}
+			in.InstanceIds.Member = append(in.InstanceIds.Member, v)
+		}
+
+		if _, err := b.RebootInstances(ctx, in); err != nil {
+			ec2query.WriteBackendError(w, err)
+			return
+		}
+		ec2query.WriteResult(w, "RebootInstances", nil)
+	})
+}
+
+// DescribeInstanceTypesBackend serves the DescribeInstanceTypes operation.
+type DescribeInstanceTypesBackend interface {
+	DescribeInstanceTypes(ctx context.Context, in *DescribeInstanceTypesRequest) (*DescribeInstanceTypesResult, error)
+}
+
+// DescribeInstanceTypesHandler decodes a DescribeInstanceTypes request, dispatches
+// to the backend, and encodes the response per ec2Query semantics.
+// Form-encoded request bodies are decoded field-by-field for scalars
+// and list<string> shapes. EC2 flattened lists use `Field.N` (no
+// `.member.` interfix). Complex shapes (e.g. Filter structs, nested
+// tagged lists) are available via ec2query.FormFromContext(ctx).
+func DescribeInstanceTypesHandler(b DescribeInstanceTypesBackend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := ec2query.WithForm(r.Context(), r.Form)
+		in := &DescribeInstanceTypesRequest{}
+		_ = in
+		// Decode top-level scalar + map<string,string> + list<string>
+		// form fields. EC2 ec2Query serialises lists as flat `Field.N`
+		// pairs (no `.member.` interfix) and maps as
+		// `Field.N.key + Field.N.value` pairs.
+		if v := r.Form.Get("DryRun"); v != "" {
+			if x, err := strconv.ParseBool(v); err == nil {
+				in.DryRun = &x
+			}
+		}
+		if v := r.Form.Get("IncludeUnsupportedInRegion"); v != "" {
+			if x, err := strconv.ParseBool(v); err == nil {
+				in.IncludeUnsupportedInRegion = &x
+			}
+		}
+		if v := r.Form.Get("MaxResults"); v != "" {
+			if n, err := strconv.Atoi(v); err == nil {
+				x := int32(n)
+				in.MaxResults = &x
+			}
+		}
+		if v := r.Form.Get("NextToken"); v != "" {
+			s := v
+			in.NextToken = &s
+		}
+
+		out, err := b.DescribeInstanceTypes(ctx, in)
+		if err != nil {
+			ec2query.WriteBackendError(w, err)
+			return
+		}
+		ec2query.WriteResult(w, "DescribeInstanceTypes", out)
 	})
 }

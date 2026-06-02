@@ -1,5 +1,5 @@
 {
-  "_comment": "Phase 16.B networking operations from the AWS EC2 api (ec2Query protocol). Covers VPCs, subnets, security groups, and Elastic IPs. Phase 16.C will extend this manifest with instance lifecycle operations (RunInstances, DescribeInstances, etc.).",
+  "_comment": "Phase 16.B networking operations + Phase 16.C instance lifecycle operations from the AWS EC2 API (ec2Query protocol).",
   "spec": "services/compute/spec/aws-ec2.smithy.json",
   "package": "gen",
   "out": "services/compute/gen/aws_ec2.gen.go",
@@ -29,6 +29,13 @@
     "DescribeAddresses",
     "CreateTags",
     "DeleteTags",
-    "DescribeTags"
+    "DescribeTags",
+    "RunInstances",
+    "DescribeInstances",
+    "StartInstances",
+    "StopInstances",
+    "TerminateInstances",
+    "RebootInstances",
+    "DescribeInstanceTypes"
   ]
 }
