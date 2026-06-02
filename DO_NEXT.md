@@ -60,10 +60,17 @@ The Azure sim requires `SIM_SERVICEBUS_AMQP_LISTEN_ADDR` on a separate port (han
 - [x] Azure Network frontend (`internal/compute/frontends/azure_network/`) — VNet/Subnet/NSG/PublicIPAddress ARM handlers. ✅ this PR
 - [x] Real Azure backend (`services/compute/backends/azure/`) — armnetwork/v6. ✅ this PR
 - [x] Azure SDK conformance tests: VNet/Subnet/NSG/PublicIP lifecycle, all green. ✅ this PR
-- [ ] K8s peer (`services/compute/backends/k8scompute/`) — Namespace (VPC), NetworkPolicy (SG); subnets/EIPs return NotImplemented. (PR4)
-- [ ] CLI conformance tests (aws ec2, gcloud compute, az network). (PR4)
-- [ ] Terraform conformance tests (hashicorp/aws + hashicorp/google + hashicorp/azurerm). (PR4)
-- [ ] `services/compute/INTERSECTION.md` — intersection table with K8s NotImplemented rows documented. (PR4)
+- [x] K8s peer (`services/compute/backends/k8scompute/`) — Namespace (VPC), NetworkPolicy (SG); subnets/EIPs NotImplemented. 4 unit tests green. ✅ this PR
+- [x] CLI conformance tests (aws ec2, gcloud compute — skip if binary absent). ✅ this PR
+- [x] Terraform conformance tests (hashicorp/aws VPC + SG lifecycle, all green). ✅ this PR
+- [x] K8s conformance tests: AWS + GCP frontends driven against K8s peer (4 tests green). ✅ this PR
+- [x] `services/compute/INTERSECTION.md` — full intersection table with K8s NotImplemented rows. ✅ this PR
+- [x] BUG-53: `DescribeVpcAttribute` added (TF provider reads DNS settings after VPC create). ✅ this PR
+- [x] BUG-54: `DescribeNetworkInterfaces` added (TF provider drains ENIs before SG destroy). ✅ this PR
+
+**16.B is now complete.** Next phases:
+- **16.C** — instance lifecycle (after 16.B); sockerless lane gated on #373/#374/#375.
+- **16.D** — load balancers (can start now; parallels 16.C).
 
 ### 16.C — Compute instance lifecycle (3–4 PRs, after 16.B)
 

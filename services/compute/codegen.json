@@ -7,6 +7,8 @@
     "CreateVpc",
     "DeleteVpc",
     "DescribeVpcs",
+    "DescribeNetworkInterfaces",
+    "DescribeVpcAttribute",
     "ModifyVpcAttribute",
     "CreateSubnet",
     "DeleteSubnet",
