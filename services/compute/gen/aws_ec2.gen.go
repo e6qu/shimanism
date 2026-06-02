@@ -535,14 +535,14 @@ type TagDescriptionList struct {
 
 // Tag is a generated Smithy structure.
 type Tag struct {
-	Key   *string `xml:"Key,omitempty"`
-	Value *string `xml:"Value,omitempty"`
+	Key   *string `xml:"key,omitempty"`
+	Value *string `xml:"value,omitempty"`
 }
 
 // TagSpecification is a generated Smithy structure.
 type TagSpecification struct {
-	ResourceType *ResourceType `xml:"ResourceType,omitempty"`
-	Tags         TagList       `xml:"Tags,omitempty"`
+	ResourceType *ResourceType `xml:"resourceType,omitempty"`
+	Tags         TagList       `xml:"Tag,omitempty"`
 }
 
 // VpcEncryptionControlConfiguration is a generated Smithy structure.
@@ -560,10 +560,10 @@ type VpcEncryptionControlConfiguration struct {
 
 // CreateVpcRequest is a generated Smithy structure.
 type CreateVpcRequest struct {
-	AmazonProvidedIpv6CidrBlock     *bool                              `xml:"AmazonProvidedIpv6CidrBlock,omitempty"`
+	AmazonProvidedIpv6CidrBlock     *bool                              `xml:"amazonProvidedIpv6CidrBlock,omitempty"`
 	CidrBlock                       *string                            `xml:"CidrBlock,omitempty"`
-	DryRun                          *bool                              `xml:"DryRun,omitempty"`
-	InstanceTenancy                 *Tenancy                           `xml:"InstanceTenancy,omitempty"`
+	DryRun                          *bool                              `xml:"dryRun,omitempty"`
+	InstanceTenancy                 *Tenancy                           `xml:"instanceTenancy,omitempty"`
 	Ipv4IpamPoolId                  *string                            `xml:"Ipv4IpamPoolId,omitempty"`
 	Ipv4NetmaskLength               *int32                             `xml:"Ipv4NetmaskLength,omitempty"`
 	Ipv6CidrBlock                   *string                            `xml:"Ipv6CidrBlock,omitempty"`
@@ -571,119 +571,119 @@ type CreateVpcRequest struct {
 	Ipv6IpamPoolId                  *string                            `xml:"Ipv6IpamPoolId,omitempty"`
 	Ipv6NetmaskLength               *int32                             `xml:"Ipv6NetmaskLength,omitempty"`
 	Ipv6Pool                        *string                            `xml:"Ipv6Pool,omitempty"`
-	TagSpecifications               TagSpecificationList               `xml:"TagSpecifications,omitempty"`
+	TagSpecifications               TagSpecificationList               `xml:"TagSpecification,omitempty"`
 	VpcEncryptionControl            *VpcEncryptionControlConfiguration `xml:"VpcEncryptionControl,omitempty"`
 }
 
 // BlockPublicAccessStates is a generated Smithy structure.
 type BlockPublicAccessStates struct {
-	InternetGatewayBlockMode *BlockPublicAccessMode `xml:"InternetGatewayBlockMode,omitempty"`
+	InternetGatewayBlockMode *BlockPublicAccessMode `xml:"internetGatewayBlockMode,omitempty"`
 }
 
 // VpcCidrBlockState is a generated Smithy structure.
 type VpcCidrBlockState struct {
-	State         *VpcCidrBlockStateCode `xml:"State,omitempty"`
-	StatusMessage *string                `xml:"StatusMessage,omitempty"`
+	State         *VpcCidrBlockStateCode `xml:"state,omitempty"`
+	StatusMessage *string                `xml:"statusMessage,omitempty"`
 }
 
 // VpcCidrBlockAssociation is a generated Smithy structure.
 type VpcCidrBlockAssociation struct {
-	AssociationId  *string            `xml:"AssociationId,omitempty"`
-	CidrBlock      *string            `xml:"CidrBlock,omitempty"`
-	CidrBlockState *VpcCidrBlockState `xml:"CidrBlockState,omitempty"`
+	AssociationId  *string            `xml:"associationId,omitempty"`
+	CidrBlock      *string            `xml:"cidrBlock,omitempty"`
+	CidrBlockState *VpcCidrBlockState `xml:"cidrBlockState,omitempty"`
 }
 
 // VpcEncryptionControlExclusion is a generated Smithy structure.
 type VpcEncryptionControlExclusion struct {
-	State        *VpcEncryptionControlExclusionState `xml:"State,omitempty"`
-	StateMessage *string                             `xml:"StateMessage,omitempty"`
+	State        *VpcEncryptionControlExclusionState `xml:"state,omitempty"`
+	StateMessage *string                             `xml:"stateMessage,omitempty"`
 }
 
 // VpcEncryptionControlExclusions is a generated Smithy structure.
 type VpcEncryptionControlExclusions struct {
-	EgressOnlyInternetGateway *VpcEncryptionControlExclusion `xml:"EgressOnlyInternetGateway,omitempty"`
-	ElasticFileSystem         *VpcEncryptionControlExclusion `xml:"ElasticFileSystem,omitempty"`
-	InternetGateway           *VpcEncryptionControlExclusion `xml:"InternetGateway,omitempty"`
-	Lambda                    *VpcEncryptionControlExclusion `xml:"Lambda,omitempty"`
-	NatGateway                *VpcEncryptionControlExclusion `xml:"NatGateway,omitempty"`
-	VirtualPrivateGateway     *VpcEncryptionControlExclusion `xml:"VirtualPrivateGateway,omitempty"`
-	VpcLattice                *VpcEncryptionControlExclusion `xml:"VpcLattice,omitempty"`
-	VpcPeering                *VpcEncryptionControlExclusion `xml:"VpcPeering,omitempty"`
+	EgressOnlyInternetGateway *VpcEncryptionControlExclusion `xml:"egressOnlyInternetGateway,omitempty"`
+	ElasticFileSystem         *VpcEncryptionControlExclusion `xml:"elasticFileSystem,omitempty"`
+	InternetGateway           *VpcEncryptionControlExclusion `xml:"internetGateway,omitempty"`
+	Lambda                    *VpcEncryptionControlExclusion `xml:"lambda,omitempty"`
+	NatGateway                *VpcEncryptionControlExclusion `xml:"natGateway,omitempty"`
+	VirtualPrivateGateway     *VpcEncryptionControlExclusion `xml:"virtualPrivateGateway,omitempty"`
+	VpcLattice                *VpcEncryptionControlExclusion `xml:"vpcLattice,omitempty"`
+	VpcPeering                *VpcEncryptionControlExclusion `xml:"vpcPeering,omitempty"`
 }
 
 // VpcEncryptionControl is a generated Smithy structure.
 type VpcEncryptionControl struct {
-	Mode                   *VpcEncryptionControlMode       `xml:"Mode,omitempty"`
-	ResourceExclusions     *VpcEncryptionControlExclusions `xml:"ResourceExclusions,omitempty"`
-	State                  *VpcEncryptionControlState      `xml:"State,omitempty"`
-	StateMessage           *string                         `xml:"StateMessage,omitempty"`
-	Tags                   TagList                         `xml:"Tags,omitempty"`
-	VpcEncryptionControlId *string                         `xml:"VpcEncryptionControlId,omitempty"`
-	VpcId                  *string                         `xml:"VpcId,omitempty"`
+	Mode                   *VpcEncryptionControlMode       `xml:"mode,omitempty"`
+	ResourceExclusions     *VpcEncryptionControlExclusions `xml:"resourceExclusions,omitempty"`
+	State                  *VpcEncryptionControlState      `xml:"state,omitempty"`
+	StateMessage           *string                         `xml:"stateMessage,omitempty"`
+	Tags                   TagList                         `xml:"tagSet,omitempty"`
+	VpcEncryptionControlId *string                         `xml:"vpcEncryptionControlId,omitempty"`
+	VpcId                  *string                         `xml:"vpcId,omitempty"`
 }
 
 // VpcIpv6CidrBlockAssociation is a generated Smithy structure.
 type VpcIpv6CidrBlockAssociation struct {
-	AssociationId        *string               `xml:"AssociationId,omitempty"`
-	IpSource             *IpSource             `xml:"IpSource,omitempty"`
-	Ipv6AddressAttribute *Ipv6AddressAttribute `xml:"Ipv6AddressAttribute,omitempty"`
-	Ipv6CidrBlock        *string               `xml:"Ipv6CidrBlock,omitempty"`
-	Ipv6CidrBlockState   *VpcCidrBlockState    `xml:"Ipv6CidrBlockState,omitempty"`
-	Ipv6Pool             *string               `xml:"Ipv6Pool,omitempty"`
-	NetworkBorderGroup   *string               `xml:"NetworkBorderGroup,omitempty"`
+	AssociationId        *string               `xml:"associationId,omitempty"`
+	IpSource             *IpSource             `xml:"ipSource,omitempty"`
+	Ipv6AddressAttribute *Ipv6AddressAttribute `xml:"ipv6AddressAttribute,omitempty"`
+	Ipv6CidrBlock        *string               `xml:"ipv6CidrBlock,omitempty"`
+	Ipv6CidrBlockState   *VpcCidrBlockState    `xml:"ipv6CidrBlockState,omitempty"`
+	Ipv6Pool             *string               `xml:"ipv6Pool,omitempty"`
+	NetworkBorderGroup   *string               `xml:"networkBorderGroup,omitempty"`
 }
 
 // Vpc is a generated Smithy structure.
 type Vpc struct {
-	BlockPublicAccessStates     *BlockPublicAccessStates       `xml:"BlockPublicAccessStates,omitempty"`
-	CidrBlock                   *string                        `xml:"CidrBlock,omitempty"`
-	CidrBlockAssociationSet     VpcCidrBlockAssociationSet     `xml:"CidrBlockAssociationSet,omitempty"`
-	DhcpOptionsId               *string                        `xml:"DhcpOptionsId,omitempty"`
-	EncryptionControl           *VpcEncryptionControl          `xml:"EncryptionControl,omitempty"`
-	InstanceTenancy             *Tenancy                       `xml:"InstanceTenancy,omitempty"`
-	Ipv6CidrBlockAssociationSet VpcIpv6CidrBlockAssociationSet `xml:"Ipv6CidrBlockAssociationSet,omitempty"`
-	IsDefault                   *bool                          `xml:"IsDefault,omitempty"`
-	OwnerId                     *string                        `xml:"OwnerId,omitempty"`
-	State                       *VpcState                      `xml:"State,omitempty"`
-	Tags                        TagList                        `xml:"Tags,omitempty"`
-	VpcId                       *string                        `xml:"VpcId,omitempty"`
+	BlockPublicAccessStates     *BlockPublicAccessStates       `xml:"blockPublicAccessStates,omitempty"`
+	CidrBlock                   *string                        `xml:"cidrBlock,omitempty"`
+	CidrBlockAssociationSet     VpcCidrBlockAssociationSet     `xml:"cidrBlockAssociationSet,omitempty"`
+	DhcpOptionsId               *string                        `xml:"dhcpOptionsId,omitempty"`
+	EncryptionControl           *VpcEncryptionControl          `xml:"encryptionControl,omitempty"`
+	InstanceTenancy             *Tenancy                       `xml:"instanceTenancy,omitempty"`
+	Ipv6CidrBlockAssociationSet VpcIpv6CidrBlockAssociationSet `xml:"ipv6CidrBlockAssociationSet,omitempty"`
+	IsDefault                   *bool                          `xml:"isDefault,omitempty"`
+	OwnerId                     *string                        `xml:"ownerId,omitempty"`
+	State                       *VpcState                      `xml:"state,omitempty"`
+	Tags                        TagList                        `xml:"tagSet,omitempty"`
+	VpcId                       *string                        `xml:"vpcId,omitempty"`
 }
 
 // CreateVpcResult is a generated Smithy structure.
 type CreateVpcResult struct {
-	Vpc *Vpc `xml:"Vpc,omitempty"`
+	Vpc *Vpc `xml:"vpc,omitempty"`
 }
 
 // DeleteVpcRequest is a generated Smithy structure.
 type DeleteVpcRequest struct {
-	DryRun *bool  `xml:"DryRun,omitempty"`
+	DryRun *bool  `xml:"dryRun,omitempty"`
 	VpcId  string `xml:"VpcId,omitempty"`
 }
 
 // Filter is a generated Smithy structure.
 type Filter struct {
 	Name   *string         `xml:"Name,omitempty"`
-	Values ValueStringList `xml:"Values,omitempty"`
+	Values ValueStringList `xml:"Value,omitempty"`
 }
 
 // DescribeVpcsRequest is a generated Smithy structure.
 type DescribeVpcsRequest struct {
-	DryRun     *bool           `xml:"DryRun,omitempty"`
-	Filters    FilterList      `xml:"Filters,omitempty"`
+	DryRun     *bool           `xml:"dryRun,omitempty"`
+	Filters    FilterList      `xml:"Filter,omitempty"`
 	MaxResults *int32          `xml:"MaxResults,omitempty"`
 	NextToken  *string         `xml:"NextToken,omitempty"`
-	VpcIds     VpcIdStringList `xml:"VpcIds,omitempty"`
+	VpcIds     VpcIdStringList `xml:"VpcId,omitempty"`
 }
 
 // DescribeVpcsResult is a generated Smithy structure.
 type DescribeVpcsResult struct {
-	NextToken *string `xml:"NextToken,omitempty"`
-	Vpcs      VpcList `xml:"Vpcs,omitempty"`
+	NextToken *string `xml:"nextToken,omitempty"`
+	Vpcs      VpcList `xml:"vpcSet,omitempty"`
 }
 
 // AttributeBooleanValue is a generated Smithy structure.
 type AttributeBooleanValue struct {
-	Value *bool `xml:"Value,omitempty"`
+	Value *bool `xml:"value,omitempty"`
 }
 
 // ModifyVpcAttributeRequest is a generated Smithy structure.
@@ -691,7 +691,7 @@ type ModifyVpcAttributeRequest struct {
 	EnableDnsHostnames               *AttributeBooleanValue `xml:"EnableDnsHostnames,omitempty"`
 	EnableDnsSupport                 *AttributeBooleanValue `xml:"EnableDnsSupport,omitempty"`
 	EnableNetworkAddressUsageMetrics *AttributeBooleanValue `xml:"EnableNetworkAddressUsageMetrics,omitempty"`
-	VpcId                            string                 `xml:"VpcId,omitempty"`
+	VpcId                            string                 `xml:"vpcId,omitempty"`
 }
 
 // CreateSubnetRequest is a generated Smithy structure.
@@ -699,7 +699,7 @@ type CreateSubnetRequest struct {
 	AvailabilityZone   *string              `xml:"AvailabilityZone,omitempty"`
 	AvailabilityZoneId *string              `xml:"AvailabilityZoneId,omitempty"`
 	CidrBlock          *string              `xml:"CidrBlock,omitempty"`
-	DryRun             *bool                `xml:"DryRun,omitempty"`
+	DryRun             *bool                `xml:"dryRun,omitempty"`
 	Ipv4IpamPoolId     *string              `xml:"Ipv4IpamPoolId,omitempty"`
 	Ipv4NetmaskLength  *int32               `xml:"Ipv4NetmaskLength,omitempty"`
 	Ipv6CidrBlock      *string              `xml:"Ipv6CidrBlock,omitempty"`
@@ -707,83 +707,83 @@ type CreateSubnetRequest struct {
 	Ipv6Native         *bool                `xml:"Ipv6Native,omitempty"`
 	Ipv6NetmaskLength  *int32               `xml:"Ipv6NetmaskLength,omitempty"`
 	OutpostArn         *string              `xml:"OutpostArn,omitempty"`
-	TagSpecifications  TagSpecificationList `xml:"TagSpecifications,omitempty"`
+	TagSpecifications  TagSpecificationList `xml:"TagSpecification,omitempty"`
 	VpcId              string               `xml:"VpcId,omitempty"`
 }
 
 // SubnetCidrBlockState is a generated Smithy structure.
 type SubnetCidrBlockState struct {
-	State         *SubnetCidrBlockStateCode `xml:"State,omitempty"`
-	StatusMessage *string                   `xml:"StatusMessage,omitempty"`
+	State         *SubnetCidrBlockStateCode `xml:"state,omitempty"`
+	StatusMessage *string                   `xml:"statusMessage,omitempty"`
 }
 
 // SubnetIpv6CidrBlockAssociation is a generated Smithy structure.
 type SubnetIpv6CidrBlockAssociation struct {
-	AssociationId        *string               `xml:"AssociationId,omitempty"`
-	IpSource             *IpSource             `xml:"IpSource,omitempty"`
-	Ipv6AddressAttribute *Ipv6AddressAttribute `xml:"Ipv6AddressAttribute,omitempty"`
-	Ipv6CidrBlock        *string               `xml:"Ipv6CidrBlock,omitempty"`
-	Ipv6CidrBlockState   *SubnetCidrBlockState `xml:"Ipv6CidrBlockState,omitempty"`
+	AssociationId        *string               `xml:"associationId,omitempty"`
+	IpSource             *IpSource             `xml:"ipSource,omitempty"`
+	Ipv6AddressAttribute *Ipv6AddressAttribute `xml:"ipv6AddressAttribute,omitempty"`
+	Ipv6CidrBlock        *string               `xml:"ipv6CidrBlock,omitempty"`
+	Ipv6CidrBlockState   *SubnetCidrBlockState `xml:"ipv6CidrBlockState,omitempty"`
 }
 
 // PrivateDnsNameOptionsOnLaunch is a generated Smithy structure.
 type PrivateDnsNameOptionsOnLaunch struct {
-	EnableResourceNameDnsAAAARecord *bool         `xml:"EnableResourceNameDnsAAAARecord,omitempty"`
-	EnableResourceNameDnsARecord    *bool         `xml:"EnableResourceNameDnsARecord,omitempty"`
-	HostnameType                    *HostnameType `xml:"HostnameType,omitempty"`
+	EnableResourceNameDnsAAAARecord *bool         `xml:"enableResourceNameDnsAAAARecord,omitempty"`
+	EnableResourceNameDnsARecord    *bool         `xml:"enableResourceNameDnsARecord,omitempty"`
+	HostnameType                    *HostnameType `xml:"hostnameType,omitempty"`
 }
 
 // Subnet is a generated Smithy structure.
 type Subnet struct {
-	AssignIpv6AddressOnCreation   *bool                             `xml:"AssignIpv6AddressOnCreation,omitempty"`
-	AvailabilityZone              *string                           `xml:"AvailabilityZone,omitempty"`
-	AvailabilityZoneId            *string                           `xml:"AvailabilityZoneId,omitempty"`
-	AvailableIpAddressCount       *int32                            `xml:"AvailableIpAddressCount,omitempty"`
-	BlockPublicAccessStates       *BlockPublicAccessStates          `xml:"BlockPublicAccessStates,omitempty"`
-	CidrBlock                     *string                           `xml:"CidrBlock,omitempty"`
-	CustomerOwnedIpv4Pool         *string                           `xml:"CustomerOwnedIpv4Pool,omitempty"`
-	DefaultForAz                  *bool                             `xml:"DefaultForAz,omitempty"`
-	EnableDns64                   *bool                             `xml:"EnableDns64,omitempty"`
-	EnableLniAtDeviceIndex        *int32                            `xml:"EnableLniAtDeviceIndex,omitempty"`
-	Ipv6CidrBlockAssociationSet   SubnetIpv6CidrBlockAssociationSet `xml:"Ipv6CidrBlockAssociationSet,omitempty"`
-	Ipv6Native                    *bool                             `xml:"Ipv6Native,omitempty"`
-	MapCustomerOwnedIpOnLaunch    *bool                             `xml:"MapCustomerOwnedIpOnLaunch,omitempty"`
-	MapPublicIpOnLaunch           *bool                             `xml:"MapPublicIpOnLaunch,omitempty"`
-	OutpostArn                    *string                           `xml:"OutpostArn,omitempty"`
-	OwnerId                       *string                           `xml:"OwnerId,omitempty"`
-	PrivateDnsNameOptionsOnLaunch *PrivateDnsNameOptionsOnLaunch    `xml:"PrivateDnsNameOptionsOnLaunch,omitempty"`
-	State                         *SubnetState                      `xml:"State,omitempty"`
-	SubnetArn                     *string                           `xml:"SubnetArn,omitempty"`
-	SubnetId                      *string                           `xml:"SubnetId,omitempty"`
-	Tags                          TagList                           `xml:"Tags,omitempty"`
-	Type                          *string                           `xml:"Type,omitempty"`
-	VpcId                         *string                           `xml:"VpcId,omitempty"`
+	AssignIpv6AddressOnCreation   *bool                             `xml:"assignIpv6AddressOnCreation,omitempty"`
+	AvailabilityZone              *string                           `xml:"availabilityZone,omitempty"`
+	AvailabilityZoneId            *string                           `xml:"availabilityZoneId,omitempty"`
+	AvailableIpAddressCount       *int32                            `xml:"availableIpAddressCount,omitempty"`
+	BlockPublicAccessStates       *BlockPublicAccessStates          `xml:"blockPublicAccessStates,omitempty"`
+	CidrBlock                     *string                           `xml:"cidrBlock,omitempty"`
+	CustomerOwnedIpv4Pool         *string                           `xml:"customerOwnedIpv4Pool,omitempty"`
+	DefaultForAz                  *bool                             `xml:"defaultForAz,omitempty"`
+	EnableDns64                   *bool                             `xml:"enableDns64,omitempty"`
+	EnableLniAtDeviceIndex        *int32                            `xml:"enableLniAtDeviceIndex,omitempty"`
+	Ipv6CidrBlockAssociationSet   SubnetIpv6CidrBlockAssociationSet `xml:"ipv6CidrBlockAssociationSet,omitempty"`
+	Ipv6Native                    *bool                             `xml:"ipv6Native,omitempty"`
+	MapCustomerOwnedIpOnLaunch    *bool                             `xml:"mapCustomerOwnedIpOnLaunch,omitempty"`
+	MapPublicIpOnLaunch           *bool                             `xml:"mapPublicIpOnLaunch,omitempty"`
+	OutpostArn                    *string                           `xml:"outpostArn,omitempty"`
+	OwnerId                       *string                           `xml:"ownerId,omitempty"`
+	PrivateDnsNameOptionsOnLaunch *PrivateDnsNameOptionsOnLaunch    `xml:"privateDnsNameOptionsOnLaunch,omitempty"`
+	State                         *SubnetState                      `xml:"state,omitempty"`
+	SubnetArn                     *string                           `xml:"subnetArn,omitempty"`
+	SubnetId                      *string                           `xml:"subnetId,omitempty"`
+	Tags                          TagList                           `xml:"tagSet,omitempty"`
+	Type                          *string                           `xml:"type,omitempty"`
+	VpcId                         *string                           `xml:"vpcId,omitempty"`
 }
 
 // CreateSubnetResult is a generated Smithy structure.
 type CreateSubnetResult struct {
-	Subnet *Subnet `xml:"Subnet,omitempty"`
+	Subnet *Subnet `xml:"subnet,omitempty"`
 }
 
 // DeleteSubnetRequest is a generated Smithy structure.
 type DeleteSubnetRequest struct {
-	DryRun   *bool  `xml:"DryRun,omitempty"`
+	DryRun   *bool  `xml:"dryRun,omitempty"`
 	SubnetId string `xml:"SubnetId,omitempty"`
 }
 
 // DescribeSubnetsRequest is a generated Smithy structure.
 type DescribeSubnetsRequest struct {
-	DryRun     *bool              `xml:"DryRun,omitempty"`
-	Filters    FilterList         `xml:"Filters,omitempty"`
+	DryRun     *bool              `xml:"dryRun,omitempty"`
+	Filters    FilterList         `xml:"Filter,omitempty"`
 	MaxResults *int32             `xml:"MaxResults,omitempty"`
 	NextToken  *string            `xml:"NextToken,omitempty"`
-	SubnetIds  SubnetIdStringList `xml:"SubnetIds,omitempty"`
+	SubnetIds  SubnetIdStringList `xml:"SubnetId,omitempty"`
 }
 
 // DescribeSubnetsResult is a generated Smithy structure.
 type DescribeSubnetsResult struct {
-	NextToken *string    `xml:"NextToken,omitempty"`
-	Subnets   SubnetList `xml:"Subnets,omitempty"`
+	NextToken *string    `xml:"nextToken,omitempty"`
+	Subnets   SubnetList `xml:"subnetSet,omitempty"`
 }
 
 // ModifySubnetAttributeRequest is a generated Smithy structure.
@@ -798,111 +798,111 @@ type ModifySubnetAttributeRequest struct {
 	MapCustomerOwnedIpOnLaunch              *AttributeBooleanValue `xml:"MapCustomerOwnedIpOnLaunch,omitempty"`
 	MapPublicIpOnLaunch                     *AttributeBooleanValue `xml:"MapPublicIpOnLaunch,omitempty"`
 	PrivateDnsHostnameTypeOnLaunch          *HostnameType          `xml:"PrivateDnsHostnameTypeOnLaunch,omitempty"`
-	SubnetId                                string                 `xml:"SubnetId,omitempty"`
+	SubnetId                                string                 `xml:"subnetId,omitempty"`
 }
 
 // CreateSecurityGroupRequest is a generated Smithy structure.
 type CreateSecurityGroupRequest struct {
-	Description       string               `xml:"Description,omitempty"`
-	DryRun            *bool                `xml:"DryRun,omitempty"`
+	Description       string               `xml:"GroupDescription,omitempty"`
+	DryRun            *bool                `xml:"dryRun,omitempty"`
 	GroupName         string               `xml:"GroupName,omitempty"`
-	TagSpecifications TagSpecificationList `xml:"TagSpecifications,omitempty"`
+	TagSpecifications TagSpecificationList `xml:"TagSpecification,omitempty"`
 	VpcId             *string              `xml:"VpcId,omitempty"`
 }
 
 // CreateSecurityGroupResult is a generated Smithy structure.
 type CreateSecurityGroupResult struct {
-	GroupId          *string `xml:"GroupId,omitempty"`
-	SecurityGroupArn *string `xml:"SecurityGroupArn,omitempty"`
-	Tags             TagList `xml:"Tags,omitempty"`
+	GroupId          *string `xml:"groupId,omitempty"`
+	SecurityGroupArn *string `xml:"securityGroupArn,omitempty"`
+	Tags             TagList `xml:"tagSet,omitempty"`
 }
 
 // DeleteSecurityGroupRequest is a generated Smithy structure.
 type DeleteSecurityGroupRequest struct {
-	DryRun    *bool   `xml:"DryRun,omitempty"`
+	DryRun    *bool   `xml:"dryRun,omitempty"`
 	GroupId   *string `xml:"GroupId,omitempty"`
 	GroupName *string `xml:"GroupName,omitempty"`
 }
 
 // DeleteSecurityGroupResult is a generated Smithy structure.
 type DeleteSecurityGroupResult struct {
-	GroupId *string `xml:"GroupId,omitempty"`
-	Return  *bool   `xml:"Return,omitempty"`
+	GroupId *string `xml:"groupId,omitempty"`
+	Return  *bool   `xml:"return,omitempty"`
 }
 
 // DescribeSecurityGroupsRequest is a generated Smithy structure.
 type DescribeSecurityGroupsRequest struct {
-	DryRun     *bool               `xml:"DryRun,omitempty"`
-	Filters    FilterList          `xml:"Filters,omitempty"`
-	GroupIds   GroupIdStringList   `xml:"GroupIds,omitempty"`
-	GroupNames GroupNameStringList `xml:"GroupNames,omitempty"`
+	DryRun     *bool               `xml:"dryRun,omitempty"`
+	Filters    FilterList          `xml:"Filter,omitempty"`
+	GroupIds   GroupIdStringList   `xml:"GroupId,omitempty"`
+	GroupNames GroupNameStringList `xml:"GroupName,omitempty"`
 	MaxResults *int32              `xml:"MaxResults,omitempty"`
 	NextToken  *string             `xml:"NextToken,omitempty"`
 }
 
 // IpRange is a generated Smithy structure.
 type IpRange struct {
-	CidrIp      *string `xml:"CidrIp,omitempty"`
-	Description *string `xml:"Description,omitempty"`
+	CidrIp      *string `xml:"cidrIp,omitempty"`
+	Description *string `xml:"description,omitempty"`
 }
 
 // Ipv6Range is a generated Smithy structure.
 type Ipv6Range struct {
-	CidrIpv6    *string `xml:"CidrIpv6,omitempty"`
-	Description *string `xml:"Description,omitempty"`
+	CidrIpv6    *string `xml:"cidrIpv6,omitempty"`
+	Description *string `xml:"description,omitempty"`
 }
 
 // PrefixListId is a generated Smithy structure.
 type PrefixListId struct {
-	Description  *string `xml:"Description,omitempty"`
-	PrefixListId *string `xml:"PrefixListId,omitempty"`
+	Description  *string `xml:"description,omitempty"`
+	PrefixListId *string `xml:"prefixListId,omitempty"`
 }
 
 // UserIdGroupPair is a generated Smithy structure.
 type UserIdGroupPair struct {
-	Description            *string `xml:"Description,omitempty"`
-	GroupId                *string `xml:"GroupId,omitempty"`
-	GroupName              *string `xml:"GroupName,omitempty"`
-	PeeringStatus          *string `xml:"PeeringStatus,omitempty"`
-	UserId                 *string `xml:"UserId,omitempty"`
-	VpcId                  *string `xml:"VpcId,omitempty"`
-	VpcPeeringConnectionId *string `xml:"VpcPeeringConnectionId,omitempty"`
+	Description            *string `xml:"description,omitempty"`
+	GroupId                *string `xml:"groupId,omitempty"`
+	GroupName              *string `xml:"groupName,omitempty"`
+	PeeringStatus          *string `xml:"peeringStatus,omitempty"`
+	UserId                 *string `xml:"userId,omitempty"`
+	VpcId                  *string `xml:"vpcId,omitempty"`
+	VpcPeeringConnectionId *string `xml:"vpcPeeringConnectionId,omitempty"`
 }
 
 // IpPermission is a generated Smithy structure.
 type IpPermission struct {
-	FromPort         *int32              `xml:"FromPort,omitempty"`
-	IpProtocol       *string             `xml:"IpProtocol,omitempty"`
-	IpRanges         IpRangeList         `xml:"IpRanges,omitempty"`
-	Ipv6Ranges       Ipv6RangeList       `xml:"Ipv6Ranges,omitempty"`
-	PrefixListIds    PrefixListIdList    `xml:"PrefixListIds,omitempty"`
-	ToPort           *int32              `xml:"ToPort,omitempty"`
-	UserIdGroupPairs UserIdGroupPairList `xml:"UserIdGroupPairs,omitempty"`
+	FromPort         *int32              `xml:"fromPort,omitempty"`
+	IpProtocol       *string             `xml:"ipProtocol,omitempty"`
+	IpRanges         IpRangeList         `xml:"ipRanges,omitempty"`
+	Ipv6Ranges       Ipv6RangeList       `xml:"ipv6Ranges,omitempty"`
+	PrefixListIds    PrefixListIdList    `xml:"prefixListIds,omitempty"`
+	ToPort           *int32              `xml:"toPort,omitempty"`
+	UserIdGroupPairs UserIdGroupPairList `xml:"groups,omitempty"`
 }
 
 // SecurityGroup is a generated Smithy structure.
 type SecurityGroup struct {
-	Description         *string          `xml:"Description,omitempty"`
-	GroupId             *string          `xml:"GroupId,omitempty"`
-	GroupName           *string          `xml:"GroupName,omitempty"`
-	IpPermissions       IpPermissionList `xml:"IpPermissions,omitempty"`
-	IpPermissionsEgress IpPermissionList `xml:"IpPermissionsEgress,omitempty"`
-	OwnerId             *string          `xml:"OwnerId,omitempty"`
-	SecurityGroupArn    *string          `xml:"SecurityGroupArn,omitempty"`
-	Tags                TagList          `xml:"Tags,omitempty"`
-	VpcId               *string          `xml:"VpcId,omitempty"`
+	Description         *string          `xml:"groupDescription,omitempty"`
+	GroupId             *string          `xml:"groupId,omitempty"`
+	GroupName           *string          `xml:"groupName,omitempty"`
+	IpPermissions       IpPermissionList `xml:"ipPermissions,omitempty"`
+	IpPermissionsEgress IpPermissionList `xml:"ipPermissionsEgress,omitempty"`
+	OwnerId             *string          `xml:"ownerId,omitempty"`
+	SecurityGroupArn    *string          `xml:"securityGroupArn,omitempty"`
+	Tags                TagList          `xml:"tagSet,omitempty"`
+	VpcId               *string          `xml:"vpcId,omitempty"`
 }
 
 // DescribeSecurityGroupsResult is a generated Smithy structure.
 type DescribeSecurityGroupsResult struct {
-	NextToken      *string           `xml:"NextToken,omitempty"`
-	SecurityGroups SecurityGroupList `xml:"SecurityGroups,omitempty"`
+	NextToken      *string           `xml:"nextToken,omitempty"`
+	SecurityGroups SecurityGroupList `xml:"securityGroupInfo,omitempty"`
 }
 
 // AuthorizeSecurityGroupIngressRequest is a generated Smithy structure.
 type AuthorizeSecurityGroupIngressRequest struct {
 	CidrIp                     *string              `xml:"CidrIp,omitempty"`
-	DryRun                     *bool                `xml:"DryRun,omitempty"`
+	DryRun                     *bool                `xml:"dryRun,omitempty"`
 	FromPort                   *int32               `xml:"FromPort,omitempty"`
 	GroupId                    *string              `xml:"GroupId,omitempty"`
 	GroupName                  *string              `xml:"GroupName,omitempty"`
@@ -910,53 +910,53 @@ type AuthorizeSecurityGroupIngressRequest struct {
 	IpProtocol                 *string              `xml:"IpProtocol,omitempty"`
 	SourceSecurityGroupName    *string              `xml:"SourceSecurityGroupName,omitempty"`
 	SourceSecurityGroupOwnerId *string              `xml:"SourceSecurityGroupOwnerId,omitempty"`
-	TagSpecifications          TagSpecificationList `xml:"TagSpecifications,omitempty"`
+	TagSpecifications          TagSpecificationList `xml:"TagSpecification,omitempty"`
 	ToPort                     *int32               `xml:"ToPort,omitempty"`
 }
 
 // ReferencedSecurityGroup is a generated Smithy structure.
 type ReferencedSecurityGroup struct {
-	GroupId                *string `xml:"GroupId,omitempty"`
-	PeeringStatus          *string `xml:"PeeringStatus,omitempty"`
-	UserId                 *string `xml:"UserId,omitempty"`
-	VpcId                  *string `xml:"VpcId,omitempty"`
-	VpcPeeringConnectionId *string `xml:"VpcPeeringConnectionId,omitempty"`
+	GroupId                *string `xml:"groupId,omitempty"`
+	PeeringStatus          *string `xml:"peeringStatus,omitempty"`
+	UserId                 *string `xml:"userId,omitempty"`
+	VpcId                  *string `xml:"vpcId,omitempty"`
+	VpcPeeringConnectionId *string `xml:"vpcPeeringConnectionId,omitempty"`
 }
 
 // SecurityGroupRule is a generated Smithy structure.
 type SecurityGroupRule struct {
-	CidrIpv4             *string                  `xml:"CidrIpv4,omitempty"`
-	CidrIpv6             *string                  `xml:"CidrIpv6,omitempty"`
-	Description          *string                  `xml:"Description,omitempty"`
-	FromPort             *int32                   `xml:"FromPort,omitempty"`
-	GroupId              *string                  `xml:"GroupId,omitempty"`
-	GroupOwnerId         *string                  `xml:"GroupOwnerId,omitempty"`
-	IpProtocol           *string                  `xml:"IpProtocol,omitempty"`
-	IsEgress             *bool                    `xml:"IsEgress,omitempty"`
-	PrefixListId         *string                  `xml:"PrefixListId,omitempty"`
-	ReferencedGroupInfo  *ReferencedSecurityGroup `xml:"ReferencedGroupInfo,omitempty"`
-	SecurityGroupRuleArn *string                  `xml:"SecurityGroupRuleArn,omitempty"`
-	SecurityGroupRuleId  *string                  `xml:"SecurityGroupRuleId,omitempty"`
-	Tags                 TagList                  `xml:"Tags,omitempty"`
-	ToPort               *int32                   `xml:"ToPort,omitempty"`
+	CidrIpv4             *string                  `xml:"cidrIpv4,omitempty"`
+	CidrIpv6             *string                  `xml:"cidrIpv6,omitempty"`
+	Description          *string                  `xml:"description,omitempty"`
+	FromPort             *int32                   `xml:"fromPort,omitempty"`
+	GroupId              *string                  `xml:"groupId,omitempty"`
+	GroupOwnerId         *string                  `xml:"groupOwnerId,omitempty"`
+	IpProtocol           *string                  `xml:"ipProtocol,omitempty"`
+	IsEgress             *bool                    `xml:"isEgress,omitempty"`
+	PrefixListId         *string                  `xml:"prefixListId,omitempty"`
+	ReferencedGroupInfo  *ReferencedSecurityGroup `xml:"referencedGroupInfo,omitempty"`
+	SecurityGroupRuleArn *string                  `xml:"securityGroupRuleArn,omitempty"`
+	SecurityGroupRuleId  *string                  `xml:"securityGroupRuleId,omitempty"`
+	Tags                 TagList                  `xml:"tagSet,omitempty"`
+	ToPort               *int32                   `xml:"toPort,omitempty"`
 }
 
 // AuthorizeSecurityGroupIngressResult is a generated Smithy structure.
 type AuthorizeSecurityGroupIngressResult struct {
-	Return             *bool                 `xml:"Return,omitempty"`
-	SecurityGroupRules SecurityGroupRuleList `xml:"SecurityGroupRules,omitempty"`
+	Return             *bool                 `xml:"return,omitempty"`
+	SecurityGroupRules SecurityGroupRuleList `xml:"securityGroupRuleSet,omitempty"`
 }
 
 // RevokeSecurityGroupIngressRequest is a generated Smithy structure.
 type RevokeSecurityGroupIngressRequest struct {
 	CidrIp                     *string                 `xml:"CidrIp,omitempty"`
-	DryRun                     *bool                   `xml:"DryRun,omitempty"`
+	DryRun                     *bool                   `xml:"dryRun,omitempty"`
 	FromPort                   *int32                  `xml:"FromPort,omitempty"`
 	GroupId                    *string                 `xml:"GroupId,omitempty"`
 	GroupName                  *string                 `xml:"GroupName,omitempty"`
 	IpPermissions              IpPermissionList        `xml:"IpPermissions,omitempty"`
 	IpProtocol                 *string                 `xml:"IpProtocol,omitempty"`
-	SecurityGroupRuleIds       SecurityGroupRuleIdList `xml:"SecurityGroupRuleIds,omitempty"`
+	SecurityGroupRuleIds       SecurityGroupRuleIdList `xml:"SecurityGroupRuleId,omitempty"`
 	SourceSecurityGroupName    *string                 `xml:"SourceSecurityGroupName,omitempty"`
 	SourceSecurityGroupOwnerId *string                 `xml:"SourceSecurityGroupOwnerId,omitempty"`
 	ToPort                     *int32                  `xml:"ToPort,omitempty"`
@@ -964,80 +964,80 @@ type RevokeSecurityGroupIngressRequest struct {
 
 // RevokedSecurityGroupRule is a generated Smithy structure.
 type RevokedSecurityGroupRule struct {
-	CidrIpv4            *string `xml:"CidrIpv4,omitempty"`
-	CidrIpv6            *string `xml:"CidrIpv6,omitempty"`
-	Description         *string `xml:"Description,omitempty"`
-	FromPort            *int32  `xml:"FromPort,omitempty"`
-	GroupId             *string `xml:"GroupId,omitempty"`
-	IpProtocol          *string `xml:"IpProtocol,omitempty"`
-	IsEgress            *bool   `xml:"IsEgress,omitempty"`
-	PrefixListId        *string `xml:"PrefixListId,omitempty"`
-	ReferencedGroupId   *string `xml:"ReferencedGroupId,omitempty"`
-	SecurityGroupRuleId *string `xml:"SecurityGroupRuleId,omitempty"`
-	ToPort              *int32  `xml:"ToPort,omitempty"`
+	CidrIpv4            *string `xml:"cidrIpv4,omitempty"`
+	CidrIpv6            *string `xml:"cidrIpv6,omitempty"`
+	Description         *string `xml:"description,omitempty"`
+	FromPort            *int32  `xml:"fromPort,omitempty"`
+	GroupId             *string `xml:"groupId,omitempty"`
+	IpProtocol          *string `xml:"ipProtocol,omitempty"`
+	IsEgress            *bool   `xml:"isEgress,omitempty"`
+	PrefixListId        *string `xml:"prefixListId,omitempty"`
+	ReferencedGroupId   *string `xml:"referencedGroupId,omitempty"`
+	SecurityGroupRuleId *string `xml:"securityGroupRuleId,omitempty"`
+	ToPort              *int32  `xml:"toPort,omitempty"`
 }
 
 // RevokeSecurityGroupIngressResult is a generated Smithy structure.
 type RevokeSecurityGroupIngressResult struct {
-	Return                    *bool                        `xml:"Return,omitempty"`
-	RevokedSecurityGroupRules RevokedSecurityGroupRuleList `xml:"RevokedSecurityGroupRules,omitempty"`
-	UnknownIpPermissions      IpPermissionList             `xml:"UnknownIpPermissions,omitempty"`
+	Return                    *bool                        `xml:"return,omitempty"`
+	RevokedSecurityGroupRules RevokedSecurityGroupRuleList `xml:"revokedSecurityGroupRuleSet,omitempty"`
+	UnknownIpPermissions      IpPermissionList             `xml:"unknownIpPermissionSet,omitempty"`
 }
 
 // AuthorizeSecurityGroupEgressRequest is a generated Smithy structure.
 type AuthorizeSecurityGroupEgressRequest struct {
-	CidrIp                     *string              `xml:"CidrIp,omitempty"`
-	DryRun                     *bool                `xml:"DryRun,omitempty"`
-	FromPort                   *int32               `xml:"FromPort,omitempty"`
-	GroupId                    string               `xml:"GroupId,omitempty"`
-	IpPermissions              IpPermissionList     `xml:"IpPermissions,omitempty"`
-	IpProtocol                 *string              `xml:"IpProtocol,omitempty"`
-	SourceSecurityGroupName    *string              `xml:"SourceSecurityGroupName,omitempty"`
-	SourceSecurityGroupOwnerId *string              `xml:"SourceSecurityGroupOwnerId,omitempty"`
-	TagSpecifications          TagSpecificationList `xml:"TagSpecifications,omitempty"`
-	ToPort                     *int32               `xml:"ToPort,omitempty"`
+	CidrIp                     *string              `xml:"cidrIp,omitempty"`
+	DryRun                     *bool                `xml:"dryRun,omitempty"`
+	FromPort                   *int32               `xml:"fromPort,omitempty"`
+	GroupId                    string               `xml:"groupId,omitempty"`
+	IpPermissions              IpPermissionList     `xml:"ipPermissions,omitempty"`
+	IpProtocol                 *string              `xml:"ipProtocol,omitempty"`
+	SourceSecurityGroupName    *string              `xml:"sourceSecurityGroupName,omitempty"`
+	SourceSecurityGroupOwnerId *string              `xml:"sourceSecurityGroupOwnerId,omitempty"`
+	TagSpecifications          TagSpecificationList `xml:"TagSpecification,omitempty"`
+	ToPort                     *int32               `xml:"toPort,omitempty"`
 }
 
 // AuthorizeSecurityGroupEgressResult is a generated Smithy structure.
 type AuthorizeSecurityGroupEgressResult struct {
-	Return             *bool                 `xml:"Return,omitempty"`
-	SecurityGroupRules SecurityGroupRuleList `xml:"SecurityGroupRules,omitempty"`
+	Return             *bool                 `xml:"return,omitempty"`
+	SecurityGroupRules SecurityGroupRuleList `xml:"securityGroupRuleSet,omitempty"`
 }
 
 // RevokeSecurityGroupEgressRequest is a generated Smithy structure.
 type RevokeSecurityGroupEgressRequest struct {
-	CidrIp                     *string                 `xml:"CidrIp,omitempty"`
-	DryRun                     *bool                   `xml:"DryRun,omitempty"`
-	FromPort                   *int32                  `xml:"FromPort,omitempty"`
-	GroupId                    string                  `xml:"GroupId,omitempty"`
-	IpPermissions              IpPermissionList        `xml:"IpPermissions,omitempty"`
-	IpProtocol                 *string                 `xml:"IpProtocol,omitempty"`
-	SecurityGroupRuleIds       SecurityGroupRuleIdList `xml:"SecurityGroupRuleIds,omitempty"`
-	SourceSecurityGroupName    *string                 `xml:"SourceSecurityGroupName,omitempty"`
-	SourceSecurityGroupOwnerId *string                 `xml:"SourceSecurityGroupOwnerId,omitempty"`
-	ToPort                     *int32                  `xml:"ToPort,omitempty"`
+	CidrIp                     *string                 `xml:"cidrIp,omitempty"`
+	DryRun                     *bool                   `xml:"dryRun,omitempty"`
+	FromPort                   *int32                  `xml:"fromPort,omitempty"`
+	GroupId                    string                  `xml:"groupId,omitempty"`
+	IpPermissions              IpPermissionList        `xml:"ipPermissions,omitempty"`
+	IpProtocol                 *string                 `xml:"ipProtocol,omitempty"`
+	SecurityGroupRuleIds       SecurityGroupRuleIdList `xml:"SecurityGroupRuleId,omitempty"`
+	SourceSecurityGroupName    *string                 `xml:"sourceSecurityGroupName,omitempty"`
+	SourceSecurityGroupOwnerId *string                 `xml:"sourceSecurityGroupOwnerId,omitempty"`
+	ToPort                     *int32                  `xml:"toPort,omitempty"`
 }
 
 // RevokeSecurityGroupEgressResult is a generated Smithy structure.
 type RevokeSecurityGroupEgressResult struct {
-	Return                    *bool                        `xml:"Return,omitempty"`
-	RevokedSecurityGroupRules RevokedSecurityGroupRuleList `xml:"RevokedSecurityGroupRules,omitempty"`
-	UnknownIpPermissions      IpPermissionList             `xml:"UnknownIpPermissions,omitempty"`
+	Return                    *bool                        `xml:"return,omitempty"`
+	RevokedSecurityGroupRules RevokedSecurityGroupRuleList `xml:"revokedSecurityGroupRuleSet,omitempty"`
+	UnknownIpPermissions      IpPermissionList             `xml:"unknownIpPermissionSet,omitempty"`
 }
 
 // DescribeSecurityGroupRulesRequest is a generated Smithy structure.
 type DescribeSecurityGroupRulesRequest struct {
 	DryRun               *bool                   `xml:"DryRun,omitempty"`
-	Filters              FilterList              `xml:"Filters,omitempty"`
+	Filters              FilterList              `xml:"Filter,omitempty"`
 	MaxResults           *int32                  `xml:"MaxResults,omitempty"`
 	NextToken            *string                 `xml:"NextToken,omitempty"`
-	SecurityGroupRuleIds SecurityGroupRuleIdList `xml:"SecurityGroupRuleIds,omitempty"`
+	SecurityGroupRuleIds SecurityGroupRuleIdList `xml:"SecurityGroupRuleId,omitempty"`
 }
 
 // DescribeSecurityGroupRulesResult is a generated Smithy structure.
 type DescribeSecurityGroupRulesResult struct {
-	NextToken          *string               `xml:"NextToken,omitempty"`
-	SecurityGroupRules SecurityGroupRuleList `xml:"SecurityGroupRules,omitempty"`
+	NextToken          *string               `xml:"nextToken,omitempty"`
+	SecurityGroupRules SecurityGroupRuleList `xml:"securityGroupRuleSet,omitempty"`
 }
 
 // AllocateAddressRequest is a generated Smithy structure.
@@ -1045,29 +1045,29 @@ type AllocateAddressRequest struct {
 	Address               *string              `xml:"Address,omitempty"`
 	CustomerOwnedIpv4Pool *string              `xml:"CustomerOwnedIpv4Pool,omitempty"`
 	Domain                *DomainType          `xml:"Domain,omitempty"`
-	DryRun                *bool                `xml:"DryRun,omitempty"`
+	DryRun                *bool                `xml:"dryRun,omitempty"`
 	IpamPoolId            *string              `xml:"IpamPoolId,omitempty"`
 	NetworkBorderGroup    *string              `xml:"NetworkBorderGroup,omitempty"`
 	PublicIpv4Pool        *string              `xml:"PublicIpv4Pool,omitempty"`
-	TagSpecifications     TagSpecificationList `xml:"TagSpecifications,omitempty"`
+	TagSpecifications     TagSpecificationList `xml:"TagSpecification,omitempty"`
 }
 
 // AllocateAddressResult is a generated Smithy structure.
 type AllocateAddressResult struct {
-	AllocationId          *string     `xml:"AllocationId,omitempty"`
-	CarrierIp             *string     `xml:"CarrierIp,omitempty"`
-	CustomerOwnedIp       *string     `xml:"CustomerOwnedIp,omitempty"`
-	CustomerOwnedIpv4Pool *string     `xml:"CustomerOwnedIpv4Pool,omitempty"`
-	Domain                *DomainType `xml:"Domain,omitempty"`
-	NetworkBorderGroup    *string     `xml:"NetworkBorderGroup,omitempty"`
-	PublicIp              *string     `xml:"PublicIp,omitempty"`
-	PublicIpv4Pool        *string     `xml:"PublicIpv4Pool,omitempty"`
+	AllocationId          *string     `xml:"allocationId,omitempty"`
+	CarrierIp             *string     `xml:"carrierIp,omitempty"`
+	CustomerOwnedIp       *string     `xml:"customerOwnedIp,omitempty"`
+	CustomerOwnedIpv4Pool *string     `xml:"customerOwnedIpv4Pool,omitempty"`
+	Domain                *DomainType `xml:"domain,omitempty"`
+	NetworkBorderGroup    *string     `xml:"networkBorderGroup,omitempty"`
+	PublicIp              *string     `xml:"publicIp,omitempty"`
+	PublicIpv4Pool        *string     `xml:"publicIpv4Pool,omitempty"`
 }
 
 // ReleaseAddressRequest is a generated Smithy structure.
 type ReleaseAddressRequest struct {
 	AllocationId       *string `xml:"AllocationId,omitempty"`
-	DryRun             *bool   `xml:"DryRun,omitempty"`
+	DryRun             *bool   `xml:"dryRun,omitempty"`
 	NetworkBorderGroup *string `xml:"NetworkBorderGroup,omitempty"`
 	PublicIp           *string `xml:"PublicIp,omitempty"`
 }
@@ -1075,93 +1075,93 @@ type ReleaseAddressRequest struct {
 // AssociateAddressRequest is a generated Smithy structure.
 type AssociateAddressRequest struct {
 	AllocationId       *string `xml:"AllocationId,omitempty"`
-	AllowReassociation *bool   `xml:"AllowReassociation,omitempty"`
-	DryRun             *bool   `xml:"DryRun,omitempty"`
+	AllowReassociation *bool   `xml:"allowReassociation,omitempty"`
+	DryRun             *bool   `xml:"dryRun,omitempty"`
 	InstanceId         *string `xml:"InstanceId,omitempty"`
-	NetworkInterfaceId *string `xml:"NetworkInterfaceId,omitempty"`
-	PrivateIpAddress   *string `xml:"PrivateIpAddress,omitempty"`
+	NetworkInterfaceId *string `xml:"networkInterfaceId,omitempty"`
+	PrivateIpAddress   *string `xml:"privateIpAddress,omitempty"`
 	PublicIp           *string `xml:"PublicIp,omitempty"`
 }
 
 // AssociateAddressResult is a generated Smithy structure.
 type AssociateAddressResult struct {
-	AssociationId *string `xml:"AssociationId,omitempty"`
+	AssociationId *string `xml:"associationId,omitempty"`
 }
 
 // DisassociateAddressRequest is a generated Smithy structure.
 type DisassociateAddressRequest struct {
 	AssociationId *string `xml:"AssociationId,omitempty"`
-	DryRun        *bool   `xml:"DryRun,omitempty"`
+	DryRun        *bool   `xml:"dryRun,omitempty"`
 	PublicIp      *string `xml:"PublicIp,omitempty"`
 }
 
 // DescribeAddressesRequest is a generated Smithy structure.
 type DescribeAddressesRequest struct {
-	AllocationIds AllocationIdList   `xml:"AllocationIds,omitempty"`
-	DryRun        *bool              `xml:"DryRun,omitempty"`
-	Filters       FilterList         `xml:"Filters,omitempty"`
-	PublicIps     PublicIpStringList `xml:"PublicIps,omitempty"`
+	AllocationIds AllocationIdList   `xml:"AllocationId,omitempty"`
+	DryRun        *bool              `xml:"dryRun,omitempty"`
+	Filters       FilterList         `xml:"Filter,omitempty"`
+	PublicIps     PublicIpStringList `xml:"PublicIp,omitempty"`
 }
 
 // Address is a generated Smithy structure.
 type Address struct {
-	AllocationId            *string         `xml:"AllocationId,omitempty"`
-	AssociationId           *string         `xml:"AssociationId,omitempty"`
-	CarrierIp               *string         `xml:"CarrierIp,omitempty"`
-	CustomerOwnedIp         *string         `xml:"CustomerOwnedIp,omitempty"`
-	CustomerOwnedIpv4Pool   *string         `xml:"CustomerOwnedIpv4Pool,omitempty"`
-	Domain                  *DomainType     `xml:"Domain,omitempty"`
-	InstanceId              *string         `xml:"InstanceId,omitempty"`
-	NetworkBorderGroup      *string         `xml:"NetworkBorderGroup,omitempty"`
-	NetworkInterfaceId      *string         `xml:"NetworkInterfaceId,omitempty"`
-	NetworkInterfaceOwnerId *string         `xml:"NetworkInterfaceOwnerId,omitempty"`
-	PrivateIpAddress        *string         `xml:"PrivateIpAddress,omitempty"`
-	PublicIp                *string         `xml:"PublicIp,omitempty"`
-	PublicIpv4Pool          *string         `xml:"PublicIpv4Pool,omitempty"`
-	ServiceManaged          *ServiceManaged `xml:"ServiceManaged,omitempty"`
-	SubnetId                *string         `xml:"SubnetId,omitempty"`
-	Tags                    TagList         `xml:"Tags,omitempty"`
+	AllocationId            *string         `xml:"allocationId,omitempty"`
+	AssociationId           *string         `xml:"associationId,omitempty"`
+	CarrierIp               *string         `xml:"carrierIp,omitempty"`
+	CustomerOwnedIp         *string         `xml:"customerOwnedIp,omitempty"`
+	CustomerOwnedIpv4Pool   *string         `xml:"customerOwnedIpv4Pool,omitempty"`
+	Domain                  *DomainType     `xml:"domain,omitempty"`
+	InstanceId              *string         `xml:"instanceId,omitempty"`
+	NetworkBorderGroup      *string         `xml:"networkBorderGroup,omitempty"`
+	NetworkInterfaceId      *string         `xml:"networkInterfaceId,omitempty"`
+	NetworkInterfaceOwnerId *string         `xml:"networkInterfaceOwnerId,omitempty"`
+	PrivateIpAddress        *string         `xml:"privateIpAddress,omitempty"`
+	PublicIp                *string         `xml:"publicIp,omitempty"`
+	PublicIpv4Pool          *string         `xml:"publicIpv4Pool,omitempty"`
+	ServiceManaged          *ServiceManaged `xml:"serviceManaged,omitempty"`
+	SubnetId                *string         `xml:"subnetId,omitempty"`
+	Tags                    TagList         `xml:"tagSet,omitempty"`
 }
 
 // DescribeAddressesResult is a generated Smithy structure.
 type DescribeAddressesResult struct {
-	Addresses AddressList `xml:"Addresses,omitempty"`
+	Addresses AddressList `xml:"addressesSet,omitempty"`
 }
 
 // CreateTagsRequest is a generated Smithy structure.
 type CreateTagsRequest struct {
-	DryRun    *bool          `xml:"DryRun,omitempty"`
-	Resources ResourceIdList `xml:"Resources,omitempty"`
-	Tags      TagList        `xml:"Tags,omitempty"`
+	DryRun    *bool          `xml:"dryRun,omitempty"`
+	Resources ResourceIdList `xml:"ResourceId,omitempty"`
+	Tags      TagList        `xml:"Tag,omitempty"`
 }
 
 // DeleteTagsRequest is a generated Smithy structure.
 type DeleteTagsRequest struct {
-	DryRun    *bool          `xml:"DryRun,omitempty"`
-	Resources ResourceIdList `xml:"Resources,omitempty"`
-	Tags      TagList        `xml:"Tags,omitempty"`
+	DryRun    *bool          `xml:"dryRun,omitempty"`
+	Resources ResourceIdList `xml:"resourceId,omitempty"`
+	Tags      TagList        `xml:"tag,omitempty"`
 }
 
 // DescribeTagsRequest is a generated Smithy structure.
 type DescribeTagsRequest struct {
-	DryRun     *bool      `xml:"DryRun,omitempty"`
-	Filters    FilterList `xml:"Filters,omitempty"`
-	MaxResults *int32     `xml:"MaxResults,omitempty"`
-	NextToken  *string    `xml:"NextToken,omitempty"`
+	DryRun     *bool      `xml:"dryRun,omitempty"`
+	Filters    FilterList `xml:"Filter,omitempty"`
+	MaxResults *int32     `xml:"maxResults,omitempty"`
+	NextToken  *string    `xml:"nextToken,omitempty"`
 }
 
 // TagDescription is a generated Smithy structure.
 type TagDescription struct {
-	Key          *string       `xml:"Key,omitempty"`
-	ResourceId   *string       `xml:"ResourceId,omitempty"`
-	ResourceType *ResourceType `xml:"ResourceType,omitempty"`
-	Value        *string       `xml:"Value,omitempty"`
+	Key          *string       `xml:"key,omitempty"`
+	ResourceId   *string       `xml:"resourceId,omitempty"`
+	ResourceType *ResourceType `xml:"resourceType,omitempty"`
+	Value        *string       `xml:"value,omitempty"`
 }
 
 // DescribeTagsResult is a generated Smithy structure.
 type DescribeTagsResult struct {
-	NextToken *string            `xml:"NextToken,omitempty"`
-	Tags      TagDescriptionList `xml:"Tags,omitempty"`
+	NextToken *string            `xml:"nextToken,omitempty"`
+	Tags      TagDescriptionList `xml:"tagSet,omitempty"`
 }
 
 // EC2Backend is the union of every per-operation

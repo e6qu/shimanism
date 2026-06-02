@@ -27,6 +27,9 @@ import (
 	awsecfront "github.com/e6qu/shimanism/internal/cache/frontends/aws_elasticache"
 	azureredisfront "github.com/e6qu/shimanism/internal/cache/frontends/azure_redis"
 	gcpmsfront "github.com/e6qu/shimanism/internal/cache/frontends/gcp_memorystore"
+	computedomain "github.com/e6qu/shimanism/internal/compute/domain"
+	awsec2front "github.com/e6qu/shimanism/internal/compute/frontends/aws_ec2"
+	gcpcomputefront "github.com/e6qu/shimanism/internal/compute/frontends/gcp_compute"
 	dnsdomain "github.com/e6qu/shimanism/internal/dns/domain"
 	awsr53front "github.com/e6qu/shimanism/internal/dns/frontends/aws_route53"
 	azuredfront "github.com/e6qu/shimanism/internal/dns/frontends/azure_dns"
@@ -794,6 +797,38 @@ func StartNoSQLServerAzureWithConfig(t *testing.T, backend nosqldomain.NoSQL, cf
 	cert := ts.Certificate()
 	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw})
 	return &NoSQLServerTLS{URL: ts.URL, CertPEM: certPEM, Close: ts.Close}
+}
+
+// ComputeServer is a started compute-shim instance with its
+// addressable URL.
+type ComputeServer struct {
+	URL   string
+	Close func()
+}
+
+// StartComputeServerAWS starts a shim instance with the AWS EC2
+// (ec2Query) frontend backed by the given networking implementation.
+// EC2-shaped clients (aws-sdk-go-v2/service/ec2, aws ec2 CLI,
+// hashicorp/aws Terraform provider) drive it via BaseEndpoint.
+func StartComputeServerAWS(t *testing.T, backend computedomain.Networking) *ComputeServer {
+	t.Helper()
+	srv := awsec2front.New(backend)
+	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
+	t.Cleanup(ts.Close)
+	return &ComputeServer{URL: ts.URL, Close: ts.Close}
+}
+
+// StartComputeServerGCP starts a shim instance with the GCP Compute
+// Engine v1 (REST) frontend backed by the given networking
+// implementation. GCP-shaped clients (google.golang.org/api/compute/v1,
+// gcloud compute, hashicorp/google Terraform provider) drive it via
+// the endpoint-override path.
+func StartComputeServerGCP(t *testing.T, backend computedomain.Networking) *ComputeServer {
+	t.Helper()
+	srv := gcpcomputefront.Handler(backend)
+	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
+	t.Cleanup(ts.Close)
+	return &ComputeServer{URL: ts.URL, Close: ts.Close}
 }
 
 type statusWriter struct {

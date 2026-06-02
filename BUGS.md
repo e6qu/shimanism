@@ -1,6 +1,6 @@
 # Known Bugs
 
-**51 filed · 47 fixed · 3 open · 1 false positive.** BUG-35 (Container Apps lane) closed by sockerless PR #245 which derived ACA image platforms from the resolved image manifest instead of hardcoding `linux/arm64`; `scripts/run-sockerless-storage.sh` re-defaults `SOCKERLESS_AZURE_CONTAINERAPPS_IMAGE` to `docker.io/library/nginx:alpine`. Track A (BUG-8 + BUG-15) remains blocked on real GCP credentials. BUG-24 reverse-direction through-shim coverage **now complete across every service family** — PR #46 landed cache/secrets/queue reverse cells; this PR finishes the set with storage/pubsub/rdbms/functions/apigateway reverse cells. `make sockerless` now reports **43 passing + 0 skipped**.
+**52 filed · 47 fixed · 4 open · 1 false positive.** BUG-35 (Container Apps lane) closed by sockerless PR #245 which derived ACA image platforms from the resolved image manifest instead of hardcoding `linux/arm64`; `scripts/run-sockerless-storage.sh` re-defaults `SOCKERLESS_AZURE_CONTAINERAPPS_IMAGE` to `docker.io/library/nginx:alpine`. Track A (BUG-8 + BUG-15) remains blocked on real GCP credentials. BUG-24 reverse-direction through-shim coverage **now complete across every service family** — PR #46 landed cache/secrets/queue reverse cells; this PR finishes the set with storage/pubsub/rdbms/functions/apigateway reverse cells. `make sockerless` now reports **43 passing + 0 skipped**.
 
 Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLAN.md](PLAN.md) · narrative [WHAT_WE_DID.md](WHAT_WE_DID.md) · rules [AGENTS.md](AGENTS.md).
 
@@ -12,6 +12,7 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 
 > Currently-open bugs, all absorbed into Phase 14 / standalone examples. Sockerless now simulates the relevant GCP API Gateway and Pub/Sub backend surfaces. The current backend/SDK legs are green:
 
+- BUG-52: ec2query codegen template emits `xml:"GoName,omitempty"` for struct fields instead of `xml:"xmlName,omitempty"` — EC2 response containers use camelCase Smithy `@xmlName` values (`vpcSet`, `subnetSet`, etc.) that differ from Go field names. SDK clients parse response fields by the @xmlName, so all ec2Query Describe operations return empty results. Fix: update `template_ec2query.tmpl` to use `{{ .XMLTag }}` (already computed correctly in fieldView) and regenerate `services/compute/gen/aws_ec2.gen.go`.
 - BUG-8: `TestSockerless_GCP_APIGateway_CRUD` clears the shim backend ↔ GCP API Gateway SDK-shaped leg. The remaining bug is specifically the hashicorp/google Terraform endpoint/OAuth leg.
 - BUG-15: `TestSockerless_GCP_Queue_RetentionRoundTrip` clears the shim backend retention PATCH/read leg. The remaining bug is specifically the hashicorp/google Terraform state-drift question for `message_retention_duration`.
 

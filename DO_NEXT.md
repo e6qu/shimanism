@@ -44,18 +44,25 @@ The Azure sim requires `SIM_SERVICEBUS_AMQP_LISTEN_ADDR` on a separate port (han
 
 ### 16.B — VPC networking primitives (3–4 PRs, after 16.A)
 
-- [ ] Vendor specs: `services/compute/spec/` — AWS `ec2-2016-11-15.json`, GCP `gcp-compute-discovery.json`, Azure `azure-network.json`. Add `services/compute/spec/SOURCES.md`.
-- [ ] Codegen: `services/compute/codegen.json` (AWS+Azure) + `services/compute/gcp-codegen.json`; run `make codegen`.
-- [ ] Define `internal/compute/domain/networking.go` — `Networking` interface: CreateNetwork / GetNetwork / ListNetworks / DeleteNetwork / CreateSubnet / DeleteSubnet / ListSubnets / CreateSecurityGroup / DeleteSecurityGroup / ListSecurityGroups / AddIngressRule / AddEgressRule / RemoveIngressRule / RemoveEgressRule / AllocatePublicIP / AssociatePublicIP / DisassociatePublicIP / ReleasePublicIP.
-- [ ] `services/compute/backends/inmem/` — inmem networking backend.
-- [ ] AWS EC2 frontend (`services/compute/frontends/aws_ec2/`) — ec2Query handler for VPC/subnet/SG/EIP actions.
-- [ ] GCP Compute v1 frontend — networks/subnetworks/firewalls/addresses.
-- [ ] Azure Network frontend — VNet/Subnet/NSG/PublicIPAddress ARM handlers.
-- [ ] K8s peer (`services/compute/backends/k8scompute/`) — Namespace (VPC), NetworkPolicy (SG); subnets/EIPs return NotImplemented.
-- [ ] Real backends: `services/compute/backends/{aws,gcp,azure}/` networking implementations.
-- [ ] Full conformance matrix: `services/compute/conformance/` — SDK + CLI + Terraform × AWS/GCP/Azure × inmem/AWS/GCP/Azure/K8s.
-- [ ] Sockerless networking lane (no Firecracker dep — VPC/SG/EIP are pure metadata API calls in sockerless).
-- [ ] `services/compute/INTERSECTION.md` — intersection table with K8s NotImplemented rows documented.
+- [x] Vendor specs: `services/compute/spec/` — AWS `ec2-2016-11-15.json`, GCP `gcp-compute-discovery.json`, Azure `azure-network.json`. Add `services/compute/spec/SOURCES.md`. ✅ PR #105
+- [x] Codegen: `services/compute/codegen.json` (AWS+Azure) + `services/compute/gcp-codegen.json`; run `make codegen`. ✅ PR #105
+- [x] Define `internal/compute/domain/networking.go` — `Networking` interface + all types. ✅ PR #105
+- [x] `services/compute/backends/inmem/` — inmem networking backend (7 passing tests). ✅ PR #105
+- [x] BUG-52 (ec2query codegen @xmlName bug): fixed `template_ec2query.tmpl` + regenerated. ✅ this PR
+- [x] AWS EC2 frontend (`internal/compute/frontends/aws_ec2/`) — ec2Query handler for VPC/subnet/SG/EIP actions. ✅ this PR
+- [x] GCP Compute v1 frontend (`internal/compute/frontends/gcp_compute/`) — networks/subnetworks/firewalls/addresses. ✅ this PR
+- [x] Real AWS backend (`services/compute/backends/aws/`) — EC2 SDK. ✅ this PR
+- [x] Real GCP backend (`services/compute/backends/gcp/`) — Compute v1 API. ✅ this PR
+- [x] Harness functions: `StartComputeServerAWS`, `StartComputeServerGCP`. ✅ this PR
+- [x] Conformance SDK tests: AWS (VPC/Subnet/SG/EIP lifecycle, all green). ✅ this PR
+- [x] Conformance GCP SDK tests: Network/Firewall lifecycle, all green. ✅ this PR
+- [x] Sockerless networking lane (no Firecracker dep). ✅ this PR
+- [ ] Azure Network frontend — VNet/Subnet/NSG/PublicIPAddress ARM handlers. (PR3)
+- [ ] K8s peer (`services/compute/backends/k8scompute/`) — Namespace (VPC), NetworkPolicy (SG); subnets/EIPs return NotImplemented. (PR4)
+- [ ] Real Azure backend (`services/compute/backends/azure/`). (PR3)
+- [ ] CLI conformance tests (aws ec2, gcloud compute). (PR4)
+- [ ] Terraform conformance tests (hashicorp/aws + hashicorp/google). (PR4)
+- [ ] `services/compute/INTERSECTION.md` — intersection table with K8s NotImplemented rows documented. (PR4)
 
 ### 16.C — Compute instance lifecycle (3–4 PRs, after 16.B)
 
