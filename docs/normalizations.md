@@ -376,3 +376,94 @@ Closed audit items:
 - ~~Service Bus cross-cloud via AMQP frontend~~ — covered by **N16** (deliberately out-of-intersection; AMQP listener at the shim is multi-PR Phase-16+ work, not built).
 - ~~Functions runtime → container image~~ — covered by **N14** (container-image canonical form; language-runtime Lambdas are out of intersection).
 - ~~API Gateway stages vs configs vs products~~ — covered by **N15** (deliberate flattening into a declarative-replace routing table; stages / configs / products are implementation detail that doesn't escape the domain).
+
+### N20 — Instance state machine (running / stopped / terminated)
+
+**Asymmetry.** AWS and Azure share the intuitive state names but differ in details; GCP's names are counterintuitive. AWS: `pending → running`, `stopping → stopped`, `shutting-down → terminated`. GCP: `PROVISIONING → STAGING → RUNNING`; confusingly `TERMINATED` means *stopped* (not deleted); deleted is simply the absence of the resource. Azure: `Creating → Running`, `Deallocating → Deallocated` (stopped but still provisioned — the VM still exists and can be restarted; billing stops), `Deleting` (in progress toward deletion).
+
+**Rule.** The domain carries a four-state enum: `{pending, running, stopped, terminated}`. Backends translate to/from their native state names:
+
+| Domain | AWS | GCP | Azure | K8s (Node) |
+|---|---|---|---|---|
+| `pending` | `pending`, `stopping` (transition) | `PROVISIONING`, `STAGING` | `Creating`, `Starting` | `Unknown` (unready) |
+| `running` | `running` | `RUNNING` | `Running` | `Ready` |
+| `stopped` | `stopped` | `TERMINATED` | `Deallocated` | n/a (NotImplemented) |
+| `terminated` | `terminated` | resource absent | resource absent | n/a (NotImplemented) |
+
+**Trade-off.** GCP's `TERMINATED` is mapped to `stopped` which is semantically correct (the VM retains its disk and IP; it can be restarted) even though the GCP name suggests deletion. Callers seeing `stopped` against a GCP backend will not be surprised by restart succeeding. Azure `Stopped` (VM powered off but still provisioned — still billed) is silently mapped to `stopped`; only `Deallocated` stops billing. Callers cannot distinguish `Stopped` from `Deallocated` through the shim — the intersection only exposes `Deallocated`-level stop.
+
+**Reference.** `internal/compute/domain/instances.go::InstanceState`; per-backend translators in `services/compute/backends/{aws,gcp,azure}/`. Exercised by `TestCompute_InstanceStateRoundtrip_*` in `services/compute/conformance/`.
+
+### N21 — Security group / firewall / NSG semantics (allow-only intersection)
+
+**Asymmetry.** AWS Security Groups are *stateful*: return traffic for allowed connections is automatically permitted. They are attached at the ENI level (not directly to the instance). GCP Firewalls are *stateless*: both directions must be explicitly allowed. They apply at the network level and target resources by tag or service account. Azure NSGs are *stateful*, attached to a subnet or NIC, and use numeric priorities (100–4096) for rule evaluation order; they support both `Allow` and `Deny` rules.
+
+**Rule.** The domain intersection supports *stateful allow-only rules* by protocol + port range + source CIDR — no deny rules, no priorities, no tag targeting, no service-account targeting. Rules are logically attached to a named security group; backends translate:
+- AWS: `AuthorizeSecurityGroupIngress` / `AuthorizeSecurityGroupEgress` on the SG ID.
+- GCP: a Firewall resource with `allowed[{protocol, ports}]` and `sourceRanges` / `destinationRanges`; because GCP firewalls are stateless, the backend adds a matching egress rule when an ingress rule is added, so return traffic is permitted.
+- Azure: a security rule with `direction=Inbound|Outbound`, `access=Allow`, and auto-assigned priority (100 + rule index; stable within a security group's rule list).
+- K8s: a `NetworkPolicy` with ingress/egress rules mapping CIDR to port.
+
+**Trade-off.** GCP backends emit two Firewall resources (one ingress + one egress) per domain rule, which is visible in raw GCP API output. Azure security rules carry auto-assigned priorities; the shim controls priority assignment so priorities remain stable as long as rules are added through the shim. Deny rules and tag-based targeting are out of intersection: attempting to add a deny rule returns `OperationNotSupported`.
+
+**Reference.** `internal/compute/domain/networking.go::SecurityGroupRule`; backend translators in `services/compute/backends/{aws,gcp,azure,k8scompute}/`.
+
+### N22 — Public IP allocation + association model
+
+**Asymmetry.** All three clouds model public IPs as a two-step operation (allocate a static IP, then associate it with an instance), but the association path differs. AWS: `AllocateAddress` → `AssociateAddress` (links to an instance or ENI). GCP: `addresses.insert` (reserves a static external address) → assign via `instances.setMetadata` / NIC configuration update on `instances.insert` or `instances.updateNetworkInterface`. Azure: `publicIPAddresses.createOrUpdate` → assign via the `networkInterfaces.createOrUpdate` resource (the NIC holds the public IP reference, not the VM directly).
+
+**Rule.** Domain exposes two operations: `AllocatePublicIP(region) → PublicIP` and `AssociatePublicIP(instanceID, publicIPID) → void`. Backends translate the association to their native model (ENI association for AWS; NIC update for GCP/Azure). K8s peer: both operations return the source cloud's `OperationNotSupported` — there is no public-IP primitive in the Kubernetes API (LoadBalancer Services expose IPs but those are the LB's concern, not the compute peer's).
+
+**Trade-off.** Azure's association path requires modifying the NIC resource, which creates an LRO. The shim polls the operation to completion before returning — same pattern as other Azure ARM async operations. This makes `AssociatePublicIP` slower against Azure backends than against AWS/GCP backends.
+
+**Reference.** `internal/compute/domain/networking.go::PublicIP`; per-backend association logic in `services/compute/backends/{aws,gcp,azure}/`.
+
+### N23 — Machine / instance type naming (opaque per-cloud)
+
+**Asymmetry.** Each cloud uses its own type naming scheme: AWS uses family+size codes (`t3.micro`, `m6i.xlarge`); GCP uses family-generation-size codes (`e2-micro`, `n2-standard-4`); Azure uses tier+family+size strings (`Standard_B1s`, `Standard_D4s_v3`). There is no universal translation table.
+
+**Rule.** The domain carries `InstanceType string` as an opaque per-cloud string — the same pattern as **N13** (cache node tier) and **N6** (region naming). Frontends accept whatever instance type string the source cloud's SDK emits; backends pass it through unchanged to the destination cloud's API. Cross-cloud Apply that specifies an AWS instance type against an Azure backend will fail with the destination cloud's "invalid instance type" error — the caller must supply a destination-appropriate type.
+
+**Trade-off.** Users writing portable Terraform must parameterise the instance type by cloud. This is consistent with how region names are handled (N6) and is preferable to a shim-maintained translation table that would need constant updates as new instance types ship.
+
+**Reference.** No translation code — the absence of translation IS the rule. `services/compute/APPLY_INTERSECTION.md` documents the cross-cloud Apply limitation.
+
+### N24 — Instance image reference (opaque per-cloud)
+
+**Asymmetry.** Image references are fundamentally per-cloud: AWS uses AMI IDs (`ami-0123456789abcdef0`); GCP uses image resource names / families (`projects/debian-cloud/global/images/family/debian-12`); Azure uses Marketplace publisher:offer:sku:version URNs (`Canonical:UbuntuServer:18.04-LTS:latest`) or Shared Image Gallery resource IDs. No cloud accepts another's image format.
+
+**Rule.** The domain carries `ImageRef string` as an opaque per-cloud string — same pattern as N23. Each cloud's frontend emits the source-cloud image format; each backend passes it to the destination cloud's API unchanged. Cross-cloud Apply that specifies an AMI ID against an Azure backend will fail with the destination cloud's "image not found" error — the caller's responsibility to supply a portable image configuration.
+
+**Trade-off.** Identical to N23. The cross-cloud limitation is documented in `services/compute/APPLY_INTERSECTION.md` and is consistent with the established pattern for per-cloud opaque identifiers (N6, N13, N23).
+
+**Reference.** No translation code. `services/compute/APPLY_INTERSECTION.md`.
+
+### N25 — VPC CIDR assignment (optional at network level for GCP)
+
+**Asymmetry.** AWS requires a CIDR block on `CreateVpc` (e.g. `10.0.0.0/16`) and the VPC owns its CIDR range. Azure requires an `addressSpace` (list of CIDRs) on VNet creation. GCP VPCs are created in *custom mode* (no auto-subnets); the VPC itself has no CIDR — CIDRs are per-subnetwork.
+
+**Rule.** Domain `CreateNetworkOptions.CIDR` is optional (empty string = "not specified"). AWS backend: CIDR is required; if absent the frontend returns `MissingParameter`. Azure backend: CIDR is required; if absent the frontend returns `InvalidParameterValue`. GCP backend: CIDR is accepted but ignored at the network level — it is stored as an annotation (`shim-cidr` label) and passed through to `CreateSubnet` when the caller subsequently creates a subnetwork inside the VPC.
+
+**Trade-off.** GCP callers creating a VPC without subnets will see a `shim-cidr` label on the network resource. Callers relying on the shim to propagate the VPC CIDR to the first subnet must create subnets explicitly (which is the correct pattern for any portable setup).
+
+**Reference.** `internal/compute/domain/networking.go::CreateNetworkOptions`; AWS/Azure frontend validation; GCP backend label annotation in `services/compute/backends/gcp/`.
+
+### N26 — Subnet availability zone (AZ-scoped vs region-scoped vs VNet-scoped)
+
+**Asymmetry.** AWS subnets are scoped to an Availability Zone (`us-east-1a`) within a region. GCP subnetworks are region-scoped with no sub-region constraint. Azure subnets are VNet-scoped with no zone at all (Availability Zones in Azure apply at the VM level, not the subnet level).
+
+**Rule.** Domain `CreateSubnetOptions.Zone` is optional. AWS backend: Zone is required; if absent the backend returns `MissingParameter`. GCP backend: Zone is ignored (subnetworks are regional; the zone is stored in a `shim-zone` label for observability). Azure backend: Zone is ignored entirely (no concept applies). K8s peer: subnets are `NotImplemented` on the K8s peer (no subnet primitive in the Kubernetes API).
+
+**Trade-off.** Cross-cloud Apply with an AWS-style zone-scoped subnet against a GCP backend creates a region-scoped subnetwork — the zone constraint is silently dropped. This is documented in `services/compute/APPLY_INTERSECTION.md`. The alternative (failing with an error when zone is specified against a non-AZ backend) is more correct but breaks Terraform plans that can't easily be zone-conditional.
+
+**Reference.** `internal/compute/domain/networking.go::CreateSubnetOptions`; per-backend zone handling in `services/compute/backends/{gcp,azure}/`.
+
+### N27 — Load balancer layer restriction (layer-4 TCP only)
+
+**Asymmetry.** AWS ELBv2 creates both Network Load Balancers (L4 TCP/UDP/TLS) and Application Load Balancers (L7 HTTP/HTTPS with host/path routing). GCP Cloud Load Balancing has separate External/Internal TCP Proxy, HTTP(S), and Regional TCP/UDP load balancers. Azure has both a Load Balancer (L4) and an Application Gateway (L7 WAF + TLS). The semantics, resource models, and feature sets diverge significantly at L7.
+
+**Rule.** The shim intersection is layer-4 TCP forwarding only: create a TCP load balancer with one or more listeners (protocol + port), a backend pool (set of instance IDs + port), and a TCP health check (path / interval / threshold). L7 features are out of intersection: HTTP host/path routing rules, TLS certificates, WAF policies, HTTPS redirect, sticky sessions with cookie injection, gRPC routing. Attempting to configure L7 features returns the source cloud's `InvalidConfigurationRequest` (or equivalent) error.
+
+**Trade-off.** ALB workloads cannot be migrated through the shim without redesigning the routing layer. This is acceptable for the intersection — ALB is meaningfully richer than any single L4 abstraction, and shimming it would require fabricating L7 behaviour that doesn't exist on all backends.
+
+**Reference.** `internal/loadbalancer/domain/`; `services/loadbalancer/INTERSECTION.md` documents the L7 exclusions. Exercised by `TestLB_Layer7OptionsRejected_*` conformance tests.
