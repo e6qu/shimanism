@@ -1,0 +1,23 @@
+{
+  "_comment": "Phase 16.D load balancer operations from the AWS ELBv2 API (awsQuery protocol). Covers layer-4 TCP LB lifecycle + target groups + listeners. L7/HTTPS operations are out of intersection per N27.",
+  "spec": "services/loadbalancer/spec/aws-elastic-load-balancing-v2.smithy.json",
+  "package": "gen",
+  "out": "services/loadbalancer/gen/aws_elbv2.gen.go",
+  "operations": [
+    "CreateLoadBalancer",
+    "DeleteLoadBalancer",
+    "DescribeLoadBalancers",
+    "CreateTargetGroup",
+    "DeleteTargetGroup",
+    "DescribeTargetGroups",
+    "RegisterTargets",
+    "DeregisterTargets",
+    "DescribeTargetHealth",
+    "CreateListener",
+    "DeleteListener",
+    "DescribeListeners",
+    "AddTags",
+    "RemoveTags",
+    "DescribeTags"
+  ]
+}
