@@ -39,3 +39,15 @@ var restJSONTemplate string
 //
 //go:embed template_awsquery.tmpl
 var awsQueryTemplate string
+
+// ec2QueryTemplate holds the text/template source for the ec2Query
+// wire protocol (EC2, VPC primitives). A variant of awsQuery with two
+// differences: (1) list serialisation is flattened — `Field.N` rather
+// than `Field.member.N`; (2) the error envelope is
+// `<Response><Errors><Error><Code>...` rather than awsQuery's
+// `<ErrorResponse><Error><Type>...`, and success responses are
+// `<OpNameResponse xmlns="..."><requestId>...` without a nested
+// `<OpNameResult>` wrapper.
+//
+//go:embed template_ec2query.tmpl
+var ec2QueryTemplate string

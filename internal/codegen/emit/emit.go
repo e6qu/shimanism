@@ -169,6 +169,8 @@ func (g *gen) serviceProtocol() string {
 			return "aws-json-1.0"
 		case sh.HasTrait("aws.protocols#awsQuery"):
 			return "aws-query"
+		case sh.HasTrait("aws.protocols#ec2Query"):
+			return "ec2-query"
 		case sh.HasTrait("aws.protocols#restJson1"):
 			return "rest-json"
 		case sh.HasTrait("aws.protocols#restXml"):
@@ -499,9 +501,11 @@ func pickTemplate(protocol string) (string, error) {
 		return restJSONTemplate, nil
 	case "aws-query":
 		return awsQueryTemplate, nil
+	case "ec2-query":
+		return ec2QueryTemplate, nil
 	default:
 		return "", fmt.Errorf("codegen: unsupported wire protocol %q "+
-			"(supported: rest-xml, aws-json-1.0, aws-json-1.1, rest-json, aws-query)", protocol)
+			"(supported: rest-xml, aws-json-1.0, aws-json-1.1, rest-json, aws-query, ec2-query)", protocol)
 	}
 }
 

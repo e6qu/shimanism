@@ -8,9 +8,9 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 
 | | |
 |---|---|
-| Active branch | `phase-16-plan` — Phase 16 planning docs (PLAN.md + STATUS.md + DO_NEXT.md). |
-| In-flight | Phase 16 plan committed; 16.A is next (scoping doc + N20–N27 + ec2Query codegen lane). |
-| Last merged | PR #101 — Phase 15 closure narrative. Phase 15 fully closed (15.A ✅ 15.B ✅ 15.C ✅ 15.D ✅). |
+| Active branch | `phase-16a-scoping` — Phase 16.A: ec2Query codegen lane + scoping doc + N20–N27. |
+| In-flight | 16.A. ec2Query runtime + template + codegen hook shipped. Scoping doc + N20–N27 shipped. |
+| Last merged | PR #103 — Phase 16 plan docs. |
 | Upstream watch | Sockerless PRs #368–#372 merged. PR #372 added Firecracker VM lifecycle; three follow-up issues open: [#373](https://github.com/e6qu/sockerless/issues/373) (kvm check), [#374](https://github.com/e6qu/sockerless/issues/374) (disk), [#375](https://github.com/e6qu/sockerless/issues/375) (caching). These block 16.C instance sockerless lane + 16.D RegisterTargets lane. |
 | Phases 1–13 | All closed (Phase 13 closed by PR #20). PR index in [PLAN.md § Closed phases](PLAN.md#closed-phases-pr-index). |
 | Phase 14 | 14.A ✅ · 14.B ✅ · 14.C ✅ · 14.D ✅ (simulator audit) / Track A blocked · 14.E ✅. Remaining residuals (terraform-aws `_wo` drift, SB cross-cloud scoping) carried into Phase 15.B. |
