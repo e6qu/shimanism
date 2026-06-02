@@ -90,7 +90,7 @@ func (m {{ .GoName }}) MarshalXML(e *xml.Encoder, start xml.StartElement) error 
 // {{ .GoName }} is a generated Smithy structure.{{ if .IsError }} It is an error response (HTTP {{ .HTTPError }}).{{ end }}
 type {{ .GoName }} struct {
 {{- range .Fields }}
-	{{ .GoName }} {{ .GoType }} `xml:"{{ .GoName }},omitempty"`
+	{{ .GoName }} {{ .GoType }} `xml:"{{ .XMLTag }}"`
 {{- end }}
 }
 {{ end }}
