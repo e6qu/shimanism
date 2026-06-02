@@ -1,0 +1,6 @@
+{
+  "_comment": "GCP Compute Engine v1 Discovery JSON drives the spec-driven routing layer for Phase 16.B (networking) and 16.C (instances). cmd/gcp-codegen emits a Routes slice of (httpMethod, uriPattern, operationID) triples; the gcp_compute frontend uses those to validate dispatch coverage against the upstream spec. Wire types come from google.golang.org/api/compute/v1 directly per AGENTS.md decision #11.",
+  "spec": "services/compute/spec/gcp-compute-discovery.json",
+  "package": "gcp",
+  "out": "services/compute/gen/gcp/gcp_compute.gen.go"
+}
