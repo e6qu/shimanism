@@ -39,7 +39,10 @@ The Azure sim requires `SIM_SERVICEBUS_AMQP_LISTEN_ADDR` on a separate port (han
 All prior sockerless gaps closed. Recent merges:
 
 - [sockerless PR #361](https://github.com/e6qu/sockerless/pull/361) ✅ — DynamoDB `DeleteItem ReturnValues=ALL_OLD`.
-- [sockerless PR #364](https://github.com/e6qu/sockerless/pull/364) ✅ — GCP/Azure security (nftables NIC filters) + load-balancer data planes. No current shim dependency.
+- [sockerless PR #364](https://github.com/e6qu/sockerless/pull/364) ✅ — GCP/Azure security (nftables NIC filters) + load-balancer data planes.
+- [sockerless PR #368](https://github.com/e6qu/sockerless/pull/368) ✅ — Azure Entra authorization-code flow (PKCE, ID tokens, refresh tokens). No current shim dependency; relevant if we test interactive auth scenarios.
+- [sockerless PR #369](https://github.com/e6qu/sockerless/pull/369) ✅ — Azure SDK local portability (macOS Docker harness, Event Grid resolver). Build infra only.
+- [sockerless PR #370](https://github.com/e6qu/sockerless/pull/370) ✅ — Dockerfile build context fixes + `.dockerignore` + `SIM_RUNTIME=process` docs. Build infra only.
 
 ## Standing rules
 
