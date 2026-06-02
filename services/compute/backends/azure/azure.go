@@ -14,6 +14,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/arm"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/to"
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v6"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v6"
 
 	"github.com/e6qu/shimanism/internal/compute/domain"
@@ -23,18 +24,23 @@ import (
 type Options struct {
 	SubscriptionID string
 	ResourceGroup  string
+	Location       string // Azure location (default "eastus") for VM size queries
 	ClientOptions  *arm.ClientOptions
 }
 
-// Backend implements domain.Networking via Azure Network ARM.
+// Backend implements domain.Networking and domain.Instances via Azure ARM.
 type Backend struct {
-	sub  string
-	rg   string
+	sub string
+	rg  string
+	// Network clients (Phase 16.B)
 	vnc  *armnetwork.VirtualNetworksClient
 	snc  *armnetwork.SubnetsClient
 	nsgc *armnetwork.SecurityGroupsClient
 	src  *armnetwork.SecurityRulesClient
 	pipc *armnetwork.PublicIPAddressesClient
+	// Compute clients (Phase 16.C)
+	vmc *armcompute.VirtualMachinesClient
+	loc string // Azure location for VM size queries (default "eastus")
 }
 
 // New creates a Backend from a credential + options.
@@ -60,11 +66,20 @@ func New(cred azcore.TokenCredential, opt Options) (*Backend, error) {
 	if err != nil {
 		return nil, fmt.Errorf("PublicIPAddresses client: %w", err)
 	}
-	return &Backend{sub: opt.SubscriptionID, rg: opt.ResourceGroup,
-		vnc: vnc, snc: snc, nsgc: nsgc, src: src, pipc: pipc}, nil
+	vmc, err := armcompute.NewVirtualMachinesClient(opt.SubscriptionID, cred, co)
+	if err != nil {
+		return nil, fmt.Errorf("VirtualMachines client: %w", err)
+	}
+	loc := opt.Location
+	if loc == "" {
+		loc = "eastus"
+	}
+	return &Backend{sub: opt.SubscriptionID, rg: opt.ResourceGroup, loc: loc,
+		vnc: vnc, snc: snc, nsgc: nsgc, src: src, pipc: pipc, vmc: vmc}, nil
 }
 
 var _ domain.Networking = (*Backend)(nil)
+var _ domain.Instances = (*Backend)(nil)
 
 // ─── Networks (VNets) ─────────────────────────────────────────────────
 
@@ -543,4 +558,206 @@ func contains(s string, substrs ...string) bool {
 		}
 	}
 	return false
+}
+
+// ─── domain.Instances implementation ─────────────────────────────────
+
+func (b *Backend) RunInstances(ctx context.Context, opt domain.RunInstancesOptions) ([]domain.Instance, error) {
+	count := opt.MaxCount
+	if count < 1 {
+		count = 1
+	}
+	var launched []domain.Instance
+	for i := 0; i < count; i++ {
+		name := opt.Tags["Name"]
+		if name == "" {
+			name = fmt.Sprintf("shim-vm-%d", i)
+		}
+		vmSize := armcompute.VirtualMachineSizeTypes(opt.InstanceType)
+		vm := armcompute.VirtualMachine{
+			Location: to.Ptr(b.loc),
+			Properties: &armcompute.VirtualMachineProperties{
+				HardwareProfile: &armcompute.HardwareProfile{VMSize: &vmSize},
+				StorageProfile: &armcompute.StorageProfile{
+					ImageReference: &armcompute.ImageReference{ID: to.Ptr(opt.ImageID)},
+					OSDisk: &armcompute.OSDisk{
+						CreateOption: to.Ptr(armcompute.DiskCreateOptionTypesFromImage),
+					},
+				},
+				OSProfile: &armcompute.OSProfile{
+					ComputerName:  to.Ptr(name),
+					AdminUsername: to.Ptr("azureuser"),
+				},
+				NetworkProfile: &armcompute.NetworkProfile{},
+			},
+		}
+		poller, err := b.vmc.BeginCreateOrUpdate(ctx, b.rg, name, vm, nil)
+		if err != nil {
+			return nil, fmt.Errorf("BeginCreateOrUpdate %s: %w", name, err)
+		}
+		created, err := poller.PollUntilDone(ctx, nil)
+		if err != nil {
+			return nil, fmt.Errorf("CreateOrUpdate %s: %w", name, err)
+		}
+		launched = append(launched, azureVMToDomain(created.VirtualMachine))
+	}
+	return launched, nil
+}
+
+func (b *Backend) DescribeInstances(ctx context.Context, opt domain.DescribeInstancesOptions) (domain.DescribeInstancesResult, error) {
+	pager := b.vmc.NewListPager(b.rg, nil)
+	wantID := map[string]bool{}
+	for _, id := range opt.IDs {
+		wantID[id] = true
+	}
+	var out []domain.Instance
+	for pager.More() {
+		page, err := pager.NextPage(ctx)
+		if err != nil {
+			return domain.DescribeInstancesResult{}, fmt.Errorf("VMs.List: %w", err)
+		}
+		for _, vm := range page.Value {
+			inst := azureVMToDomain(*vm)
+			if len(wantID) > 0 && !wantID[inst.ID] && !wantID[inst.Name] {
+				continue
+			}
+			out = append(out, inst)
+		}
+	}
+	return domain.DescribeInstancesResult{Instances: out}, nil
+}
+
+func (b *Backend) StartInstances(ctx context.Context, ids []string) ([]domain.Instance, error) {
+	for _, id := range ids {
+		poller, err := b.vmc.BeginStart(ctx, b.rg, id, nil)
+		if err != nil {
+			return nil, fmt.Errorf("BeginStart %s: %w", id, err)
+		}
+		if _, err := poller.PollUntilDone(ctx, nil); err != nil {
+			return nil, fmt.Errorf("start %s: %w", id, err)
+		}
+	}
+	return b.describeByIDs(ctx, ids)
+}
+
+func (b *Backend) StopInstances(ctx context.Context, ids []string) ([]domain.Instance, error) {
+	for _, id := range ids {
+		poller, err := b.vmc.BeginDeallocate(ctx, b.rg, id, nil)
+		if err != nil {
+			return nil, fmt.Errorf("BeginDeallocate %s: %w", id, err)
+		}
+		if _, err := poller.PollUntilDone(ctx, nil); err != nil {
+			return nil, fmt.Errorf("deallocate %s: %w", id, err)
+		}
+	}
+	return b.describeByIDs(ctx, ids)
+}
+
+func (b *Backend) TerminateInstances(ctx context.Context, ids []string) ([]domain.Instance, error) {
+	instances, err := b.describeByIDs(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	for _, id := range ids {
+		poller, err := b.vmc.BeginDelete(ctx, b.rg, id, nil)
+		if err != nil {
+			return nil, fmt.Errorf("BeginDelete %s: %w", id, err)
+		}
+		if _, err := poller.PollUntilDone(ctx, nil); err != nil {
+			return nil, fmt.Errorf("delete %s: %w", id, err)
+		}
+	}
+	for i := range instances {
+		instances[i].State = domain.InstanceStateTerminated
+	}
+	return instances, nil
+}
+
+func (b *Backend) RebootInstances(ctx context.Context, ids []string) error {
+	for _, id := range ids {
+		poller, err := b.vmc.BeginRestart(ctx, b.rg, id, nil)
+		if err != nil {
+			return fmt.Errorf("BeginRestart %s: %w", id, err)
+		}
+		if _, err := poller.PollUntilDone(ctx, nil); err != nil {
+			return fmt.Errorf("restart %s: %w", id, err)
+		}
+	}
+	return nil
+}
+
+func (b *Backend) DescribeInstanceTypes(ctx context.Context, opt domain.DescribeInstanceTypesOptions) (domain.DescribeInstanceTypesResult, error) {
+	// Azure VM sizes are not filterable by name on the list API;
+	// we list all and filter client-side.
+	want := map[string]bool{}
+	for _, t := range opt.InstanceTypes {
+		want[t] = true
+	}
+	vmSizesClient, err := armcompute.NewVirtualMachineSizesClient(b.sub, nil, nil)
+	if err != nil {
+		return domain.DescribeInstanceTypesResult{}, fmt.Errorf("VirtualMachineSizes client: %w", err)
+	}
+	pager := vmSizesClient.NewListPager(b.loc, nil)
+	var out []domain.InstanceTypeInfo
+	for pager.More() {
+		page, err := pager.NextPage(ctx)
+		if err != nil {
+			return domain.DescribeInstanceTypesResult{}, fmt.Errorf("VMSizes.List: %w", err)
+		}
+		for _, s := range page.Value {
+			name := ""
+			if s.Name != nil {
+				name = *s.Name
+			}
+			if len(want) > 0 && !want[name] {
+				continue
+			}
+			info := domain.InstanceTypeInfo{InstanceType: name}
+			if s.NumberOfCores != nil {
+				info.VCPUs = int(*s.NumberOfCores)
+			}
+			if s.MemoryInMB != nil {
+				info.MemoryMiB = int(*s.MemoryInMB)
+			}
+			out = append(out, info)
+		}
+	}
+	return domain.DescribeInstanceTypesResult{InstanceTypes: out}, nil
+}
+
+func (b *Backend) describeByIDs(ctx context.Context, ids []string) ([]domain.Instance, error) {
+	res, err := b.DescribeInstances(ctx, domain.DescribeInstancesOptions{IDs: ids})
+	if err != nil {
+		return nil, err
+	}
+	return res.Instances, nil
+}
+
+func azureVMToDomain(vm armcompute.VirtualMachine) domain.Instance {
+	name := ""
+	if vm.Name != nil {
+		name = *vm.Name
+	}
+	state := domain.InstanceStateRunning
+	if vm.Properties != nil && vm.Properties.ProvisioningState != nil {
+		switch string(*vm.Properties.ProvisioningState) {
+		case "Deallocated", "Deallocating", "Stopping":
+			state = domain.InstanceStateStopped
+		case "Deleting":
+			state = domain.InstanceStateTerminated
+		case "Creating", "Updating":
+			state = domain.InstanceStatePending
+		}
+	}
+	it := ""
+	if vm.Properties != nil && vm.Properties.HardwareProfile != nil &&
+		vm.Properties.HardwareProfile.VMSize != nil {
+		it = string(*vm.Properties.HardwareProfile.VMSize)
+	}
+	return domain.Instance{
+		ID:           name,
+		Name:         name,
+		InstanceType: it,
+		State:        state,
+	}
 }

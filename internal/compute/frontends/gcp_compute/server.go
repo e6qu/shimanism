@@ -1,21 +1,20 @@
 // Package gcp_compute is the GCP Compute Engine v1 frontend for
-// shimanism's compute service, Phase 16.B (networking primitives).
-// It speaks the HTTP+JSON wire protocol that
-// google.golang.org/api/compute/v1 (the Discovery-generated REST SDK)
-// and `gcloud compute` drive, and translates each request into a call
-// on the neutral domain.Networking interface.
+// shimanism's compute service. It speaks the HTTP+JSON wire protocol
+// that google.golang.org/api/compute/v1 (the Discovery-generated REST
+// SDK) and `gcloud compute` drive, and translates each request into
+// calls on domain.Networking and domain.Instances.
 //
 // Per AGENTS.md's reuse-over-reinvention rule, the request/response
 // wire types come from google.golang.org/api/compute/v1 directly —
 // the same raw types the SDK is generated from.
 //
-// Routes covered in Phase 16.B (networking only):
+// Routes covered (Phase 16.B + 16.C):
 //   - networks.insert / delete / list / get
 //   - subnetworks.insert / delete / list / get
 //   - firewalls.insert / delete / patch / list / get
 //   - addresses.insert / delete / list / get  (regional)
-//
-// Instances and other compute operations are added in Phase 16.C.
+//   - instances.insert / delete / start / stop / reset / get / list / aggregatedList
+//   - machineTypes.list / get  (zonal + aggregated)
 package gcp_compute
 
 import (
@@ -32,17 +31,23 @@ import (
 	_ "github.com/e6qu/shimanism/services/compute/gen/gcp" // spec-drift contract
 )
 
-// Server is a Compute-Engine-v1-shaped HTTP frontend dispatching to a
-// domain.Networking backend.
+// ComputeBackend is satisfied by any type that implements both
+// domain.Networking and domain.Instances.
+type ComputeBackend interface {
+	domain.Networking
+	domain.Instances
+}
+
+// Server is a Compute-Engine-v1-shaped HTTP frontend.
 type Server struct {
-	n domain.Networking
+	n ComputeBackend
 }
 
 // New returns a frontend bound to the given backend.
-func New(n domain.Networking) *Server { return &Server{n: n} }
+func New(n ComputeBackend) *Server { return &Server{n: n} }
 
 // Handler wraps Server with the GCP bearer verifier middleware.
-func Handler(n domain.Networking) http.Handler {
+func Handler(n ComputeBackend) http.Handler {
 	verifier := gcpbearer.New(gcpbearer.Options{
 		Audience: "https://compute.googleapis.com/",
 		TestKey:  []byte("test-key-do-not-use-in-prod"),
@@ -84,8 +89,14 @@ func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		srv.routeNetworks(w, r, strings.TrimPrefix(rest, "global/networks"))
 	case strings.HasPrefix(rest, "global/firewalls"):
 		srv.routeFirewalls(w, r, strings.TrimPrefix(rest, "global/firewalls"))
+	case strings.HasPrefix(rest, "aggregated/instances"):
+		srv.aggregatedListInstances(w, r)
+	case strings.HasPrefix(rest, "aggregated/machineTypes"):
+		srv.aggregatedListMachineTypes(w, r)
 	case strings.HasPrefix(rest, "regions/"):
 		srv.routeRegional(w, r, strings.TrimPrefix(rest, "regions/"))
+	case strings.HasPrefix(rest, "zones/"):
+		srv.routeZonal(w, r, strings.TrimPrefix(rest, "zones/"))
 	default:
 		writeError(w, http.StatusNotFound, "Resource not found: "+r.URL.Path)
 	}
@@ -669,6 +680,16 @@ func addrID(id string) uint64 {
 // insertOperation returns a synthetic compute#operation for insert/create.
 // GCP's Operation.Id is a uint64 serialized as a JSON string (has `,string`
 // tag in the SDK struct), so emit it as a quoted string.
+func gcpOperation(opType, id string) map[string]any {
+	return map[string]any{
+		"kind":          "compute#operation",
+		"id":            fmt.Sprintf("%d", addrID(id)),
+		"operationType": opType,
+		"status":        "DONE",
+		"progress":      100,
+	}
+}
+
 func insertOperation(resourceType, id string) map[string]any {
 	return map[string]any{
 		"kind":          "compute#operation",
@@ -741,4 +762,367 @@ func httpStatusToGCPStatus(code int) string {
 	default:
 		return "INTERNAL"
 	}
+}
+
+// ─── Zonal routing (instances + machineTypes) ─────────────────────────
+//
+// Path: zones/{zone}/instances/{name}
+//       zones/{zone}/machineTypes/{name}
+//       zones/{zone}/instances/{name}/start|stop|reset  (POST sub-actions)
+
+func (srv *Server) routeZonal(w http.ResponseWriter, r *http.Request, rest string) {
+	// rest = "{zone}/instances/..." or "{zone}/machineTypes/..."
+	slash := strings.Index(rest, "/")
+	if slash < 0 {
+		writeError(w, http.StatusNotFound, "Resource not found")
+		return
+	}
+	// zone = rest[:slash]; shim is zone-agnostic
+	tail := rest[slash+1:]
+	switch {
+	case strings.HasPrefix(tail, "instances"):
+		srv.routeInstances(w, r, strings.TrimPrefix(tail, "instances"))
+	case strings.HasPrefix(tail, "machineTypes"):
+		srv.routeMachineTypes(w, r, strings.TrimPrefix(tail, "machineTypes"))
+	default:
+		writeError(w, http.StatusNotFound, "Zonal resource type not supported: "+tail)
+	}
+}
+
+// ─── Instances ────────────────────────────────────────────────────────
+
+func (srv *Server) routeInstances(w http.ResponseWriter, r *http.Request, tail string) {
+	tail = strings.TrimPrefix(tail, "/")
+	if tail == "" {
+		switch r.Method {
+		case http.MethodGet:
+			srv.listInstances(w, r)
+		case http.MethodPost:
+			srv.insertInstance(w, r)
+		default:
+			writeError(w, http.StatusMethodNotAllowed, r.Method+" not allowed")
+		}
+		return
+	}
+	// Check for sub-resource actions: {name}/start, {name}/stop, {name}/reset
+	if idx := strings.Index(tail, "/"); idx >= 0 {
+		name, action := tail[:idx], strings.TrimPrefix(tail[idx:], "/")
+		switch action {
+		case "start":
+			srv.startInstance(w, r, name)
+		case "stop":
+			srv.stopInstance(w, r, name)
+		case "reset":
+			srv.resetInstance(w, r, name)
+		default:
+			writeError(w, http.StatusNotFound, "Instance action not supported: "+action)
+		}
+		return
+	}
+	name := tail
+	switch r.Method {
+	case http.MethodGet:
+		srv.getInstance(w, r, name)
+	case http.MethodDelete:
+		srv.deleteInstance(w, r, name)
+	default:
+		writeError(w, http.StatusMethodNotAllowed, r.Method+" not allowed")
+	}
+}
+
+func (srv *Server) insertInstance(w http.ResponseWriter, r *http.Request) {
+	var req computeraw.Instance
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
+		return
+	}
+	tags := gcpLabelsToTags(req.Labels)
+	if tags == nil {
+		tags = map[string]string{}
+	}
+	// Preserve the instance name via the Tags["Name"] path; inmem uses
+	// it as the display name when non-empty.
+	if req.Name != "" {
+		tags["Name"] = req.Name
+	}
+	opts := domain.RunInstancesOptions{
+		MinCount: 1,
+		MaxCount: 1,
+		Tags:     tags,
+	}
+	if req.MachineType != "" {
+		opts.InstanceType = gcpLastPathSeg(req.MachineType)
+	}
+	for _, disk := range req.Disks {
+		if disk.InitializeParams != nil && opts.ImageID == "" {
+			opts.ImageID = gcpLastPathSeg(disk.InitializeParams.SourceImage)
+		}
+	}
+	if opts.ImageID == "" {
+		opts.ImageID = "unknown"
+	}
+	instances, err := srv.n.RunInstances(r.Context(), opts)
+	if err != nil {
+		writeComputeErr(w, err)
+		return
+	}
+	inst := instances[0]
+	writeJSON(w, http.StatusOK, gcpOperation("insert", inst.ID))
+}
+
+func (srv *Server) getInstance(w http.ResponseWriter, r *http.Request, name string) {
+	res, err := srv.n.DescribeInstances(r.Context(), domain.DescribeInstancesOptions{IDs: []string{name}})
+	if err != nil {
+		writeComputeErr(w, err)
+		return
+	}
+	// Also try name lookup since inmem uses IDs but GCP uses names.
+	if len(res.Instances) == 0 {
+		res, err = srv.findInstanceByName(r, name)
+		if err != nil {
+			writeComputeErr(w, err)
+			return
+		}
+	}
+	if len(res.Instances) == 0 {
+		writeError(w, http.StatusNotFound, "Instance '"+name+"' not found")
+		return
+	}
+	writeJSON(w, http.StatusOK, domainInstanceToGCP(res.Instances[0]))
+}
+
+func (srv *Server) listInstances(w http.ResponseWriter, r *http.Request) {
+	res, err := srv.n.DescribeInstances(r.Context(), domain.DescribeInstancesOptions{})
+	if err != nil {
+		writeComputeErr(w, err)
+		return
+	}
+	list := &computeraw.InstanceList{Kind: "compute#instanceList"}
+	for _, inst := range res.Instances {
+		inst := inst
+		list.Items = append(list.Items, domainInstanceToGCP(inst))
+	}
+	writeJSON(w, http.StatusOK, list)
+}
+
+func (srv *Server) aggregatedListInstances(w http.ResponseWriter, r *http.Request) {
+	res, err := srv.n.DescribeInstances(r.Context(), domain.DescribeInstancesOptions{})
+	if err != nil {
+		writeComputeErr(w, err)
+		return
+	}
+	items := map[string]any{}
+	var gcpItems []*computeraw.Instance
+	for _, inst := range res.Instances {
+		inst := inst
+		gcpItems = append(gcpItems, domainInstanceToGCP(inst))
+	}
+	if len(gcpItems) > 0 {
+		items["zones/us-central1-a"] = map[string]any{"instances": gcpItems}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"kind":  "compute#instanceAggregatedList",
+		"items": items,
+	})
+}
+
+func (srv *Server) deleteInstance(w http.ResponseWriter, r *http.Request, name string) {
+	res, err := srv.findInstanceByNameOrID(r, name)
+	if err != nil || len(res.Instances) == 0 {
+		writeError(w, http.StatusNotFound, "Instance '"+name+"' not found")
+		return
+	}
+	if _, err := srv.n.TerminateInstances(r.Context(), []string{res.Instances[0].ID}); err != nil {
+		writeComputeErr(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, gcpOperation("delete", res.Instances[0].ID))
+}
+
+func (srv *Server) startInstance(w http.ResponseWriter, r *http.Request, name string) {
+	res, err := srv.findInstanceByNameOrID(r, name)
+	if err != nil || len(res.Instances) == 0 {
+		writeError(w, http.StatusNotFound, "Instance '"+name+"' not found")
+		return
+	}
+	if _, err := srv.n.StartInstances(r.Context(), []string{res.Instances[0].ID}); err != nil {
+		writeComputeErr(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, gcpOperation("start", res.Instances[0].ID))
+}
+
+func (srv *Server) stopInstance(w http.ResponseWriter, r *http.Request, name string) {
+	res, err := srv.findInstanceByNameOrID(r, name)
+	if err != nil || len(res.Instances) == 0 {
+		writeError(w, http.StatusNotFound, "Instance '"+name+"' not found")
+		return
+	}
+	if _, err := srv.n.StopInstances(r.Context(), []string{res.Instances[0].ID}); err != nil {
+		writeComputeErr(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, gcpOperation("stop", res.Instances[0].ID))
+}
+
+func (srv *Server) resetInstance(w http.ResponseWriter, r *http.Request, name string) {
+	res, err := srv.findInstanceByNameOrID(r, name)
+	if err != nil || len(res.Instances) == 0 {
+		writeError(w, http.StatusNotFound, "Instance '"+name+"' not found")
+		return
+	}
+	if err := srv.n.RebootInstances(r.Context(), []string{res.Instances[0].ID}); err != nil {
+		writeComputeErr(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, gcpOperation("reset", res.Instances[0].ID))
+}
+
+// ─── MachineTypes ─────────────────────────────────────────────────────
+
+func (srv *Server) routeMachineTypes(w http.ResponseWriter, r *http.Request, tail string) {
+	tail = strings.TrimPrefix(tail, "/")
+	if tail == "" {
+		srv.listMachineTypes(w, r)
+		return
+	}
+	switch r.Method {
+	case http.MethodGet:
+		srv.getMachineType(w, r, tail)
+	default:
+		writeError(w, http.StatusMethodNotAllowed, r.Method+" not allowed")
+	}
+}
+
+func (srv *Server) listMachineTypes(w http.ResponseWriter, r *http.Request) {
+	res, err := srv.n.DescribeInstanceTypes(r.Context(), domain.DescribeInstanceTypesOptions{})
+	if err != nil {
+		writeComputeErr(w, err)
+		return
+	}
+	list := &computeraw.MachineTypeList{Kind: "compute#machineTypeList"}
+	for _, t := range res.InstanceTypes {
+		t := t
+		list.Items = append(list.Items, domainTypeToGCP(t))
+	}
+	writeJSON(w, http.StatusOK, list)
+}
+
+func (srv *Server) getMachineType(w http.ResponseWriter, r *http.Request, name string) {
+	res, err := srv.n.DescribeInstanceTypes(r.Context(), domain.DescribeInstanceTypesOptions{
+		InstanceTypes: []string{name},
+	})
+	if err != nil {
+		writeComputeErr(w, err)
+		return
+	}
+	if len(res.InstanceTypes) == 0 {
+		writeError(w, http.StatusNotFound, "MachineType '"+name+"' not found")
+		return
+	}
+	writeJSON(w, http.StatusOK, domainTypeToGCP(res.InstanceTypes[0]))
+}
+
+func (srv *Server) aggregatedListMachineTypes(w http.ResponseWriter, r *http.Request) {
+	res, err := srv.n.DescribeInstanceTypes(r.Context(), domain.DescribeInstanceTypesOptions{})
+	if err != nil {
+		writeComputeErr(w, err)
+		return
+	}
+	var items []*computeraw.MachineType
+	for _, t := range res.InstanceTypes {
+		t := t
+		items = append(items, domainTypeToGCP(t))
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"kind":  "compute#machineTypeAggregatedList",
+		"items": map[string]any{"zones/us-central1-a": map[string]any{"machineTypes": items}},
+	})
+}
+
+// ─── Instance helpers ─────────────────────────────────────────────────
+
+func (srv *Server) findInstanceByName(r *http.Request, name string) (domain.DescribeInstancesResult, error) {
+	res, err := srv.n.DescribeInstances(r.Context(), domain.DescribeInstancesOptions{})
+	if err != nil {
+		return domain.DescribeInstancesResult{}, err
+	}
+	for _, inst := range res.Instances {
+		if inst.Name == name || inst.ID == name {
+			return domain.DescribeInstancesResult{Instances: []domain.Instance{inst}}, nil
+		}
+	}
+	return domain.DescribeInstancesResult{}, nil
+}
+
+func (srv *Server) findInstanceByNameOrID(r *http.Request, nameOrID string) (domain.DescribeInstancesResult, error) {
+	// Try by ID first.
+	res, err := srv.n.DescribeInstances(r.Context(), domain.DescribeInstancesOptions{IDs: []string{nameOrID}})
+	if err == nil && len(res.Instances) > 0 {
+		return res, nil
+	}
+	return srv.findInstanceByName(r, nameOrID)
+}
+
+func domainInstanceToGCP(inst domain.Instance) *computeraw.Instance {
+	status := "RUNNING"
+	switch inst.State {
+	case domain.InstanceStateStopped:
+		status = "TERMINATED"
+	case domain.InstanceStatePending:
+		status = "PROVISIONING"
+	case domain.InstanceStateTerminated:
+		status = "TERMINATED"
+	}
+	g := &computeraw.Instance{
+		Id:          gcpIDHash(inst.ID),
+		Name:        inst.Name,
+		MachineType: fmt.Sprintf("zones/us-central1-a/machineTypes/%s", inst.InstanceType),
+		Status:      status,
+		SelfLink:    fmt.Sprintf("https://www.googleapis.com/compute/v1/projects/shim/zones/us-central1-a/instances/%s", inst.Name),
+	}
+	if inst.PrivateIP != "" {
+		g.NetworkInterfaces = []*computeraw.NetworkInterface{
+			{NetworkIP: inst.PrivateIP},
+		}
+	}
+	return g
+}
+
+func domainTypeToGCP(t domain.InstanceTypeInfo) *computeraw.MachineType {
+	return &computeraw.MachineType{
+		Id:        gcpIDHash(t.InstanceType),
+		Name:      t.InstanceType,
+		GuestCpus: int64(t.VCPUs),
+		MemoryMb:  int64(t.MemoryMiB),
+		SelfLink:  fmt.Sprintf("https://www.googleapis.com/compute/v1/projects/shim/zones/us-central1-a/machineTypes/%s", t.InstanceType),
+	}
+}
+
+func gcpIDHash(id string) uint64 {
+	var h uint64
+	for _, c := range id {
+		h = h*31 + uint64(c)
+	}
+	return h
+}
+
+func gcpLastPathSeg(url string) string {
+	for i := len(url) - 1; i >= 0; i-- {
+		if url[i] == '/' {
+			return url[i+1:]
+		}
+	}
+	return url
+}
+
+func gcpLabelsToTags(labels map[string]string) map[string]string {
+	if len(labels) == 0 {
+		return nil
+	}
+	out := make(map[string]string, len(labels))
+	for k, v := range labels {
+		out[k] = v
+	}
+	return out
 }

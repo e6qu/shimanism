@@ -29,6 +29,7 @@ import (
 	gcpmsfront "github.com/e6qu/shimanism/internal/cache/frontends/gcp_memorystore"
 	computedomain "github.com/e6qu/shimanism/internal/compute/domain"
 	awsec2front "github.com/e6qu/shimanism/internal/compute/frontends/aws_ec2"
+	azurecomputefront "github.com/e6qu/shimanism/internal/compute/frontends/azure_compute"
 	azurenetfront "github.com/e6qu/shimanism/internal/compute/frontends/azure_network"
 	gcpcomputefront "github.com/e6qu/shimanism/internal/compute/frontends/gcp_compute"
 	dnsdomain "github.com/e6qu/shimanism/internal/dns/domain"
@@ -825,11 +826,12 @@ func StartComputeServerAWS(t *testing.T, backend awsec2front.ComputeBackend) *Co
 }
 
 // StartComputeServerGCP starts a shim instance with the GCP Compute
-// Engine v1 (REST) frontend backed by the given networking
-// implementation. GCP-shaped clients (google.golang.org/api/compute/v1,
+// Engine v1 (REST) frontend backed by the given compute backend. The
+// backend must implement both domain.Networking and domain.Instances.
+// GCP-shaped clients (google.golang.org/api/compute/v1,
 // gcloud compute, hashicorp/google Terraform provider) drive it via
 // the endpoint-override path.
-func StartComputeServerGCP(t *testing.T, backend computedomain.Networking) *ComputeServer {
+func StartComputeServerGCP(t *testing.T, backend gcpcomputefront.ComputeBackend) *ComputeServer {
 	t.Helper()
 	srv := gcpcomputefront.Handler(backend)
 	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
@@ -845,6 +847,19 @@ func StartComputeServerGCP(t *testing.T, backend computedomain.Networking) *Comp
 func StartComputeServerAzure(t *testing.T, backend computedomain.Networking) *ComputeServer {
 	t.Helper()
 	srv := azurenetfront.Handler(backend)
+	ts := httptest.NewTLSServer(&logRoundTrip{t: t, mux: srv})
+	t.Cleanup(ts.Close)
+	return &ComputeServer{URL: ts.URL, Close: ts.Close}
+}
+
+// StartComputeServerAzureVM starts a shim instance with the Azure Compute
+// ARM frontend (Microsoft.Compute/virtualMachines) backed by the given
+// backend. The httptest server uses TLS so the Azure SDK sends Bearer
+// tokens. Azure-shaped clients (armcompute/v6) drive it via the
+// endpoint-override path.
+func StartComputeServerAzureVM(t *testing.T, backend azurecomputefront.ComputeBackend) *ComputeServer {
+	t.Helper()
+	srv := azurecomputefront.Handler(backend)
 	ts := httptest.NewTLSServer(&logRoundTrip{t: t, mux: srv})
 	t.Cleanup(ts.Close)
 	return &ComputeServer{URL: ts.URL, Close: ts.Close}

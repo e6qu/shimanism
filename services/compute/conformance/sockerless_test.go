@@ -192,3 +192,13 @@ func TestSockerless_AWSEC2_Through_Shim_SecurityGroup(t *testing.T) {
 		t.Fatalf("DeleteSecurityGroup: %v", err)
 	}
 }
+
+// TestSockerless_EC2_Instances_ThroughShim is gated on sockerless
+// issues #373 (kvm check), #374 (disk exhaustion), and #375 (asset
+// caching). All three must close before this test can be un-skipped,
+// because instance lifecycle in sockerless requires a real Firecracker
+// VM boot and the three issues make that unreliable in CI.
+func TestSockerless_EC2_Instances_ThroughShim(t *testing.T) {
+	t.Skip("gated on sockerless #373 (kvm check) + #374 (disk) + #375 (asset cache); " +
+		"un-skip once all three close")
+}

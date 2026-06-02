@@ -13,6 +13,7 @@ package gcp
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"google.golang.org/api/compute/v1"
 	"google.golang.org/api/googleapi"
@@ -33,6 +34,7 @@ func New(svc *compute.Service, project, region string) *Backend {
 }
 
 var _ domain.Networking = (*Backend)(nil)
+var _ domain.Instances = (*Backend)(nil)
 
 // ─── Networks ────────────────────────────────────────────────────────
 
@@ -425,4 +427,168 @@ func errAs(err error, target **googleapi.Error) bool {
 		return true
 	}
 	return false
+}
+
+// ─── Instances ────────────────────────────────────────────────────────
+//
+// GCP zone: shim uses b.region + "-a" as a single default zone.
+// Stateless: no ID mapping; instance Name is used as domain ID.
+
+func (b *Backend) defaultZone() string { return b.region + "-a" }
+
+func (b *Backend) RunInstances(ctx context.Context, opt domain.RunInstancesOptions) ([]domain.Instance, error) {
+	count := opt.MaxCount
+	if count < 1 {
+		count = 1
+	}
+	var launched []domain.Instance
+	for i := 0; i < count; i++ {
+		name := fmt.Sprintf("shim-inst-%d", i)
+		if opt.Tags["Name"] != "" && count == 1 {
+			name = opt.Tags["Name"]
+		}
+		inst := &compute.Instance{
+			Name:        name,
+			MachineType: fmt.Sprintf("zones/%s/machineTypes/%s", b.defaultZone(), opt.InstanceType),
+			Disks: []*compute.AttachedDisk{{
+				Boot:             true,
+				InitializeParams: &compute.AttachedDiskInitializeParams{SourceImage: opt.ImageID},
+			}},
+			NetworkInterfaces: []*compute.NetworkInterface{{}},
+		}
+		op, err := b.svc.Instances.Insert(b.project, b.defaultZone(), inst).Context(ctx).Do()
+		if err != nil {
+			return nil, fmt.Errorf("instances.insert: %w", err)
+		}
+		launched = append(launched, domain.Instance{
+			ID:           op.Name,
+			Name:         name,
+			ImageID:      opt.ImageID,
+			InstanceType: opt.InstanceType,
+			State:        domain.InstanceStateRunning,
+		})
+	}
+	return launched, nil
+}
+
+func (b *Backend) DescribeInstances(ctx context.Context, opt domain.DescribeInstancesOptions) (domain.DescribeInstancesResult, error) {
+	list, err := b.svc.Instances.List(b.project, b.defaultZone()).Context(ctx).Do()
+	if err != nil {
+		return domain.DescribeInstancesResult{}, fmt.Errorf("instances.list: %w", err)
+	}
+	wantID := map[string]bool{}
+	for _, id := range opt.IDs {
+		wantID[id] = true
+	}
+	var out []domain.Instance
+	for _, i := range list.Items {
+		if len(wantID) > 0 && !wantID[i.Name] {
+			continue
+		}
+		out = append(out, gcpInstanceToDomain(i))
+	}
+	return domain.DescribeInstancesResult{Instances: out}, nil
+}
+
+func (b *Backend) StartInstances(ctx context.Context, ids []string) ([]domain.Instance, error) {
+	for _, id := range ids {
+		if _, err := b.svc.Instances.Start(b.project, b.defaultZone(), id).Context(ctx).Do(); err != nil {
+			return nil, fmt.Errorf("instances.start %s: %w", id, err)
+		}
+	}
+	return b.describeByIDs(ctx, ids)
+}
+
+func (b *Backend) StopInstances(ctx context.Context, ids []string) ([]domain.Instance, error) {
+	for _, id := range ids {
+		if _, err := b.svc.Instances.Stop(b.project, b.defaultZone(), id).Context(ctx).Do(); err != nil {
+			return nil, fmt.Errorf("instances.stop %s: %w", id, err)
+		}
+	}
+	return b.describeByIDs(ctx, ids)
+}
+
+func (b *Backend) TerminateInstances(ctx context.Context, ids []string) ([]domain.Instance, error) {
+	instances, err := b.describeByIDs(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	for _, id := range ids {
+		if _, err := b.svc.Instances.Delete(b.project, b.defaultZone(), id).Context(ctx).Do(); err != nil {
+			return nil, fmt.Errorf("instances.delete %s: %w", id, err)
+		}
+	}
+	for i := range instances {
+		instances[i].State = domain.InstanceStateTerminated
+	}
+	return instances, nil
+}
+
+func (b *Backend) RebootInstances(ctx context.Context, ids []string) error {
+	for _, id := range ids {
+		if _, err := b.svc.Instances.Reset(b.project, b.defaultZone(), id).Context(ctx).Do(); err != nil {
+			return fmt.Errorf("instances.reset %s: %w", id, err)
+		}
+	}
+	return nil
+}
+
+func (b *Backend) DescribeInstanceTypes(ctx context.Context, opt domain.DescribeInstanceTypesOptions) (domain.DescribeInstanceTypesResult, error) {
+	list, err := b.svc.MachineTypes.List(b.project, b.defaultZone()).Context(ctx).Do()
+	if err != nil {
+		return domain.DescribeInstanceTypesResult{}, fmt.Errorf("machineTypes.list: %w", err)
+	}
+	want := map[string]bool{}
+	for _, t := range opt.InstanceTypes {
+		want[t] = true
+	}
+	var out []domain.InstanceTypeInfo
+	for _, mt := range list.Items {
+		if len(want) > 0 && !want[mt.Name] {
+			continue
+		}
+		out = append(out, domain.InstanceTypeInfo{
+			InstanceType: mt.Name,
+			VCPUs:        int(mt.GuestCpus),
+			MemoryMiB:    int(mt.MemoryMb),
+		})
+	}
+	return domain.DescribeInstanceTypesResult{InstanceTypes: out}, nil
+}
+
+func (b *Backend) describeByIDs(ctx context.Context, ids []string) ([]domain.Instance, error) {
+	res, err := b.DescribeInstances(ctx, domain.DescribeInstancesOptions{IDs: ids})
+	if err != nil {
+		return nil, err
+	}
+	return res.Instances, nil
+}
+
+func gcpInstanceToDomain(i *compute.Instance) domain.Instance {
+	state := domain.InstanceStateRunning
+	switch i.Status {
+	case "TERMINATED", "STOPPING":
+		state = domain.InstanceStateStopped
+	case "PROVISIONING", "STAGING":
+		state = domain.InstanceStatePending
+	}
+	var ip string
+	for _, ni := range i.NetworkInterfaces {
+		if ni.NetworkIP != "" {
+			ip = ni.NetworkIP
+			break
+		}
+	}
+	it := ""
+	if i.MachineType != "" {
+		parts := strings.Split(i.MachineType, "/")
+		it = parts[len(parts)-1]
+	}
+	return domain.Instance{
+		ID:           i.Name,
+		Name:         i.Name,
+		InstanceType: it,
+		State:        state,
+		PrivateIP:    ip,
+	}
 }
