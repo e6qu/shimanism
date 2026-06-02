@@ -83,14 +83,19 @@ The Azure sim requires `SIM_SERVICEBUS_AMQP_LISTEN_ADDR` on a separate port (han
 - [x] AWS SDK conformance tests: RunInstances/Describe/Start/Stop/Terminate/Reboot/DescribeInstanceTypes (all green). ✅ this PR
 - [x] Codegen fix: `fieldView.FormKey` derives from `@xmlName` for list form decode keys. ✅ this PR
 
+**PR2 (branch `phase-16c-instances-pr2`) — in progress:**
+- [x] GCP Compute v1 frontend — instances.insert/delete/start/stop/reset/get/list/aggregatedList + machineTypes.list/get. ✅ this PR
+- [x] Real GCP backend — instance CRUD + machineTypes via compute/v1. ✅ this PR
+- [x] Azure Compute frontend (`internal/compute/frontends/azure_compute/`) — VirtualMachines + vmSizes ARM handlers. ✅ this PR
+- [x] Real Azure backend — VM CRUD via armcompute/v6. ✅ this PR
+- [x] GCP SDK conformance tests: instance lifecycle + aggregatedList + machineTypes (all green). ✅ this PR
+- [x] Azure SDK conformance tests: VM lifecycle + vmSizes (all green). ✅ this PR
+- [x] Sockerless instance lane placeholder (`t.Skip` referencing #373/#374/#375). ✅ this PR
+
 **Remaining 16.C:**
-- [ ] GCP Compute v1 frontend — instances.insert/delete/start/stop/reset/get/list/aggregatedList + machineTypes.list/get.
-- [ ] Real GCP backend (`services/compute/backends/gcp/`) — instance implementations.
-- [ ] Azure Compute frontend (`services/compute/spec/azure-compute.json`) — VirtualMachines + VirtualMachineSizes ARM handlers.
-- [ ] Real Azure backend (`services/compute/backends/azure/`) — VM implementations.
-- [ ] GCP + Azure SDK + CLI + Terraform conformance tests.
-- [ ] Sockerless instance lane — `t.Skip` referencing sockerless #373/#374/#375 until they close.
-- [ ] Cross-cloud Apply cell: e.g., `TestCrossCloudApply_Roundtrip_Compute_AWStoAzure`.
+- [ ] CLI conformance tests (gcloud compute instances create/describe/delete, az vm create/show/delete)
+- [ ] Terraform conformance tests (hashicorp/google google_compute_instance, hashicorp/azurerm azurerm_virtual_machine)
+- [ ] Cross-cloud Apply cell: `TestCrossCloudApply_Roundtrip_Compute_AWStoGCP` or similar
 
 ### 16.D — Load balancers (2–3 PRs, after 16.A; parallels 16.B)
 

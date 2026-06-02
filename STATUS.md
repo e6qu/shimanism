@@ -8,9 +8,9 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 
 | | |
 |---|---|
-| Active branch | `phase-16c-instances-pr1` — Phase 16.C PR1: instance lifecycle domain + inmem + AWS EC2 frontend. |
-| In-flight | 16.C PR1. `domain.Instances` + inmem implementation + AWS EC2 adapter + K8s/AWS real backend extensions. |
-| Last merged | PR #110 — 16.D PR2: GCP + Azure LB frontends + K8s peer. |
+| Active branch | `phase-16c-instances-pr2` — Phase 16.C PR2: GCP + Azure instance frontends + real backends. |
+| In-flight | 16.C PR2. GCP Compute v1 + Azure Compute ARM instance handlers; armcompute/v6 dependency added. |
+| Last merged | PR #111 — 16.C PR1: domain.Instances + inmem + AWS EC2 + BUG-55. |
 | Upstream watch | Sockerless PRs #368–#372 merged. PR #372 added Firecracker VM lifecycle; three follow-up issues open: [#373](https://github.com/e6qu/sockerless/issues/373) (kvm check), [#374](https://github.com/e6qu/sockerless/issues/374) (disk), [#375](https://github.com/e6qu/sockerless/issues/375) (caching). These block 16.C instance sockerless lane. |
 | Phases 1–13 | All closed (Phase 13 closed by PR #20). PR index in [PLAN.md § Closed phases](PLAN.md#closed-phases-pr-index). |
 | Phase 14 | 14.A ✅ · 14.B ✅ · 14.C ✅ · 14.D ✅ (simulator audit) / Track A blocked · 14.E ✅. Remaining residuals (terraform-aws `_wo` drift, SB cross-cloud scoping) carried into Phase 15.B. |
