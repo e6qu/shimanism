@@ -2,16 +2,13 @@
 
 Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BUGS.md) · narrative [WHAT_WE_DID.md](WHAT_WE_DID.md) · philosophy [PHILOSOPHY.md](PHILOSOPHY.md) · rules [AGENTS.md](AGENTS.md).
 
-> **Cold-start entry point.** Read top-to-bottom; pick up where Phase 15 left off.
+> **Cold-start entry point.** Read top-to-bottom; pick up where Phase 16 planning left off.
 
 ## Where we are
 
 **Phase 15 fully closed** (2026-06-02). All sub-phases complete: 15.A ✅ · 15.B ✅ · 15.C ✅ · 15.D ✅.
 
-- 15.C (NoSQL): DynamoDB + Firestore + Cosmos Tables + etcd — PRs #90–#100. All conformance rows green (SDK + CLI + Terraform × AWS/GCP/Azure frontends).
-- 15.D (DNS): Route 53 + Cloud DNS + Azure DNS + CoreDNS — PR #89.
-
-**No phase currently in flight.** Next phase is unscoped — needs user direction.
+**Phase 16 planned** (2026-06-02). Two new services: `services/compute/` (VPC networking + instance lifecycle) and `services/loadbalancer/` (layer-4 TCP LBs). See [PLAN.md § Phase 16](PLAN.md#phase-16--compute-and-networking) for the full plan.
 
 **Open bugs:** BUG-8 · BUG-15 · BUG-41 (Track A, blocked on real-cloud credentials — not actionable).
 
@@ -19,8 +16,8 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 
 1. `git fetch origin && git checkout main && git pull --ff-only origin main` — sync `main`.
 2. If `/tmp/sockerless` is stale: `git -C /tmp/sockerless pull --ff-only`, rebuild sims, rerun `make sockerless` (baseline: all 10 packages green).
-3. Ask user what comes next.
-4. Create a new branch from `main` for the next PR.
+3. Start Phase 16 with **16.A** (unblocked): scoping doc + N20–N27 normalization rules + ec2Query codegen lane.
+4. Create branch `phase-16a-scoping` from `main` for the first 16.A PR.
 
 ## Sockerless rebuild (when needed)
 
@@ -34,12 +31,76 @@ cd /Users/zardoz/projects/shimanism && make sockerless
 
 The Azure sim requires `SIM_SERVICEBUS_AMQP_LISTEN_ADDR` on a separate port (handled by `scripts/run-sockerless-storage.sh`).
 
+## Phase 16 sub-phase checklist
+
+### 16.A — Normalization audit + scoping + ec2Query codegen (1–2 PRs, unblocked)
+
+- [ ] Write `docs/phase-16-scoping.md` (mirror `docs/phase-15-cd-scoping.md` pattern: per-cloud surface, intersection table, out-of-intersection list, spec sources, K8s peer design, codegen plan).
+- [ ] Add N20–N27 to `docs/normalizations.md` (full rule + trade-off + reference skeleton for each; code references filled in as 16.B/16.C/16.D land).
+- [ ] Add `ec2Query` protocol lane to `cmd/codegen`:
+  - `internal/codegen/emit/template_ec2query.tmpl` (~300 lines; variant of `template_awsquery.tmpl` with flattened list serialization + EC2 error envelope)
+  - `internal/codegen/emit/emit.go` (5-line `ec2Query` detection branch)
+  - `internal/ec2query/router.go` (~100 lines — Action dispatch + XML response helpers)
+  - `internal/ec2query/router_test.go`
+  - Round-trip codegen test with a minimal synthetic EC2 Smithy snippet.
+
+### 16.B — VPC networking primitives (3–4 PRs, after 16.A)
+
+- [ ] Vendor specs: `services/compute/spec/` — AWS `ec2-2016-11-15.json`, GCP `gcp-compute-discovery.json`, Azure `azure-network.json`. Add `services/compute/spec/SOURCES.md`.
+- [ ] Codegen: `services/compute/codegen.json` (AWS+Azure) + `services/compute/gcp-codegen.json`; run `make codegen`.
+- [ ] Define `internal/compute/domain/networking.go` — `Networking` interface: CreateNetwork / GetNetwork / ListNetworks / DeleteNetwork / CreateSubnet / DeleteSubnet / ListSubnets / CreateSecurityGroup / DeleteSecurityGroup / ListSecurityGroups / AddIngressRule / AddEgressRule / RemoveIngressRule / RemoveEgressRule / AllocatePublicIP / AssociatePublicIP / DisassociatePublicIP / ReleasePublicIP.
+- [ ] `services/compute/backends/inmem/` — inmem networking backend.
+- [ ] AWS EC2 frontend (`services/compute/frontends/aws_ec2/`) — ec2Query handler for VPC/subnet/SG/EIP actions.
+- [ ] GCP Compute v1 frontend — networks/subnetworks/firewalls/addresses.
+- [ ] Azure Network frontend — VNet/Subnet/NSG/PublicIPAddress ARM handlers.
+- [ ] K8s peer (`services/compute/backends/k8scompute/`) — Namespace (VPC), NetworkPolicy (SG); subnets/EIPs return NotImplemented.
+- [ ] Real backends: `services/compute/backends/{aws,gcp,azure}/` networking implementations.
+- [ ] Full conformance matrix: `services/compute/conformance/` — SDK + CLI + Terraform × AWS/GCP/Azure × inmem/AWS/GCP/Azure/K8s.
+- [ ] Sockerless networking lane (no Firecracker dep — VPC/SG/EIP are pure metadata API calls in sockerless).
+- [ ] `services/compute/INTERSECTION.md` — intersection table with K8s NotImplemented rows documented.
+
+### 16.C — Compute instance lifecycle (3–4 PRs, after 16.B)
+
+- [ ] Define `internal/compute/domain/instances.go` — `Instances` interface: RunInstances / DescribeInstances / StartInstances / StopInstances / TerminateInstances / RebootInstances / DescribeInstanceTypes.
+- [ ] `services/compute/backends/inmem/` — extend with instance lifecycle.
+- [ ] AWS EC2 frontend — extend with instance Action handlers (same listener/router as 16.B; new Action registrations).
+- [ ] GCP Compute v1 frontend — instances.insert/delete/start/stop/reset/get/list/aggregatedList + machineTypes.list/get.
+- [ ] Azure Compute frontend (`services/compute/spec/azure-compute.json`) — VirtualMachines + VirtualMachineSizes ARM handlers.
+- [ ] K8s peer — extend: DescribeInstances → Node list/get; DescribeInstanceTypes → Node capacity; Run/Start/Stop/Terminate/Reboot → NotImplemented.
+- [ ] Real backends: `services/compute/backends/{aws,gcp,azure}/` instance implementations.
+- [ ] Full conformance matrix — SDK + CLI + Terraform × all frontends × all backends.
+- [ ] Sockerless instance lane — add with `SOCKERLESS_COMPUTE_TLS_PORT` guard; `t.Skip` with clear message referencing sockerless #373/#374/#375 until they close.
+- [ ] Cross-cloud Apply cell: e.g., `TestCrossCloudApply_Roundtrip_Compute_AWStoAzure` in `conformance/cross_cloud_apply_test.go`.
+
+### 16.D — Load balancers (2–3 PRs, after 16.A; parallels 16.B)
+
+- [ ] New `services/loadbalancer/` directory. Vendor `services/loadbalancer/spec/`: AWS `elastic-load-balancing-v2-2015-12-01.json` (awsQuery — no new codegen), GCP LB routes from Compute v1, Azure `azure-network.json` LB resources.
+- [ ] Define `internal/loadbalancer/domain/` — `LoadBalancer` interface: CreateLoadBalancer / DeleteLoadBalancer / DescribeLoadBalancers / CreateTargetGroup / DeleteTargetGroup / RegisterTargets / DeregisterTargets / CreateListener / DeleteListener / DescribeListeners.
+- [ ] `services/loadbalancer/backends/inmem/` — inmem LB backend.
+- [ ] AWS ELBv2 frontend — awsQuery handler (reuses existing awsQuery lane; no new codegen).
+- [ ] GCP Compute v1 frontend — forwarding rules + target pools + health checks.
+- [ ] Azure Network frontend — loadBalancers ARM resource (same spec as 16.B azure-network.json).
+- [ ] K8s peer — Service type:LoadBalancer (create/delete/list); Endpoints (RegisterTargets/DeregisterTargets).
+- [ ] Real backends: `services/loadbalancer/backends/{aws,gcp,azure}/`.
+- [ ] Full conformance matrix: SDK + CLI + Terraform × all frontends × all backends.
+- [ ] Sockerless LB lane: create/describe/delete (no Firecracker dep) green immediately; RegisterTargets lane with `t.Skip` referencing #373/#374/#375.
+
 ## Upstream watch
 
-All prior sockerless gaps closed. Recent merges:
+Sockerless gaps blocking 16.C instance lane + 16.D RegisterTargets:
+
+- [sockerless #373](https://github.com/e6qu/sockerless/issues/373) — `DetectFirecrackerCapabilities()` missing `/dev/kvm` check — cryptic timeout when KVM absent. **Blocks 16.C sockerless lane.**
+- [sockerless #374](https://github.com/e6qu/sockerless/issues/374) — 3 GB rootfs per VM risks disk exhaustion on 14 GB runners. **Blocks 16.C sockerless lane.**
+- [sockerless #375](https://github.com/e6qu/sockerless/issues/375) — kernel + rootfs downloaded fresh every run; no `actions/cache`; `ubuntu-latest` floating. **Blocks 16.C sockerless lane.**
+
+Recent merges (no current shim dependency):
 
 - [sockerless PR #361](https://github.com/e6qu/sockerless/pull/361) ✅ — DynamoDB `DeleteItem ReturnValues=ALL_OLD`.
-- [sockerless PR #364](https://github.com/e6qu/sockerless/pull/364) ✅ — GCP/Azure security (nftables NIC filters) + load-balancer data planes. No current shim dependency.
+- [sockerless PR #364](https://github.com/e6qu/sockerless/pull/364) ✅ — GCP/Azure security (nftables NIC filters) + load-balancer data planes.
+- [sockerless PR #368](https://github.com/e6qu/sockerless/pull/368) ✅ — Azure Entra authorization-code flow (PKCE, ID tokens). No current shim dep.
+- [sockerless PR #369](https://github.com/e6qu/sockerless/pull/369) ✅ — Azure SDK local portability (macOS Docker harness, Event Grid resolver). Build infra.
+- [sockerless PR #370](https://github.com/e6qu/sockerless/pull/370) ✅ — Dockerfile build context fixes + `.dockerignore` + `SIM_RUNTIME=process` docs. Build infra.
+- [sockerless PR #372](https://github.com/e6qu/sockerless/pull/372) ✅ — Firecracker VM lifecycle (EC2/GCE/Azure): real TAP NIC + kernel/rootfs boot + nftables/NSG wiring. Relevant when 16.C sockerless lane opens; blocked by #373–375 for CI stability.
 
 ## Standing rules
 

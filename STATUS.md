@@ -8,13 +8,14 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 
 | | |
 |---|---|
-| Active branch | `15c-closure` — Phase 15.C closure narrative + phase-close docs. |
-| In-flight | — |
-| Last merged | PR #100 — BUG-50 `az cosmosdb table` CLI conformance through-shim. **Phase 15 fully closed** (15.A ✅ 15.B ✅ 15.C ✅ 15.D ✅). |
-| Upstream watch | All prior sockerless gaps closed. [sockerless PR #364](https://github.com/e6qu/sockerless/pull/364) merged 2026-06-02 (GCP/Azure security + LB data planes, no Phase 15 dep). No open blockers. |
+| Active branch | `phase-16-plan` — Phase 16 planning docs (PLAN.md + STATUS.md + DO_NEXT.md). |
+| In-flight | Phase 16 plan committed; 16.A is next (scoping doc + N20–N27 + ec2Query codegen lane). |
+| Last merged | PR #101 — Phase 15 closure narrative. Phase 15 fully closed (15.A ✅ 15.B ✅ 15.C ✅ 15.D ✅). |
+| Upstream watch | Sockerless PRs #368–#372 merged. PR #372 added Firecracker VM lifecycle; three follow-up issues open: [#373](https://github.com/e6qu/sockerless/issues/373) (kvm check), [#374](https://github.com/e6qu/sockerless/issues/374) (disk), [#375](https://github.com/e6qu/sockerless/issues/375) (caching). These block 16.C instance sockerless lane + 16.D RegisterTargets lane. |
 | Phases 1–13 | All closed (Phase 13 closed by PR #20). PR index in [PLAN.md § Closed phases](PLAN.md#closed-phases-pr-index). |
 | Phase 14 | 14.A ✅ · 14.B ✅ · 14.C ✅ · 14.D ✅ (simulator audit) / Track A blocked · 14.E ✅. Remaining residuals (terraform-aws `_wo` drift, SB cross-cloud scoping) carried into Phase 15.B. |
 | Phase 15 | ✅ All sub-phases closed: 15.A ✅ · 15.B ✅ · 15.C ✅ (PRs #90–#100) · 15.D ✅ (PR #89). |
+| Phase 16 | **Planned.** 16.A (scoping + ec2Query codegen) → 16.B (VPC networking) → 16.C (instances; sockerless gated on #373–375) → 16.D (load balancers, parallels 16.B). Services: `services/compute/` + `services/loadbalancer/`. |
 | Bugs | **51 filed · 47 fixed · 3 open · 1 false positive.** Open: **BUG-8** + **BUG-15** + **BUG-41** (all Track A / third-party — blocked on real-cloud credentials). BUG-48/49/50/51 ✅ closed. |
 | Upstream | All prior sockerless gaps closed. Current watch in DO_NEXT.md § Upstream watch. |
 | CI | 18 required checks. Real-cloud lanes wait on Track A. |
