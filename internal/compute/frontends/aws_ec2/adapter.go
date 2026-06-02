@@ -267,6 +267,28 @@ func (a *Adapter) DescribeVpcs(ctx context.Context, in *gen.DescribeVpcsRequest)
 	return result, nil
 }
 
+func (a *Adapter) DescribeNetworkInterfaces(_ context.Context, _ *gen.DescribeNetworkInterfacesRequest) (*gen.DescribeNetworkInterfacesResult, error) {
+	// The stateless shim holds no ENIs. Return an empty list so that
+	// the hashicorp/aws provider's SG destroy path (which drains ENIs
+	// before deleting the SG) completes without error.
+	return &gen.DescribeNetworkInterfacesResult{}, nil
+}
+
+func (a *Adapter) DescribeVpcAttribute(_ context.Context, in *gen.DescribeVpcAttributeRequest) (*gen.DescribeVpcAttributeResult, error) {
+	// DNS settings are not in the domain intersection (N25). Return
+	// plausible defaults (enabled) so Terraform's read-after-create
+	// cycle sees a consistent value and doesn't produce a diff.
+	tval := true
+	fval := false
+	vpcID := in.VpcId
+	return &gen.DescribeVpcAttributeResult{
+		VpcId:                            &vpcID,
+		EnableDnsHostnames:               &gen.AttributeBooleanValue{Value: &tval},
+		EnableDnsSupport:                 &gen.AttributeBooleanValue{Value: &tval},
+		EnableNetworkAddressUsageMetrics: &gen.AttributeBooleanValue{Value: &fval},
+	}, nil
+}
+
 func (a *Adapter) ModifyVpcAttribute(_ context.Context, in *gen.ModifyVpcAttributeRequest) (struct{}, error) {
 	// DNS settings are not part of the domain intersection (N25). Accept
 	// the call silently — the attribute write is acknowledged but not

@@ -241,6 +241,60 @@ const (
 	VpcStatePending   VpcState = "pending"
 )
 
+// AttachmentStatus is a generated Smithy enum.
+type AttachmentStatus string
+
+const (
+	AttachmentStatusAttached  AttachmentStatus = "attached"
+	AttachmentStatusAttaching AttachmentStatus = "attaching"
+	AttachmentStatusDetached  AttachmentStatus = "detached"
+	AttachmentStatusDetaching AttachmentStatus = "detaching"
+)
+
+// NetworkInterfaceType is a generated Smithy enum.
+type NetworkInterfaceType string
+
+const (
+	NetworkInterfaceTypeApi_gateway_managed              NetworkInterfaceType = "api_gateway_managed"
+	NetworkInterfaceTypeAws_codestar_connections_managed NetworkInterfaceType = "aws_codestar_connections_managed"
+	NetworkInterfaceTypeBranch                           NetworkInterfaceType = "branch"
+	NetworkInterfaceTypeEfa                              NetworkInterfaceType = "efa"
+	NetworkInterfaceTypeEfa_only                         NetworkInterfaceType = "efa-only"
+	NetworkInterfaceTypeGateway_load_balancer            NetworkInterfaceType = "gateway_load_balancer"
+	NetworkInterfaceTypeGateway_load_balancer_endpoint   NetworkInterfaceType = "gateway_load_balancer_endpoint"
+	NetworkInterfaceTypeGlobal_accelerator_managed       NetworkInterfaceType = "global_accelerator_managed"
+	NetworkInterfaceTypeInterface                        NetworkInterfaceType = "interface"
+	NetworkInterfaceTypeIot_rules_managed                NetworkInterfaceType = "iot_rules_managed"
+	NetworkInterfaceTypeLambda                           NetworkInterfaceType = "lambda"
+	NetworkInterfaceTypeLoad_balancer                    NetworkInterfaceType = "load_balancer"
+	NetworkInterfaceTypeNatGateway                       NetworkInterfaceType = "natGateway"
+	NetworkInterfaceTypeNetwork_load_balancer            NetworkInterfaceType = "network_load_balancer"
+	NetworkInterfaceTypeQuicksight                       NetworkInterfaceType = "quicksight"
+	NetworkInterfaceTypeTransit_gateway                  NetworkInterfaceType = "transit_gateway"
+	NetworkInterfaceTypeTrunk                            NetworkInterfaceType = "trunk"
+	NetworkInterfaceTypeVpc_endpoint                     NetworkInterfaceType = "vpc_endpoint"
+)
+
+// NetworkInterfaceStatus is a generated Smithy enum.
+type NetworkInterfaceStatus string
+
+const (
+	NetworkInterfaceStatusAssociated NetworkInterfaceStatus = "associated"
+	NetworkInterfaceStatusAttaching  NetworkInterfaceStatus = "attaching"
+	NetworkInterfaceStatusAvailable  NetworkInterfaceStatus = "available"
+	NetworkInterfaceStatusDetaching  NetworkInterfaceStatus = "detaching"
+	NetworkInterfaceStatusIn_use     NetworkInterfaceStatus = "in-use"
+)
+
+// VpcAttributeName is a generated Smithy enum.
+type VpcAttributeName string
+
+const (
+	VpcAttributeNameEnableDnsHostnames               VpcAttributeName = "enableDnsHostnames"
+	VpcAttributeNameEnableDnsSupport                 VpcAttributeName = "enableDnsSupport"
+	VpcAttributeNameEnableNetworkAddressUsageMetrics VpcAttributeName = "enableNetworkAddressUsageMetrics"
+)
+
 // SubnetCidrBlockStateCode is a generated Smithy enum.
 type SubnetCidrBlockStateCode string
 
@@ -360,6 +414,78 @@ type VpcIdStringList struct {
 // ec2Query list shapes.
 type VpcList struct {
 	Member []Vpc `xml:"item"`
+}
+
+// NetworkInterfaceIdList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type NetworkInterfaceIdList struct {
+	Member []string `xml:"item"`
+}
+
+// AssociatedSubnetList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type AssociatedSubnetList struct {
+	Member []string `xml:"item"`
+}
+
+// GroupIdentifierList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type GroupIdentifierList struct {
+	Member []GroupIdentifier `xml:"item"`
+}
+
+// Ipv4PrefixesList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type Ipv4PrefixesList struct {
+	Member []Ipv4PrefixSpecification `xml:"item"`
+}
+
+// NetworkInterfaceIpv6AddressesList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type NetworkInterfaceIpv6AddressesList struct {
+	Member []NetworkInterfaceIpv6Address `xml:"item"`
+}
+
+// Ipv6PrefixesList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type Ipv6PrefixesList struct {
+	Member []Ipv6PrefixSpecification `xml:"item"`
+}
+
+// NetworkInterfacePrivateIpAddressList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type NetworkInterfacePrivateIpAddressList struct {
+	Member []NetworkInterfacePrivateIpAddress `xml:"item"`
+}
+
+// NetworkInterfaceList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type NetworkInterfaceList struct {
+	Member []NetworkInterface `xml:"item"`
 }
 
 // SubnetIpv6CidrBlockAssociationSet is a generated Smithy list. The Member field is
@@ -681,9 +807,165 @@ type DescribeVpcsResult struct {
 	Vpcs      VpcList `xml:"vpcSet,omitempty"`
 }
 
+// DescribeNetworkInterfacesRequest is a generated Smithy structure.
+type DescribeNetworkInterfacesRequest struct {
+	DryRun                  *bool                  `xml:"dryRun,omitempty"`
+	Filters                 FilterList             `xml:"filter,omitempty"`
+	IncludeManagedResources *bool                  `xml:"IncludeManagedResources,omitempty"`
+	MaxResults              *int32                 `xml:"MaxResults,omitempty"`
+	NetworkInterfaceIds     NetworkInterfaceIdList `xml:"NetworkInterfaceId,omitempty"`
+	NextToken               *string                `xml:"NextToken,omitempty"`
+}
+
+// NetworkInterfaceAssociation is a generated Smithy structure.
+type NetworkInterfaceAssociation struct {
+	AllocationId    *string `xml:"allocationId,omitempty"`
+	AssociationId   *string `xml:"associationId,omitempty"`
+	CarrierIp       *string `xml:"carrierIp,omitempty"`
+	CustomerOwnedIp *string `xml:"customerOwnedIp,omitempty"`
+	IpOwnerId       *string `xml:"ipOwnerId,omitempty"`
+	PublicDnsName   *string `xml:"publicDnsName,omitempty"`
+	PublicIp        *string `xml:"publicIp,omitempty"`
+}
+
+// AttachmentEnaSrdUdpSpecification is a generated Smithy structure.
+type AttachmentEnaSrdUdpSpecification struct {
+	EnaSrdUdpEnabled *bool `xml:"enaSrdUdpEnabled,omitempty"`
+}
+
+// AttachmentEnaSrdSpecification is a generated Smithy structure.
+type AttachmentEnaSrdSpecification struct {
+	EnaSrdEnabled          *bool                             `xml:"enaSrdEnabled,omitempty"`
+	EnaSrdUdpSpecification *AttachmentEnaSrdUdpSpecification `xml:"enaSrdUdpSpecification,omitempty"`
+}
+
+// NetworkInterfaceAttachment is a generated Smithy structure.
+type NetworkInterfaceAttachment struct {
+	AttachTime          *time.Time                     `xml:"attachTime,omitempty"`
+	AttachmentId        *string                        `xml:"attachmentId,omitempty"`
+	DeleteOnTermination *bool                          `xml:"deleteOnTermination,omitempty"`
+	DeviceIndex         *int32                         `xml:"deviceIndex,omitempty"`
+	EnaQueueCount       *int32                         `xml:"enaQueueCount,omitempty"`
+	EnaSrdSpecification *AttachmentEnaSrdSpecification `xml:"enaSrdSpecification,omitempty"`
+	InstanceId          *string                        `xml:"instanceId,omitempty"`
+	InstanceOwnerId     *string                        `xml:"instanceOwnerId,omitempty"`
+	NetworkCardIndex    *int32                         `xml:"networkCardIndex,omitempty"`
+	Status              *AttachmentStatus              `xml:"status,omitempty"`
+}
+
+// ConnectionTrackingConfiguration is a generated Smithy structure.
+type ConnectionTrackingConfiguration struct {
+	TcpEstablishedTimeout *int32 `xml:"tcpEstablishedTimeout,omitempty"`
+	UdpStreamTimeout      *int32 `xml:"udpStreamTimeout,omitempty"`
+	UdpTimeout            *int32 `xml:"udpTimeout,omitempty"`
+}
+
+// GroupIdentifier is a generated Smithy structure.
+type GroupIdentifier struct {
+	GroupId   *string `xml:"groupId,omitempty"`
+	GroupName *string `xml:"groupName,omitempty"`
+}
+
+// Ipv4PrefixSpecification is a generated Smithy structure.
+type Ipv4PrefixSpecification struct {
+	Ipv4Prefix *string `xml:"ipv4Prefix,omitempty"`
+}
+
+// NetworkInterfaceIpv6Address is a generated Smithy structure.
+type NetworkInterfaceIpv6Address struct {
+	Ipv6Address       *string `xml:"ipv6Address,omitempty"`
+	IsPrimaryIpv6     *bool   `xml:"isPrimaryIpv6,omitempty"`
+	PublicIpv6DnsName *string `xml:"publicIpv6DnsName,omitempty"`
+}
+
+// Ipv6PrefixSpecification is a generated Smithy structure.
+type Ipv6PrefixSpecification struct {
+	Ipv6Prefix *string `xml:"ipv6Prefix,omitempty"`
+}
+
+// OperatorResponse is a generated Smithy structure.
+type OperatorResponse struct {
+	HiddenByDefault *bool   `xml:"hiddenByDefault,omitempty"`
+	Managed         *bool   `xml:"managed,omitempty"`
+	Principal       *string `xml:"principal,omitempty"`
+}
+
+// NetworkInterfacePrivateIpAddress is a generated Smithy structure.
+type NetworkInterfacePrivateIpAddress struct {
+	Association      *NetworkInterfaceAssociation `xml:"association,omitempty"`
+	Primary          *bool                        `xml:"primary,omitempty"`
+	PrivateDnsName   *string                      `xml:"privateDnsName,omitempty"`
+	PrivateIpAddress *string                      `xml:"privateIpAddress,omitempty"`
+}
+
+// PublicIpDnsNameOptions is a generated Smithy structure.
+type PublicIpDnsNameOptions struct {
+	DnsHostnameType        *string `xml:"dnsHostnameType,omitempty"`
+	PublicDualStackDnsName *string `xml:"publicDualStackDnsName,omitempty"`
+	PublicIpv4DnsName      *string `xml:"publicIpv4DnsName,omitempty"`
+	PublicIpv6DnsName      *string `xml:"publicIpv6DnsName,omitempty"`
+}
+
+// NetworkInterface is a generated Smithy structure.
+type NetworkInterface struct {
+	AssociatedSubnets               AssociatedSubnetList                 `xml:"associatedSubnetSet,omitempty"`
+	Association                     *NetworkInterfaceAssociation         `xml:"association,omitempty"`
+	Attachment                      *NetworkInterfaceAttachment          `xml:"attachment,omitempty"`
+	AvailabilityZone                *string                              `xml:"availabilityZone,omitempty"`
+	AvailabilityZoneId              *string                              `xml:"availabilityZoneId,omitempty"`
+	ConnectionTrackingConfiguration *ConnectionTrackingConfiguration     `xml:"connectionTrackingConfiguration,omitempty"`
+	DenyAllIgwTraffic               *bool                                `xml:"denyAllIgwTraffic,omitempty"`
+	Description                     *string                              `xml:"description,omitempty"`
+	Groups                          GroupIdentifierList                  `xml:"groupSet,omitempty"`
+	InterfaceType                   *NetworkInterfaceType                `xml:"interfaceType,omitempty"`
+	Ipv4Prefixes                    Ipv4PrefixesList                     `xml:"ipv4PrefixSet,omitempty"`
+	Ipv6Address                     *string                              `xml:"ipv6Address,omitempty"`
+	Ipv6Addresses                   NetworkInterfaceIpv6AddressesList    `xml:"ipv6AddressesSet,omitempty"`
+	Ipv6Native                      *bool                                `xml:"ipv6Native,omitempty"`
+	Ipv6Prefixes                    Ipv6PrefixesList                     `xml:"ipv6PrefixSet,omitempty"`
+	MacAddress                      *string                              `xml:"macAddress,omitempty"`
+	NetworkInterfaceId              *string                              `xml:"networkInterfaceId,omitempty"`
+	Operator                        *OperatorResponse                    `xml:"operator,omitempty"`
+	OutpostArn                      *string                              `xml:"outpostArn,omitempty"`
+	OwnerId                         *string                              `xml:"ownerId,omitempty"`
+	PrivateDnsName                  *string                              `xml:"privateDnsName,omitempty"`
+	PrivateIpAddress                *string                              `xml:"privateIpAddress,omitempty"`
+	PrivateIpAddresses              NetworkInterfacePrivateIpAddressList `xml:"privateIpAddressesSet,omitempty"`
+	PublicDnsName                   *string                              `xml:"publicDnsName,omitempty"`
+	PublicIpDnsNameOptions          *PublicIpDnsNameOptions              `xml:"publicIpDnsNameOptions,omitempty"`
+	RequesterId                     *string                              `xml:"requesterId,omitempty"`
+	RequesterManaged                *bool                                `xml:"requesterManaged,omitempty"`
+	SourceDestCheck                 *bool                                `xml:"sourceDestCheck,omitempty"`
+	Status                          *NetworkInterfaceStatus              `xml:"status,omitempty"`
+	SubnetId                        *string                              `xml:"subnetId,omitempty"`
+	TagSet                          TagList                              `xml:"tagSet,omitempty"`
+	VpcId                           *string                              `xml:"vpcId,omitempty"`
+}
+
+// DescribeNetworkInterfacesResult is a generated Smithy structure.
+type DescribeNetworkInterfacesResult struct {
+	NetworkInterfaces NetworkInterfaceList `xml:"networkInterfaceSet,omitempty"`
+	NextToken         *string              `xml:"nextToken,omitempty"`
+}
+
+// DescribeVpcAttributeRequest is a generated Smithy structure.
+type DescribeVpcAttributeRequest struct {
+	Attribute VpcAttributeName `xml:"Attribute,omitempty"`
+	DryRun    *bool            `xml:"dryRun,omitempty"`
+	VpcId     string           `xml:"VpcId,omitempty"`
+}
+
 // AttributeBooleanValue is a generated Smithy structure.
 type AttributeBooleanValue struct {
 	Value *bool `xml:"value,omitempty"`
+}
+
+// DescribeVpcAttributeResult is a generated Smithy structure.
+type DescribeVpcAttributeResult struct {
+	EnableDnsHostnames               *AttributeBooleanValue `xml:"enableDnsHostnames,omitempty"`
+	EnableDnsSupport                 *AttributeBooleanValue `xml:"enableDnsSupport,omitempty"`
+	EnableNetworkAddressUsageMetrics *AttributeBooleanValue `xml:"enableNetworkAddressUsageMetrics,omitempty"`
+	VpcId                            *string                `xml:"vpcId,omitempty"`
 }
 
 // ModifyVpcAttributeRequest is a generated Smithy structure.
@@ -1170,6 +1452,8 @@ type EC2Backend interface {
 	CreateVpcBackend
 	DeleteVpcBackend
 	DescribeVpcsBackend
+	DescribeNetworkInterfacesBackend
+	DescribeVpcAttributeBackend
 	ModifyVpcAttributeBackend
 	CreateSubnetBackend
 	DeleteSubnetBackend
@@ -1201,6 +1485,8 @@ func RegisterEC2Routes(b EC2Backend) *ec2query.Router {
 	rt.Register("CreateVpc", CreateVpcHandler(b))
 	rt.Register("DeleteVpc", DeleteVpcHandler(b))
 	rt.Register("DescribeVpcs", DescribeVpcsHandler(b))
+	rt.Register("DescribeNetworkInterfaces", DescribeNetworkInterfacesHandler(b))
+	rt.Register("DescribeVpcAttribute", DescribeVpcAttributeHandler(b))
 	rt.Register("ModifyVpcAttribute", ModifyVpcAttributeHandler(b))
 	rt.Register("CreateSubnet", CreateSubnetHandler(b))
 	rt.Register("DeleteSubnet", DeleteSubnetHandler(b))
@@ -1387,6 +1673,101 @@ func DescribeVpcsHandler(b DescribeVpcsBackend) http.Handler {
 			return
 		}
 		ec2query.WriteResult(w, "DescribeVpcs", out)
+	})
+}
+
+// DescribeNetworkInterfacesBackend serves the DescribeNetworkInterfaces operation.
+type DescribeNetworkInterfacesBackend interface {
+	DescribeNetworkInterfaces(ctx context.Context, in *DescribeNetworkInterfacesRequest) (*DescribeNetworkInterfacesResult, error)
+}
+
+// DescribeNetworkInterfacesHandler decodes a DescribeNetworkInterfaces request, dispatches
+// to the backend, and encodes the response per ec2Query semantics.
+// Form-encoded request bodies are decoded field-by-field for scalars
+// and list<string> shapes. EC2 flattened lists use `Field.N` (no
+// `.member.` interfix). Complex shapes (e.g. Filter structs, nested
+// tagged lists) are available via ec2query.FormFromContext(ctx).
+func DescribeNetworkInterfacesHandler(b DescribeNetworkInterfacesBackend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := ec2query.WithForm(r.Context(), r.Form)
+		in := &DescribeNetworkInterfacesRequest{}
+		_ = in
+		// Decode top-level scalar + map<string,string> + list<string>
+		// form fields. EC2 ec2Query serialises lists as flat `Field.N`
+		// pairs (no `.member.` interfix) and maps as
+		// `Field.N.key + Field.N.value` pairs.
+		if v := r.Form.Get("DryRun"); v != "" {
+			if x, err := strconv.ParseBool(v); err == nil {
+				in.DryRun = &x
+			}
+		}
+		if v := r.Form.Get("IncludeManagedResources"); v != "" {
+			if x, err := strconv.ParseBool(v); err == nil {
+				in.IncludeManagedResources = &x
+			}
+		}
+		if v := r.Form.Get("MaxResults"); v != "" {
+			if n, err := strconv.Atoi(v); err == nil {
+				x := int32(n)
+				in.MaxResults = &x
+			}
+		}
+		// list<string> via `NetworkInterfaceIds.N` (ec2Query flattened — no
+		// `.member.` interfix unlike awsQuery).
+		for i := 1; ; i++ {
+			v := r.Form.Get("NetworkInterfaceIds." + strconv.Itoa(i))
+			if v == "" {
+				break
+			}
+			in.NetworkInterfaceIds.Member = append(in.NetworkInterfaceIds.Member, v)
+		}
+		if v := r.Form.Get("NextToken"); v != "" {
+			s := v
+			in.NextToken = &s
+		}
+
+		out, err := b.DescribeNetworkInterfaces(ctx, in)
+		if err != nil {
+			ec2query.WriteBackendError(w, err)
+			return
+		}
+		ec2query.WriteResult(w, "DescribeNetworkInterfaces", out)
+	})
+}
+
+// DescribeVpcAttributeBackend serves the DescribeVpcAttribute operation.
+type DescribeVpcAttributeBackend interface {
+	DescribeVpcAttribute(ctx context.Context, in *DescribeVpcAttributeRequest) (*DescribeVpcAttributeResult, error)
+}
+
+// DescribeVpcAttributeHandler decodes a DescribeVpcAttribute request, dispatches
+// to the backend, and encodes the response per ec2Query semantics.
+// Form-encoded request bodies are decoded field-by-field for scalars
+// and list<string> shapes. EC2 flattened lists use `Field.N` (no
+// `.member.` interfix). Complex shapes (e.g. Filter structs, nested
+// tagged lists) are available via ec2query.FormFromContext(ctx).
+func DescribeVpcAttributeHandler(b DescribeVpcAttributeBackend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := ec2query.WithForm(r.Context(), r.Form)
+		in := &DescribeVpcAttributeRequest{}
+		_ = in
+		// Decode top-level scalar + map<string,string> + list<string>
+		// form fields. EC2 ec2Query serialises lists as flat `Field.N`
+		// pairs (no `.member.` interfix) and maps as
+		// `Field.N.key + Field.N.value` pairs.
+		if v := r.Form.Get("DryRun"); v != "" {
+			if x, err := strconv.ParseBool(v); err == nil {
+				in.DryRun = &x
+			}
+		}
+		in.VpcId = r.Form.Get("VpcId")
+
+		out, err := b.DescribeVpcAttribute(ctx, in)
+		if err != nil {
+			ec2query.WriteBackendError(w, err)
+			return
+		}
+		ec2query.WriteResult(w, "DescribeVpcAttribute", out)
 	})
 }
 
