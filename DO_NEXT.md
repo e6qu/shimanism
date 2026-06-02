@@ -43,9 +43,10 @@ The Azure sim requires `SIM_SERVICEBUS_AMQP_LISTEN_ADDR` on a separate port (han
 
 ## Upstream watch
 
-- [sockerless PR #357](https://github.com/e6qu/sockerless/pull/357) ✅ — Cosmos + Storage Tables ARM. Merged; unblocks CLI conformance.
-- [sockerless PR #358](https://github.com/e6qu/sockerless/pull/358) ✅ — Linux netns + NAT/IPAM. Merged; no Phase 15 dependency.
+- [sockerless PR #357](https://github.com/e6qu/sockerless/pull/357) ✅ — Cosmos + Storage Tables ARM. Merged.
+- [sockerless PR #358](https://github.com/e6qu/sockerless/pull/358) ✅ — Linux netns + NAT/IPAM. Merged.
 - [sockerless#360](https://github.com/e6qu/sockerless/issues/360) ✅ filed + closed by [PR #361](https://github.com/e6qu/sockerless/pull/361) 2026-06-02 — DynamoDB `DeleteItem ReturnValues=ALL_OLD`.
+- [sockerless PR #364](https://github.com/e6qu/sockerless/pull/364) ✅ — GCP/Azure security (nftables NIC filters) + load-balancer data planes. Merged 2026-06-02. No Phase 15 dependency; baseline still 10 packages / all green.
 
 No open blockers for Phase 15.C.
 
