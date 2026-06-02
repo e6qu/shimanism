@@ -155,10 +155,10 @@ func {{ .GoName }}Handler(b {{ .GoName }}Backend) http.Handler {
 				in.{{ .GoName }}[kv] = vv
 			}
 		}
-{{ else if .IsStringList }}		// list<string> via `{{ .GoName }}.N` (ec2Query flattened — no
+{{ else if .IsStringList }}		// list<string> via `{{ .FormKey }}.N` (ec2Query flattened — no
 		// `.member.` interfix unlike awsQuery).
 		for i := 1; ; i++ {
-			v := r.Form.Get("{{ .GoName }}." + strconv.Itoa(i))
+			v := r.Form.Get("{{ .FormKey }}." + strconv.Itoa(i))
 			if v == "" { break }
 			in.{{ .GoName }}.Member = append(in.{{ .GoName }}.Member, v)
 		}

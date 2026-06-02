@@ -348,6 +348,11 @@ type fieldView struct {
 	// `list<string>`. The awsQuery template uses this to emit
 	// `Field.member.N` form decoding loops.
 	IsStringList bool
+	// FormKey is the wire name used for form-encoded decode loops
+	// (r.Form.Get("FormKey.N")), derived from the @xmlName trait when
+	// present, otherwise the Go field name. Unlike XMLTag, it has no
+	// struct-tag suffix (no ",omitempty").
+	FormKey string
 }
 
 type unionView struct {
@@ -652,6 +657,7 @@ func (g *gen) fieldView(name string, m smithy.Member) (fieldView, error) {
 			xml = name
 		}
 		fv.XMLTag = xml + ",attr"
+		fv.FormKey = xml
 	default:
 		fv.Binding = "body"
 		xml := m.XMLName()
@@ -673,6 +679,7 @@ func (g *gen) fieldView(name string, m smithy.Member) (fieldView, error) {
 			}
 		}
 		fv.XMLTag = xml + ",omitempty"
+		fv.FormKey = xml
 	}
 
 	// Streaming for httpPayload + blob: the handler should not
@@ -715,6 +722,11 @@ func (g *gen) fieldView(name string, m smithy.Member) (fieldView, error) {
 				fv.IsStringList = true
 			}
 		}
+	}
+	// FormKey defaults to GoName when not set by the body-binding path
+	// above. This ensures scalar form-decode lines always have a wire key.
+	if fv.FormKey == "" {
+		fv.FormKey = fv.GoName
 	}
 	return fv, nil
 }

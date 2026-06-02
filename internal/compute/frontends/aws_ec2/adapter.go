@@ -1,7 +1,8 @@
 // Package aws_ec2 is the AWS EC2 frontend for shimanism's compute
-// service, Phase 16.B (networking primitives). It bridges the
-// spec-driven ec2Query generated stubs (services/compute/gen) onto the
-// neutral domain.Networking interface.
+// service (Phase 16.B networking + Phase 16.C instance lifecycle). It
+// bridges the spec-driven ec2Query generated stubs
+// (services/compute/gen) onto the neutral domain.Networking and
+// domain.Instances interfaces.
 //
 // Protocol: ec2Query (form-encoded POST, Action dispatch, flattened
 // lists, EC2 XML error envelope). Auth: SigV4 with service="ec2".
@@ -13,6 +14,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/e6qu/shimanism/internal/compute/domain"
 	"github.com/e6qu/shimanism/internal/ec2query"
@@ -20,15 +22,23 @@ import (
 	gen "github.com/e6qu/shimanism/services/compute/gen"
 )
 
-// Adapter binds gen.EC2Backend to a domain.Networking backend.
+// ComputeBackend is satisfied by any type that implements both
+// domain.Networking and domain.Instances — e.g. the inmem backend
+// and every real-cloud backend.
+type ComputeBackend interface {
+	domain.Networking
+	domain.Instances
+}
+
+// Adapter binds gen.EC2Backend to a ComputeBackend.
 type Adapter struct {
-	n domain.Networking
+	n ComputeBackend
 }
 
 // New returns the http.Handler dispatching through the generated
 // ec2Query router into the adapter bound to the given backend.
 // SigV4 verification is wired in.
-func New(n domain.Networking) http.Handler {
+func New(n ComputeBackend) http.Handler {
 	router := gen.RegisterEC2Routes(&Adapter{n: n})
 	verifier := sigv4verifier.New(sigv4verifier.StaticStore{
 		AccessKey: "AKIAIOSFODNN7EXAMPLE",
@@ -646,4 +656,217 @@ func (a *Adapter) DeleteTags(_ context.Context, in *gen.DeleteTagsRequest) (stru
 func (a *Adapter) DescribeTags(_ context.Context, in *gen.DescribeTagsRequest) (*gen.DescribeTagsResult, error) {
 	_ = in
 	return &gen.DescribeTagsResult{}, nil
+}
+
+// ─── Instance operations (Phase 16.C) ───────────────────────────────
+
+func (a *Adapter) RunInstances(ctx context.Context, in *gen.RunInstancesRequest) (*gen.Reservation, error) {
+	opts := domain.RunInstancesOptions{
+		MinCount: int(in.MinCount),
+		MaxCount: int(in.MaxCount),
+	}
+	if in.ImageId != nil {
+		opts.ImageID = *in.ImageId
+	}
+	// InstanceType is an enum; the codegen template only handles plain
+	// strings, so we read it from form context directly.
+	if v := ec2query.FormFromContext(ctx).Get("InstanceType"); v != "" {
+		opts.InstanceType = v
+	} else if in.InstanceType != nil {
+		opts.InstanceType = string(*in.InstanceType)
+	}
+	if in.SubnetId != nil {
+		opts.SubnetID = *in.SubnetId
+	}
+	if in.KeyName != nil {
+		opts.KeyName = *in.KeyName
+	}
+	if in.UserData != nil {
+		opts.UserData = *in.UserData
+	}
+	opts.SecurityGroupIDs = in.SecurityGroupIds.Member
+
+	instances, err := a.n.RunInstances(ctx, opts)
+	if err != nil {
+		return nil, mapDomainErr(err)
+	}
+
+	now := time.Now()
+	rid := "r-" + instances[0].ID
+	res := &gen.Reservation{
+		ReservationId: strPtr(rid),
+		OwnerId:       strPtr("000000000000"),
+	}
+	for _, inst := range instances {
+		inst := inst
+		res.Instances.Member = append(res.Instances.Member, domainInstanceToGen(inst, now))
+	}
+	return res, nil
+}
+
+func (a *Adapter) DescribeInstances(ctx context.Context, in *gen.DescribeInstancesRequest) (*gen.DescribeInstancesResult, error) {
+	opts := domain.DescribeInstancesOptions{
+		IDs: in.InstanceIds.Member,
+	}
+	res, err := a.n.DescribeInstances(ctx, opts)
+	if err != nil {
+		return nil, mapDomainErr(err)
+	}
+	now := time.Now()
+	result := &gen.DescribeInstancesResult{}
+	// Group all instances into a single reservation (shim uses owner=000000000000).
+	if len(res.Instances) > 0 {
+		rv := gen.Reservation{
+			ReservationId: strPtr("r-shim"),
+			OwnerId:       strPtr("000000000000"),
+		}
+		for _, inst := range res.Instances {
+			inst := inst
+			rv.Instances.Member = append(rv.Instances.Member, domainInstanceToGen(inst, now))
+		}
+		result.Reservations.Member = append(result.Reservations.Member, rv)
+	}
+	return result, nil
+}
+
+func (a *Adapter) StartInstances(ctx context.Context, in *gen.StartInstancesRequest) (*gen.StartInstancesResult, error) {
+	instances, err := a.n.StartInstances(ctx, in.InstanceIds.Member)
+	if err != nil {
+		return nil, mapDomainErr(err)
+	}
+	result := &gen.StartInstancesResult{}
+	for _, inst := range instances {
+		inst := inst
+		result.StartingInstances.Member = append(result.StartingInstances.Member, gen.InstanceStateChange{
+			InstanceId:    strPtr(inst.ID),
+			CurrentState:  domainStateToGen(inst.State),
+			PreviousState: domainStateToGen(domain.InstanceStateStopped),
+		})
+	}
+	return result, nil
+}
+
+func (a *Adapter) StopInstances(ctx context.Context, in *gen.StopInstancesRequest) (*gen.StopInstancesResult, error) {
+	instances, err := a.n.StopInstances(ctx, in.InstanceIds.Member)
+	if err != nil {
+		return nil, mapDomainErr(err)
+	}
+	result := &gen.StopInstancesResult{}
+	for _, inst := range instances {
+		inst := inst
+		result.StoppingInstances.Member = append(result.StoppingInstances.Member, gen.InstanceStateChange{
+			InstanceId:    strPtr(inst.ID),
+			CurrentState:  domainStateToGen(inst.State),
+			PreviousState: domainStateToGen(domain.InstanceStateRunning),
+		})
+	}
+	return result, nil
+}
+
+func (a *Adapter) TerminateInstances(ctx context.Context, in *gen.TerminateInstancesRequest) (*gen.TerminateInstancesResult, error) {
+	instances, err := a.n.TerminateInstances(ctx, in.InstanceIds.Member)
+	if err != nil {
+		return nil, mapDomainErr(err)
+	}
+	result := &gen.TerminateInstancesResult{}
+	for _, inst := range instances {
+		inst := inst
+		result.TerminatingInstances.Member = append(result.TerminatingInstances.Member, gen.InstanceStateChange{
+			InstanceId:    strPtr(inst.ID),
+			CurrentState:  domainStateToGen(inst.State),
+			PreviousState: domainStateToGen(domain.InstanceStateRunning),
+		})
+	}
+	return result, nil
+}
+
+func (a *Adapter) RebootInstances(ctx context.Context, in *gen.RebootInstancesRequest) (struct{}, error) {
+	if err := a.n.RebootInstances(ctx, in.InstanceIds.Member); err != nil {
+		return struct{}{}, mapDomainErr(err)
+	}
+	return struct{}{}, nil
+}
+
+func (a *Adapter) DescribeInstanceTypes(ctx context.Context, in *gen.DescribeInstanceTypesRequest) (*gen.DescribeInstanceTypesResult, error) {
+	// InstanceTypes is a list<enum>; the codegen template only handles
+	// list<string>, so read InstanceType.N directly from form context.
+	form := ec2query.FormFromContext(ctx)
+	opts := domain.DescribeInstanceTypesOptions{}
+	for i := 1; ; i++ {
+		v := form.Get("InstanceType." + strconv.Itoa(i))
+		if v == "" {
+			break
+		}
+		opts.InstanceTypes = append(opts.InstanceTypes, v)
+	}
+	// Fall back to in.InstanceTypes.Member if any were decoded by generated code.
+	if len(opts.InstanceTypes) == 0 {
+		for _, t := range in.InstanceTypes.Member {
+			opts.InstanceTypes = append(opts.InstanceTypes, string(t))
+		}
+	}
+	res, err := a.n.DescribeInstanceTypes(ctx, opts)
+	if err != nil {
+		return nil, mapDomainErr(err)
+	}
+	result := &gen.DescribeInstanceTypesResult{}
+	for _, t := range res.InstanceTypes {
+		t := t
+		vcpus := int32(t.VCPUs)
+		mem := int64(t.MemoryMiB)
+		it := gen.InstanceType(t.InstanceType)
+		result.InstanceTypes.Member = append(result.InstanceTypes.Member, gen.InstanceTypeInfo{
+			InstanceType: &it,
+			VCpuInfo:     &gen.VCpuInfo{DefaultVCpus: &vcpus},
+			MemoryInfo:   &gen.MemoryInfo{SizeInMiB: &mem},
+		})
+	}
+	return result, nil
+}
+
+// ─── Instance converters ─────────────────────────────────────────────
+
+func domainInstanceToGen(inst domain.Instance, launchTime time.Time) gen.Instance {
+	it := gen.InstanceType(inst.InstanceType)
+	state := domainStateToGen(inst.State)
+	g := gen.Instance{
+		InstanceId:       strPtr(inst.ID),
+		ImageId:          strPtr(inst.ImageID),
+		InstanceType:     &it,
+		State:            state,
+		PrivateIpAddress: strPtr(inst.PrivateIP),
+		LaunchTime:       &launchTime,
+	}
+	if inst.SubnetID != "" {
+		g.SubnetId = strPtr(inst.SubnetID)
+	}
+	if inst.NetworkID != "" {
+		g.VpcId = strPtr(inst.NetworkID)
+	}
+	if inst.KeyName != "" {
+		g.KeyName = strPtr(inst.KeyName)
+	}
+	if inst.PublicIP != "" {
+		g.PublicIpAddress = strPtr(inst.PublicIP)
+	}
+	return g
+}
+
+// EC2 state codes: 0=pending, 16=running, 32=shutting-down, 48=terminated, 64=stopping, 80=stopped
+func domainStateToGen(s domain.InstanceState) *gen.InstanceState {
+	type stateCode struct {
+		code int32
+		name gen.InstanceStateName
+	}
+	m := map[domain.InstanceState]stateCode{
+		domain.InstanceStatePending:    {0, gen.InstanceStateNamePending},
+		domain.InstanceStateRunning:    {16, gen.InstanceStateNameRunning},
+		domain.InstanceStateStopped:    {80, gen.InstanceStateNameStopped},
+		domain.InstanceStateTerminated: {48, gen.InstanceStateNameTerminated},
+	}
+	sc, ok := m[s]
+	if !ok {
+		sc = stateCode{16, gen.InstanceStateNameRunning}
+	}
+	return &gen.InstanceState{Code: &sc.code, Name: &sc.name}
 }

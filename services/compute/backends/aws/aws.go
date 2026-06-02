@@ -33,6 +33,7 @@ type Backend struct {
 func New(client *ec2.Client) *Backend { return &Backend{c: client} }
 
 var _ domain.Networking = (*Backend)(nil)
+var _ domain.Instances = (*Backend)(nil)
 
 // ─── Networks (VPCs) ─────────────────────────────────────────────────
 
@@ -463,4 +464,157 @@ func contains(s string, substrs ...string) bool {
 		}
 	}
 	return false
+}
+
+// ─── Instances ────────────────────────────────────────────────────────
+
+func (b *Backend) RunInstances(ctx context.Context, opt domain.RunInstancesOptions) ([]domain.Instance, error) {
+	min := int32(opt.MinCount)
+	max := int32(opt.MaxCount)
+	if min < 1 {
+		min = 1
+	}
+	if max < min {
+		max = min
+	}
+	in := &ec2.RunInstancesInput{
+		ImageId:          awsapi.String(opt.ImageID),
+		InstanceType:     ec2types.InstanceType(opt.InstanceType),
+		MinCount:         awsapi.Int32(min),
+		MaxCount:         awsapi.Int32(max),
+		SecurityGroupIds: opt.SecurityGroupIDs,
+	}
+	if opt.SubnetID != "" {
+		in.SubnetId = awsapi.String(opt.SubnetID)
+	}
+	if opt.KeyName != "" {
+		in.KeyName = awsapi.String(opt.KeyName)
+	}
+	if opt.UserData != "" {
+		in.UserData = awsapi.String(opt.UserData)
+	}
+	out, err := b.c.RunInstances(ctx, in)
+	if err != nil {
+		return nil, fmt.Errorf("RunInstances: %w", err)
+	}
+	var instances []domain.Instance
+	for _, i := range out.Instances {
+		instances = append(instances, awsInstanceToDomain(i))
+	}
+	return instances, nil
+}
+
+func (b *Backend) DescribeInstances(ctx context.Context, opt domain.DescribeInstancesOptions) (domain.DescribeInstancesResult, error) {
+	in := &ec2.DescribeInstancesInput{}
+	if len(opt.IDs) > 0 {
+		in.InstanceIds = opt.IDs
+	}
+	out, err := b.c.DescribeInstances(ctx, in)
+	if err != nil {
+		return domain.DescribeInstancesResult{}, fmt.Errorf("DescribeInstances: %w", err)
+	}
+	var instances []domain.Instance
+	for _, r := range out.Reservations {
+		for _, i := range r.Instances {
+			instances = append(instances, awsInstanceToDomain(i))
+		}
+	}
+	return domain.DescribeInstancesResult{Instances: instances}, nil
+}
+
+func (b *Backend) StartInstances(ctx context.Context, ids []string) ([]domain.Instance, error) {
+	if _, err := b.c.StartInstances(ctx, &ec2.StartInstancesInput{InstanceIds: ids}); err != nil {
+		return nil, fmt.Errorf("StartInstances: %w", err)
+	}
+	return b.describeByIDs(ctx, ids)
+}
+
+func (b *Backend) StopInstances(ctx context.Context, ids []string) ([]domain.Instance, error) {
+	if _, err := b.c.StopInstances(ctx, &ec2.StopInstancesInput{InstanceIds: ids}); err != nil {
+		return nil, fmt.Errorf("StopInstances: %w", err)
+	}
+	return b.describeByIDs(ctx, ids)
+}
+
+func (b *Backend) TerminateInstances(ctx context.Context, ids []string) ([]domain.Instance, error) {
+	instances, err := b.describeByIDs(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := b.c.TerminateInstances(ctx, &ec2.TerminateInstancesInput{InstanceIds: ids}); err != nil {
+		return nil, fmt.Errorf("TerminateInstances: %w", err)
+	}
+	for i := range instances {
+		instances[i].State = domain.InstanceStateTerminated
+	}
+	return instances, nil
+}
+
+func (b *Backend) RebootInstances(ctx context.Context, ids []string) error {
+	if _, err := b.c.RebootInstances(ctx, &ec2.RebootInstancesInput{InstanceIds: ids}); err != nil {
+		return fmt.Errorf("RebootInstances: %w", err)
+	}
+	return nil
+}
+
+func (b *Backend) DescribeInstanceTypes(ctx context.Context, opt domain.DescribeInstanceTypesOptions) (domain.DescribeInstanceTypesResult, error) {
+	in := &ec2.DescribeInstanceTypesInput{}
+	for _, t := range opt.InstanceTypes {
+		in.InstanceTypes = append(in.InstanceTypes, ec2types.InstanceType(t))
+	}
+	out, err := b.c.DescribeInstanceTypes(ctx, in)
+	if err != nil {
+		return domain.DescribeInstanceTypesResult{}, fmt.Errorf("DescribeInstanceTypes: %w", err)
+	}
+	var types []domain.InstanceTypeInfo
+	for _, t := range out.InstanceTypes {
+		info := domain.InstanceTypeInfo{InstanceType: string(t.InstanceType)}
+		if t.VCpuInfo != nil && t.VCpuInfo.DefaultVCpus != nil {
+			info.VCPUs = int(*t.VCpuInfo.DefaultVCpus)
+		}
+		if t.MemoryInfo != nil && t.MemoryInfo.SizeInMiB != nil {
+			info.MemoryMiB = int(*t.MemoryInfo.SizeInMiB)
+		}
+		types = append(types, info)
+	}
+	return domain.DescribeInstanceTypesResult{InstanceTypes: types}, nil
+}
+
+func (b *Backend) describeByIDs(ctx context.Context, ids []string) ([]domain.Instance, error) {
+	res, err := b.DescribeInstances(ctx, domain.DescribeInstancesOptions{IDs: ids})
+	if err != nil {
+		return nil, err
+	}
+	return res.Instances, nil
+}
+
+func awsInstanceToDomain(i ec2types.Instance) domain.Instance {
+	inst := domain.Instance{
+		ID:           awsapi.ToString(i.InstanceId),
+		ImageID:      awsapi.ToString(i.ImageId),
+		InstanceType: string(i.InstanceType),
+		State:        awsStateToDomain(i.State),
+		SubnetID:     awsapi.ToString(i.SubnetId),
+		NetworkID:    awsapi.ToString(i.VpcId),
+		PrivateIP:    awsapi.ToString(i.PrivateIpAddress),
+		PublicIP:     awsapi.ToString(i.PublicIpAddress),
+		KeyName:      awsapi.ToString(i.KeyName),
+	}
+	return inst
+}
+
+func awsStateToDomain(s *ec2types.InstanceState) domain.InstanceState {
+	if s == nil {
+		return domain.InstanceStatePending
+	}
+	switch s.Name {
+	case ec2types.InstanceStateNameRunning:
+		return domain.InstanceStateRunning
+	case ec2types.InstanceStateNameStopped, ec2types.InstanceStateNameStopping:
+		return domain.InstanceStateStopped
+	case ec2types.InstanceStateNameTerminated, ec2types.InstanceStateNameShuttingDown:
+		return domain.InstanceStateTerminated
+	default:
+		return domain.InstanceStatePending
+	}
 }

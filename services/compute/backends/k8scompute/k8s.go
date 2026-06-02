@@ -55,6 +55,7 @@ func New(cs kubernetes.Interface, parentNS string) *Backend {
 }
 
 var _ domain.Networking = (*Backend)(nil)
+var _ domain.Instances = (*Backend)(nil)
 
 // ─── Networks (Namespaces) ────────────────────────────────────────────
 
@@ -473,4 +474,117 @@ func tagsFromLabels(labels map[string]string) map[string]string {
 		return nil
 	}
 	return m
+}
+
+// ─── Instances (domain.Instances) ────────────────────────────────────
+//
+// K8s Nodes are read-only from the shim's perspective:
+//   - DescribeInstances → Node list/get (all Nodes in the cluster)
+//   - DescribeInstanceTypes → Node capacity fields
+//   - RunInstances / StartInstances / StopInstances /
+//     TerminateInstances / RebootInstances → ErrNotSupported
+//     (per N20; K8s row in INTERSECTION.md)
+
+func (b *Backend) RunInstances(_ context.Context, _ domain.RunInstancesOptions) ([]domain.Instance, error) {
+	return nil, domain.ErrNotSupported
+}
+
+func (b *Backend) DescribeInstances(ctx context.Context, opt domain.DescribeInstancesOptions) (domain.DescribeInstancesResult, error) {
+	nodes, err := b.cs.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return domain.DescribeInstancesResult{}, fmt.Errorf("list nodes: %w", err)
+	}
+	wantID := map[string]bool{}
+	for _, id := range opt.IDs {
+		wantID[id] = true
+	}
+	var out []domain.Instance
+	for _, node := range nodes.Items {
+		id := string(node.UID)
+		if len(wantID) > 0 && !wantID[id] {
+			continue
+		}
+		out = append(out, nodeToInstance(node))
+	}
+	return domain.DescribeInstancesResult{Instances: out}, nil
+}
+
+func (b *Backend) StartInstances(_ context.Context, _ []string) ([]domain.Instance, error) {
+	return nil, domain.ErrNotSupported
+}
+
+func (b *Backend) StopInstances(_ context.Context, _ []string) ([]domain.Instance, error) {
+	return nil, domain.ErrNotSupported
+}
+
+func (b *Backend) TerminateInstances(_ context.Context, _ []string) ([]domain.Instance, error) {
+	return nil, domain.ErrNotSupported
+}
+
+func (b *Backend) RebootInstances(_ context.Context, _ []string) error {
+	return domain.ErrNotSupported
+}
+
+func (b *Backend) DescribeInstanceTypes(ctx context.Context, opt domain.DescribeInstanceTypesOptions) (domain.DescribeInstanceTypesResult, error) {
+	nodes, err := b.cs.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return domain.DescribeInstanceTypesResult{}, fmt.Errorf("list nodes: %w", err)
+	}
+	seen := map[string]bool{}
+	want := map[string]bool{}
+	for _, t := range opt.InstanceTypes {
+		want[t] = true
+	}
+	var out []domain.InstanceTypeInfo
+	for _, node := range nodes.Items {
+		// Use node.Labels["node.kubernetes.io/instance-type"] as the type name,
+		// falling back to the node name when the label is absent.
+		it := node.Labels["node.kubernetes.io/instance-type"]
+		if it == "" {
+			it = node.Name
+		}
+		if len(want) > 0 && !want[it] {
+			continue
+		}
+		if seen[it] {
+			continue
+		}
+		seen[it] = true
+		vcpus := int(node.Status.Capacity.Cpu().Value())
+		memMiB := int(node.Status.Capacity.Memory().Value() / (1024 * 1024))
+		out = append(out, domain.InstanceTypeInfo{
+			InstanceType: it,
+			VCPUs:        vcpus,
+			MemoryMiB:    memMiB,
+		})
+	}
+	return domain.DescribeInstanceTypesResult{InstanceTypes: out}, nil
+}
+
+func nodeToInstance(node corev1.Node) domain.Instance {
+	state := domain.InstanceStateRunning
+	for _, c := range node.Status.Conditions {
+		if c.Type == corev1.NodeReady && c.Status != corev1.ConditionTrue {
+			state = domain.InstanceStateStopped
+		}
+	}
+	it := node.Labels["node.kubernetes.io/instance-type"]
+	if it == "" {
+		it = node.Name
+	}
+	var privateIP string
+	for _, addr := range node.Status.Addresses {
+		if addr.Type == corev1.NodeInternalIP {
+			privateIP = addr.Address
+			break
+		}
+	}
+	return domain.Instance{
+		ID:           string(node.UID),
+		Name:         node.Name,
+		InstanceType: it,
+		State:        state,
+		PrivateIP:    privateIP,
+		Tags:         tagsFromLabels(node.Labels),
+	}
 }

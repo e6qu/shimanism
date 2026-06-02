@@ -161,3 +161,102 @@ func TestPublicIP_ReleaseNotFound(t *testing.T) {
 		t.Fatalf("expected not found, got: %v", err)
 	}
 }
+
+func TestInstance_Lifecycle(t *testing.T) {
+	ctx := context.Background()
+	b := inmem.New()
+
+	// RunInstances
+	instances, err := b.RunInstances(ctx, domain.RunInstancesOptions{
+		ImageID:      "ami-12345678",
+		InstanceType: "t3.micro",
+		MinCount:     1,
+		MaxCount:     1,
+	})
+	if err != nil {
+		t.Fatalf("RunInstances: %v", err)
+	}
+	if len(instances) != 1 {
+		t.Fatalf("RunInstances: expected 1 instance, got %d", len(instances))
+	}
+	inst := instances[0]
+	if inst.State != domain.InstanceStateRunning {
+		t.Errorf("state = %q, want running", inst.State)
+	}
+	if inst.PrivateIP == "" {
+		t.Errorf("PrivateIP empty")
+	}
+
+	// DescribeInstances
+	res, err := b.DescribeInstances(ctx, domain.DescribeInstancesOptions{IDs: []string{inst.ID}})
+	if err != nil || len(res.Instances) != 1 {
+		t.Fatalf("DescribeInstances: %v count=%d", err, len(res.Instances))
+	}
+
+	// StopInstances
+	stopped, err := b.StopInstances(ctx, []string{inst.ID})
+	if err != nil || stopped[0].State != domain.InstanceStateStopped {
+		t.Fatalf("StopInstances: %v state=%s", err, stopped[0].State)
+	}
+
+	// StartInstances
+	started, err := b.StartInstances(ctx, []string{inst.ID})
+	if err != nil || started[0].State != domain.InstanceStateRunning {
+		t.Fatalf("StartInstances: %v state=%s", err, started[0].State)
+	}
+
+	// RebootInstances
+	if err := b.RebootInstances(ctx, []string{inst.ID}); err != nil {
+		t.Fatalf("RebootInstances: %v", err)
+	}
+
+	// TerminateInstances
+	terminated, err := b.TerminateInstances(ctx, []string{inst.ID})
+	if err != nil || terminated[0].State != domain.InstanceStateTerminated {
+		t.Fatalf("TerminateInstances: %v state=%s", err, terminated[0].State)
+	}
+
+	// Should be gone
+	res, _ = b.DescribeInstances(ctx, domain.DescribeInstancesOptions{IDs: []string{inst.ID}})
+	if len(res.Instances) != 0 {
+		t.Errorf("expected 0 instances after terminate, got %d", len(res.Instances))
+	}
+}
+
+func TestInstance_RunMultiple(t *testing.T) {
+	ctx := context.Background()
+	b := inmem.New()
+
+	instances, err := b.RunInstances(ctx, domain.RunInstancesOptions{
+		ImageID:      "ami-12345678",
+		InstanceType: "m5.large",
+		MinCount:     3,
+		MaxCount:     3,
+	})
+	if err != nil || len(instances) != 3 {
+		t.Fatalf("RunInstances: %v count=%d", err, len(instances))
+	}
+	res, err := b.DescribeInstances(ctx, domain.DescribeInstancesOptions{})
+	if err != nil || len(res.Instances) != 3 {
+		t.Fatalf("DescribeInstances all: %v count=%d", err, len(res.Instances))
+	}
+}
+
+func TestDescribeInstanceTypes(t *testing.T) {
+	ctx := context.Background()
+	b := inmem.New()
+
+	// All types
+	res, err := b.DescribeInstanceTypes(ctx, domain.DescribeInstanceTypesOptions{})
+	if err != nil || len(res.InstanceTypes) == 0 {
+		t.Fatalf("DescribeInstanceTypes all: %v count=%d", err, len(res.InstanceTypes))
+	}
+
+	// Filter to t3.micro
+	res, err = b.DescribeInstanceTypes(ctx, domain.DescribeInstanceTypesOptions{
+		InstanceTypes: []string{"t3.micro"},
+	})
+	if err != nil || len(res.InstanceTypes) != 1 || res.InstanceTypes[0].VCPUs != 2 {
+		t.Fatalf("DescribeInstanceTypes filtered: %v count=%d", err, len(res.InstanceTypes))
+	}
+}

@@ -258,3 +258,14 @@ func IsAlreadyExists(err error) bool { return errors.Is(err, ErrAlreadyExists) }
 
 // IsNotSupported reports whether err wraps ErrNotSupported.
 func IsNotSupported(err error) bool { return errors.Is(err, ErrNotSupported) }
+
+// ValidationError is returned when a required field is missing or
+// a field value is outside the allowed range.
+type ValidationError struct {
+	Field string
+	Msg   string
+}
+
+func (e *ValidationError) Error() string {
+	return "validation error on field " + e.Field + ": " + e.Msg
+}

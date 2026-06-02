@@ -14,34 +14,41 @@ import (
 	"github.com/e6qu/shimanism/internal/compute/domain"
 )
 
-// Backend implements domain.Networking entirely in memory.
+// Backend implements domain.Networking and domain.Instances entirely
+// in memory. Both interfaces are satisfied by the same struct so that
+// a single AWS EC2 / GCP Compute frontend can dispatch both networking
+// and instance operations to the same backend.
 type Backend struct {
 	mu sync.RWMutex
 
-	networks map[string]*domain.Network
-	subnets  map[string]*domain.Subnet
-	sgs      map[string]*domain.SecurityGroup
-	ips      map[string]*domain.PublicIP
+	networks  map[string]*domain.Network
+	subnets   map[string]*domain.Subnet
+	sgs       map[string]*domain.SecurityGroup
+	ips       map[string]*domain.PublicIP
+	instances map[string]*domain.Instance
 
 	// ID sequence counters — monotonic, collision-free within a
 	// single Backend instance.
-	netSeq int
-	subSeq int
-	sgSeq  int
-	ipSeq  int
+	netSeq  int
+	subSeq  int
+	sgSeq   int
+	ipSeq   int
+	instSeq int
 }
 
-// New returns an empty in-memory networking backend.
+// New returns an empty in-memory compute + networking backend.
 func New() *Backend {
 	return &Backend{
-		networks: map[string]*domain.Network{},
-		subnets:  map[string]*domain.Subnet{},
-		sgs:      map[string]*domain.SecurityGroup{},
-		ips:      map[string]*domain.PublicIP{},
+		networks:  map[string]*domain.Network{},
+		subnets:   map[string]*domain.Subnet{},
+		sgs:       map[string]*domain.SecurityGroup{},
+		ips:       map[string]*domain.PublicIP{},
+		instances: map[string]*domain.Instance{},
 	}
 }
 
 var _ domain.Networking = (*Backend)(nil)
+var _ domain.Instances = (*Backend)(nil)
 
 func (b *Backend) nextID(prefix string, seq *int) string {
 	*seq++
@@ -368,4 +375,158 @@ func (b *Backend) ListPublicIPs(_ context.Context, opt domain.ListPublicIPsOptio
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
 	return domain.ListPublicIPsResult{PublicIPs: out}, nil
+}
+
+// ──────────────────────────────────────────────
+// domain.Instances implementation
+// ──────────────────────────────────────────────
+
+func (b *Backend) RunInstances(_ context.Context, opt domain.RunInstancesOptions) ([]domain.Instance, error) {
+	if opt.ImageID == "" {
+		return nil, &domain.ValidationError{Field: "ImageID", Msg: "required"}
+	}
+	if opt.InstanceType == "" {
+		return nil, &domain.ValidationError{Field: "InstanceType", Msg: "required"}
+	}
+	count := opt.MaxCount
+	if count < 1 {
+		count = 1
+	}
+	min := opt.MinCount
+	if min < 1 {
+		min = 1
+	}
+	if count < min {
+		count = min
+	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	var launched []domain.Instance
+	for i := 0; i < count; i++ {
+		id := b.nextID("i", &b.instSeq)
+		inst := &domain.Instance{
+			ID:               id,
+			Name:             opt.Tags["Name"],
+			ImageID:          opt.ImageID,
+			InstanceType:     opt.InstanceType,
+			State:            domain.InstanceStateRunning,
+			NetworkID:        opt.NetworkID,
+			SubnetID:         opt.SubnetID,
+			SecurityGroupIDs: append([]string(nil), opt.SecurityGroupIDs...),
+			KeyName:          opt.KeyName,
+			PrivateIP:        fmt.Sprintf("10.0.0.%d", b.instSeq),
+			Tags:             copyTags(opt.Tags),
+		}
+		b.instances[id] = inst
+		launched = append(launched, *inst)
+	}
+	return launched, nil
+}
+
+func (b *Backend) DescribeInstances(_ context.Context, opt domain.DescribeInstancesOptions) (domain.DescribeInstancesResult, error) {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	wantID := map[string]bool{}
+	for _, id := range opt.IDs {
+		wantID[id] = true
+	}
+	wantState := map[domain.InstanceState]bool{}
+	for _, s := range opt.States {
+		wantState[s] = true
+	}
+	var out []domain.Instance
+	for _, inst := range b.instances {
+		if len(wantID) > 0 && !wantID[inst.ID] {
+			continue
+		}
+		if len(wantState) > 0 && !wantState[inst.State] {
+			continue
+		}
+		out = append(out, *inst)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
+	return domain.DescribeInstancesResult{Instances: out}, nil
+}
+
+func (b *Backend) StartInstances(_ context.Context, ids []string) ([]domain.Instance, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	var out []domain.Instance
+	for _, id := range ids {
+		inst, ok := b.instances[id]
+		if !ok {
+			return nil, domain.ErrNotFound
+		}
+		inst.State = domain.InstanceStateRunning
+		out = append(out, *inst)
+	}
+	return out, nil
+}
+
+func (b *Backend) StopInstances(_ context.Context, ids []string) ([]domain.Instance, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	var out []domain.Instance
+	for _, id := range ids {
+		inst, ok := b.instances[id]
+		if !ok {
+			return nil, domain.ErrNotFound
+		}
+		inst.State = domain.InstanceStateStopped
+		out = append(out, *inst)
+	}
+	return out, nil
+}
+
+func (b *Backend) TerminateInstances(_ context.Context, ids []string) ([]domain.Instance, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	var out []domain.Instance
+	for _, id := range ids {
+		inst, ok := b.instances[id]
+		if !ok {
+			return nil, domain.ErrNotFound
+		}
+		inst.State = domain.InstanceStateTerminated
+		out = append(out, *inst)
+		delete(b.instances, id)
+	}
+	return out, nil
+}
+
+func (b *Backend) RebootInstances(_ context.Context, ids []string) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	for _, id := range ids {
+		if _, ok := b.instances[id]; !ok {
+			return domain.ErrNotFound
+		}
+		// Reboot leaves state as Running (no-op in inmem).
+	}
+	return nil
+}
+
+// wellKnownInstanceTypes is the inmem catalogue of known instance types.
+// Real backends return the backend cloud's catalogue; this is for tests.
+var wellKnownInstanceTypes = []domain.InstanceTypeInfo{
+	{InstanceType: "t3.micro", VCPUs: 2, MemoryMiB: 1024},
+	{InstanceType: "t3.small", VCPUs: 2, MemoryMiB: 2048},
+	{InstanceType: "t3.medium", VCPUs: 2, MemoryMiB: 4096},
+	{InstanceType: "m5.large", VCPUs: 2, MemoryMiB: 8192},
+	{InstanceType: "m5.xlarge", VCPUs: 4, MemoryMiB: 16384},
+}
+
+func (b *Backend) DescribeInstanceTypes(_ context.Context, opt domain.DescribeInstanceTypesOptions) (domain.DescribeInstanceTypesResult, error) {
+	want := map[string]bool{}
+	for _, t := range opt.InstanceTypes {
+		want[t] = true
+	}
+	var out []domain.InstanceTypeInfo
+	for _, t := range wellKnownInstanceTypes {
+		if len(want) > 0 && !want[t.InstanceType] {
+			continue
+		}
+		out = append(out, t)
+	}
+	return domain.DescribeInstanceTypesResult{InstanceTypes: out}, nil
 }
