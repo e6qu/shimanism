@@ -76,7 +76,7 @@ Phase 15 sub-phase order:
 
 Track A (BUG-8 + BUG-15) still blocked on real-cloud credentials.
 
-**Upstream watch (new):** [sockerless#360](https://github.com/e6qu/sockerless/issues/360) filed 2026-06-02 — DynamoDB simulator `DeleteItem` with `ReturnValues=ALL_OLD` always returns empty `Attributes`. Shim-side workaround already applied (switched to `ConditionExpression: attribute_exists(#pk)` in `services/nosql/backends/aws/aws.go`).
+**Upstream watch (new):** [sockerless#360](https://github.com/e6qu/sockerless/issues/360) filed + closed 2026-06-02 via [sockerless PR #361](https://github.com/e6qu/sockerless/pull/361) — DynamoDB `DeleteItem ReturnValues=ALL_OLD` now honoured in simulator. Shim-side fix kept (`ConditionExpression: attribute_exists(#pk)` in `services/nosql/backends/aws/aws.go`) — it is the more correct DynamoDB approach regardless.
 
 ### Lesson: ARM shimming via fakes was the wrong design
 
