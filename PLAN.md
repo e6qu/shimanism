@@ -279,6 +279,75 @@ Remaining 14.B/C/E shim-side work is bundled into 3 PRs (full task lists in [DO_
 
 Per intersection-only scope: every new service must work across **AWS + GCP + Azure + K8s peer**. If a feature only exists in one cloud, it's out-of-intersection by definition and rejected with the source cloud's "not supported" error. This includes the standard pre-flight that opened Phase 14: identify the intersection upfront, publish the per-cell normalization rules, then write the code.
 
+## Phase 16 — Compute and Networking
+
+> **Premise.** Phase 15 closed NoSQL + DNS. Phase 16 adds the compute + networking surface: VPC networking primitives (networks, subnets, security groups, public IPs), compute instance lifecycle (run/start/stop/terminate/describe + machine types), and basic layer-4 TCP load balancers. Two new service directories: `services/compute/` (AWS EC2 + GCP Compute Engine + Azure Compute/Network + K8s Nodes/Namespace/NetworkPolicy) and `services/loadbalancer/` (AWS ELBv2 + GCP Compute LB + Azure LB + K8s Service). AWS VPC and EC2 instances share `ec2.amazonaws.com`; GCP networks and GCE instances share `compute.googleapis.com/v1` — both fit in one `services/compute/` directory to avoid action-dispatch split-brain. ELBv2 is a distinct AWS endpoint and lives in `services/loadbalancer/`.
+>
+> **Status: planned (2026-06-02).**
+
+### Sub-phases
+
+| Track | What | Dependency | Status |
+|---|---|---|---|
+| 16.A | Normalization audit (N20–N27) + `docs/phase-16-scoping.md` + ec2Query codegen lane in `cmd/codegen` + `internal/ec2query/` runtime | — | ◐ planned |
+| 16.B | VPC networking primitives (VPCs/subnets/security groups/public IPs) — AWS + GCP + Azure frontends + K8s peer (Namespace/NetworkPolicy; subnets/EIPs NotImplemented) | 16.A (ec2Query lane) | ◐ planned |
+| 16.C | Compute instance lifecycle (RunInstances/Describe/Start/Stop/Terminate/Reboot + DescribeInstanceTypes) — K8s peer is Nodes read-only; mutations return NotImplemented | 16.B; sockerless lane gated on sockerless #373/#374/#375 | ◐ planned |
+| 16.D | Load balancers — layer-4 TCP only (LB + target group + listener); `services/loadbalancer/`; K8s peer = Service type:LoadBalancer; RegisterTargets gated on #373/#374/#375 | 16.A (ELBv2 = awsQuery, no new codegen); parallels 16.B | ◐ planned |
+
+### Codegen prerequisite (16.A)
+
+EC2 uses `aws.protocols#ec2Query` — a distinct variant from `awsQuery`. Differences: flattened list serialization (`Field.N` vs `Field.member.N`), different error envelope (`<Response><Errors><Error>` vs `<ErrorResponse>`). Adding the lane requires:
+- `internal/codegen/emit/template_ec2query.tmpl` (new, ~300 lines)
+- `internal/codegen/emit/emit.go` (5-line branch for `ec2Query` detection)
+- `internal/ec2query/router.go` (new, ~100 lines — Action dispatch + XML response helpers)
+
+ELBv2 uses standard `awsQuery` (same as SNS/RDS/ElastiCache) — no new codegen for 16.D AWS frontend.
+
+### Normalization rules (16.A deliverables)
+
+- **N20** — Instance state machine: AWS (pending/running/stopping/stopped/shutting-down/terminated) vs GCP (GCP "TERMINATED" = stopped, not deleted) vs Azure (Deallocated = stopped-but-provisioned ≠ deleted). Domain carries `{pending, running, stopped, terminated}`; backends translate native states.
+- **N21** — Security group semantics: AWS SGs stateful + ENI-attached; GCP firewalls stateless + network-scoped + tag-targeted; Azure NSGs stateful + subnet/NIC-attached + numeric priorities. Intersection: allow-only rules by protocol+port+sourceCIDR; no deny; no priorities; no tag targeting. GCP backend adds matching egress rule so return traffic is implicitly allowed.
+- **N22** — Public IP model: two-step (allocate → associate) on all three clouds. K8s peer: NotImplemented (no public-IP primitive). `AllocateAddress` returns a domain `PublicIP`; `AssociateAddress` links it to an instance.
+- **N23** — Machine/instance type naming: opaque per-cloud (like N13 for cache tiers). AMI IDs, GCE machine type names, Azure VM size strings pass through without translation. Cross-cloud Apply must supply destination-appropriate type.
+- **N24** — Instance image reference: opaque per-cloud (like N6 for regions). AMI IDs, GCE image resource names, Azure Marketplace URNs pass through. Cross-cloud Apply fails with destination's image-not-found if image reference is source-cloud-specific.
+- **N25** — VPC CIDR assignment: AWS requires CIDR on `CreateVpc`; GCP VPCs are custom-mode (CIDR lives on subnetworks, not on the VPC itself); Azure requires `addressSpace`. Domain `CreateNetworkOptions.CIDR` is optional; GCP backend ignores CIDR at the network level and uses it at subnetwork level.
+- **N26** — Subnet availability zone: AWS subnets are AZ-scoped; GCP subnetworks are region-scoped; Azure subnets are VNet-scoped with no zone. Domain `Subnet.Zone` is optional; K8s peer: NotImplemented for subnets entirely.
+- **N27** — LB layer restriction: intersection is layer-4 TCP forwarding only. ALB, L7 routing rules, host/path-based routing, TLS termination, WAF — out of intersection. Attempting to configure L7 features returns the source cloud's `InvalidConfigurationRequest` (or equivalent) error.
+
+### K8s peer mapping
+
+| Operation | K8s resource | Fidelity |
+|---|---|---|
+| CreateNetwork / Get / List / Delete | Namespace | Full |
+| CreateSecurityGroup / Delete / List + Add/RemoveIngressRule | NetworkPolicy (namespace = network name; podSelector = {}) | Intersection (allow-only; egress via Egress PolicyType) |
+| CreateSubnet / AllocatePublicIP / AssociatePublicIP | — | NotImplemented |
+| RunInstances / Start / Stop / Terminate / Reboot | — | NotImplemented (source-cloud OperationNotSupported) |
+| DescribeInstances / DescribeInstanceTypes | Node list/get; type from Node capacity | Read-only |
+| CreateLoadBalancer / Delete / Describe | Service (type:LoadBalancer) | Full |
+| RegisterTargets / DeregisterTargets | Endpoints | Full |
+
+### Sockerless dependencies
+
+| Issue | What it blocks |
+|---|---|
+| [sockerless #373](https://github.com/e6qu/sockerless/issues/373) — `/dev/kvm` not in capability check | 16.C sockerless lane (Firecracker exits before API socket without KVM) |
+| [sockerless #374](https://github.com/e6qu/sockerless/issues/374) — 3 GB rootfs per VM on 14 GB runners | 16.C sockerless lane (disk exhaustion before any instance boots) |
+| [sockerless #375](https://github.com/e6qu/sockerless/issues/375) — asset caching + ubuntu-latest pin | 16.C sockerless lane (5-min timeout too tight on cold runners) |
+
+16.B (networking) and 16.D LB-create/describe have **no** dependency on these. The sockerless instance lane and RegisterTargets lane skip cleanly (with a message referencing the issues) until they close.
+
+### Out of intersection (Phase 16)
+
+NAT Gateways · Internet Gateways · Route Tables · VPC Peering · Auto Scaling Groups · EBS/Persistent Disk/Managed Disk (block storage — future phase) · ENIs/vNICs · Placement Groups · L7 load balancers · VPN/Interconnect/ExpressRoute · Instance Metadata Service (sockerless #371).
+
+### Exit criteria
+
+- `docs/phase-16-scoping.md` published; N20–N27 in `docs/normalizations.md`, each with code reference + test.
+- `cmd/codegen` ec2Query lane generates correct request parsing + XML response; `internal/ec2query/` tests pass.
+- `services/compute/` full 3 × 4 × 3 conformance matrix; NotImplemented rows in `services/compute/INTERSECTION.md`; sockerless networking lane green; sockerless instance lane added (skipping until #373–375 close).
+- `services/loadbalancer/` full 3 × 4 × 3 conformance matrix; layer-4 restriction enforced; sockerless LB-create lane green; RegisterTargets lane skipping until #373–375.
+- Cross-cloud Apply cell for at least one networking operation and one compute operation.
+
 ## Standing open questions (not phase-gated)
 
 - Single org-wide deployment vs per-tenant — affects auth model.
