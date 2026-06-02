@@ -779,6 +779,23 @@ func StartNoSQLServerAzureWithPassthrough(t *testing.T, backend nosqldomain.NoSQ
 	return &NoSQLServerTLS{URL: ts.URL, CertPEM: certPEM, Close: ts.Close}
 }
 
+// StartNoSQLServerAzureWithConfig is the full-config variant for
+// through-shim Terraform tests. It serves the Azure cloud-metadata
+// endpoint at `/metadata/endpoints` (BUG-50 follow-on: returns the
+// shim itself as `resourceManager` + `metadataLoginURL` as the
+// `loginEndpoint` so azurerm acquires Entra tokens from
+// sockerless), wraps ARM paths with the bearer verifier, and runs
+// data-plane paths through the SharedKey verifier.
+func StartNoSQLServerAzureWithConfig(t *testing.T, backend nosqldomain.NoSQL, cfg azurectfront.Config) *NoSQLServerTLS {
+	t.Helper()
+	srv := azurectfront.HandlerWithConfig(backend, cfg)
+	ts := httptest.NewTLSServer(&logRoundTrip{t: t, mux: srv})
+	t.Cleanup(ts.Close)
+	cert := ts.Certificate()
+	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw})
+	return &NoSQLServerTLS{URL: ts.URL, CertPEM: certPEM, Close: ts.Close}
+}
+
 type statusWriter struct {
 	http.ResponseWriter
 	status int

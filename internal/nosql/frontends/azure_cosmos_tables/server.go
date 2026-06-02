@@ -24,6 +24,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -31,6 +32,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/e6qu/shimanism/internal/azurebearer"
 	"github.com/e6qu/shimanism/internal/azuresharedkey"
 	"github.com/e6qu/shimanism/internal/nosql/domain"
 )
@@ -42,9 +44,9 @@ const MetadataTable = "shimtables"
 
 // Config controls optional frontend behaviour. Most callers use
 // the zero value via New(); through-shim ARM scenarios (Terraform,
-// az CLI) wire a Passthrough handler so unrecognised ARM paths
-// (`/subscriptions/...`) reach an upstream Cosmos DB ARM resource
-// provider rather than 404.
+// az CLI) wire a Passthrough handler + MetadataLoginURL so
+// azurerm's cloud-discovery + token acquisition reach sockerless
+// (or the configured upstream) rather than real Azure.
 type Config struct {
 	// Passthrough forwards unmatched ARM paths (subscriptions,
 	// resource groups, `Microsoft.DocumentDB/databaseAccounts/...`,
@@ -53,13 +55,32 @@ type Config struct {
 	// through-shim Apply tests where the destination cloud's full
 	// ARM surface needs to be reachable through the shim's port.
 	Passthrough http.Handler
+
+	// MetadataLoginURL is the base URL for endpoints the shim does
+	// NOT serve itself: authentication (Entra ID), graph, batch,
+	// portal, gallery. Set this to sockerless's Azure URL in tests
+	// so `GET /metadata/endpoints` returns an Azure cloud-environment
+	// JSON pointing azurerm at sockerless for tokens and at the
+	// shim itself for `resourceManager`. Empty → metadata endpoint
+	// is not served (request flows to Passthrough or 404).
+	MetadataLoginURL string
+
+	// BearerOptions configures the Azure Bearer-token verifier the
+	// frontend wraps every non-metadata request with when
+	// MetadataLoginURL is set. JWKS / JWKSURL drive RS256 validation
+	// against sockerless's Entra stub; TestKey selects HS256.
+	// Audience is matched against the token's `aud` claim when set;
+	// empty Audience skips the aud check (useful for through-shim
+	// tests where the shim's URL is dynamic).
+	BearerOptions azurebearer.Options
 }
 
 // Server is a Tables-shaped HTTP frontend dispatching to a
 // domain.NoSQL backend.
 type Server struct {
-	n           domain.NoSQL
-	passthrough http.Handler
+	n                domain.NoSQL
+	passthrough      http.Handler
+	metadataLoginURL string
 }
 
 // New returns a frontend bound to the given backend.
@@ -77,40 +98,70 @@ func NewWithPassthrough(n domain.NoSQL, upstream http.Handler) *Server {
 
 // NewWithConfig is the full constructor.
 func NewWithConfig(n domain.NoSQL, cfg Config) *Server {
-	return &Server{n: n, passthrough: cfg.Passthrough}
+	return &Server{
+		n:                n,
+		passthrough:      cfg.Passthrough,
+		metadataLoginURL: cfg.MetadataLoginURL,
+	}
 }
 
 // Handler wraps Server with the SharedKey verifier middleware.
 // SHIMANISM_TEST_UNAUTHENTICATED=1 short-circuits verification.
 func Handler(n domain.NoSQL) http.Handler {
-	return verifierMiddleware()(New(n))
+	return sharedKeyMiddleware()(New(n))
 }
 
 // HandlerWithPassthrough wraps a Server configured with an ARM
 // passthrough handler. The SharedKey verifier middleware runs only
-// on data-plane paths; ARM paths (`/subscriptions/...`) bypass it
-// because azurerm authenticates ARM with Bearer tokens, not
-// SharedKey, and the upstream handler validates those tokens.
-//
-// A follow-on PR will add an Azure bearer verifier in front of the
-// passthrough for end-to-end auth coverage; for now the upstream
-// (typically sockerless's Azure ARM stub) does the work.
+// on data-plane paths; ARM paths (`/subscriptions/...` or global
+// `/providers/...`) bypass it because azurerm authenticates ARM with
+// Bearer tokens, not SharedKey. Without BearerOptions set, the
+// upstream handler is responsible for token verification. Use
+// HandlerWithConfig to add a bearer verifier in front of the
+// passthrough.
 func HandlerWithPassthrough(n domain.NoSQL, upstream http.Handler) http.Handler {
-	server := NewWithPassthrough(n, upstream)
-	wrapped := verifierMiddleware()(server)
+	return HandlerWithConfig(n, Config{Passthrough: upstream})
+}
+
+// HandlerWithConfig is the verifier-wrapped form of NewWithConfig.
+//
+// Auth split per path:
+//   - Data-plane paths (Tables / entity ops) → SharedKey verifier.
+//   - ARM paths (subscription-scoped `/subscriptions/...` or global
+//     `/providers/...`) → bearer verifier (when BearerOptions is
+//     configured) → server → passthrough.
+//   - `/metadata/endpoints` GET → server's metadata handler (when
+//     MetadataLoginURL is set), bypassing both verifiers. The
+//     metadata endpoint is a public discovery URL in real Azure;
+//     clients hit it without a token to find where to acquire one.
+func HandlerWithConfig(n domain.NoSQL, c Config) http.Handler {
+	server := NewWithConfig(n, c)
+	sharedKey := sharedKeyMiddleware()(server)
+	bearerARM := wrapWithBearer(server, c.BearerOptions)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		path := strings.TrimPrefix(r.URL.Path, "/")
-		if strings.HasPrefix(path, "subscriptions/") {
-			// ARM paths skip the SharedKey middleware so Bearer-
-			// authed azurerm/az calls reach the passthrough.
+		if r.Method == http.MethodGet && path == "metadata/endpoints" && c.MetadataLoginURL != "" {
 			server.ServeHTTP(w, r)
 			return
 		}
-		wrapped.ServeHTTP(w, r)
+		if isARMPath(path) {
+			bearerARM.ServeHTTP(w, r)
+			return
+		}
+		sharedKey.ServeHTTP(w, r)
 	})
 }
 
-func verifierMiddleware() func(http.Handler) http.Handler {
+// isARMPath reports whether path (with leading slash already stripped)
+// is an Azure Resource Manager path. ARM paths include subscription-
+// scoped resources (`subscriptions/...`) and global provider
+// operations such as databaseAccountsCheckNameExists
+// (`providers/Microsoft.DocumentDB/databaseAccounts/{name}`).
+func isARMPath(path string) bool {
+	return strings.HasPrefix(path, "subscriptions/") || strings.HasPrefix(path, "providers/")
+}
+
+func sharedKeyMiddleware() func(http.Handler) http.Handler {
 	verifier := azuresharedkey.New(azuresharedkey.StaticStore{
 		Account: "shimcosmos",
 		Key:     []byte("test-key-do-not-use-in-prod-this-is-32-bytes-of-junk"),
@@ -118,17 +169,39 @@ func verifierMiddleware() func(http.Handler) http.Handler {
 	return azuresharedkey.Middleware(verifier)
 }
 
+func wrapWithBearer(h http.Handler, opts azurebearer.Options) http.Handler {
+	// Default to the test HMAC key when no signing material is
+	// configured (covers the bare HandlerWithPassthrough path used
+	// by SDK / inmem tests). Audience stays at the caller's value —
+	// empty Audience skips the aud check, which is the through-shim
+	// test posture.
+	if opts.JWKS == nil && opts.JWKSURL == "" && len(opts.TestKey) == 0 {
+		opts.TestKey = []byte("test-key-do-not-use-in-prod")
+	}
+	verifier := azurebearer.New(opts)
+	return azurebearer.Middleware(verifier, azurebearer.WithChallenge("https://management.azure.com/"))(h)
+}
+
 func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	path := strings.TrimPrefix(r.URL.Path, "/")
 
+	// Azure cloud-metadata endpoint. azurerm sets `metadata_host =
+	// <shim>` and fetches /metadata/endpoints to discover service
+	// URLs. When MetadataLoginURL is set, we answer in-band pointing
+	// resourceManager at the shim and login at sockerless's Entra.
+	if r.Method == http.MethodGet && path == "metadata/endpoints" && srv.metadataLoginURL != "" {
+		srv.serveMetadata(w, r)
+		return
+	}
+
 	// ARM paths flow to the upstream passthrough when configured.
-	// `/subscriptions/<sub>/...` is the universal ARM root —
-	// Microsoft.DocumentDB/databaseAccounts/{account}/tables/{name}
-	// and every other ARM resource lives under it. Without a
+	// Subscription-scoped resources live under `subscriptions/...`;
+	// global ARM operations (e.g. databaseAccountsCheckNameExists)
+	// use `providers/...` without a subscription prefix. Without a
 	// passthrough configured, unmatched paths fall through to the
 	// data-plane dispatch below and 404 with the Tables error
 	// envelope.
-	if srv.passthrough != nil && strings.HasPrefix(path, "subscriptions/") {
+	if srv.passthrough != nil && isARMPath(path) {
 		srv.passthrough.ServeHTTP(w, r)
 		return
 	}
@@ -730,3 +803,64 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 // dependency surface even if a future refactor stops using it
 // directly in the parsed paths.
 var _ = url.QueryUnescape
+
+// serveMetadata returns the Azure cloud-environment JSON document
+// at `/metadata/endpoints`. azurerm fetches this once per session
+// when `metadata_host = <shim>` is set; the response controls
+// where azurerm sends ARM calls (resourceManager) and where it
+// acquires Entra tokens (loginEndpoint).
+//
+// `resourceManager` points at the shim (so Cosmos Tables ARM calls
+// flow through this frontend's passthrough);
+// `authentication.loginEndpoint` and every other URL points at
+// `metadataLoginURL` (sockerless's Azure stub in tests, real Azure
+// in prod).
+//
+// Mirrors the shape sockerless's `simulators/azure/metadata.go`
+// emits + Azure's real response at
+// `https://management.azure.com/metadata/endpoints?api-version=...`.
+// Two api-version flavours: `2022-09-01` returns a single object
+// (azurerm v3/v4); older versions return a singleton array.
+func (srv *Server) serveMetadata(w http.ResponseWriter, r *http.Request) {
+	scheme := "https"
+	if r.TLS == nil {
+		scheme = "http"
+	}
+	if fp := r.Header.Get("X-Forwarded-Proto"); fp != "" {
+		scheme = strings.ToLower(fp)
+	}
+	shimBase := fmt.Sprintf("%s://%s", scheme, r.Host)
+	env := map[string]any{
+		"name": "AzureCloud",
+		"authentication": map[string]any{
+			"loginEndpoint": srv.metadataLoginURL,
+			"audiences": []string{
+				srv.metadataLoginURL + "/",
+				"https://management.core.windows.net/",
+				"https://management.azure.com/",
+			},
+			"tenant":           "common",
+			"identityProvider": "AAD",
+		},
+		"resourceManager":          shimBase,
+		"microsoftGraphResourceId": srv.metadataLoginURL + "/",
+		"graph":                    srv.metadataLoginURL,
+		"portal":                   srv.metadataLoginURL,
+		"gallery":                  srv.metadataLoginURL,
+		"batch":                    srv.metadataLoginURL,
+		"suffixes": map[string]any{
+			"keyVaultDns":       "vault.localhost",
+			"storage":           "storage.localhost",
+			"acrLoginServer":    "localhost",
+			"sqlServerHostname": "localhost",
+		},
+	}
+	apiVersion := r.URL.Query().Get("api-version")
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	if apiVersion == "2022-09-01" {
+		_ = json.NewEncoder(w).Encode(env)
+	} else {
+		_ = json.NewEncoder(w).Encode([]any{env})
+	}
+}

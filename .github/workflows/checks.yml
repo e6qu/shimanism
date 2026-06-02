@@ -244,17 +244,21 @@ jobs:
           cache: true
       - name: Start MinIO
         run: |
-          # quay.io has had recurring 502/504 outages; docker.io serves
-          # the same MinIO release. Both refs are accepted by docker
-          # run because docker-pull-retry.sh tags the pulled image to
-          # every supplied ref on success.
-          scripts/docker-pull-retry.sh \
+          # quay.io has had recurring 502/504 outages; docker.io
+          # serves the same MinIO release. docker-pull-retry.sh
+          # tries the SHA-pinned quay.io ref first (for byte-level
+          # reproducibility) and falls back to the tag-pinned
+          # docker.io ref. LOCAL_TAG gives `docker run` a stable
+          # name regardless of which mirror won — necessary because
+          # `docker tag` can't target digest-form refs, so the
+          # SHA-pinned quay.io ref isn't usable as a local alias.
+          LOCAL_TAG=shim-local/minio:run scripts/docker-pull-retry.sh \
             quay.io/minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e,docker.io/minio/minio:RELEASE.2024-09-13T20-26-02Z
           docker run -d --name minio \
             -p 9000:9000 \
             -e MINIO_ROOT_USER=minioadmin \
             -e MINIO_ROOT_PASSWORD=minioadmin \
-            quay.io/minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e \
+            shim-local/minio:run \
             server /data
           timeout 30 bash -c 'until curl -sf http://localhost:9000/minio/health/live; do sleep 1; done'
       - name: Run minio conformance
@@ -395,20 +399,51 @@ jobs:
           kubectl_version: v1.35.0
       - name: Install Redis Operator
         run: |
+          set -euo pipefail
           # OT-CONTAINER-KIT Redis Operator + CRDs. Pin to a known
           # 0.x release; the operator's CRD set has been stable.
           kubectl apply --server-side -f https://raw.githubusercontent.com/OT-CONTAINER-KIT/redis-operator/v0.21.0/config/crd/bases/redis.redis.opstreelabs.in_redis.yaml
-          kubectl apply --server-side -f https://raw.githubusercontent.com/OT-CONTAINER-KIT/redis-operator/v0.21.0/config/crd/bases/redis.redis.opstreelabs.in_redisclusters.yaml || true
-          kubectl apply --server-side -f https://raw.githubusercontent.com/OT-CONTAINER-KIT/redis-operator/v0.21.0/config/crd/bases/redis.redis.opstreelabs.in_redisreplications.yaml || true
-          kubectl apply --server-side -f https://raw.githubusercontent.com/OT-CONTAINER-KIT/redis-operator/v0.21.0/config/crd/bases/redis.redis.opstreelabs.in_redissentinels.yaml || true
-          # Operator deployment (single static manifest):
-          curl -sL https://raw.githubusercontent.com/OT-CONTAINER-KIT/redis-operator/v0.21.0/example/v1beta2/redis/redis-operator.yaml | kubectl apply -f - || true
-          # Fall back to helm install if the static manifest path
-          # is unavailable in the pinned version.
-          if ! kubectl get deployment -n redis-operator-system redis-operator-redis-operator >/dev/null 2>&1; then
-            helm repo add ot-helm https://ot-container-kit.github.io/helm-charts/
-            helm install redis-operator ot-helm/redis-operator --namespace redis-operator-system --create-namespace --wait
-          fi
+          kubectl apply --server-side -f https://raw.githubusercontent.com/OT-CONTAINER-KIT/redis-operator/v0.21.0/config/crd/bases/redis.redis.opstreelabs.in_redisclusters.yaml
+          kubectl apply --server-side -f https://raw.githubusercontent.com/OT-CONTAINER-KIT/redis-operator/v0.21.0/config/crd/bases/redis.redis.opstreelabs.in_redisreplications.yaml
+          kubectl apply --server-side -f https://raw.githubusercontent.com/OT-CONTAINER-KIT/redis-operator/v0.21.0/config/crd/bases/redis.redis.opstreelabs.in_redissentinels.yaml
+          # The static `example/v1beta2/redis/redis-operator.yaml` URL
+          # was a 404 in v0.21.0; Helm is the canonical install path.
+          # Pre-pull the operator image on the host with multi-mirror
+          # retry, then `kind load` it into the cluster. Without this,
+          # the operator pod tries to pull `quay.io/opstree/redis-
+          # operator:v0.24.0` directly inside the kind node and hits
+          # quay.io's recurring 502s — ImagePullBackOff stalls the
+          # whole job (BUG-51 + BUG-49 both surfaced this).
+          # docker.io has only ancient v0.4.0, so the mirror list is
+          # quay.io alone; the retry buys time for transient outages.
+          OPERATOR_IMG=quay.io/opstree/redis-operator:v0.24.0
+          LOCAL_TAG="$OPERATOR_IMG" scripts/docker-pull-retry.sh "$OPERATOR_IMG" 5 5
+          kind load docker-image "$OPERATOR_IMG" --name shim-redisop
+          helm repo add ot-helm https://ot-container-kit.github.io/helm-charts/
+          helm repo update
+          # With the image pre-loaded into kind, the pod's pull
+          # policy (IfNotPresent for non-`:latest` tags) hits the
+          # local cache — no quay.io round-trip needed. helm --wait
+          # still blocks on readiness; 10m is plenty when the image
+          # is already there.
+          helm install redis-operator ot-helm/redis-operator \
+            --namespace redis-operator-system --create-namespace \
+            --wait --timeout 10m
+      - name: Diagnose Redis Operator on failure
+        if: failure()
+        run: |
+          echo "::group::operator namespace pods"
+          kubectl get pods -n redis-operator-system -o wide || true
+          echo "::endgroup::"
+          echo "::group::operator events"
+          kubectl get events -n redis-operator-system --sort-by=.lastTimestamp || true
+          echo "::endgroup::"
+          echo "::group::operator describe"
+          kubectl describe pods -n redis-operator-system || true
+          echo "::endgroup::"
+          echo "::group::operator logs"
+          kubectl logs -n redis-operator-system -l app.kubernetes.io/name=redis-operator --tail=200 || true
+          echo "::endgroup::"
       - name: Run redisop conformance
         env:
           REDISOP_CONFORMANCE: '1'

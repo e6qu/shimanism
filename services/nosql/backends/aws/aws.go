@@ -289,16 +289,23 @@ func (b *Backend) DeleteItem(ctx context.Context, table string, key domain.Key) 
 	if err != nil {
 		return err
 	}
-	out, err := b.c.DeleteItem(ctx, &ddb.DeleteItemInput{
-		TableName:    strPtr(table),
-		Key:          keyMap,
-		ReturnValues: ddbtypes.ReturnValueAllOld,
+	// Use ConditionExpression to detect a missing item. DynamoDB's
+	// DeleteItem is idempotent by default (no error for absent items),
+	// and ReturnValues:ALL_OLD is not reliable across simulators. A
+	// conditional expression fires ConditionalCheckFailedException — a
+	// well-defined error code — when the item is absent.
+	_, err = b.c.DeleteItem(ctx, &ddb.DeleteItemInput{
+		TableName:                strPtr(table),
+		Key:                      keyMap,
+		ConditionExpression:      strPtr("attribute_exists(#pk)"),
+		ExpressionAttributeNames: map[string]string{"#pk": t.PartitionKeyName},
 	})
 	if err != nil {
+		var condCheckFailed *ddbtypes.ConditionalCheckFailedException
+		if errors.As(err, &condCheckFailed) {
+			return domain.NoSuchItem(table, describeKey(key))
+		}
 		return translateErr(err, table)
-	}
-	if len(out.Attributes) == 0 {
-		return domain.NoSuchItem(table, describeKey(key))
 	}
 	return nil
 }

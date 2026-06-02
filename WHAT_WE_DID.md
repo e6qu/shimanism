@@ -15,7 +15,21 @@ Sub-phases (full scoping in [PLAN.md § Phase 15](PLAN.md#phase-15--cross-cloud-
 - **15.C** — NoSQL key-value service: DynamoDB + Firestore Native + Cosmos DB Table API + K8s peer.
 - **15.D** — DNS service: Route 53 + Cloud DNS + Azure DNS + CoreDNS. Public + private zones.
 
-### 15.C Cosmos Tables ARM passthrough — foundational (this PR, after PR #96)
+### 15.C Cosmos Tables metadata + bearer wiring (this PR, after PR #97)
+
+PR #97 landed the ARM passthrough primitive. This PR adds the metadata endpoint + bearer verifier — everything the shim needs for azurerm to drive Cosmos Tables ARM through it. Terraform conformance is deferred because of a sockerless upstream gap: sockerless's Cosmos handler covers Core SQL only, not Tables ARM.
+
+- **`Config.MetadataLoginURL` + `Config.BearerOptions`** added to `internal/nosql/frontends/azure_cosmos_tables/`. `HandlerWithConfig` splits authentication by path:
+  - `/metadata/endpoints` (GET) → in-band cloud-environment JSON, no auth (Azure's discovery endpoint is public).
+  - `/subscriptions/...` → bearer verifier → server → passthrough. Bearer-authed azurerm/az calls flow through.
+  - Everything else → SharedKey verifier → Tables data-plane dispatcher.
+- **`serveMetadata`** returns Azure cloud-environment JSON pointing `resourceManager` at the shim itself (so ARM calls flow through the local passthrough) and `authentication.loginEndpoint` at `metadataLoginURL` (sockerless's Entra stub in tests). Two api-version flavours: `2022-09-01` returns a single object (azurerm v3/v4); older versions return a singleton array. Mirrors the shape sockerless's `simulators/azure/metadata.go` emits.
+- **`wrapWithBearer`** + bearer verifier middleware. Defaults to the test HMAC key when no signing material is configured; through-shim tests pass `BearerOptions{JWKS: ...}` to validate sockerless-issued RS256 tokens. Audience deliberately left empty in test wiring — sockerless mints tokens with `aud = <shim_url>` because the metadata endpoint declares the shim as `resourceManager`, but the shim doesn't know its own URL at config-time (httptest assigns a random port). Signature + Issuer + Exp/Nbf checks still apply.
+- **`StartNoSQLServerAzureWithConfig`** added to `internal/harness/server.go` — returns `NoSQLServerTLS` with the shim's cert PEM exported so Terraform consumers can trust it via SSL_CERT_FILE.
+- **Three new unit tests** in `passthrough_test.go`: `TestMetadata_PointsResourceManagerAtShim` (URL composition + resourceManager vs loginEndpoint), `TestMetadata_OlderApiVersionReturnsArray` (api-version branching), `TestMetadata_NotServedWhenURLEmpty` (no silent serving when MetadataLoginURL is unset).
+- **Terraform conformance for `azurerm_cosmosdb_table` was deferred** in the body of this PR. azurerm drives the resource through ARM at `Microsoft.DocumentDB/databaseAccounts/{a}/tables/{n}`. Sockerless's Cosmos handler simulated Core SQL (`databaseAccounts/{a}/sqlDatabases/...`) but not Tables ARM. Filed [e6qu/sockerless#356](https://github.com/e6qu/sockerless/issues/356); maintainer closed it via [sockerless PR #357](https://github.com/e6qu/sockerless/pull/357) on 2026-06-01 covering Cosmos Tables ARM (Create/Get/List/Delete + throughput), Storage Tables ARM (same shape), and the data-plane `Prefer: return-no-content` + ACL behaviours azurerm's path needs. The TF + az CLI conformance PRs are queued as the next 15.C steps.
+
+### 15.C Cosmos Tables ARM passthrough — foundational (PR #97, after PR #96)
 
 PR #96 closed the cross-cloud Apply matrix. This PR opens the Cosmos Tables ARM passthrough series — the multi-PR follow-on (analogue of DNS PRs #84-86) needed for `azurerm_cosmosdb_table` Terraform and `az cosmosdb table` CLI conformance. ARM operations on `Microsoft.DocumentDB/databaseAccounts/<account>/tables/<name>` go through ARM, not the Cosmos Tables data plane, so the shim's Cosmos Tables frontend must forward ARM paths to an upstream handler.
 
