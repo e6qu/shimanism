@@ -97,11 +97,15 @@ The Azure sim requires `SIM_SERVICEBUS_AMQP_LISTEN_ADDR` on a separate port (han
 - [x] Sockerless LB create/describe/delete lane (no Firecracker dep). ✅ this PR
 - [x] Sockerless RegisterTargets lane — `t.Skip` referencing #373/#374/#375. ✅ this PR
 - [x] `StartLoadBalancerServerAWS` in harness. ✅ this PR
-- [ ] GCP Compute v1 frontend — forwarding rules + target pools. (PR2)
-- [ ] Azure Network frontend — `loadBalancers` ARM resource. (PR2)
-- [ ] K8s peer — `Service` type:LoadBalancer; `Endpoints` for RegisterTargets. (PR2)
-- [ ] Real GCP + Azure backends. (PR2)
-- [ ] CLI + Terraform conformance tests. (PR2)
+- [x] GCP Compute v1 frontend (`internal/loadbalancer/frontends/gcp_lb/`) — forwarding rules + backend services. ✅ this PR
+- [x] Azure Network ARM frontend (`internal/loadbalancer/frontends/azure_lb/`) — `loadBalancers` + `backendAddressPools`. ✅ this PR
+- [x] K8s peer (`services/loadbalancer/backends/k8slb/`) — Service:LB + Endpoints. 3 unit tests green. ✅ this PR
+- [x] GCP SDK conformance tests (ForwardingRule + BackendService lifecycle). ✅ this PR
+- [x] Azure SDK conformance tests (LoadBalancer lifecycle). ✅ this PR
+- [x] K8s conformance tests (3 tests: AWS + GCP frontends vs K8s peer). ✅ this PR
+- [x] `StartLoadBalancerServerGCP` + `StartLoadBalancerServerAzure` in harness. ✅ this PR
+
+**Phase 16.D is complete.** Next: **16.C** — instance lifecycle (gated on sockerless #373/374/375 for the sockerless lane; all other conformance lanes can proceed).
 
 ## Upstream watch
 
