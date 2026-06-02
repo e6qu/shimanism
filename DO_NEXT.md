@@ -87,16 +87,21 @@ The Azure sim requires `SIM_SERVICEBUS_AMQP_LISTEN_ADDR` on a separate port (han
 
 ### 16.D — Load balancers (2–3 PRs, after 16.A; parallels 16.B)
 
-- [ ] New `services/loadbalancer/` directory. Vendor `services/loadbalancer/spec/`: AWS `elastic-load-balancing-v2-2015-12-01.json` (awsQuery — no new codegen), GCP LB routes from Compute v1, Azure `azure-network.json` LB resources.
-- [ ] Define `internal/loadbalancer/domain/` — `LoadBalancer` interface: CreateLoadBalancer / DeleteLoadBalancer / DescribeLoadBalancers / CreateTargetGroup / DeleteTargetGroup / RegisterTargets / DeregisterTargets / CreateListener / DeleteListener / DescribeListeners.
-- [ ] `services/loadbalancer/backends/inmem/` — inmem LB backend.
-- [ ] AWS ELBv2 frontend — awsQuery handler (reuses existing awsQuery lane; no new codegen).
-- [ ] GCP Compute v1 frontend — forwarding rules + target pools + health checks.
-- [ ] Azure Network frontend — loadBalancers ARM resource (same spec as 16.B azure-network.json).
-- [ ] K8s peer — Service type:LoadBalancer (create/delete/list); Endpoints (RegisterTargets/DeregisterTargets).
-- [ ] Real backends: `services/loadbalancer/backends/{aws,gcp,azure}/`.
-- [ ] Full conformance matrix: SDK + CLI + Terraform × all frontends × all backends.
-- [ ] Sockerless LB lane: create/describe/delete (no Firecracker dep) green immediately; RegisterTargets lane with `t.Skip` referencing #373/#374/#375.
+- [x] Vendor spec: `services/loadbalancer/spec/aws-elastic-load-balancing-v2.smithy.json`. ✅ this PR
+- [x] Codegen: `services/loadbalancer/codegen.json`; run `make codegen`. ✅ this PR
+- [x] Define `internal/loadbalancer/domain/` — `LoadBalancers` interface + all types. ✅ this PR
+- [x] `services/loadbalancer/backends/inmem/` — inmem LB backend (3 unit tests green). ✅ this PR
+- [x] AWS ELBv2 frontend (`internal/loadbalancer/frontends/aws_elbv2/`). ✅ this PR
+- [x] Real AWS ELBv2 backend (`services/loadbalancer/backends/aws/`). ✅ this PR
+- [x] SDK conformance: LB/TG/Listener lifecycle via elasticloadbalancingv2 SDK (all green). ✅ this PR
+- [x] Sockerless LB create/describe/delete lane (no Firecracker dep). ✅ this PR
+- [x] Sockerless RegisterTargets lane — `t.Skip` referencing #373/#374/#375. ✅ this PR
+- [x] `StartLoadBalancerServerAWS` in harness. ✅ this PR
+- [ ] GCP Compute v1 frontend — forwarding rules + target pools. (PR2)
+- [ ] Azure Network frontend — `loadBalancers` ARM resource. (PR2)
+- [ ] K8s peer — `Service` type:LoadBalancer; `Endpoints` for RegisterTargets. (PR2)
+- [ ] Real GCP + Azure backends. (PR2)
+- [ ] CLI + Terraform conformance tests. (PR2)
 
 ## Upstream watch
 

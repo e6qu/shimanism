@@ -40,6 +40,8 @@ import (
 	azurecafront "github.com/e6qu/shimanism/internal/functions/frontends/azure_containerapps"
 	gcpcrfront "github.com/e6qu/shimanism/internal/functions/frontends/gcp_cloudrun"
 	"github.com/e6qu/shimanism/internal/gcpbearer"
+	lbdomain "github.com/e6qu/shimanism/internal/loadbalancer/domain"
+	awselbv2front "github.com/e6qu/shimanism/internal/loadbalancer/frontends/aws_elbv2"
 	nosqldomain "github.com/e6qu/shimanism/internal/nosql/domain"
 	awsddbfront "github.com/e6qu/shimanism/internal/nosql/frontends/aws_dynamodb"
 	azurectfront "github.com/e6qu/shimanism/internal/nosql/frontends/azure_cosmos_tables"
@@ -843,6 +845,25 @@ func StartComputeServerAzure(t *testing.T, backend computedomain.Networking) *Co
 	ts := httptest.NewTLSServer(&logRoundTrip{t: t, mux: srv})
 	t.Cleanup(ts.Close)
 	return &ComputeServer{URL: ts.URL, Close: ts.Close}
+}
+
+// LoadBalancerServer is a started load-balancer-shim instance.
+type LoadBalancerServer struct {
+	URL   string
+	Close func()
+}
+
+// StartLoadBalancerServerAWS starts a shim instance with the AWS ELBv2
+// (awsQuery) frontend backed by the given load-balancer implementation.
+// ELBv2-shaped clients (aws-sdk-go-v2/service/elasticloadbalancingv2,
+// aws elbv2 CLI, hashicorp/aws Terraform provider) drive it via
+// BaseEndpoint.
+func StartLoadBalancerServerAWS(t *testing.T, backend lbdomain.LoadBalancers) *LoadBalancerServer {
+	t.Helper()
+	srv := awselbv2front.New(backend)
+	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
+	t.Cleanup(ts.Close)
+	return &LoadBalancerServer{URL: ts.URL, Close: ts.Close}
 }
 
 type statusWriter struct {
