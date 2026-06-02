@@ -33,16 +33,14 @@ The Azure sim requires `SIM_SERVICEBUS_AMQP_LISTEN_ADDR` on a separate port (han
 
 ## Phase 16 sub-phase checklist
 
-### 16.A — Normalization audit + scoping + ec2Query codegen (1–2 PRs, unblocked)
+### 16.A — Normalization audit + scoping + ec2Query codegen ✅ (PR #104)
 
-- [ ] Write `docs/phase-16-scoping.md` (mirror `docs/phase-15-cd-scoping.md` pattern: per-cloud surface, intersection table, out-of-intersection list, spec sources, K8s peer design, codegen plan).
-- [ ] Add N20–N27 to `docs/normalizations.md` (full rule + trade-off + reference skeleton for each; code references filled in as 16.B/16.C/16.D land).
-- [ ] Add `ec2Query` protocol lane to `cmd/codegen`:
-  - `internal/codegen/emit/template_ec2query.tmpl` (~300 lines; variant of `template_awsquery.tmpl` with flattened list serialization + EC2 error envelope)
-  - `internal/codegen/emit/emit.go` (5-line `ec2Query` detection branch)
-  - `internal/ec2query/router.go` (~100 lines — Action dispatch + XML response helpers)
-  - `internal/ec2query/router_test.go`
-  - Round-trip codegen test with a minimal synthetic EC2 Smithy snippet.
+- [x] `docs/phase-16-scoping.md` written.
+- [x] N20–N27 added to `docs/normalizations.md`.
+- [x] `internal/ec2query/` runtime package (router + error/response envelopes + tests).
+- [x] `internal/codegen/emit/template_ec2query.tmpl` (flattened list decode, ec2query imports).
+- [x] `internal/codegen/emit/emit.go` ec2Query detection + pickTemplate branch.
+- [x] `internal/codegen/ec2query_test.go` round-trip test with synthetic Smithy model.
 
 ### 16.B — VPC networking primitives (3–4 PRs, after 16.A)
 
