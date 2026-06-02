@@ -6,18 +6,32 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 
 ## Phase 15 — Cross-cloud normalization standard + new services
 
-Just opened (2026-05-30). The 14.E secrets matrix closure (PR #69 — this PR) surfaced the first formal *normalization rule*: the empty-placeholder convention for value-less secret creates (AWS/GCP → Azure). That rule generalises — every (source-cloud × destination-cloud) cell where semantics don't map 1:1 needs a published, stateless, deterministic translation. Phase 15 codifies the existing implicit normalisations into a contract document, closes out 14.E residuals, and adds two new shimmed services (NoSQL key-value + DNS) using that contract from the start.
+**Closed 2026-06-02.** All four sub-phases complete: 15.A (normalisations doc), 15.B (14.E residual cleanups), 15.C (NoSQL), 15.D (DNS). Phase 15 opened on 2026-05-30 with the 14.E secrets matrix closure and closes with the final Cosmos Tables CLI conformance test.
 
-Sub-phases (full scoping in [PLAN.md § Phase 15](PLAN.md#phase-15--cross-cloud-normalization-standard--new-service-expansion)):
+Sub-phases:
 
-- **15.A** — Normalisations contract doc. Audit + publish every implicit rule. Cheap, high-value, ships first.
-- **15.B** — 14.E residual cleanups (`has_secret_string_wo` drift, SB cross-cloud scoping).
-- **15.C** — NoSQL key-value service: DynamoDB + Firestore Native + Cosmos DB Table API + K8s peer.
-- **15.D** — DNS service: Route 53 + Cloud DNS + Azure DNS + CoreDNS. Public + private zones.
+- **15.A** ✅ — Normalisations contract doc.
+- **15.B** ✅ — 14.E residual cleanups.
+- **15.C** ✅ — NoSQL key-value service: DynamoDB + Firestore Native + Cosmos DB Table API + K8s peer.
+- **15.D** ✅ — DNS service: Route 53 + Cloud DNS + Azure DNS + CoreDNS.
 
-### 15.C Cosmos Tables metadata + bearer wiring (this PR, after PR #97)
+### 15.C closure — Terraform + az CLI conformance (PRs #98, #100)
 
-PR #97 landed the ARM passthrough primitive. This PR adds the metadata endpoint + bearer verifier — everything the shim needs for azurerm to drive Cosmos Tables ARM through it. Terraform conformance is deferred because of a sockerless upstream gap: sockerless's Cosmos handler covers Core SQL only, not Tables ARM.
+PRs #97–#96 established the ARM passthrough + metadata + bearer verifier. The final two PRs closed the conformance matrix for the Azure frontend.
+
+**What the BUG-50 series taught us.** The Cosmos Tables ARM passthrough story turned out to require three distinct fixes that each surface a real architectural boundary:
+
+1. **Global vs subscription-scoped ARM paths.** Azure ARM has two path prefixes — `subscriptions/` (subscription-scoped resources) and `providers/` (global operations like `databaseAccountsCheckNameExists`). The shim's initial `isARMPath()` only handled `subscriptions/`. The `azurerm` Terraform provider's `HEAD /providers/Microsoft.DocumentDB/databaseAccounts/{name}` check (name-availability before account creation) hit SharedKey instead of Bearer and got a 401. Fix: extend `isARMPath()` to match both prefixes. Lesson: Azure's ARM spec has two top-level path shapes; any ARM-routing passthrough needs to handle both.
+
+2. **DynamoDB `DeleteItem` cross-simulator reliability.** The shim's DynamoDB backend used `ReturnValues: ALL_OLD` to detect absent items (empty `Attributes` → item not found). Sockerless's DynamoDB simulator returns empty `Attributes` regardless of item existence, so every delete that hit sockerless looked like a missing item. The fix — `ConditionExpression: attribute_exists(#pk)` + catching `ConditionalCheckFailedException` — is the idiomatic DynamoDB approach and is robust across any conformant DynamoDB surface. Lesson: existence detection via `ReturnValues` is implementation-dependent; ConditionExpression is the right primitive.
+
+3. **`az login --service-principal` against a custom Entra stub.** The DNS BUG-43 pattern (register custom `az` cloud + `az login --service-principal` against sockerless) transferred directly. Sockerless exposes `POST /{tenantId}/oauth2/v2.0/token` and `GET /{tenantId}/discovery/v2.0/keys`; `az cloud register --endpoint-active-directory` points `az` at sockerless; `SSL_CERT_FILE` + `REQUESTS_CA_BUNDLE` handle the TLS trust chain. The pattern is reusable for any subsequent Azure service.
+
+**Sockerless upstream dependency management.** The TF conformance test was initially blocked on sockerless not supporting Tables ARM (only Core SQL). We filed [e6qu/sockerless#356](https://github.com/e6qu/sockerless/issues/356) and waited — [sockerless PR #357](https://github.com/e6qu/sockerless/pull/357) landed Cosmos Tables ARM on 2026-06-01. We also filed [e6qu/sockerless#360](https://github.com/e6qu/sockerless/issues/360) for the `DeleteItem ReturnValues` bug and it was fixed in [sockerless PR #361](https://github.com/e6qu/sockerless/pull/361). Both cases: file, wait, don't mock around.
+
+### 15.C Cosmos Tables metadata + bearer wiring (PR #98, after PR #97)
+
+PR #97 landed the ARM passthrough primitive. PR #98 adds the metadata endpoint + bearer verifier — everything the shim needs for azurerm to drive Cosmos Tables ARM through it — plus Terraform conformance (`TestSockerless_AzureCosmosTables_Through_Shim_Terraform_Apply`) once sockerless PR #357 unblocked the Tables ARM surface.
 
 - **`Config.MetadataLoginURL` + `Config.BearerOptions`** added to `internal/nosql/frontends/azure_cosmos_tables/`. `HandlerWithConfig` splits authentication by path:
   - `/metadata/endpoints` (GET) → in-band cloud-environment JSON, no auth (Azure's discovery endpoint is public).
