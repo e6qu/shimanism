@@ -57,11 +57,12 @@ The Azure sim requires `SIM_SERVICEBUS_AMQP_LISTEN_ADDR` on a separate port (han
 - [x] Conformance SDK tests: AWS (VPC/Subnet/SG/EIP lifecycle, all green). ✅ this PR
 - [x] Conformance GCP SDK tests: Network/Firewall lifecycle, all green. ✅ this PR
 - [x] Sockerless networking lane (no Firecracker dep). ✅ this PR
-- [ ] Azure Network frontend — VNet/Subnet/NSG/PublicIPAddress ARM handlers. (PR3)
+- [x] Azure Network frontend (`internal/compute/frontends/azure_network/`) — VNet/Subnet/NSG/PublicIPAddress ARM handlers. ✅ this PR
+- [x] Real Azure backend (`services/compute/backends/azure/`) — armnetwork/v6. ✅ this PR
+- [x] Azure SDK conformance tests: VNet/Subnet/NSG/PublicIP lifecycle, all green. ✅ this PR
 - [ ] K8s peer (`services/compute/backends/k8scompute/`) — Namespace (VPC), NetworkPolicy (SG); subnets/EIPs return NotImplemented. (PR4)
-- [ ] Real Azure backend (`services/compute/backends/azure/`). (PR3)
-- [ ] CLI conformance tests (aws ec2, gcloud compute). (PR4)
-- [ ] Terraform conformance tests (hashicorp/aws + hashicorp/google). (PR4)
+- [ ] CLI conformance tests (aws ec2, gcloud compute, az network). (PR4)
+- [ ] Terraform conformance tests (hashicorp/aws + hashicorp/google + hashicorp/azurerm). (PR4)
 - [ ] `services/compute/INTERSECTION.md` — intersection table with K8s NotImplemented rows documented. (PR4)
 
 ### 16.C — Compute instance lifecycle (3–4 PRs, after 16.B)
