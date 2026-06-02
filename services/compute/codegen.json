@@ -1,0 +1,32 @@
+{
+  "_comment": "Phase 16.B networking operations from the AWS EC2 api (ec2Query protocol). Covers VPCs, subnets, security groups, and Elastic IPs. Phase 16.C will extend this manifest with instance lifecycle operations (RunInstances, DescribeInstances, etc.).",
+  "spec": "services/compute/spec/aws-ec2.smithy.json",
+  "package": "gen",
+  "out": "services/compute/gen/aws_ec2.gen.go",
+  "operations": [
+    "CreateVpc",
+    "DeleteVpc",
+    "DescribeVpcs",
+    "ModifyVpcAttribute",
+    "CreateSubnet",
+    "DeleteSubnet",
+    "DescribeSubnets",
+    "ModifySubnetAttribute",
+    "CreateSecurityGroup",
+    "DeleteSecurityGroup",
+    "DescribeSecurityGroups",
+    "AuthorizeSecurityGroupIngress",
+    "RevokeSecurityGroupIngress",
+    "AuthorizeSecurityGroupEgress",
+    "RevokeSecurityGroupEgress",
+    "DescribeSecurityGroupRules",
+    "AllocateAddress",
+    "ReleaseAddress",
+    "AssociateAddress",
+    "DisassociateAddress",
+    "DescribeAddresses",
+    "CreateTags",
+    "DeleteTags",
+    "DescribeTags"
+  ]
+}

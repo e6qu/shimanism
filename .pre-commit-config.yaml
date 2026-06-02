@@ -9,6 +9,7 @@ repos:
       - id: check-yaml
         args: [--allow-multiple-documents]
       - id: check-added-large-files
+        args: [--maxkb=10240]
 
   - repo: https://github.com/shellcheck-py/shellcheck-py
     rev: v0.10.0.1
