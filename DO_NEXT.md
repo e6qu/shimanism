@@ -43,6 +43,7 @@ All prior sockerless gaps closed. Recent merges:
 - [sockerless PR #368](https://github.com/e6qu/sockerless/pull/368) ✅ — Azure Entra authorization-code flow (PKCE, ID tokens, refresh tokens). No current shim dependency; relevant if we test interactive auth scenarios.
 - [sockerless PR #369](https://github.com/e6qu/sockerless/pull/369) ✅ — Azure SDK local portability (macOS Docker harness, Event Grid resolver). Build infra only.
 - [sockerless PR #370](https://github.com/e6qu/sockerless/pull/370) ✅ — Dockerfile build context fixes + `.dockerignore` + `SIM_RUNTIME=process` docs. Build infra only.
+- [sockerless PR #372](https://github.com/e6qu/sockerless/pull/372) ✅ — Firecracker VM lifecycle for EC2/GCE/Azure VM simulators: real TAP NIC attachment, kernel + rootfs boot, nftables/NSG filter wiring. Switches CI from arm64 to `ubuntu-latest` (x86_64) for `/dev/kvm` access. No current shim dependency; relevant when Phase 16 covers compute/VMs. Three follow-up issues filed: [#373](https://github.com/e6qu/sockerless/issues/373) (`/dev/kvm` capability check), [#374](https://github.com/e6qu/sockerless/issues/374) (3 GB rootfs disk usage), [#375](https://github.com/e6qu/sockerless/issues/375) (asset caching + runner pinning).
 
 ## Standing rules
 
