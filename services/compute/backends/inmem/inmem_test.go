@@ -216,10 +216,18 @@ func TestInstance_Lifecycle(t *testing.T) {
 		t.Fatalf("TerminateInstances: %v state=%s", err, terminated[0].State)
 	}
 
-	// Should be gone
+	// DescribeInstances by ID returns the terminated instance (AWS behavior:
+	// terminated instances are visible by ID; list-all excludes them).
 	res, _ = b.DescribeInstances(ctx, domain.DescribeInstancesOptions{IDs: []string{inst.ID}})
-	if len(res.Instances) != 0 {
-		t.Errorf("expected 0 instances after terminate, got %d", len(res.Instances))
+	if len(res.Instances) != 1 || res.Instances[0].State != domain.InstanceStateTerminated {
+		t.Errorf("expected 1 terminated instance, got %d", len(res.Instances))
+	}
+	// List-all (no ID filter) excludes terminated instances by default.
+	all, _ := b.DescribeInstances(ctx, domain.DescribeInstancesOptions{})
+	for _, i := range all.Instances {
+		if i.ID == inst.ID {
+			t.Errorf("list-all includes terminated instance %s", inst.ID)
+		}
 	}
 }
 

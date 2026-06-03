@@ -4,6 +4,36 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 
 > Reverse chronological. One section per phase. The *why*, the surprises, the root causes — not per-PR detail. For commit-level history, `git log`. For per-bug detail, [BUGS.md](BUGS.md). For pipeline + verifier architecture, [docs/codegen-pipelines.md](docs/codegen-pipelines.md) + [docs/verifiers.md](docs/verifiers.md).
 
+## Phase 16.C PR3 — Terraform + CLI instance conformance + cross-cloud cell
+
+**In progress (branch `phase-16c-instances-pr3`).** PRs #111 and #112 shipped the core implementation; PR3 closes the Terraform + CLI conformance rows and the cross-cloud Apply cell.
+
+### The Terraform `aws_instance` destroy waiter: three layers of the same bug
+
+The AWS Terraform provider's `resourceInstanceDelete` flow calls `TerminateInstances`, then polls `DescribeInstances` until it sees state `"terminated"`. We hit three interacting problems:
+
+1. **`TerminateInstances` deleted the instance immediately.** The inmem backend did `delete(b.instances, id)` on terminate. Subsequent `DescribeInstances` calls returned an empty list. The provider's `StateChangeConf` saw state `""` (not in `Pending` list, not in `Target: ["terminated"]`) and kept retrying until the test timeout.
+
+2. **Real AWS behavior: terminated instances are visible by ID.** In real AWS, `DescribeInstances --instance-ids i-xxx` returns the instance in `terminated` state for ~1 hour after termination. List-all calls (no ID filter) exclude terminated instances by default. We fixed the inmem to mirror this: `TerminateInstances` keeps the instance in the store with `state=terminated`; `DescribeInstances` with a specific ID returns it; `DescribeInstances` with no ID filter excludes terminated instances.
+
+3. **`DescribeInstanceAttribute` enum not decoded by codegen.** The `Attribute` field is an enum type; codegen emits a string `r.Form.Get("attributeName")` but the wire key is `"Attribute"` (PascalCase per ec2QueryName trait). Added `ec2query.FormFromContext(ctx).Get("Attribute")` fallback in the adapter.
+
+4. **`ModifyInstanceAttribute` not in codegen.** Provider calls this during resource update. Added as a no-op stub.
+
+Root cause summary: the inmem backend modelled instance termination as an immediate delete. Real cloud APIs keep terminated instances visible for some time so waiters can observe the terminal state. The fix is semantically correct: keep terminated instances in the store; filter them from list-all calls; expose them on ID lookups.
+
+### `instance-state-name` filter parsing
+
+The Terraform provider v5 calls `DescribeInstances` during the destroy wait with an `instance-state-name` filter that includes `"terminated"`. Added filter parsing in the AWS adapter (`Filter.N.Name` + `Filter.N.Value.M` loop from form context), plus `ec2StateToDomain` for the reverse mapping. This lets the adapter pass explicit states to the domain layer when the caller asks for them.
+
+### gcloud CLI exits 0 after 401
+
+The GCP bearer verifier rejects `CLOUDSDK_AUTH_ACCESS_TOKEN=test-skip` (not a valid JWT). `gcloud compute instances list` and `gcloud compute machine-types list` both exit 0 with JSON `[]` output on 401 — unlike `gcloud compute networks list`, which exits non-zero. Fixed both CLI instance tests to skip on empty JSON output in addition to non-zero exit.
+
+### Cross-cloud Apply cell
+
+`TestCrossCloudApply_Roundtrip_Compute_AWStoGCP`: creates an instance via the AWS EC2 frontend (RunInstances), reads it back from the GCP Compute frontend (instances.list), verifies `RUNNING` status and `t3.micro` machine type, then terminates via AWS and confirms GCP no longer shows a running `t3.micro`. Both frontends are backed by the same inmem Backend. This is the Phase 16.C exit-criterion cross-cloud cell.
+
 ## Phase 15 — Cross-cloud normalization standard + new services
 
 **Closed 2026-06-02.** All four sub-phases complete: 15.A (normalisations doc), 15.B (14.E residual cleanups), 15.C (NoSQL), 15.D (DNS). Phase 15 opened on 2026-05-30 with the 14.E secrets matrix closure and closes with the final Cosmos Tables CLI conformance test.

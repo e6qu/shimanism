@@ -658,6 +658,145 @@ func (a *Adapter) DescribeTags(_ context.Context, in *gen.DescribeTagsRequest) (
 	return &gen.DescribeTagsResult{}, nil
 }
 
+// ─── Image operations ────────────────────────────────────────────────
+//
+// DescribeImages returns a synthetic entry for each requested image ID
+// so that the hashicorp/aws Terraform provider can validate AMI IDs
+// before calling RunInstances. The shim is stateless — it doesn't
+// manage an AMI catalogue; any ID is accepted as valid.
+
+// ModifyInstanceAttribute accepts instance attribute modifications and
+// returns success without applying them. The shim is stateless — it
+// doesn't persist per-instance attribute state.
+func (a *Adapter) ModifyInstanceAttribute(_ context.Context, _ *gen.ModifyInstanceAttributeRequest) (struct{}, error) {
+	return struct{}{}, nil
+}
+
+// DescribeInstanceAttribute returns a plausible default for each
+// requested attribute. The Terraform provider reads several attributes
+// after creating an instance (instanceInitiatedShutdownBehavior,
+// disableApiTermination, userData, etc.) to populate state.
+// DescribeVolumes returns an empty volume set. The shim is stateless
+// and manages no EBS volumes; the Terraform provider calls this to
+// populate root_block_device state after RunInstances.
+func (a *Adapter) DescribeVolumes(_ context.Context, _ *gen.DescribeVolumesRequest) (*gen.DescribeVolumesResult, error) {
+	return &gen.DescribeVolumesResult{}, nil
+}
+
+// DescribeInstanceStatus returns "ok/ok" (2/2 checks passed) for all
+// requested instance IDs. The Terraform provider polls this to wait for
+// system + instance status checks to clear after RunInstances.
+func (a *Adapter) DescribeInstanceStatus(ctx context.Context, in *gen.DescribeInstanceStatusRequest) (*gen.DescribeInstanceStatusResult, error) {
+	// Collect the requested instance IDs from form context (InstanceId.N).
+	form := ec2query.FormFromContext(ctx)
+	var ids []string
+	for i := 1; ; i++ {
+		v := form.Get("InstanceId." + strconv.Itoa(i))
+		if v == "" {
+			break
+		}
+		ids = append(ids, v)
+	}
+	// Fall back to all instances if no IDs requested.
+	if len(ids) == 0 {
+		res, err := a.n.DescribeInstances(ctx, domain.DescribeInstancesOptions{})
+		if err != nil {
+			return nil, mapDomainErr(err)
+		}
+		for _, inst := range res.Instances {
+			ids = append(ids, inst.ID)
+		}
+	}
+	statusOK := gen.SummaryStatus("ok")
+	result := &gen.DescribeInstanceStatusResult{}
+	for _, id := range ids {
+		id := id
+		code := int32(16)
+		name := gen.InstanceStateName("running")
+		result.InstanceStatuses.Member = append(result.InstanceStatuses.Member, gen.InstanceStatus{
+			InstanceId:    &id,
+			InstanceState: &gen.InstanceState{Code: &code, Name: &name},
+			InstanceStatus: &gen.InstanceStatusSummary{
+				Status: &statusOK,
+			},
+			SystemStatus: &gen.InstanceStatusSummary{
+				Status: &statusOK,
+			},
+		})
+	}
+	return result, nil
+}
+
+func (a *Adapter) DescribeInstanceAttribute(ctx context.Context, in *gen.DescribeInstanceAttributeRequest) (*gen.InstanceAttribute, error) {
+	// Attribute is an enum; the codegen template only handles plain
+	// strings/bools/ints, so read it from form context directly.
+	attr := &gen.InstanceAttribute{
+		InstanceId: strPtr(in.InstanceId),
+	}
+	// Attribute is an enum; the codegen template only handles plain
+	// strings/bools/ints. The ec2QueryName for Attribute is "Attribute"
+	// (PascalCase), so read that key from form context directly.
+	attrName := string(in.Attribute)
+	if v := ec2query.FormFromContext(ctx).Get("Attribute"); v != "" {
+		attrName = v
+	}
+	switch attrName {
+	case "instanceInitiatedShutdownBehavior":
+		attr.InstanceInitiatedShutdownBehavior = &gen.AttributeValue{Value: strPtr("stop")}
+	case "disableApiTermination":
+		f := false
+		attr.DisableApiTermination = &gen.AttributeBooleanValue{Value: &f}
+	case "disableApiStop":
+		f := false
+		attr.DisableApiStop = &gen.AttributeBooleanValue{Value: &f}
+	case "ebsOptimized":
+		f := false
+		attr.EbsOptimized = &gen.AttributeBooleanValue{Value: &f}
+	case "enaSupport":
+		t := true
+		attr.EnaSupport = &gen.AttributeBooleanValue{Value: &t}
+	case "userData":
+		attr.UserData = &gen.AttributeValue{Value: strPtr("")}
+	case "sriovNetSupport":
+		attr.SriovNetSupport = &gen.AttributeValue{Value: strPtr("")}
+	case "rootDeviceName":
+		attr.RootDeviceName = &gen.AttributeValue{Value: strPtr("/dev/xvda")}
+	case "instanceType":
+		// Return the actual instance type if we can look it up.
+		res, err := a.n.DescribeInstances(ctx, domain.DescribeInstancesOptions{IDs: []string{in.InstanceId}})
+		if err == nil && len(res.Instances) > 0 {
+			attr.InstanceType = &gen.AttributeValue{Value: strPtr(res.Instances[0].InstanceType)}
+		}
+	}
+	return attr, nil
+}
+
+func (a *Adapter) DescribeImages(_ context.Context, in *gen.DescribeImagesRequest) (*gen.DescribeImagesResult, error) {
+	result := &gen.DescribeImagesResult{}
+	// Echo back each requested image ID as a synthetic available image.
+	for _, id := range in.ImageIds.Member {
+		id := id
+		state := gen.ImageState("available")
+		rootDevType := gen.DeviceType("ebs")
+		arch := gen.ArchitectureValues("x86_64")
+		virtType := gen.VirtualizationType("hvm")
+		hypervisor := gen.HypervisorType("xen")
+		ownerID := strPtr("000000000000")
+		result.Images.Member = append(result.Images.Member, gen.Image{
+			ImageId:            &id,
+			ImageLocation:      strPtr("shimanism/" + id),
+			Name:               strPtr(id),
+			OwnerId:            ownerID,
+			State:              &state,
+			RootDeviceType:     &rootDevType,
+			Architecture:       &arch,
+			VirtualizationType: &virtType,
+			Hypervisor:         &hypervisor,
+		})
+	}
+	return result, nil
+}
+
 // ─── Instance operations (Phase 16.C) ───────────────────────────────
 
 func (a *Adapter) RunInstances(ctx context.Context, in *gen.RunInstancesRequest) (*gen.Reservation, error) {
@@ -707,6 +846,31 @@ func (a *Adapter) RunInstances(ctx context.Context, in *gen.RunInstancesRequest)
 func (a *Adapter) DescribeInstances(ctx context.Context, in *gen.DescribeInstancesRequest) (*gen.DescribeInstancesResult, error) {
 	opts := domain.DescribeInstancesOptions{
 		IDs: in.InstanceIds.Member,
+	}
+	// Parse instance-state-name filter. When the caller passes explicit
+	// states (e.g. the Terraform destroy waiter includes "terminated"),
+	// forward them so terminated instances are visible. Without this
+	// filter the default domain behavior excludes terminated instances.
+	if form := ec2query.FormFromContext(ctx); form != nil {
+		for i := 1; ; i++ {
+			fname := form.Get("Filter." + strconv.Itoa(i) + ".Name")
+			if fname == "" {
+				break
+			}
+			if fname == "instance-state-name" {
+				for j := 1; ; j++ {
+					sv := form.Get("Filter." + strconv.Itoa(i) + ".Value." + strconv.Itoa(j))
+					if sv == "" {
+						break
+					}
+					for _, part := range strings.Split(sv, ",") {
+						if ds, ok := ec2StateToDomain(strings.TrimSpace(part)); ok {
+							opts.States = append(opts.States, ds)
+						}
+					}
+				}
+			}
+		}
 	}
 	res, err := a.n.DescribeInstances(ctx, opts)
 	if err != nil {
@@ -853,6 +1017,20 @@ func domainInstanceToGen(inst domain.Instance, launchTime time.Time) gen.Instanc
 }
 
 // EC2 state codes: 0=pending, 16=running, 32=shutting-down, 48=terminated, 64=stopping, 80=stopped
+// ec2StateToDomain maps an EC2 wire state name string to a domain state.
+func ec2StateToDomain(name string) (domain.InstanceState, bool) {
+	m := map[string]domain.InstanceState{
+		"pending":       domain.InstanceStatePending,
+		"running":       domain.InstanceStateRunning,
+		"stopped":       domain.InstanceStateStopped,
+		"stopping":      domain.InstanceStateStopped,
+		"shutting-down": domain.InstanceStateTerminated,
+		"terminated":    domain.InstanceStateTerminated,
+	}
+	s, ok := m[name]
+	return s, ok
+}
+
 func domainStateToGen(s domain.InstanceState) *gen.InstanceState {
 	type stateCode struct {
 		code int32

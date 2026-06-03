@@ -711,6 +711,12 @@ func (l *logRoundTrip) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.URL.RawQuery != "" {
 		suffix = "?" + r.URL.RawQuery
 	}
+	// r.Form is populated by the handler chain (SigV4 or ec2query router
+	// calls ParseForm internally); safe to read here after dispatch.
+	action := r.Form.Get("Action")
+	if action != "" {
+		suffix += " [" + action + "]"
+	}
 	l.t.Logf("[harness] %s %s%s -> %d", r.Method, r.URL.Path, suffix, sw.status)
 }
 

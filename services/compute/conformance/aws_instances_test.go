@@ -114,7 +114,10 @@ func TestAWSSDK_EC2_InstanceLifecycle(t *testing.T) {
 			term.TerminatingInstances[0].CurrentState.Name)
 	}
 
-	// After termination, DescribeInstances should return empty
+	// DescribeInstances by ID after termination returns the instance with
+	// state=terminated (real AWS behavior: terminated instances are visible
+	// by ID for ~1 hour after termination so waiters can observe the
+	// terminal state). A list-all call without an ID would exclude them.
 	desc2, err := cli.DescribeInstances(ctx, &ec2.DescribeInstancesInput{
 		InstanceIds: []string{instanceID},
 	})
@@ -125,8 +128,12 @@ func TestAWSSDK_EC2_InstanceLifecycle(t *testing.T) {
 	for _, r := range desc2.Reservations {
 		total += len(r.Instances)
 	}
-	if total != 0 {
-		t.Errorf("expected 0 instances after terminate, got %d", total)
+	if total != 1 {
+		t.Errorf("expected 1 terminated instance, got %d", total)
+	}
+	if total == 1 && desc2.Reservations[0].Instances[0].State.Name != ec2types.InstanceStateNameTerminated {
+		t.Errorf("post-terminate state = %v, want terminated",
+			desc2.Reservations[0].Instances[0].State.Name)
 	}
 }
 

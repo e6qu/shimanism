@@ -344,6 +344,17 @@ const (
 	ServiceManagedRnat ServiceManaged = "rnat"
 )
 
+// ArchitectureValues is a generated Smithy enum.
+type ArchitectureValues string
+
+const (
+	ArchitectureValuesArm64      ArchitectureValues = "arm64"
+	ArchitectureValuesArm64_mac  ArchitectureValues = "arm64_mac"
+	ArchitectureValuesI386       ArchitectureValues = "i386"
+	ArchitectureValuesX86_64     ArchitectureValues = "x86_64"
+	ArchitectureValuesX86_64_mac ArchitectureValues = "x86_64_mac"
+)
+
 // VolumeType is a generated Smithy enum.
 type VolumeType string
 
@@ -355,6 +366,196 @@ const (
 	VolumeTypeSc1      VolumeType = "sc1"
 	VolumeTypeSt1      VolumeType = "st1"
 	VolumeTypeStandard VolumeType = "standard"
+)
+
+// BootModeValues is a generated Smithy enum.
+type BootModeValues string
+
+const (
+	BootModeValuesLegacy_bios    BootModeValues = "legacy-bios"
+	BootModeValuesUefi           BootModeValues = "uefi"
+	BootModeValuesUefi_preferred BootModeValues = "uefi-preferred"
+)
+
+// HypervisorType is a generated Smithy enum.
+type HypervisorType string
+
+const (
+	HypervisorTypeOvm HypervisorType = "ovm"
+	HypervisorTypeXen HypervisorType = "xen"
+)
+
+// ImageTypeValues is a generated Smithy enum.
+type ImageTypeValues string
+
+const (
+	ImageTypeValuesKernel  ImageTypeValues = "kernel"
+	ImageTypeValuesMachine ImageTypeValues = "machine"
+	ImageTypeValuesRamdisk ImageTypeValues = "ramdisk"
+)
+
+// ImdsSupportValues is a generated Smithy enum.
+type ImdsSupportValues string
+
+const (
+	ImdsSupportValuesV2_0 ImdsSupportValues = "v2.0"
+)
+
+// PlatformValues is a generated Smithy enum.
+type PlatformValues string
+
+const (
+	PlatformValuesWindows PlatformValues = "Windows"
+)
+
+// ProductCodeValues is a generated Smithy enum.
+type ProductCodeValues string
+
+const (
+	ProductCodeValuesDevpay      ProductCodeValues = "devpay"
+	ProductCodeValuesMarketplace ProductCodeValues = "marketplace"
+)
+
+// DeviceType is a generated Smithy enum.
+type DeviceType string
+
+const (
+	DeviceTypeEbs            DeviceType = "ebs"
+	DeviceTypeInstance_store DeviceType = "instance-store"
+)
+
+// ImageState is a generated Smithy enum.
+type ImageState string
+
+const (
+	ImageStateAvailable    ImageState = "available"
+	ImageStateDeregistered ImageState = "deregistered"
+	ImageStateDisabled     ImageState = "disabled"
+	ImageStateError        ImageState = "error"
+	ImageStateFailed       ImageState = "failed"
+	ImageStateInvalid      ImageState = "invalid"
+	ImageStatePending      ImageState = "pending"
+	ImageStateTransient    ImageState = "transient"
+)
+
+// TpmSupportValues is a generated Smithy enum.
+type TpmSupportValues string
+
+const (
+	TpmSupportValuesV2_0 TpmSupportValues = "v2.0"
+)
+
+// VirtualizationType is a generated Smithy enum.
+type VirtualizationType string
+
+const (
+	VirtualizationTypeHvm         VirtualizationType = "hvm"
+	VirtualizationTypeParavirtual VirtualizationType = "paravirtual"
+)
+
+// InstanceAttributeName is a generated Smithy enum.
+type InstanceAttributeName string
+
+const (
+	InstanceAttributeNameBlockDeviceMapping                InstanceAttributeName = "blockDeviceMapping"
+	InstanceAttributeNameDisableApiStop                    InstanceAttributeName = "disableApiStop"
+	InstanceAttributeNameDisableApiTermination             InstanceAttributeName = "disableApiTermination"
+	InstanceAttributeNameEbsOptimized                      InstanceAttributeName = "ebsOptimized"
+	InstanceAttributeNameEnaSupport                        InstanceAttributeName = "enaSupport"
+	InstanceAttributeNameEnclaveOptions                    InstanceAttributeName = "enclaveOptions"
+	InstanceAttributeNameGroupSet                          InstanceAttributeName = "groupSet"
+	InstanceAttributeNameInstanceInitiatedShutdownBehavior InstanceAttributeName = "instanceInitiatedShutdownBehavior"
+	InstanceAttributeNameInstanceType                      InstanceAttributeName = "instanceType"
+	InstanceAttributeNameKernel                            InstanceAttributeName = "kernel"
+	InstanceAttributeNameProductCodes                      InstanceAttributeName = "productCodes"
+	InstanceAttributeNameRamdisk                           InstanceAttributeName = "ramdisk"
+	InstanceAttributeNameRootDeviceName                    InstanceAttributeName = "rootDeviceName"
+	InstanceAttributeNameSourceDestCheck                   InstanceAttributeName = "sourceDestCheck"
+	InstanceAttributeNameSriovNetSupport                   InstanceAttributeName = "sriovNetSupport"
+	InstanceAttributeNameUserData                          InstanceAttributeName = "userData"
+)
+
+// StatusName is a generated Smithy enum.
+type StatusName string
+
+const (
+	StatusNameReachability StatusName = "reachability"
+)
+
+// StatusType is a generated Smithy enum.
+type StatusType string
+
+const (
+	StatusTypeFailed            StatusType = "failed"
+	StatusTypeInitializing      StatusType = "initializing"
+	StatusTypeInsufficient_data StatusType = "insufficient-data"
+	StatusTypePassed            StatusType = "passed"
+)
+
+// SummaryStatus is a generated Smithy enum.
+type SummaryStatus string
+
+const (
+	SummaryStatusImpaired          SummaryStatus = "impaired"
+	SummaryStatusInitializing      SummaryStatus = "initializing"
+	SummaryStatusInsufficient_data SummaryStatus = "insufficient-data"
+	SummaryStatusNot_applicable    SummaryStatus = "not-applicable"
+	SummaryStatusOk                SummaryStatus = "ok"
+)
+
+// EventCode is a generated Smithy enum.
+type EventCode string
+
+const (
+	EventCodeInstance_reboot     EventCode = "instance-reboot"
+	EventCodeInstance_retirement EventCode = "instance-retirement"
+	EventCodeInstance_stop       EventCode = "instance-stop"
+	EventCodeSystem_maintenance  EventCode = "system-maintenance"
+	EventCodeSystem_reboot       EventCode = "system-reboot"
+)
+
+// InstanceStateName is a generated Smithy enum.
+type InstanceStateName string
+
+const (
+	InstanceStateNamePending       InstanceStateName = "pending"
+	InstanceStateNameRunning       InstanceStateName = "running"
+	InstanceStateNameShutting_down InstanceStateName = "shutting-down"
+	InstanceStateNameStopped       InstanceStateName = "stopped"
+	InstanceStateNameStopping      InstanceStateName = "stopping"
+	InstanceStateNameTerminated    InstanceStateName = "terminated"
+)
+
+// VolumeAttachmentState is a generated Smithy enum.
+type VolumeAttachmentState string
+
+const (
+	VolumeAttachmentStateAttached  VolumeAttachmentState = "attached"
+	VolumeAttachmentStateAttaching VolumeAttachmentState = "attaching"
+	VolumeAttachmentStateBusy      VolumeAttachmentState = "busy"
+	VolumeAttachmentStateDetached  VolumeAttachmentState = "detached"
+	VolumeAttachmentStateDetaching VolumeAttachmentState = "detaching"
+)
+
+// SSEType is a generated Smithy enum.
+type SSEType string
+
+const (
+	SSETypeNone    SSEType = "none"
+	SSETypeSse_ebs SSEType = "sse-ebs"
+	SSETypeSse_kms SSEType = "sse-kms"
+)
+
+// VolumeState is a generated Smithy enum.
+type VolumeState string
+
+const (
+	VolumeStateAvailable VolumeState = "available"
+	VolumeStateCreating  VolumeState = "creating"
+	VolumeStateDeleted   VolumeState = "deleted"
+	VolumeStateDeleting  VolumeState = "deleting"
+	VolumeStateError     VolumeState = "error"
+	VolumeStateIn_use    VolumeState = "in-use"
 )
 
 // CapacityReservationPreference is a generated Smithy enum.
@@ -1690,40 +1891,12 @@ const (
 	SecondaryInterfaceTypeSECONDARY SecondaryInterfaceType = "secondary"
 )
 
-// ArchitectureValues is a generated Smithy enum.
-type ArchitectureValues string
-
-const (
-	ArchitectureValuesArm64      ArchitectureValues = "arm64"
-	ArchitectureValuesArm64_mac  ArchitectureValues = "arm64_mac"
-	ArchitectureValuesI386       ArchitectureValues = "i386"
-	ArchitectureValuesX86_64     ArchitectureValues = "x86_64"
-	ArchitectureValuesX86_64_mac ArchitectureValues = "x86_64_mac"
-)
-
-// BootModeValues is a generated Smithy enum.
-type BootModeValues string
-
-const (
-	BootModeValuesLegacy_bios    BootModeValues = "legacy-bios"
-	BootModeValuesUefi           BootModeValues = "uefi"
-	BootModeValuesUefi_preferred BootModeValues = "uefi-preferred"
-)
-
 // InstanceBootModeValues is a generated Smithy enum.
 type InstanceBootModeValues string
 
 const (
 	InstanceBootModeValuesLegacy_bios InstanceBootModeValues = "legacy-bios"
 	InstanceBootModeValuesUefi        InstanceBootModeValues = "uefi"
-)
-
-// HypervisorType is a generated Smithy enum.
-type HypervisorType string
-
-const (
-	HypervisorTypeOvm HypervisorType = "ovm"
-	HypervisorTypeXen HypervisorType = "xen"
 )
 
 // InstanceLifecycleType is a generated Smithy enum.
@@ -1762,55 +1935,12 @@ const (
 	MonitoringStatePending   MonitoringState = "pending"
 )
 
-// PlatformValues is a generated Smithy enum.
-type PlatformValues string
-
-const (
-	PlatformValuesWindows PlatformValues = "Windows"
-)
-
-// ProductCodeValues is a generated Smithy enum.
-type ProductCodeValues string
-
-const (
-	ProductCodeValuesDevpay      ProductCodeValues = "devpay"
-	ProductCodeValuesMarketplace ProductCodeValues = "marketplace"
-)
-
-// DeviceType is a generated Smithy enum.
-type DeviceType string
-
-const (
-	DeviceTypeEbs            DeviceType = "ebs"
-	DeviceTypeInstance_store DeviceType = "instance-store"
-)
-
 // SecondaryInterfaceStatus is a generated Smithy enum.
 type SecondaryInterfaceStatus string
 
 const (
 	SecondaryInterfaceStatusAvailable SecondaryInterfaceStatus = "available"
 	SecondaryInterfaceStatusIn_use    SecondaryInterfaceStatus = "in-use"
-)
-
-// InstanceStateName is a generated Smithy enum.
-type InstanceStateName string
-
-const (
-	InstanceStateNamePending       InstanceStateName = "pending"
-	InstanceStateNameRunning       InstanceStateName = "running"
-	InstanceStateNameShutting_down InstanceStateName = "shutting-down"
-	InstanceStateNameStopped       InstanceStateName = "stopped"
-	InstanceStateNameStopping      InstanceStateName = "stopping"
-	InstanceStateNameTerminated    InstanceStateName = "terminated"
-)
-
-// VirtualizationType is a generated Smithy enum.
-type VirtualizationType string
-
-const (
-	VirtualizationTypeHvm         VirtualizationType = "hvm"
-	VirtualizationTypeParavirtual VirtualizationType = "paravirtual"
 )
 
 // AttachmentLimitType is a generated Smithy enum.
@@ -2306,6 +2436,150 @@ type TagDescriptionList struct {
 	Member []TagDescription `xml:"item"`
 }
 
+// ExecutableByStringList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type ExecutableByStringList struct {
+	Member []string `xml:"ExecutableBy"`
+}
+
+// ImageIdStringList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type ImageIdStringList struct {
+	Member []string `xml:"ImageId"`
+}
+
+// OwnerStringList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type OwnerStringList struct {
+	Member []string `xml:"Owner"`
+}
+
+// BlockDeviceMappingList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type BlockDeviceMappingList struct {
+	Member []BlockDeviceMapping `xml:"item"`
+}
+
+// ProductCodeList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type ProductCodeList struct {
+	Member []ProductCode `xml:"item"`
+}
+
+// ImageList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type ImageList struct {
+	Member []Image `xml:"item"`
+}
+
+// InstanceBlockDeviceMappingList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type InstanceBlockDeviceMappingList struct {
+	Member []InstanceBlockDeviceMapping `xml:"item"`
+}
+
+// InstanceIdStringList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type InstanceIdStringList struct {
+	Member []string `xml:"InstanceId"`
+}
+
+// EbsStatusDetailsList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type EbsStatusDetailsList struct {
+	Member []EbsStatusDetails `xml:"item"`
+}
+
+// InstanceStatusEventList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type InstanceStatusEventList struct {
+	Member []InstanceStatusEvent `xml:"item"`
+}
+
+// InstanceStatusDetailsList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type InstanceStatusDetailsList struct {
+	Member []InstanceStatusDetails `xml:"item"`
+}
+
+// InstanceStatusList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type InstanceStatusList struct {
+	Member []InstanceStatus `xml:"item"`
+}
+
+// VolumeIdStringList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type VolumeIdStringList struct {
+	Member []string `xml:"VolumeId"`
+}
+
+// VolumeAttachmentList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type VolumeAttachmentList struct {
+	Member []VolumeAttachment `xml:"item"`
+}
+
+// VolumeList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type VolumeList struct {
+	Member []Volume `xml:"item"`
+}
+
+// InstanceBlockDeviceMappingSpecificationList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type InstanceBlockDeviceMappingSpecificationList struct {
+	Member []InstanceBlockDeviceMappingSpecification `xml:"item"`
+}
+
 // BlockDeviceMappingRequestList is a generated Smithy list. The Member field is
 // XML-tagged with the element name from the spec's @xmlName trait
 // (defaulting to the target shape's short name when absent).
@@ -2423,15 +2697,6 @@ type SecurityGroupStringList struct {
 	Member []string `xml:"SecurityGroup"`
 }
 
-// InstanceBlockDeviceMappingList is a generated Smithy list. The Member field is
-// XML-tagged with the element name from the spec's @xmlName trait
-// (defaulting to the target shape's short name when absent).
-// EC2 response XML uses per-list element names like `<item>` for most
-// ec2Query list shapes.
-type InstanceBlockDeviceMappingList struct {
-	Member []InstanceBlockDeviceMapping `xml:"item"`
-}
-
 // ElasticGpuAssociationList is a generated Smithy list. The Member field is
 // XML-tagged with the element name from the spec's @xmlName trait
 // (defaulting to the target shape's short name when absent).
@@ -2495,15 +2760,6 @@ type InstanceNetworkInterfaceList struct {
 	Member []InstanceNetworkInterface `xml:"item"`
 }
 
-// ProductCodeList is a generated Smithy list. The Member field is
-// XML-tagged with the element name from the spec's @xmlName trait
-// (defaulting to the target shape's short name when absent).
-// EC2 response XML uses per-list element names like `<item>` for most
-// ec2Query list shapes.
-type ProductCodeList struct {
-	Member []ProductCode `xml:"item"`
-}
-
 // InstanceSecondaryInterfacePrivateIpAddressList is a generated Smithy list. The Member field is
 // XML-tagged with the element name from the spec's @xmlName trait
 // (defaulting to the target shape's short name when absent).
@@ -2529,15 +2785,6 @@ type InstanceSecondaryInterfaceList struct {
 // ec2Query list shapes.
 type InstanceList struct {
 	Member []Instance `xml:"item"`
-}
-
-// InstanceIdStringList is a generated Smithy list. The Member field is
-// XML-tagged with the element name from the spec's @xmlName trait
-// (defaulting to the target shape's short name when absent).
-// EC2 response XML uses per-list element names like `<item>` for most
-// ec2Query list shapes.
-type InstanceIdStringList struct {
-	Member []string `xml:"InstanceId"`
 }
 
 // ReservationList is a generated Smithy list. The Member field is
@@ -3543,6 +3790,19 @@ type DescribeTagsResult struct {
 	Tags      TagDescriptionList `xml:"tagSet,omitempty"`
 }
 
+// DescribeImagesRequest is a generated Smithy structure.
+type DescribeImagesRequest struct {
+	DryRun            *bool                  `xml:"dryRun,omitempty"`
+	ExecutableUsers   ExecutableByStringList `xml:"ExecutableBy,omitempty"`
+	Filters           FilterList             `xml:"Filter,omitempty"`
+	ImageIds          ImageIdStringList      `xml:"ImageId,omitempty"`
+	IncludeDeprecated *bool                  `xml:"IncludeDeprecated,omitempty"`
+	IncludeDisabled   *bool                  `xml:"IncludeDisabled,omitempty"`
+	MaxResults        *int32                 `xml:"MaxResults,omitempty"`
+	NextToken         *string                `xml:"NextToken,omitempty"`
+	Owners            OwnerStringList        `xml:"Owner,omitempty"`
+}
+
 // EbsBlockDevice is a generated Smithy structure.
 type EbsBlockDevice struct {
 	AvailabilityZone         *string     `xml:"availabilityZone,omitempty"`
@@ -3566,6 +3826,294 @@ type BlockDeviceMapping struct {
 	Ebs         *EbsBlockDevice `xml:"ebs,omitempty"`
 	NoDevice    *string         `xml:"noDevice,omitempty"`
 	VirtualName *string         `xml:"virtualName,omitempty"`
+}
+
+// ProductCode is a generated Smithy structure.
+type ProductCode struct {
+	ProductCodeId   *string            `xml:"productCode,omitempty"`
+	ProductCodeType *ProductCodeValues `xml:"type,omitempty"`
+}
+
+// StateReason is a generated Smithy structure.
+type StateReason struct {
+	Code    *string `xml:"code,omitempty"`
+	Message *string `xml:"message,omitempty"`
+}
+
+// Image is a generated Smithy structure.
+type Image struct {
+	Architecture             *ArchitectureValues    `xml:"architecture,omitempty"`
+	BlockDeviceMappings      BlockDeviceMappingList `xml:"blockDeviceMapping,omitempty"`
+	BootMode                 *BootModeValues        `xml:"bootMode,omitempty"`
+	CreationDate             *string                `xml:"creationDate,omitempty"`
+	DeprecationTime          *string                `xml:"deprecationTime,omitempty"`
+	DeregistrationProtection *string                `xml:"deregistrationProtection,omitempty"`
+	Description              *string                `xml:"description,omitempty"`
+	EnaSupport               *bool                  `xml:"enaSupport,omitempty"`
+	FreeTierEligible         *bool                  `xml:"freeTierEligible,omitempty"`
+	Hypervisor               *HypervisorType        `xml:"hypervisor,omitempty"`
+	ImageAllowed             *bool                  `xml:"imageAllowed,omitempty"`
+	ImageId                  *string                `xml:"imageId,omitempty"`
+	ImageLocation            *string                `xml:"imageLocation,omitempty"`
+	ImageOwnerAlias          *string                `xml:"imageOwnerAlias,omitempty"`
+	ImageType                *ImageTypeValues       `xml:"imageType,omitempty"`
+	ImdsSupport              *ImdsSupportValues     `xml:"imdsSupport,omitempty"`
+	KernelId                 *string                `xml:"kernelId,omitempty"`
+	LastLaunchedTime         *string                `xml:"lastLaunchedTime,omitempty"`
+	Name                     *string                `xml:"name,omitempty"`
+	OwnerId                  *string                `xml:"imageOwnerId,omitempty"`
+	Platform                 *PlatformValues        `xml:"platform,omitempty"`
+	PlatformDetails          *string                `xml:"platformDetails,omitempty"`
+	ProductCodes             ProductCodeList        `xml:"productCodes,omitempty"`
+	Public                   *bool                  `xml:"isPublic,omitempty"`
+	RamdiskId                *string                `xml:"ramdiskId,omitempty"`
+	RootDeviceName           *string                `xml:"rootDeviceName,omitempty"`
+	RootDeviceType           *DeviceType            `xml:"rootDeviceType,omitempty"`
+	SourceImageId            *string                `xml:"sourceImageId,omitempty"`
+	SourceImageRegion        *string                `xml:"sourceImageRegion,omitempty"`
+	SourceInstanceId         *string                `xml:"sourceInstanceId,omitempty"`
+	SriovNetSupport          *string                `xml:"sriovNetSupport,omitempty"`
+	State                    *ImageState            `xml:"imageState,omitempty"`
+	StateReason              *StateReason           `xml:"stateReason,omitempty"`
+	Tags                     TagList                `xml:"tagSet,omitempty"`
+	TpmSupport               *TpmSupportValues      `xml:"tpmSupport,omitempty"`
+	UsageOperation           *string                `xml:"usageOperation,omitempty"`
+	VirtualizationType       *VirtualizationType    `xml:"virtualizationType,omitempty"`
+}
+
+// DescribeImagesResult is a generated Smithy structure.
+type DescribeImagesResult struct {
+	Images    ImageList `xml:"imagesSet,omitempty"`
+	NextToken *string   `xml:"nextToken,omitempty"`
+}
+
+// DescribeInstanceAttributeRequest is a generated Smithy structure.
+type DescribeInstanceAttributeRequest struct {
+	Attribute  InstanceAttributeName `xml:"attribute,omitempty"`
+	DryRun     *bool                 `xml:"dryRun,omitempty"`
+	InstanceId string                `xml:"instanceId,omitempty"`
+}
+
+// EbsInstanceBlockDevice is a generated Smithy structure.
+type EbsInstanceBlockDevice struct {
+	AssociatedResource  *string           `xml:"associatedResource,omitempty"`
+	AttachTime          *time.Time        `xml:"attachTime,omitempty"`
+	DeleteOnTermination *bool             `xml:"deleteOnTermination,omitempty"`
+	EbsCardIndex        *int32            `xml:"ebsCardIndex,omitempty"`
+	Operator            *OperatorResponse `xml:"operator,omitempty"`
+	Status              *AttachmentStatus `xml:"status,omitempty"`
+	VolumeId            *string           `xml:"volumeId,omitempty"`
+	VolumeOwnerId       *string           `xml:"volumeOwnerId,omitempty"`
+}
+
+// InstanceBlockDeviceMapping is a generated Smithy structure.
+type InstanceBlockDeviceMapping struct {
+	DeviceName *string                 `xml:"deviceName,omitempty"`
+	Ebs        *EbsInstanceBlockDevice `xml:"ebs,omitempty"`
+}
+
+// EnclaveOptions is a generated Smithy structure.
+type EnclaveOptions struct {
+	Enabled *bool `xml:"enabled,omitempty"`
+}
+
+// AttributeValue is a generated Smithy structure.
+type AttributeValue struct {
+	Value *string `xml:"value,omitempty"`
+}
+
+// InstanceAttribute is a generated Smithy structure.
+type InstanceAttribute struct {
+	BlockDeviceMappings               InstanceBlockDeviceMappingList `xml:"blockDeviceMapping,omitempty"`
+	DisableApiStop                    *AttributeBooleanValue         `xml:"disableApiStop,omitempty"`
+	DisableApiTermination             *AttributeBooleanValue         `xml:"disableApiTermination,omitempty"`
+	EbsOptimized                      *AttributeBooleanValue         `xml:"ebsOptimized,omitempty"`
+	EnaSupport                        *AttributeBooleanValue         `xml:"enaSupport,omitempty"`
+	EnclaveOptions                    *EnclaveOptions                `xml:"enclaveOptions,omitempty"`
+	Groups                            GroupIdentifierList            `xml:"groupSet,omitempty"`
+	InstanceId                        *string                        `xml:"instanceId,omitempty"`
+	InstanceInitiatedShutdownBehavior *AttributeValue                `xml:"instanceInitiatedShutdownBehavior,omitempty"`
+	InstanceType                      *AttributeValue                `xml:"instanceType,omitempty"`
+	KernelId                          *AttributeValue                `xml:"kernel,omitempty"`
+	ProductCodes                      ProductCodeList                `xml:"productCodes,omitempty"`
+	RamdiskId                         *AttributeValue                `xml:"ramdisk,omitempty"`
+	RootDeviceName                    *AttributeValue                `xml:"rootDeviceName,omitempty"`
+	SourceDestCheck                   *AttributeBooleanValue         `xml:"sourceDestCheck,omitempty"`
+	SriovNetSupport                   *AttributeValue                `xml:"sriovNetSupport,omitempty"`
+	UserData                          *AttributeValue                `xml:"userData,omitempty"`
+}
+
+// DescribeInstanceStatusRequest is a generated Smithy structure.
+type DescribeInstanceStatusRequest struct {
+	DryRun                  *bool                `xml:"dryRun,omitempty"`
+	Filters                 FilterList           `xml:"Filter,omitempty"`
+	IncludeAllInstances     *bool                `xml:"includeAllInstances,omitempty"`
+	IncludeManagedResources *bool                `xml:"IncludeManagedResources,omitempty"`
+	InstanceIds             InstanceIdStringList `xml:"InstanceId,omitempty"`
+	MaxResults              *int32               `xml:"MaxResults,omitempty"`
+	NextToken               *string              `xml:"NextToken,omitempty"`
+}
+
+// EbsStatusDetails is a generated Smithy structure.
+type EbsStatusDetails struct {
+	ImpairedSince *time.Time  `xml:"impairedSince,omitempty"`
+	Name          *StatusName `xml:"name,omitempty"`
+	Status        *StatusType `xml:"status,omitempty"`
+}
+
+// EbsStatusSummary is a generated Smithy structure.
+type EbsStatusSummary struct {
+	Details EbsStatusDetailsList `xml:"details,omitempty"`
+	Status  *SummaryStatus       `xml:"status,omitempty"`
+}
+
+// InstanceStatusEvent is a generated Smithy structure.
+type InstanceStatusEvent struct {
+	Code              *EventCode `xml:"code,omitempty"`
+	Description       *string    `xml:"description,omitempty"`
+	InstanceEventId   *string    `xml:"instanceEventId,omitempty"`
+	NotAfter          *time.Time `xml:"notAfter,omitempty"`
+	NotBefore         *time.Time `xml:"notBefore,omitempty"`
+	NotBeforeDeadline *time.Time `xml:"notBeforeDeadline,omitempty"`
+}
+
+// InstanceState is a generated Smithy structure.
+type InstanceState struct {
+	Code *int32             `xml:"code,omitempty"`
+	Name *InstanceStateName `xml:"name,omitempty"`
+}
+
+// InstanceStatusDetails is a generated Smithy structure.
+type InstanceStatusDetails struct {
+	ImpairedSince *time.Time  `xml:"impairedSince,omitempty"`
+	Name          *StatusName `xml:"name,omitempty"`
+	Status        *StatusType `xml:"status,omitempty"`
+}
+
+// InstanceStatusSummary is a generated Smithy structure.
+type InstanceStatusSummary struct {
+	Details InstanceStatusDetailsList `xml:"details,omitempty"`
+	Status  *SummaryStatus            `xml:"status,omitempty"`
+}
+
+// InstanceStatus is a generated Smithy structure.
+type InstanceStatus struct {
+	AttachedEbsStatus  *EbsStatusSummary       `xml:"attachedEbsStatus,omitempty"`
+	AvailabilityZone   *string                 `xml:"availabilityZone,omitempty"`
+	AvailabilityZoneId *string                 `xml:"availabilityZoneId,omitempty"`
+	Events             InstanceStatusEventList `xml:"eventsSet,omitempty"`
+	InstanceId         *string                 `xml:"instanceId,omitempty"`
+	InstanceState      *InstanceState          `xml:"instanceState,omitempty"`
+	InstanceStatus     *InstanceStatusSummary  `xml:"instanceStatus,omitempty"`
+	Operator           *OperatorResponse       `xml:"operator,omitempty"`
+	OutpostArn         *string                 `xml:"outpostArn,omitempty"`
+	SystemStatus       *InstanceStatusSummary  `xml:"systemStatus,omitempty"`
+}
+
+// DescribeInstanceStatusResult is a generated Smithy structure.
+type DescribeInstanceStatusResult struct {
+	InstanceStatuses InstanceStatusList `xml:"instanceStatusSet,omitempty"`
+	NextToken        *string            `xml:"nextToken,omitempty"`
+}
+
+// DescribeVolumesRequest is a generated Smithy structure.
+type DescribeVolumesRequest struct {
+	DryRun                  *bool              `xml:"dryRun,omitempty"`
+	Filters                 FilterList         `xml:"Filter,omitempty"`
+	IncludeManagedResources *bool              `xml:"IncludeManagedResources,omitempty"`
+	MaxResults              *int32             `xml:"maxResults,omitempty"`
+	NextToken               *string            `xml:"nextToken,omitempty"`
+	VolumeIds               VolumeIdStringList `xml:"VolumeId,omitempty"`
+}
+
+// VolumeAttachment is a generated Smithy structure.
+type VolumeAttachment struct {
+	AssociatedResource    *string                `xml:"associatedResource,omitempty"`
+	AttachTime            *time.Time             `xml:"attachTime,omitempty"`
+	DeleteOnTermination   *bool                  `xml:"deleteOnTermination,omitempty"`
+	Device                *string                `xml:"device,omitempty"`
+	EbsCardIndex          *int32                 `xml:"ebsCardIndex,omitempty"`
+	InstanceId            *string                `xml:"instanceId,omitempty"`
+	InstanceOwningService *string                `xml:"instanceOwningService,omitempty"`
+	State                 *VolumeAttachmentState `xml:"status,omitempty"`
+	VolumeId              *string                `xml:"volumeId,omitempty"`
+}
+
+// Volume is a generated Smithy structure.
+type Volume struct {
+	Attachments              VolumeAttachmentList `xml:"attachmentSet,omitempty"`
+	AvailabilityZone         *string              `xml:"availabilityZone,omitempty"`
+	AvailabilityZoneId       *string              `xml:"availabilityZoneId,omitempty"`
+	CreateTime               *time.Time           `xml:"createTime,omitempty"`
+	Encrypted                *bool                `xml:"encrypted,omitempty"`
+	FastRestored             *bool                `xml:"fastRestored,omitempty"`
+	Iops                     *int32               `xml:"iops,omitempty"`
+	KmsKeyId                 *string              `xml:"kmsKeyId,omitempty"`
+	MultiAttachEnabled       *bool                `xml:"multiAttachEnabled,omitempty"`
+	Operator                 *OperatorResponse    `xml:"operator,omitempty"`
+	OutpostArn               *string              `xml:"outpostArn,omitempty"`
+	Size                     *int32               `xml:"size,omitempty"`
+	SnapshotId               *string              `xml:"snapshotId,omitempty"`
+	SourceVolumeId           *string              `xml:"sourceVolumeId,omitempty"`
+	SseType                  *SSEType             `xml:"sseType,omitempty"`
+	State                    *VolumeState         `xml:"status,omitempty"`
+	Tags                     TagList              `xml:"tagSet,omitempty"`
+	Throughput               *int32               `xml:"throughput,omitempty"`
+	VolumeId                 *string              `xml:"volumeId,omitempty"`
+	VolumeInitializationRate *int32               `xml:"volumeInitializationRate,omitempty"`
+	VolumeType               *VolumeType          `xml:"volumeType,omitempty"`
+}
+
+// DescribeVolumesResult is a generated Smithy structure.
+type DescribeVolumesResult struct {
+	NextToken *string    `xml:"nextToken,omitempty"`
+	Volumes   VolumeList `xml:"volumeSet,omitempty"`
+}
+
+// EbsInstanceBlockDeviceSpecification is a generated Smithy structure.
+type EbsInstanceBlockDeviceSpecification struct {
+	DeleteOnTermination *bool   `xml:"deleteOnTermination,omitempty"`
+	VolumeId            *string `xml:"volumeId,omitempty"`
+}
+
+// InstanceBlockDeviceMappingSpecification is a generated Smithy structure.
+type InstanceBlockDeviceMappingSpecification struct {
+	DeviceName  *string                              `xml:"deviceName,omitempty"`
+	Ebs         *EbsInstanceBlockDeviceSpecification `xml:"ebs,omitempty"`
+	NoDevice    *string                              `xml:"noDevice,omitempty"`
+	VirtualName *string                              `xml:"virtualName,omitempty"`
+}
+
+// EnclaveOptionsRequest is a generated Smithy structure.
+type EnclaveOptionsRequest struct {
+	Enabled *bool `xml:"Enabled,omitempty"`
+}
+
+// BlobAttributeValue is a generated Smithy structure.
+type BlobAttributeValue struct {
+	Value []byte `xml:"value,omitempty"`
+}
+
+// ModifyInstanceAttributeRequest is a generated Smithy structure.
+type ModifyInstanceAttributeRequest struct {
+	Attribute                         *InstanceAttributeName                      `xml:"attribute,omitempty"`
+	BlockDeviceMappings               InstanceBlockDeviceMappingSpecificationList `xml:"blockDeviceMapping,omitempty"`
+	DisableApiStop                    *AttributeBooleanValue                      `xml:"DisableApiStop,omitempty"`
+	DisableApiTermination             *AttributeBooleanValue                      `xml:"disableApiTermination,omitempty"`
+	DryRun                            *bool                                       `xml:"dryRun,omitempty"`
+	EbsOptimized                      *AttributeBooleanValue                      `xml:"ebsOptimized,omitempty"`
+	EnaSupport                        *AttributeBooleanValue                      `xml:"enaSupport,omitempty"`
+	EnclaveOptions                    *EnclaveOptionsRequest                      `xml:"EnclaveOptions,omitempty"`
+	Groups                            GroupIdStringList                           `xml:"GroupId,omitempty"`
+	InstanceId                        string                                      `xml:"instanceId,omitempty"`
+	InstanceInitiatedShutdownBehavior *AttributeValue                             `xml:"instanceInitiatedShutdownBehavior,omitempty"`
+	InstanceType                      *AttributeValue                             `xml:"instanceType,omitempty"`
+	Kernel                            *AttributeValue                             `xml:"kernel,omitempty"`
+	Ramdisk                           *AttributeValue                             `xml:"ramdisk,omitempty"`
+	SourceDestCheck                   *AttributeBooleanValue                      `xml:"SourceDestCheck,omitempty"`
+	SriovNetSupport                   *AttributeValue                             `xml:"sriovNetSupport,omitempty"`
+	UserData                          *BlobAttributeValue                         `xml:"userData,omitempty"`
+	Value                             *string                                     `xml:"value,omitempty"`
 }
 
 // CapacityReservationTarget is a generated Smithy structure.
@@ -3602,11 +4150,6 @@ type ElasticGpuSpecification struct {
 type ElasticInferenceAccelerator struct {
 	Count *int32 `xml:"Count,omitempty"`
 	Type  string `xml:"Type,omitempty"`
-}
-
-// EnclaveOptionsRequest is a generated Smithy structure.
-type EnclaveOptionsRequest struct {
-	Enabled *bool `xml:"Enabled,omitempty"`
 }
 
 // HibernationOptionsRequest is a generated Smithy structure.
@@ -3828,24 +4371,6 @@ type RunInstancesRequest struct {
 	UserData                          *string                                            `xml:"UserData,omitempty"`
 }
 
-// EbsInstanceBlockDevice is a generated Smithy structure.
-type EbsInstanceBlockDevice struct {
-	AssociatedResource  *string           `xml:"associatedResource,omitempty"`
-	AttachTime          *time.Time        `xml:"attachTime,omitempty"`
-	DeleteOnTermination *bool             `xml:"deleteOnTermination,omitempty"`
-	EbsCardIndex        *int32            `xml:"ebsCardIndex,omitempty"`
-	Operator            *OperatorResponse `xml:"operator,omitempty"`
-	Status              *AttachmentStatus `xml:"status,omitempty"`
-	VolumeId            *string           `xml:"volumeId,omitempty"`
-	VolumeOwnerId       *string           `xml:"volumeOwnerId,omitempty"`
-}
-
-// InstanceBlockDeviceMapping is a generated Smithy structure.
-type InstanceBlockDeviceMapping struct {
-	DeviceName *string                 `xml:"deviceName,omitempty"`
-	Ebs        *EbsInstanceBlockDevice `xml:"ebs,omitempty"`
-}
-
 // CapacityReservationTargetResponse is a generated Smithy structure.
 type CapacityReservationTargetResponse struct {
 	CapacityReservationId               *string `xml:"capacityReservationId,omitempty"`
@@ -3880,11 +4405,6 @@ type ElasticInferenceAcceleratorAssociation struct {
 	ElasticInferenceAcceleratorAssociationId    *string    `xml:"elasticInferenceAcceleratorAssociationId,omitempty"`
 	ElasticInferenceAcceleratorAssociationState *string    `xml:"elasticInferenceAcceleratorAssociationState,omitempty"`
 	ElasticInferenceAcceleratorAssociationTime  *time.Time `xml:"elasticInferenceAcceleratorAssociationTime,omitempty"`
-}
-
-// EnclaveOptions is a generated Smithy structure.
-type EnclaveOptions struct {
-	Enabled *bool `xml:"enabled,omitempty"`
 }
 
 // HibernationOptions is a generated Smithy structure.
@@ -4017,12 +4537,6 @@ type PrivateDnsNameOptionsResponse struct {
 	HostnameType                    *HostnameType `xml:"hostnameType,omitempty"`
 }
 
-// ProductCode is a generated Smithy structure.
-type ProductCode struct {
-	ProductCodeId   *string            `xml:"productCode,omitempty"`
-	ProductCodeType *ProductCodeValues `xml:"type,omitempty"`
-}
-
 // InstanceSecondaryInterfaceAttachment is a generated Smithy structure.
 type InstanceSecondaryInterfaceAttachment struct {
 	AttachTime          *time.Time        `xml:"attachTime,omitempty"`
@@ -4050,18 +4564,6 @@ type InstanceSecondaryInterface struct {
 	SecondarySubnetId    *string                                        `xml:"secondarySubnetId,omitempty"`
 	SourceDestCheck      *bool                                          `xml:"sourceDestCheck,omitempty"`
 	Status               *SecondaryInterfaceStatus                      `xml:"status,omitempty"`
-}
-
-// InstanceState is a generated Smithy structure.
-type InstanceState struct {
-	Code *int32             `xml:"code,omitempty"`
-	Name *InstanceStateName `xml:"name,omitempty"`
-}
-
-// StateReason is a generated Smithy structure.
-type StateReason struct {
-	Code    *string `xml:"code,omitempty"`
-	Message *string `xml:"message,omitempty"`
 }
 
 // Instance is a generated Smithy structure.
@@ -4519,6 +5021,11 @@ type EC2Backend interface {
 	CreateTagsBackend
 	DeleteTagsBackend
 	DescribeTagsBackend
+	DescribeImagesBackend
+	DescribeInstanceAttributeBackend
+	DescribeInstanceStatusBackend
+	DescribeVolumesBackend
+	ModifyInstanceAttributeBackend
 	RunInstancesBackend
 	DescribeInstancesBackend
 	StartInstancesBackend
@@ -4559,6 +5066,11 @@ func RegisterEC2Routes(b EC2Backend) *ec2query.Router {
 	rt.Register("CreateTags", CreateTagsHandler(b))
 	rt.Register("DeleteTags", DeleteTagsHandler(b))
 	rt.Register("DescribeTags", DescribeTagsHandler(b))
+	rt.Register("DescribeImages", DescribeImagesHandler(b))
+	rt.Register("DescribeInstanceAttribute", DescribeInstanceAttributeHandler(b))
+	rt.Register("DescribeInstanceStatus", DescribeInstanceStatusHandler(b))
+	rt.Register("DescribeVolumes", DescribeVolumesHandler(b))
+	rt.Register("ModifyInstanceAttribute", ModifyInstanceAttributeHandler(b))
 	rt.Register("RunInstances", RunInstancesHandler(b))
 	rt.Register("DescribeInstances", DescribeInstancesHandler(b))
 	rt.Register("StartInstances", StartInstancesHandler(b))
@@ -5942,6 +6454,295 @@ func DescribeTagsHandler(b DescribeTagsBackend) http.Handler {
 			return
 		}
 		ec2query.WriteResult(w, "DescribeTags", out)
+	})
+}
+
+// DescribeImagesBackend serves the DescribeImages operation.
+type DescribeImagesBackend interface {
+	DescribeImages(ctx context.Context, in *DescribeImagesRequest) (*DescribeImagesResult, error)
+}
+
+// DescribeImagesHandler decodes a DescribeImages request, dispatches
+// to the backend, and encodes the response per ec2Query semantics.
+// Form-encoded request bodies are decoded field-by-field for scalars
+// and list<string> shapes. EC2 flattened lists use `Field.N` (no
+// `.member.` interfix). Complex shapes (e.g. Filter structs, nested
+// tagged lists) are available via ec2query.FormFromContext(ctx).
+func DescribeImagesHandler(b DescribeImagesBackend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := ec2query.WithForm(r.Context(), r.Form)
+		in := &DescribeImagesRequest{}
+		_ = in
+		// Decode top-level scalar + map<string,string> + list<string>
+		// form fields. EC2 ec2Query serialises lists as flat `Field.N`
+		// pairs (no `.member.` interfix) and maps as
+		// `Field.N.key + Field.N.value` pairs.
+		if v := r.Form.Get("DryRun"); v != "" {
+			if x, err := strconv.ParseBool(v); err == nil {
+				in.DryRun = &x
+			}
+		}
+		// list<string> via `ExecutableBy.N` (ec2Query flattened — no
+		// `.member.` interfix unlike awsQuery).
+		for i := 1; ; i++ {
+			v := r.Form.Get("ExecutableBy." + strconv.Itoa(i))
+			if v == "" {
+				break
+			}
+			in.ExecutableUsers.Member = append(in.ExecutableUsers.Member, v)
+		}
+		// list<string> via `ImageId.N` (ec2Query flattened — no
+		// `.member.` interfix unlike awsQuery).
+		for i := 1; ; i++ {
+			v := r.Form.Get("ImageId." + strconv.Itoa(i))
+			if v == "" {
+				break
+			}
+			in.ImageIds.Member = append(in.ImageIds.Member, v)
+		}
+		if v := r.Form.Get("IncludeDeprecated"); v != "" {
+			if x, err := strconv.ParseBool(v); err == nil {
+				in.IncludeDeprecated = &x
+			}
+		}
+		if v := r.Form.Get("IncludeDisabled"); v != "" {
+			if x, err := strconv.ParseBool(v); err == nil {
+				in.IncludeDisabled = &x
+			}
+		}
+		if v := r.Form.Get("MaxResults"); v != "" {
+			if n, err := strconv.Atoi(v); err == nil {
+				x := int32(n)
+				in.MaxResults = &x
+			}
+		}
+		if v := r.Form.Get("NextToken"); v != "" {
+			s := v
+			in.NextToken = &s
+		}
+		// list<string> via `Owner.N` (ec2Query flattened — no
+		// `.member.` interfix unlike awsQuery).
+		for i := 1; ; i++ {
+			v := r.Form.Get("Owner." + strconv.Itoa(i))
+			if v == "" {
+				break
+			}
+			in.Owners.Member = append(in.Owners.Member, v)
+		}
+
+		out, err := b.DescribeImages(ctx, in)
+		if err != nil {
+			ec2query.WriteBackendError(w, err)
+			return
+		}
+		ec2query.WriteResult(w, "DescribeImages", out)
+	})
+}
+
+// DescribeInstanceAttributeBackend serves the DescribeInstanceAttribute operation.
+type DescribeInstanceAttributeBackend interface {
+	DescribeInstanceAttribute(ctx context.Context, in *DescribeInstanceAttributeRequest) (*InstanceAttribute, error)
+}
+
+// DescribeInstanceAttributeHandler decodes a DescribeInstanceAttribute request, dispatches
+// to the backend, and encodes the response per ec2Query semantics.
+// Form-encoded request bodies are decoded field-by-field for scalars
+// and list<string> shapes. EC2 flattened lists use `Field.N` (no
+// `.member.` interfix). Complex shapes (e.g. Filter structs, nested
+// tagged lists) are available via ec2query.FormFromContext(ctx).
+func DescribeInstanceAttributeHandler(b DescribeInstanceAttributeBackend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := ec2query.WithForm(r.Context(), r.Form)
+		in := &DescribeInstanceAttributeRequest{}
+		_ = in
+		// Decode top-level scalar + map<string,string> + list<string>
+		// form fields. EC2 ec2Query serialises lists as flat `Field.N`
+		// pairs (no `.member.` interfix) and maps as
+		// `Field.N.key + Field.N.value` pairs.
+		if v := r.Form.Get("DryRun"); v != "" {
+			if x, err := strconv.ParseBool(v); err == nil {
+				in.DryRun = &x
+			}
+		}
+		in.InstanceId = r.Form.Get("InstanceId")
+
+		out, err := b.DescribeInstanceAttribute(ctx, in)
+		if err != nil {
+			ec2query.WriteBackendError(w, err)
+			return
+		}
+		ec2query.WriteResult(w, "DescribeInstanceAttribute", out)
+	})
+}
+
+// DescribeInstanceStatusBackend serves the DescribeInstanceStatus operation.
+type DescribeInstanceStatusBackend interface {
+	DescribeInstanceStatus(ctx context.Context, in *DescribeInstanceStatusRequest) (*DescribeInstanceStatusResult, error)
+}
+
+// DescribeInstanceStatusHandler decodes a DescribeInstanceStatus request, dispatches
+// to the backend, and encodes the response per ec2Query semantics.
+// Form-encoded request bodies are decoded field-by-field for scalars
+// and list<string> shapes. EC2 flattened lists use `Field.N` (no
+// `.member.` interfix). Complex shapes (e.g. Filter structs, nested
+// tagged lists) are available via ec2query.FormFromContext(ctx).
+func DescribeInstanceStatusHandler(b DescribeInstanceStatusBackend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := ec2query.WithForm(r.Context(), r.Form)
+		in := &DescribeInstanceStatusRequest{}
+		_ = in
+		// Decode top-level scalar + map<string,string> + list<string>
+		// form fields. EC2 ec2Query serialises lists as flat `Field.N`
+		// pairs (no `.member.` interfix) and maps as
+		// `Field.N.key + Field.N.value` pairs.
+		if v := r.Form.Get("DryRun"); v != "" {
+			if x, err := strconv.ParseBool(v); err == nil {
+				in.DryRun = &x
+			}
+		}
+		if v := r.Form.Get("IncludeAllInstances"); v != "" {
+			if x, err := strconv.ParseBool(v); err == nil {
+				in.IncludeAllInstances = &x
+			}
+		}
+		if v := r.Form.Get("IncludeManagedResources"); v != "" {
+			if x, err := strconv.ParseBool(v); err == nil {
+				in.IncludeManagedResources = &x
+			}
+		}
+		// list<string> via `InstanceId.N` (ec2Query flattened — no
+		// `.member.` interfix unlike awsQuery).
+		for i := 1; ; i++ {
+			v := r.Form.Get("InstanceId." + strconv.Itoa(i))
+			if v == "" {
+				break
+			}
+			in.InstanceIds.Member = append(in.InstanceIds.Member, v)
+		}
+		if v := r.Form.Get("MaxResults"); v != "" {
+			if n, err := strconv.Atoi(v); err == nil {
+				x := int32(n)
+				in.MaxResults = &x
+			}
+		}
+		if v := r.Form.Get("NextToken"); v != "" {
+			s := v
+			in.NextToken = &s
+		}
+
+		out, err := b.DescribeInstanceStatus(ctx, in)
+		if err != nil {
+			ec2query.WriteBackendError(w, err)
+			return
+		}
+		ec2query.WriteResult(w, "DescribeInstanceStatus", out)
+	})
+}
+
+// DescribeVolumesBackend serves the DescribeVolumes operation.
+type DescribeVolumesBackend interface {
+	DescribeVolumes(ctx context.Context, in *DescribeVolumesRequest) (*DescribeVolumesResult, error)
+}
+
+// DescribeVolumesHandler decodes a DescribeVolumes request, dispatches
+// to the backend, and encodes the response per ec2Query semantics.
+// Form-encoded request bodies are decoded field-by-field for scalars
+// and list<string> shapes. EC2 flattened lists use `Field.N` (no
+// `.member.` interfix). Complex shapes (e.g. Filter structs, nested
+// tagged lists) are available via ec2query.FormFromContext(ctx).
+func DescribeVolumesHandler(b DescribeVolumesBackend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := ec2query.WithForm(r.Context(), r.Form)
+		in := &DescribeVolumesRequest{}
+		_ = in
+		// Decode top-level scalar + map<string,string> + list<string>
+		// form fields. EC2 ec2Query serialises lists as flat `Field.N`
+		// pairs (no `.member.` interfix) and maps as
+		// `Field.N.key + Field.N.value` pairs.
+		if v := r.Form.Get("DryRun"); v != "" {
+			if x, err := strconv.ParseBool(v); err == nil {
+				in.DryRun = &x
+			}
+		}
+		if v := r.Form.Get("IncludeManagedResources"); v != "" {
+			if x, err := strconv.ParseBool(v); err == nil {
+				in.IncludeManagedResources = &x
+			}
+		}
+		if v := r.Form.Get("MaxResults"); v != "" {
+			if n, err := strconv.Atoi(v); err == nil {
+				x := int32(n)
+				in.MaxResults = &x
+			}
+		}
+		if v := r.Form.Get("NextToken"); v != "" {
+			s := v
+			in.NextToken = &s
+		}
+		// list<string> via `VolumeId.N` (ec2Query flattened — no
+		// `.member.` interfix unlike awsQuery).
+		for i := 1; ; i++ {
+			v := r.Form.Get("VolumeId." + strconv.Itoa(i))
+			if v == "" {
+				break
+			}
+			in.VolumeIds.Member = append(in.VolumeIds.Member, v)
+		}
+
+		out, err := b.DescribeVolumes(ctx, in)
+		if err != nil {
+			ec2query.WriteBackendError(w, err)
+			return
+		}
+		ec2query.WriteResult(w, "DescribeVolumes", out)
+	})
+}
+
+// ModifyInstanceAttributeBackend serves the ModifyInstanceAttribute operation.
+type ModifyInstanceAttributeBackend interface {
+	ModifyInstanceAttribute(ctx context.Context, in *ModifyInstanceAttributeRequest) (struct{}, error)
+}
+
+// ModifyInstanceAttributeHandler decodes a ModifyInstanceAttribute request, dispatches
+// to the backend, and encodes the response per ec2Query semantics.
+// Form-encoded request bodies are decoded field-by-field for scalars
+// and list<string> shapes. EC2 flattened lists use `Field.N` (no
+// `.member.` interfix). Complex shapes (e.g. Filter structs, nested
+// tagged lists) are available via ec2query.FormFromContext(ctx).
+func ModifyInstanceAttributeHandler(b ModifyInstanceAttributeBackend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := ec2query.WithForm(r.Context(), r.Form)
+		in := &ModifyInstanceAttributeRequest{}
+		_ = in
+		// Decode top-level scalar + map<string,string> + list<string>
+		// form fields. EC2 ec2Query serialises lists as flat `Field.N`
+		// pairs (no `.member.` interfix) and maps as
+		// `Field.N.key + Field.N.value` pairs.
+		if v := r.Form.Get("DryRun"); v != "" {
+			if x, err := strconv.ParseBool(v); err == nil {
+				in.DryRun = &x
+			}
+		}
+		// list<string> via `GroupId.N` (ec2Query flattened — no
+		// `.member.` interfix unlike awsQuery).
+		for i := 1; ; i++ {
+			v := r.Form.Get("GroupId." + strconv.Itoa(i))
+			if v == "" {
+				break
+			}
+			in.Groups.Member = append(in.Groups.Member, v)
+		}
+		in.InstanceId = r.Form.Get("InstanceId")
+		if v := r.Form.Get("Value"); v != "" {
+			s := v
+			in.Value = &s
+		}
+
+		if _, err := b.ModifyInstanceAttribute(ctx, in); err != nil {
+			ec2query.WriteBackendError(w, err)
+			return
+		}
+		ec2query.WriteResult(w, "ModifyInstanceAttribute", nil)
 	})
 }
 
