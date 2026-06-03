@@ -4,6 +4,14 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 
 > Reverse chronological. One section per phase. The *why*, the surprises, the root causes — not per-PR detail. For commit-level history, `git log`. For per-bug detail, [BUGS.md](BUGS.md). For pipeline + verifier architecture, [docs/codegen-pipelines.md](docs/codegen-pipelines.md) + [docs/verifiers.md](docs/verifiers.md).
 
+## Phase 16.C PR7 — Azure TF azurerm_linux_virtual_machine (BUG-56 closed)
+
+**In progress (branch `phase-16-azure-tf-conformance`).** Key insight: the "combined compute+network server" was never needed. The DNS TF test already demonstrates the right pattern — Microsoft.Compute paths go to the shim, everything else (Microsoft.Network VNets/Subnets/NICs, resource groups, Entra) goes to sockerless via the passthrough proxy. The `azure_compute.HandlerWithConfig` (added in PR6) already supports passthrough.
+
+`TestSockerless_AzureCompute_Through_Shim_Terraform_Apply` in `services/compute/conformance/sockerless_test.go`: HCL creates resource_group + vnet + subnet + NIC (all via sockerless) then azurerm_linux_virtual_machine (via shim inmem). Apply + destroy. Linux-only (SSL_CERT_FILE).
+
+Also cleaned up stale BUG-44 stub in `services/dns/conformance/azure_terraform_test.go` — BUG-44 was closed in PR #84; the real DNS TF test lives in `sockerless_test.go`.
+
 ## Phase 16.C PR6 — Azure CLI az vm conformance (BUG-57 closed)
 
 **In progress (branch `phase-16c-instances-azure-conformance`).** BUG-57 root cause: `azure_compute` frontend had a fixed test-key bearer verifier with no way to configure JWKS from sockerless's Entra stub.
