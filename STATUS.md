@@ -8,12 +8,12 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 
 | | |
 |---|---|
-| Active branch | `phase-16c-instances-azure-conformance` — 16.C PR6: BUG-57 closed (Azure CLI az vm). |
-| In-flight | HandlerWithConfig for azure_compute + TestAzureCLI_Compute_VMList. |
-| Last merged | PR #117 — docs: mark 16.C PR5 merged. |
+| Active branch | `main` — 16.C PR6 merged as #118. |
+| In-flight | Nothing. BUG-56 (combined compute+network TLS server) is the only remaining 16.C item. |
+| Last merged | PR #118 — 16.C PR6: BUG-57 closed (azure_compute HandlerWithConfig + az vm CLI). |
 | Upstream watch | All Firecracker blockers resolved. PR #392 merged. |
 | Phases 1–15 | All closed. See [PLAN.md § Closed phases](PLAN.md#closed-phases-pr-index). |
-| Phase 16 | 16.A ✅ · 16.B ✅ · 16.C ◐ (PR1–PR5 merged; PR6 in progress = BUG-57 CLI close) · 16.D ✅. |
+| Phase 16 | 16.A ✅ · 16.B ✅ · 16.C ◐ (PRs #111–#118 merged; BUG-56 Azure TF deferred) · 16.D ✅. |
 | Bugs | **57 filed · 52 fixed · 4 open · 1 false positive.** Open: **BUG-8** + **BUG-15** + **BUG-41** (Track A) + **BUG-56** (Azure TF needs combined compute+network). |
 | CI | 18 required checks. Real-cloud lanes wait on Track A. |
 | Renovate | Config + custom manager for vendored-spec SHAs. **User must install the Renovate GitHub App.** |

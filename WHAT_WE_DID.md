@@ -6,7 +6,7 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 
 ## Phase 16.C PR6 — Azure CLI az vm conformance (BUG-57 closed)
 
-**In progress (branch `phase-16c-instances-azure-conformance`).** BUG-57 root cause: `azure_compute` frontend had a fixed test-key bearer verifier with no way to configure JWKS from sockerless's Entra stub.
+**Merged as PR #118.** BUG-57 root cause: `azure_compute` frontend had a fixed test-key bearer verifier with no way to configure JWKS from sockerless's Entra stub.
 
 Added `Config` / `HandlerWithConfig` / `serveMetadata` / `passthroughOr404` to the `azure_compute` frontend — same pattern as `azure_dns`. `ServeHTTP` now forwards non-Microsoft.Compute paths to an upstream (sockerless passthrough for resource groups, subscriptions, Entra). The metadata endpoint serves the cloud-environment JSON the azurerm provider reads to discover token URLs.
 

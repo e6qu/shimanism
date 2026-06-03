@@ -38,7 +38,7 @@ All items closed. Full 3×4×3 conformance matrix for LB operations. Sockerless 
 
 **Remaining for 16.C closure:**
 - [x] Sockerless instance lane — merged as PR #116.
-- [x] **BUG-57 (Azure CLI):** `HandlerWithConfig` + `serveMetadata` + `passthroughOr404` added to `azure_compute`; `TestAzureCLI_Compute_VMList` implemented — PR6 in progress.
+- [x] **BUG-57 (Azure CLI):** `HandlerWithConfig` + `serveMetadata` + `passthroughOr404` added to `azure_compute`; `TestAzureCLI_Compute_VMList` implemented — merged as PR #118.
 - [ ] **BUG-56 (Azure TF):** `azurerm_linux_virtual_machine` requires `azurerm_network_interface` (Microsoft.Network). Needs combined compute+network TLS server or full ARM passthrough. Deferred; skip message updated with specific blocker.
 
 ## Upstream watch
