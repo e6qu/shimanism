@@ -24,11 +24,12 @@ import (
 	"github.com/e6qu/shimanism/internal/compute/domain"
 )
 
-// ComputeBackend is satisfied by any type implementing domain.Instances.
-// (domain.Networking is not needed for the Azure Compute frontend since
+// ComputeBackend is satisfied by any type implementing domain.Instances
+// and domain.BlockStorage. (domain.Networking is not needed here since
 // network primitives live in the azure_network frontend.)
 type ComputeBackend interface {
 	domain.Instances
+	domain.BlockStorage
 }
 
 // Config carries optional Server configuration.
@@ -56,31 +57,33 @@ type Config struct {
 // Server is an Azure Compute ARM HTTP frontend.
 type Server struct {
 	inst             domain.Instances
+	blk              domain.BlockStorage
 	upstream         http.Handler
 	metadataLoginURL string
 }
 
 // New returns a frontend bound to the given backend.
-func New(inst domain.Instances) *Server { return &Server{inst: inst} }
+func New(b ComputeBackend) *Server { return &Server{inst: b, blk: b} }
 
 // NewWithConfig is the general constructor; honors every Config field.
-func NewWithConfig(inst domain.Instances, c Config) *Server {
+func NewWithConfig(b ComputeBackend, c Config) *Server {
 	return &Server{
-		inst:             inst,
+		inst:             b,
+		blk:              b,
 		upstream:         c.Passthrough,
 		metadataLoginURL: c.MetadataLoginURL,
 	}
 }
 
 // Handler wraps Server with the Azure bearer verifier middleware.
-func Handler(inst domain.Instances) http.Handler {
-	return HandlerWithConfig(inst, Config{})
+func Handler(b ComputeBackend) http.Handler {
+	return HandlerWithConfig(b, Config{})
 }
 
 // HandlerWithConfig is the verifier-wrapped form of NewWithConfig.
 // The metadata endpoint is served without bearer auth (public discovery).
-func HandlerWithConfig(inst domain.Instances, c Config) http.Handler {
-	server := NewWithConfig(inst, c)
+func HandlerWithConfig(b ComputeBackend, c Config) http.Handler {
+	server := NewWithConfig(b, c)
 	if c.MetadataLoginURL == "" {
 		return wrapWithBearerVM(server, c.BearerOptions)
 	}
@@ -144,6 +147,10 @@ func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		srv.routeVMs(w, r, resourceName)
+	case "disks":
+		srv.routeDisks(w, r, resourceName)
+	case "snapshots":
+		srv.routeSnapshots(w, r, resourceName)
 	default:
 		srv.passthroughOr404(w, r)
 	}
@@ -369,7 +376,228 @@ func (srv *Server) listVMSizes(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, result)
 }
 
+// ─── Disks (Microsoft.Compute/disks) ─────────────────────────────────
+
+func (srv *Server) routeDisks(w http.ResponseWriter, r *http.Request, name string) {
+	if name == "" {
+		if r.Method == http.MethodGet {
+			srv.listDisks(w, r)
+			return
+		}
+		writeAzureError(w, http.StatusMethodNotAllowed, "MethodNotAllowed", r.Method)
+		return
+	}
+	switch r.Method {
+	case http.MethodPut:
+		srv.createOrUpdateDisk(w, r, name)
+	case http.MethodGet:
+		srv.getDisk(w, r, name)
+	case http.MethodDelete:
+		srv.deleteDisk(w, r, name)
+	default:
+		writeAzureError(w, http.StatusMethodNotAllowed, "MethodNotAllowed", r.Method)
+	}
+}
+
+func (srv *Server) createOrUpdateDisk(w http.ResponseWriter, r *http.Request, name string) {
+	var req armcompute.Disk
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeAzureError(w, http.StatusBadRequest, "InvalidRequestContent", err.Error())
+		return
+	}
+	if vol := srv.findVolumeByName(r, name); vol != nil {
+		writeJSON(w, http.StatusOK, domainVolumeToAzure(*vol, req.Location))
+		return
+	}
+	opts := domain.CreateVolumeOptions{Tags: map[string]string{"Name": name}}
+	if req.Properties != nil && req.Properties.DiskSizeGB != nil {
+		opts.SizeGiB = int(*req.Properties.DiskSizeGB)
+	}
+	if req.SKU != nil && req.SKU.Name != nil {
+		opts.VolumeType = string(*req.SKU.Name)
+	}
+	if req.Location != nil {
+		opts.Zone = *req.Location
+	}
+	if req.Properties != nil && req.Properties.CreationData != nil &&
+		req.Properties.CreationData.SourceResourceID != nil {
+		opts.SnapshotID = armLastSegment(*req.Properties.CreationData.SourceResourceID)
+	}
+	vol, err := srv.blk.CreateVolume(r.Context(), opts)
+	if err != nil {
+		writeComputeErr(w, err)
+		return
+	}
+	// Disks createOrUpdate is an LRO; the armcompute poller expects 200/202
+	// (unlike VMs which accept 201).
+	writeJSON(w, http.StatusOK, domainVolumeToAzure(vol, req.Location))
+}
+
+func (srv *Server) getDisk(w http.ResponseWriter, r *http.Request, name string) {
+	vol := srv.findVolumeByName(r, name)
+	if vol == nil {
+		writeAzureError(w, http.StatusNotFound, "ResourceNotFound", "Disk '"+name+"' not found")
+		return
+	}
+	writeJSON(w, http.StatusOK, domainVolumeToAzure(*vol, nil))
+}
+
+func (srv *Server) listDisks(w http.ResponseWriter, r *http.Request) {
+	res, err := srv.blk.DescribeVolumes(r.Context(), domain.DescribeVolumesOptions{})
+	if err != nil {
+		writeComputeErr(w, err)
+		return
+	}
+	type diskListResult struct {
+		Value []*armcompute.Disk `json:"value"`
+	}
+	result := diskListResult{Value: []*armcompute.Disk{}}
+	for _, vol := range res.Volumes {
+		vol := vol
+		result.Value = append(result.Value, domainVolumeToAzure(vol, nil))
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+func (srv *Server) deleteDisk(w http.ResponseWriter, r *http.Request, name string) {
+	vol := srv.findVolumeByName(r, name)
+	if vol == nil {
+		writeAzureError(w, http.StatusNotFound, "ResourceNotFound", "Disk '"+name+"' not found")
+		return
+	}
+	if err := srv.blk.DeleteVolume(r.Context(), vol.ID); err != nil {
+		writeComputeErr(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
+// ─── Snapshots (Microsoft.Compute/snapshots) ──────────────────────────
+
+func (srv *Server) routeSnapshots(w http.ResponseWriter, r *http.Request, name string) {
+	if name == "" {
+		if r.Method == http.MethodGet {
+			srv.listSnapshots(w, r)
+			return
+		}
+		writeAzureError(w, http.StatusMethodNotAllowed, "MethodNotAllowed", r.Method)
+		return
+	}
+	switch r.Method {
+	case http.MethodPut:
+		srv.createOrUpdateSnapshot(w, r, name)
+	case http.MethodGet:
+		srv.getSnapshot(w, r, name)
+	case http.MethodDelete:
+		srv.deleteSnapshot(w, r, name)
+	default:
+		writeAzureError(w, http.StatusMethodNotAllowed, "MethodNotAllowed", r.Method)
+	}
+}
+
+func (srv *Server) createOrUpdateSnapshot(w http.ResponseWriter, r *http.Request, name string) {
+	var req armcompute.Snapshot
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeAzureError(w, http.StatusBadRequest, "InvalidRequestContent", err.Error())
+		return
+	}
+	if snap := srv.findSnapshotByName(r, name); snap != nil {
+		writeJSON(w, http.StatusOK, domainSnapshotToAzure(*snap, req.Location))
+		return
+	}
+	volID := ""
+	if req.Properties != nil && req.Properties.CreationData != nil &&
+		req.Properties.CreationData.SourceResourceID != nil {
+		volName := armLastSegment(*req.Properties.CreationData.SourceResourceID)
+		if vol := srv.findVolumeByName(r, volName); vol != nil {
+			volID = vol.ID
+		} else {
+			volID = volName
+		}
+	}
+	snap, err := srv.blk.CreateSnapshot(r.Context(), volID, domain.CreateSnapshotOptions{
+		Tags: map[string]string{"Name": name},
+	})
+	if err != nil {
+		writeComputeErr(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, domainSnapshotToAzure(snap, req.Location))
+}
+
+func (srv *Server) getSnapshot(w http.ResponseWriter, r *http.Request, name string) {
+	snap := srv.findSnapshotByName(r, name)
+	if snap == nil {
+		writeAzureError(w, http.StatusNotFound, "ResourceNotFound", "Snapshot '"+name+"' not found")
+		return
+	}
+	writeJSON(w, http.StatusOK, domainSnapshotToAzure(*snap, nil))
+}
+
+func (srv *Server) listSnapshots(w http.ResponseWriter, r *http.Request) {
+	res, err := srv.blk.DescribeSnapshots(r.Context(), domain.DescribeSnapshotsOptions{})
+	if err != nil {
+		writeComputeErr(w, err)
+		return
+	}
+	type snapListResult struct {
+		Value []*armcompute.Snapshot `json:"value"`
+	}
+	result := snapListResult{Value: []*armcompute.Snapshot{}}
+	for _, snap := range res.Snapshots {
+		snap := snap
+		result.Value = append(result.Value, domainSnapshotToAzure(snap, nil))
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+func (srv *Server) deleteSnapshot(w http.ResponseWriter, r *http.Request, name string) {
+	snap := srv.findSnapshotByName(r, name)
+	if snap == nil {
+		writeAzureError(w, http.StatusNotFound, "ResourceNotFound", "Snapshot '"+name+"' not found")
+		return
+	}
+	if err := srv.blk.DeleteSnapshot(r.Context(), snap.ID); err != nil {
+		writeComputeErr(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
 // ─── Lookup helpers ───────────────────────────────────────────────────
+
+func (srv *Server) findVolumeByName(r *http.Request, name string) *domain.Volume {
+	res, err := srv.blk.DescribeVolumes(r.Context(), domain.DescribeVolumesOptions{})
+	if err != nil {
+		return nil
+	}
+	for _, v := range res.Volumes {
+		if v.Name == name || v.ID == name {
+			v := v
+			return &v
+		}
+	}
+	return nil
+}
+
+func (srv *Server) findSnapshotByName(r *http.Request, name string) *domain.Snapshot {
+	res, err := srv.blk.DescribeSnapshots(r.Context(), domain.DescribeSnapshotsOptions{})
+	if err != nil {
+		return nil
+	}
+	for _, s := range res.Snapshots {
+		if s.ID == name || s.Tags["Name"] == name {
+			s := s
+			return &s
+		}
+	}
+	return nil
+}
+
+func armLastSegment(id string) string {
+	parts := strings.Split(id, "/")
+	return parts[len(parts)-1]
+}
 
 func (srv *Server) findVMByName(r *http.Request, name string) *domain.Instance {
 	res, err := srv.inst.DescribeInstances(r.Context(), domain.DescribeInstancesOptions{})
@@ -400,6 +628,56 @@ func domainVMToAzure(inst domain.Instance, location *string) *armcompute.Virtual
 		},
 	}
 	return vm
+}
+
+func domainVolumeToAzure(vol domain.Volume, location *string) *armcompute.Disk {
+	name := vol.Name
+	if name == "" {
+		name = vol.ID
+	}
+	id := fmt.Sprintf("/subscriptions/shim/resourceGroups/shim/providers/Microsoft.Compute/disks/%s", name)
+	provState := "Succeeded"
+	size := int32(vol.SizeGiB)
+	diskState := armcompute.DiskState("Unattached")
+	if vol.InstanceID != "" {
+		diskState = armcompute.DiskState("Attached")
+	}
+	d := &armcompute.Disk{
+		ID:       &id,
+		Name:     &name,
+		Location: location,
+		Type:     strPtr("Microsoft.Compute/disks"),
+		Properties: &armcompute.DiskProperties{
+			DiskSizeGB:        &size,
+			DiskState:         &diskState,
+			ProvisioningState: &provState,
+		},
+	}
+	if vol.VolumeType != "" {
+		skuName := armcompute.DiskStorageAccountTypes(vol.VolumeType)
+		d.SKU = &armcompute.DiskSKU{Name: &skuName}
+	}
+	return d
+}
+
+func domainSnapshotToAzure(snap domain.Snapshot, location *string) *armcompute.Snapshot {
+	name := snap.ID
+	if n := snap.Tags["Name"]; n != "" {
+		name = n
+	}
+	id := fmt.Sprintf("/subscriptions/shim/resourceGroups/shim/providers/Microsoft.Compute/snapshots/%s", name)
+	provState := "Succeeded"
+	size := int32(snap.VolumeSize)
+	return &armcompute.Snapshot{
+		ID:       &id,
+		Name:     &name,
+		Location: location,
+		Type:     strPtr("Microsoft.Compute/snapshots"),
+		Properties: &armcompute.SnapshotProperties{
+			DiskSizeGB:        &size,
+			ProvisioningState: &provState,
+		},
+	}
 }
 
 func strPtr(s string) *string { return &s }

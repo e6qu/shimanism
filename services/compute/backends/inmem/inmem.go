@@ -557,6 +557,7 @@ func (b *Backend) CreateVolume(_ context.Context, opts domain.CreateVolumeOption
 	id := b.nextID("vol", &b.volSeq)
 	vol := &domain.Volume{
 		ID:         id,
+		Name:       opts.Tags["Name"], // GCP/Azure disks are name-addressed
 		SizeGiB:    opts.SizeGiB,
 		VolumeType: opts.VolumeType,
 		Zone:       opts.Zone,

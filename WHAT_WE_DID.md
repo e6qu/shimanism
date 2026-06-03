@@ -4,9 +4,19 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 
 > Reverse chronological. One section per phase. The *why*, the surprises, the root causes — not per-PR detail. For commit-level history, `git log`. For per-bug detail, [BUGS.md](BUGS.md). For pipeline + verifier architecture, [docs/codegen-pipelines.md](docs/codegen-pipelines.md) + [docs/verifiers.md](docs/verifiers.md).
 
+## Phase 17.B — GCP + Azure block storage frontends + backends
+
+**In progress (branch `phase-17b-block-storage-gcp-azure`).** Disk + snapshot CRUD on the GCP Compute and Azure Compute frontends, plus their real backends, all on the same `domain.BlockStorage` interface from 17.A.
+
+**GCP:** `disks.insert/get/list/delete`, `snapshots.insert/get/list/delete`, and `instances.attachDisk/detachDisk` (GCP attaches disks through the instance, not a standalone API). The 16.C read-only `routeDisks` stub became real CRUD; the boot-disk-not-found fallback is retained (documented) because instance boot disks aren't modelled as standalone domain volumes but the provider reads them via `disks.get`.
+
+**Azure:** `Microsoft.Compute/disks` + `Microsoft.Compute/snapshots` createOrUpdate/get/list/delete. Attach/detach go through a VM `storageProfile.dataDisks` update (Azure has no standalone attach API). One surprise: the armcompute **Disks/Snapshots** LRO poller expects a **200/202** initial response, while **VMs** accept 201 — so the disk/snapshot create handlers return 200, not the 201 the VM path uses. Got it wrong first (201); the SDK poller rejected the otherwise-valid body.
+
+**Cross-cutting:** inmem `CreateVolume` now stores `Name` from `Tags["Name"]` — GCP and Azure disks are name-addressed (unlike AWS EBS which is ID-only), so name lookups need it. SDK conformance green for both clouds; CLI + Terraform lanes follow.
+
 ## Phase 17.A — Block Storage domain + AWS EBS lane
 
-**In progress (branch `phase-17a-block-storage`).** Phase 17 begins block storage — volumes + snapshots — the natural continuation of the Phase 16 compute surface.
+**Merged as PR #122.** Phase 17 begins block storage — volumes + snapshots — the natural continuation of the Phase 16 compute surface.
 
 The shape reuses everything Phase 16 built: the ec2Query codegen lane just needed 7 more operations added to `services/compute/codegen.json` (CreateVolume / DeleteVolume / AttachVolume / DetachVolume / CreateSnapshot / DeleteSnapshot / DescribeSnapshots — DescribeVolumes was already there as a stub from 16.C). The inmem backend grows two maps; the AWS frontend gains 7 handlers; the AWS real backend wraps the EBS SDK calls. `domain.BlockStorage` is a third interface satisfied by the same `inmem.Backend` struct, joining `domain.Networking` and `domain.Instances`.
 

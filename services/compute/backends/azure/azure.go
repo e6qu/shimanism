@@ -40,6 +40,9 @@ type Backend struct {
 	pipc *armnetwork.PublicIPAddressesClient
 	// Compute clients (Phase 16.C)
 	vmc *armcompute.VirtualMachinesClient
+	// Block storage clients (Phase 17)
+	dc  *armcompute.DisksClient
+	sc  *armcompute.SnapshotsClient
 	loc string // Azure location for VM size queries (default "eastus")
 }
 
@@ -70,16 +73,25 @@ func New(cred azcore.TokenCredential, opt Options) (*Backend, error) {
 	if err != nil {
 		return nil, fmt.Errorf("VirtualMachines client: %w", err)
 	}
+	dc, err := armcompute.NewDisksClient(opt.SubscriptionID, cred, co)
+	if err != nil {
+		return nil, fmt.Errorf("disks client: %w", err)
+	}
+	sc, err := armcompute.NewSnapshotsClient(opt.SubscriptionID, cred, co)
+	if err != nil {
+		return nil, fmt.Errorf("snapshots client: %w", err)
+	}
 	loc := opt.Location
 	if loc == "" {
 		loc = "eastus"
 	}
 	return &Backend{sub: opt.SubscriptionID, rg: opt.ResourceGroup, loc: loc,
-		vnc: vnc, snc: snc, nsgc: nsgc, src: src, pipc: pipc, vmc: vmc}, nil
+		vnc: vnc, snc: snc, nsgc: nsgc, src: src, pipc: pipc, vmc: vmc, dc: dc, sc: sc}, nil
 }
 
 var _ domain.Networking = (*Backend)(nil)
 var _ domain.Instances = (*Backend)(nil)
+var _ domain.BlockStorage = (*Backend)(nil)
 
 // ─── Networks (VNets) ─────────────────────────────────────────────────
 
@@ -760,4 +772,254 @@ func azureVMToDomain(vm armcompute.VirtualMachine) domain.Instance {
 		InstanceType: it,
 		State:        state,
 	}
+}
+
+// ─── BlockStorage (Phase 17) ──────────────────────────────────────────
+
+func (b *Backend) CreateVolume(ctx context.Context, opt domain.CreateVolumeOptions) (domain.Volume, error) {
+	name := opt.Tags["Name"]
+	if name == "" {
+		name = "shim-disk"
+	}
+	size := int32(opt.SizeGiB)
+	disk := armcompute.Disk{
+		Location: to.Ptr(b.loc),
+		Properties: &armcompute.DiskProperties{
+			DiskSizeGB: &size,
+			CreationData: &armcompute.CreationData{
+				CreateOption: to.Ptr(armcompute.DiskCreateOptionEmpty),
+			},
+		},
+	}
+	if opt.VolumeType != "" {
+		skuName := armcompute.DiskStorageAccountTypes(opt.VolumeType)
+		disk.SKU = &armcompute.DiskSKU{Name: &skuName}
+	}
+	if opt.SnapshotID != "" {
+		disk.Properties.CreationData.CreateOption = to.Ptr(armcompute.DiskCreateOptionCopy)
+		disk.Properties.CreationData.SourceResourceID = to.Ptr(fmt.Sprintf(
+			"/subscriptions/%s/resourceGroups/%s/providers/Microsoft.Compute/snapshots/%s", b.sub, b.rg, opt.SnapshotID))
+	}
+	poller, err := b.dc.BeginCreateOrUpdate(ctx, b.rg, name, disk, nil)
+	if err != nil {
+		return domain.Volume{}, mapAzureErr(err)
+	}
+	res, err := poller.PollUntilDone(ctx, nil)
+	if err != nil {
+		return domain.Volume{}, mapAzureErr(err)
+	}
+	return azureDiskToDomain(res.Disk), nil
+}
+
+func (b *Backend) DescribeVolumes(ctx context.Context, opt domain.DescribeVolumesOptions) (domain.DescribeVolumesResult, error) {
+	wantID := map[string]bool{}
+	for _, id := range opt.IDs {
+		wantID[id] = true
+	}
+	var out []domain.Volume
+	pager := b.dc.NewListByResourceGroupPager(b.rg, nil)
+	for pager.More() {
+		page, err := pager.NextPage(ctx)
+		if err != nil {
+			return domain.DescribeVolumesResult{}, mapAzureErr(err)
+		}
+		for _, d := range page.Value {
+			vol := azureDiskToDomain(*d)
+			if len(wantID) > 0 && !wantID[vol.ID] && !wantID[vol.Name] {
+				continue
+			}
+			if opt.InstanceID != "" && vol.InstanceID != opt.InstanceID {
+				continue
+			}
+			out = append(out, vol)
+		}
+	}
+	return domain.DescribeVolumesResult{Volumes: out}, nil
+}
+
+func (b *Backend) DeleteVolume(ctx context.Context, id string) error {
+	poller, err := b.dc.BeginDelete(ctx, b.rg, id, nil)
+	if err != nil {
+		return mapAzureErr(err)
+	}
+	_, err = poller.PollUntilDone(ctx, nil)
+	return mapAzureErr(err)
+}
+
+// AttachVolume / DetachVolume update the VM's storageProfile.dataDisks.
+func (b *Backend) AttachVolume(ctx context.Context, volumeID, instanceID string, opt domain.AttachVolumeOptions) (domain.VolumeAttachment, error) {
+	vmResp, err := b.vmc.Get(ctx, b.rg, instanceID, nil)
+	if err != nil {
+		return domain.VolumeAttachment{}, mapAzureErr(err)
+	}
+	vm := vmResp.VirtualMachine
+	if vm.Properties == nil {
+		vm.Properties = &armcompute.VirtualMachineProperties{}
+	}
+	if vm.Properties.StorageProfile == nil {
+		vm.Properties.StorageProfile = &armcompute.StorageProfile{}
+	}
+	lun := int32(len(vm.Properties.StorageProfile.DataDisks))
+	diskID := fmt.Sprintf("/subscriptions/%s/resourceGroups/%s/providers/Microsoft.Compute/disks/%s", b.sub, b.rg, volumeID)
+	vm.Properties.StorageProfile.DataDisks = append(vm.Properties.StorageProfile.DataDisks, &armcompute.DataDisk{
+		Lun:          &lun,
+		Name:         to.Ptr(volumeID),
+		CreateOption: to.Ptr(armcompute.DiskCreateOptionTypesAttach),
+		ManagedDisk:  &armcompute.ManagedDiskParameters{ID: to.Ptr(diskID)},
+	})
+	poller, err := b.vmc.BeginCreateOrUpdate(ctx, b.rg, instanceID, vm, nil)
+	if err != nil {
+		return domain.VolumeAttachment{}, mapAzureErr(err)
+	}
+	if _, err := poller.PollUntilDone(ctx, nil); err != nil {
+		return domain.VolumeAttachment{}, mapAzureErr(err)
+	}
+	dev := opt.DeviceName
+	return domain.VolumeAttachment{
+		VolumeID:   volumeID,
+		InstanceID: instanceID,
+		DeviceName: dev,
+		State:      domain.VolumeAttachmentStateAttached,
+	}, nil
+}
+
+func (b *Backend) DetachVolume(ctx context.Context, volumeID, instanceID string) (domain.VolumeAttachment, error) {
+	vmResp, err := b.vmc.Get(ctx, b.rg, instanceID, nil)
+	if err != nil {
+		return domain.VolumeAttachment{}, mapAzureErr(err)
+	}
+	vm := vmResp.VirtualMachine
+	if vm.Properties != nil && vm.Properties.StorageProfile != nil {
+		kept := vm.Properties.StorageProfile.DataDisks[:0]
+		for _, dd := range vm.Properties.StorageProfile.DataDisks {
+			if dd.Name != nil && *dd.Name == volumeID {
+				continue
+			}
+			kept = append(kept, dd)
+		}
+		vm.Properties.StorageProfile.DataDisks = kept
+	}
+	poller, err := b.vmc.BeginCreateOrUpdate(ctx, b.rg, instanceID, vm, nil)
+	if err != nil {
+		return domain.VolumeAttachment{}, mapAzureErr(err)
+	}
+	if _, err := poller.PollUntilDone(ctx, nil); err != nil {
+		return domain.VolumeAttachment{}, mapAzureErr(err)
+	}
+	return domain.VolumeAttachment{
+		VolumeID:   volumeID,
+		InstanceID: instanceID,
+		State:      domain.VolumeAttachmentStateDetached,
+	}, nil
+}
+
+func (b *Backend) CreateSnapshot(ctx context.Context, volumeID string, opt domain.CreateSnapshotOptions) (domain.Snapshot, error) {
+	name := opt.Tags["Name"]
+	if name == "" {
+		name = "shim-snap"
+	}
+	diskID := fmt.Sprintf("/subscriptions/%s/resourceGroups/%s/providers/Microsoft.Compute/disks/%s", b.sub, b.rg, volumeID)
+	snap := armcompute.Snapshot{
+		Location: to.Ptr(b.loc),
+		Properties: &armcompute.SnapshotProperties{
+			CreationData: &armcompute.CreationData{
+				CreateOption:     to.Ptr(armcompute.DiskCreateOptionCopy),
+				SourceResourceID: to.Ptr(diskID),
+			},
+		},
+	}
+	poller, err := b.sc.BeginCreateOrUpdate(ctx, b.rg, name, snap, nil)
+	if err != nil {
+		return domain.Snapshot{}, mapAzureErr(err)
+	}
+	res, err := poller.PollUntilDone(ctx, nil)
+	if err != nil {
+		return domain.Snapshot{}, mapAzureErr(err)
+	}
+	return azureSnapshotToDomain(res.Snapshot, volumeID), nil
+}
+
+func (b *Backend) DescribeSnapshots(ctx context.Context, opt domain.DescribeSnapshotsOptions) (domain.DescribeSnapshotsResult, error) {
+	wantID := map[string]bool{}
+	for _, id := range opt.IDs {
+		wantID[id] = true
+	}
+	var out []domain.Snapshot
+	pager := b.sc.NewListByResourceGroupPager(b.rg, nil)
+	for pager.More() {
+		page, err := pager.NextPage(ctx)
+		if err != nil {
+			return domain.DescribeSnapshotsResult{}, mapAzureErr(err)
+		}
+		for _, s := range page.Value {
+			snap := azureSnapshotToDomain(*s, "")
+			if len(wantID) > 0 && !wantID[snap.ID] && !wantID[snap.Tags["Name"]] {
+				continue
+			}
+			if opt.VolumeID != "" && snap.VolumeID != opt.VolumeID {
+				continue
+			}
+			out = append(out, snap)
+		}
+	}
+	return domain.DescribeSnapshotsResult{Snapshots: out}, nil
+}
+
+func (b *Backend) DeleteSnapshot(ctx context.Context, id string) error {
+	poller, err := b.sc.BeginDelete(ctx, b.rg, id, nil)
+	if err != nil {
+		return mapAzureErr(err)
+	}
+	_, err = poller.PollUntilDone(ctx, nil)
+	return mapAzureErr(err)
+}
+
+func azureDiskToDomain(d armcompute.Disk) domain.Volume {
+	vol := domain.Volume{State: domain.VolumeStateAvailable}
+	if d.Name != nil {
+		vol.ID = *d.Name
+		vol.Name = *d.Name
+	}
+	if d.Location != nil {
+		vol.Zone = *d.Location
+	}
+	if d.SKU != nil && d.SKU.Name != nil {
+		vol.VolumeType = string(*d.SKU.Name)
+	}
+	if d.Properties != nil {
+		if d.Properties.DiskSizeGB != nil {
+			vol.SizeGiB = int(*d.Properties.DiskSizeGB)
+		}
+		if d.Properties.DiskState != nil && *d.Properties.DiskState == armcompute.DiskState("Attached") {
+			vol.State = domain.VolumeStateInUse
+		}
+	}
+	return vol
+}
+
+func azureSnapshotToDomain(s armcompute.Snapshot, volumeID string) domain.Snapshot {
+	snap := domain.Snapshot{State: domain.SnapshotStateCompleted, VolumeID: volumeID}
+	if s.Name != nil {
+		snap.ID = *s.Name
+		snap.Tags = map[string]string{"Name": *s.Name}
+	}
+	if s.Properties != nil {
+		if s.Properties.DiskSizeGB != nil {
+			snap.VolumeSize = int(*s.Properties.DiskSizeGB)
+		}
+		if volumeID == "" && s.Properties.CreationData != nil && s.Properties.CreationData.SourceResourceID != nil {
+			parts := splitLast(*s.Properties.CreationData.SourceResourceID)
+			snap.VolumeID = parts
+		}
+	}
+	return snap
+}
+
+func splitLast(id string) string {
+	for i := len(id) - 1; i >= 0; i-- {
+		if id[i] == '/' {
+			return id[i+1:]
+		}
+	}
+	return id
 }
