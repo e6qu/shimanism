@@ -283,7 +283,7 @@ Per intersection-only scope: every new service must work across **AWS + GCP + Az
 
 > **Premise.** Phase 15 closed NoSQL + DNS. Phase 16 adds the compute + networking surface: VPC networking primitives (networks, subnets, security groups, public IPs), compute instance lifecycle (run/start/stop/terminate/describe + machine types), and basic layer-4 TCP load balancers. Two new service directories: `services/compute/` (AWS EC2 + GCP Compute Engine + Azure Compute/Network + K8s Nodes/Namespace/NetworkPolicy) and `services/loadbalancer/` (AWS ELBv2 + GCP Compute LB + Azure LB + K8s Service). AWS VPC and EC2 instances share `ec2.amazonaws.com`; GCP networks and GCE instances share `compute.googleapis.com/v1` — both fit in one `services/compute/` directory to avoid action-dispatch split-brain. ELBv2 is a distinct AWS endpoint and lives in `services/loadbalancer/`.
 >
-> **Status: 16.A ✅ · 16.B ✅ · 16.C ◐ (PR3 in progress) · 16.D ✅.**
+> **Status: 16.A ✅ · 16.B ✅ · 16.C ◐ (PR1–PR4 merged; Azure TF/CLI blocked on BUG-56/57) · 16.D ✅.**
 
 ### Sub-phases
 
@@ -291,7 +291,7 @@ Per intersection-only scope: every new service must work across **AWS + GCP + Az
 |---|---|---|---|
 | 16.A | Normalization audit (N20–N27) + `docs/phase-16-scoping.md` + ec2Query codegen lane + `internal/ec2query/` runtime | — | ✅ PR #104 |
 | 16.B | VPC networking primitives (VPCs/subnets/security groups/public IPs) — AWS + GCP + Azure frontends + K8s peer | 16.A | ✅ PRs #105–#108 |
-| 16.C | Compute instance lifecycle (RunInstances/Describe/Start/Stop/Terminate/Reboot + DescribeInstanceTypes) — K8s Nodes read-only; mutations NotImplemented | 16.B; sockerless lane gated on #373/#374/#375 | ◐ PR3 in progress (PR4 = az CLI + GCP/Azure TF) |
+| 16.C | Compute instance lifecycle (RunInstances/Describe/Start/Stop/Terminate/Reboot + DescribeInstanceTypes) — K8s Nodes read-only; mutations NotImplemented | 16.B; sockerless lane gated on #373/#374/#375 | ◐ PRs #111–#114 merged; Azure TF/CLI blocked on BUG-56/57 (configurable JWKS) |
 | 16.D | Load balancers — layer-4 TCP (LB + target group + listener); `services/loadbalancer/`; K8s = Service:LB; RegisterTargets gated on #373/#374/#375 | 16.A | ✅ PRs #109–#110 |
 
 ### Codegen prerequisite (16.A)
@@ -359,7 +359,7 @@ NAT Gateways · Internet Gateways · Route Tables · VPC Peering · Auto Scaling
 
 | PR | Phase | Headline | Merged |
 |---|---|---|---|
-| #109–#112 | 16.A/B/D + 16.C PR1+PR2 | Phase 16 compute + networking + LB: ec2Query codegen lane, VPC networking primitives, compute instance lifecycle, load balancers. All four frontends (AWS/GCP/Azure/K8s) + real backends + conformance matrices. | 2026-06-03 |
+| #109–#114 | 16.A/B/D + 16.C PR1–PR4 | Phase 16 compute + networking + LB: ec2Query codegen lane, VPC networking primitives (PR #104–#108), load balancers (#109–#110), instance lifecycle (#111–#114). GCP/Azure/K8s frontends + real backends + conformance matrices. 16.C Azure TF/CLI rows deferred on BUG-56/57. | 2026-06-03 |
 | #90–#108 (umbrella) | 15 | Cross-cloud normalization standard (N1–N27), NoSQL (DynamoDB/Firestore/Cosmos Tables), DNS (Route 53/Cloud DNS/Azure DNS/CoreDNS), sockerless Cosmos Tables ARM passthrough. 10 PRs, all four frontends × five backends. | 2026-06-02 |
 | #21–#67 (umbrella) | 14 | Sockerless-verified validation lane + through-shim azurerm Apply matrix. 14.A re-enabled deferred shim assertions; 14.B/C closed the 33+1 sockerless lane sweep; 14.D simulator audit + 14.E cross-cloud Apply closed the storage matrix. | through 2026-05-30 |
 | #20 | 13 | Azure + GCP adapter migrations, production RS256 JWKS, and the first sockerless storage/secrets lane. | 2026-05-24 `3cf9e13` |

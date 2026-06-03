@@ -6,7 +6,7 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 
 ## Phase 16.C PR4 — GCP TF instance + Azure deferred (BUG-56/57) + INTERSECTION.md
 
-**In progress (branch `phase-16c-instances-pr4`).** PR3 merged as #113; PR4 finishes the 16.C Terraform and CLI matrix.
+**Merged as PR #114.** PR3 closed the AWS Terraform + CLI + cross-cloud cells; PR4 closes the GCP Terraform row and defers Azure on BUG-56/57.
 
 ### GCP Terraform `google_compute_instance` (Linux-only)
 

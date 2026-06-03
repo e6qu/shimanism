@@ -6,14 +6,14 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 
 ## Where we are
 
-**Phase 16.C PR4 in progress** (branch `phase-16c-instances-pr4`). GCP `google_compute_instance` Terraform test written (Linux-only, TLS server). Azure TF/CLI tests explicitly skipped on BUG-56/BUG-57 (configurable JWKS in azure_compute frontend). INTERSECTION.md extended with 16.C instance/machine-type tables.
+**Phase 16.C PR4 merged as #114.** GCP `google_compute_instance` TF conformance green in CI. Azure TF/CLI rows deferred on BUG-56/BUG-57.
 
 **Open bugs:** BUG-8 · BUG-15 · BUG-41 (Track A) · BUG-56 · BUG-57 (Azure compute JWKS).
 
 ## Session-start checklist
 
 1. `git fetch origin && git checkout main && git pull --ff-only origin main` — sync `main`.
-2. Continue with PR4 commit + push + PR creation (or next phase if PR4 already merged).
+2. Pick up next task below.
 
 ## Phase 16 sub-phase checklist
 
@@ -29,28 +29,16 @@ All items closed. Full 3×4×3 conformance matrix for networking operations.
 
 All items closed. Full 3×4×3 conformance matrix for LB operations. Sockerless RegisterTargets lane gated on #373–#375.
 
-### 16.C — Compute instance lifecycle ◐ (PRs #111–#113 merged; PR4 in progress)
+### 16.C — Compute instance lifecycle ◐ (PRs #111–#114 merged; Azure TF/CLI blocked)
 
-**PR1 ✅ (PR #111):** domain.Instances + inmem + AWS EC2 frontend + BUG-55.
+**PR1 ✅ (#111):** domain.Instances + inmem + AWS EC2 frontend + BUG-55.
+**PR2 ✅ (#112):** GCP + Azure Compute frontends + real backends + SDK conformance.
+**PR3 ✅ (#113):** AWS TF `aws_instance` + AWS+GCP CLI + cross-cloud Apply cell.
+**PR4 ✅ (#114):** GCP TF `google_compute_instance` (Linux-only) + Azure TF/CLI deferred + INTERSECTION.md.
 
-**PR2 ✅ (PR #112):** GCP Compute + Azure Compute frontends + real backends + SDK conformance.
-
-**PR3 ✅ (PR #113):** AWS TF `aws_instance` lifecycle (destroy waiter fix) + AWS+GCP CLI conformance + cross-cloud Apply cell.
-
-**PR4 (branch `phase-16c-instances-pr4`) — ready to push + create PR:**
-- [x] GCP Terraform `google_compute_instance` apply + destroy (Linux-only TLS test, `StartComputeServerGCPTLS`).
-- [x] GCP compute frontend: project-level `GET /projects/{p}` stub + `global/images` stub + `zones/{z}/disks` stub + boot disk in `domainInstanceToGCP`.
-- [x] Harness: `ComputeServerTLS` type + `StartComputeServerGCPTLS`.
-- [x] Azure TF test: skipped on BUG-56 (configurable JWKS in azure_compute).
-- [x] Azure CLI test: skipped on BUG-57 (same prereq).
-- [x] INTERSECTION.md: Phase 16.C instances + machine types tables + out-of-intersection list.
-- [x] BUGS.md: BUG-56 + BUG-57 filed.
-- [ ] **Commit + push + open PR #114.**
-
-**Next after PR4 merges:**
-- Resolve BUG-56/BUG-57 to complete the Azure conformance matrix (add `HandlerWithConfig` to azure_compute, wire JWKS from sockerless).
-- Close Phase 16.C with full 3×4×3 matrix once Azure lanes unblock.
-- Sockerless instance lane: write tests (same structure as other cloud tests — no special cases) once sockerless #373/#374/#375 close.
+**Remaining for 16.C closure:**
+- [ ] **BUG-56/57 (Azure compute JWKS):** add `HandlerWithConfig` to `azure_compute` frontend (same pattern as `azure_dns.HandlerWithConfig`); wire JWKS from sockerless's Entra stub; re-enable `TestTerraformAzure_Compute_VMLifecycle` + `TestAzureCLI_Compute_VMList`.
+- [ ] Sockerless instance lane: write tests once sockerless #373/#374/#375 close.
 
 ## Upstream watch
 
