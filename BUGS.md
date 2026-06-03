@@ -86,6 +86,16 @@ Phase 14.A re-enabled the shim assertions for #173/#174/#175 (storage + secrets 
 | [e6qu/sockerless#215](https://github.com/e6qu/sockerless/issues/215) | ✅ closed by PR #216; AWS IAM managed-policy/instance-profile and APIGW v1 response handlers added. |
 | [e6qu/sockerless#218](https://github.com/e6qu/sockerless/issues/218) | ✅ closed by PR #219; GCP Secret Manager ListSecretVersions, UpdateSecret, and DeleteSecret handlers added. |
 
+### Phase 16 Firecracker blockers — closed by [sockerless PR #372](https://github.com/e6qu/sockerless/pull/372) on 2026-06-02
+
+| Upstream | Status |
+|---|---|
+| [e6qu/sockerless#373](https://github.com/e6qu/sockerless/issues/373) — `DetectFirecrackerCapabilities()` missing `/dev/kvm` check | ✅ closed; PR #372 adds `kvm:/dev/kvm` to the capability report so Firecracker failures surface a clear error. |
+| [e6qu/sockerless#374](https://github.com/e6qu/sockerless/issues/374) — 3 GB rootfs per VM risks disk exhaustion | ✅ closed; PR #372 sizes rootfs to `2×payload + 256 MiB headroom` (floor 1 GiB) — 3× reduction. |
+| [e6qu/sockerless#375](https://github.com/e6qu/sockerless/issues/375) — kernel + rootfs downloaded fresh each CI run | ✅ closed; PR #372 adds `actions/cache@v5` + pins to `ubuntu-24.04`. |
+
+Shim action: `TestSockerless_EC2_Instances_ThroughShim` (compute) and `TestSockerless_ELBv2_Through_Shim_RegisterTargets` (loadbalancer) un-gated. Implemented in 16.C PR5.
+
 ### Sockerless coverage history
 
 - **Round 1** ([#173-178](https://github.com/e6qu/sockerless/issues/173)) — all closed by sockerless PR #179. Initial fidelity gaps (S3 `/s3/` URL prefix, `aws-chunked` envelope, missing `ListSecretVersionIds`) + missing-service rollups (AWS / GCP / Azure).
@@ -93,6 +103,7 @@ Phase 14.A re-enabled the shim assertions for #173/#174/#175 (storage + secrets 
 - **Round 3** ([#189-191](https://github.com/e6qu/sockerless/issues/189)) — closed by sockerless PR #192 plus the later #190 reopen closure.
 - **Later rounds** ([#193-215](https://github.com/e6qu/sockerless/issues/193), excluding unused issue numbers) — closed by sockerless PRs #200, #202, #211, and #216.
 - **Next-lane fix**: [#218](https://github.com/e6qu/sockerless/issues/218) — GCP Secret Manager `ListSecretVersions`, `UpdateSecret`, and `DeleteSecret` landed in sockerless PR #219. The full `services/secrets/backends/gcp` sockerless lane is now green.
+- **Phase 16 Firecracker** ([#373-375](https://github.com/e6qu/sockerless/issues/373)) — closed by PR #372 (2026-06-02). Enables compute instance lifecycle + LB RegisterTargets sockerless lanes.
 
 ### End-to-end walkthrough findings (BUG-30..33)
 

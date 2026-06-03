@@ -1,4 +1,4 @@
-// Sockerless lane for the compute service, Phase 16.B.
+// Sockerless lane for the compute service, Phase 16.B + 16.C.
 //
 // Through-shim path (AWS frontend example):
 //
@@ -6,10 +6,9 @@
 //	    → shim's AWS EC2 backend → sockerless's EC2 sim.
 //
 // VPC / subnet / security-group / Elastic IP API calls are pure
-// metadata operations in sockerless — no Firecracker VM boot
-// required. The sockerless lane for these is green immediately;
-// only the Phase 16.C instance lane (RunInstances, StartInstances,
-// etc.) is gated on sockerless #373 / #374 / #375.
+// metadata — no Firecracker required. The instance lifecycle lane
+// (RunInstances → poll running → TerminateInstances) requires
+// Firecracker + KVM; sockerless #373/#374/#375 closed by PR #372.
 //
 // Set SOCKERLESS_AWS_ENDPOINT (the sim's HTTP/HTTPS endpoint) to
 // opt in. If unset, all subtests in this file skip.
@@ -21,6 +20,7 @@ import (
 	"net/http"
 	"os"
 	"testing"
+	"time"
 
 	awsapi "github.com/aws/aws-sdk-go-v2/aws"
 	awshttp "github.com/aws/aws-sdk-go-v2/aws/transport/http"
@@ -193,12 +193,111 @@ func TestSockerless_AWSEC2_Through_Shim_SecurityGroup(t *testing.T) {
 	}
 }
 
-// TestSockerless_EC2_Instances_ThroughShim is gated on sockerless
-// issues #373 (kvm check), #374 (disk exhaustion), and #375 (asset
-// caching). All three must close before this test can be un-skipped,
-// because instance lifecycle in sockerless requires a real Firecracker
-// VM boot and the three issues make that unreliable in CI.
+// TestSockerless_EC2_Instances_ThroughShim drives:
+//
+//	AWS SDK → shim's EC2 frontend → AWS EC2 backend → sockerless EC2 sim.
+//
+// Instance lifecycle: VPC + subnet prereqs, RunInstances, poll until
+// running, TerminateInstances. Requires Firecracker + KVM on the host
+// (sockerless #373/#374/#375 now closed; lane unblocked as of PR #372).
 func TestSockerless_EC2_Instances_ThroughShim(t *testing.T) {
-	t.Skip("gated on sockerless #373 (kvm check) + #374 (disk) + #375 (asset cache); " +
-		"un-skip once all three close")
+	endpoint := os.Getenv("SOCKERLESS_AWS_ENDPOINT")
+	if endpoint == "" {
+		t.Skip("SOCKERLESS_AWS_ENDPOINT not set")
+	}
+
+	backendClient := newSockerlessAWSEC2Client(t, endpoint)
+	backend := awsbackend.New(backendClient)
+	shim := harness.StartComputeServerAWS(t, backend)
+	frontendClient := newEC2Client(t, shim.URL)
+	ctx := context.Background()
+
+	// Create VPC + subnet as prerequisites for RunInstances.
+	vpc, err := frontendClient.CreateVpc(ctx, &awsec2sdk.CreateVpcInput{
+		CidrBlock: awsapi.String("10.10.0.0/16"),
+	})
+	if err != nil {
+		t.Fatalf("CreateVpc: %v", err)
+	}
+	vpcID := awsapi.ToString(vpc.Vpc.VpcId)
+	t.Cleanup(func() {
+		frontendClient.DeleteVpc(ctx, &awsec2sdk.DeleteVpcInput{VpcId: awsapi.String(vpcID)}) //nolint:errcheck
+	})
+
+	subnet, err := frontendClient.CreateSubnet(ctx, &awsec2sdk.CreateSubnetInput{
+		VpcId:            awsapi.String(vpcID),
+		CidrBlock:        awsapi.String("10.10.1.0/24"),
+		AvailabilityZone: awsapi.String("us-east-1a"),
+	})
+	if err != nil {
+		t.Fatalf("CreateSubnet: %v", err)
+	}
+	subnetID := awsapi.ToString(subnet.Subnet.SubnetId)
+	t.Cleanup(func() {
+		frontendClient.DeleteSubnet(ctx, &awsec2sdk.DeleteSubnetInput{SubnetId: awsapi.String(subnetID)}) //nolint:errcheck
+	})
+
+	// RunInstances — triggers a real Firecracker VM boot inside sockerless.
+	run, err := frontendClient.RunInstances(ctx, &awsec2sdk.RunInstancesInput{
+		ImageId:      awsapi.String("ami-simulated"),
+		InstanceType: ec2types.InstanceTypeT3Micro,
+		MinCount:     awsapi.Int32(1),
+		MaxCount:     awsapi.Int32(1),
+		SubnetId:     awsapi.String(subnetID),
+	})
+	if err != nil {
+		t.Fatalf("RunInstances: %v", err)
+	}
+	if len(run.Instances) != 1 {
+		t.Fatalf("RunInstances: expected 1 instance, got %d", len(run.Instances))
+	}
+	instanceID := awsapi.ToString(run.Instances[0].InstanceId)
+	t.Cleanup(func() {
+		frontendClient.TerminateInstances(ctx, &awsec2sdk.TerminateInstancesInput{ //nolint:errcheck
+			InstanceIds: []string{instanceID},
+		})
+	})
+
+	// Poll DescribeInstances until running (Firecracker boot takes ~10–30s).
+	t.Logf("waiting for instance %s to reach running state", instanceID)
+	running := false
+	for range 60 { // up to 60 × 2s = 2 minutes
+		desc, err := frontendClient.DescribeInstances(ctx, &awsec2sdk.DescribeInstancesInput{
+			InstanceIds: []string{instanceID},
+		})
+		if err != nil {
+			t.Fatalf("DescribeInstances: %v", err)
+		}
+		if len(desc.Reservations) > 0 && len(desc.Reservations[0].Instances) > 0 {
+			state := desc.Reservations[0].Instances[0].State.Name
+			if state == ec2types.InstanceStateNameRunning {
+				running = true
+				break
+			}
+			if state == ec2types.InstanceStateNameTerminated || state == ec2types.InstanceStateNameStopped {
+				t.Fatalf("instance reached unexpected terminal state %q before running", state)
+			}
+		}
+		waitCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+		<-waitCtx.Done()
+		cancel()
+	}
+	if !running {
+		t.Fatalf("instance %s did not reach running state within 2 minutes", instanceID)
+	}
+
+	// TerminateInstances.
+	term, err := frontendClient.TerminateInstances(ctx, &awsec2sdk.TerminateInstancesInput{
+		InstanceIds: []string{instanceID},
+	})
+	if err != nil {
+		t.Fatalf("TerminateInstances: %v", err)
+	}
+	if len(term.TerminatingInstances) == 0 {
+		t.Fatal("TerminateInstances: empty state list")
+	}
+	finalState := term.TerminatingInstances[0].CurrentState.Name
+	if finalState != ec2types.InstanceStateNameTerminated && finalState != ec2types.InstanceStateNameShuttingDown {
+		t.Errorf("TerminateInstances state = %v, want terminated or shutting-down", finalState)
+	}
 }

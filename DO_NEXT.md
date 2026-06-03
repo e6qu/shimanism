@@ -37,16 +37,15 @@ All items closed. Full 3×4×3 conformance matrix for LB operations. Sockerless 
 **PR4 ✅ (#114):** GCP TF `google_compute_instance` (Linux-only) + Azure TF/CLI deferred + INTERSECTION.md.
 
 **Remaining for 16.C closure:**
+- [x] Sockerless instance lane unblocked: `TestSockerless_EC2_Instances_ThroughShim` implemented (sockerless #373/#374/#375 closed by PR #372). Also `TestSockerless_ELBv2_Through_Shim_RegisterTargets` in loadbalancer.
 - [ ] **BUG-56/57 (Azure compute JWKS):** add `HandlerWithConfig` to `azure_compute` frontend (same pattern as `azure_dns.HandlerWithConfig`); wire JWKS from sockerless's Entra stub; re-enable `TestTerraformAzure_Compute_VMLifecycle` + `TestAzureCLI_Compute_VMList`.
-- [ ] Sockerless instance lane: write tests once sockerless #373/#374/#375 close.
+- [ ] **Commit + push + create PR** for this sockerless unblocking.
 
 ## Upstream watch
 
-Sockerless gaps blocking 16.C instance lane + 16.D RegisterTargets:
+Sockerless #373/#374/#375 **closed** by PR #372 (merged 2026-06-02). Instance lanes unblocked.
 
-- [sockerless #373](https://github.com/e6qu/sockerless/issues/373) — `DetectFirecrackerCapabilities()` missing `/dev/kvm` check. **Blocks 16.C sockerless lane.**
-- [sockerless #374](https://github.com/e6qu/sockerless/issues/374) — 3 GB rootfs per VM risks disk exhaustion on 14 GB runners. **Blocks 16.C sockerless lane.**
-- [sockerless #375](https://github.com/e6qu/sockerless/issues/375) — kernel + rootfs downloaded fresh every run; no `actions/cache`. **Blocks 16.C sockerless lane.**
+Sockerless PR #392 merged: GCP SA keys + instance templates + SDK/CLI/Terraform tests.
 
 ## Standing rules
 

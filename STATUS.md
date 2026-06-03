@@ -8,10 +8,10 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 
 | | |
 |---|---|
-| Active branch | `main` — Phase 16.C PR4 merged as #114. |
-| In-flight | Nothing in-flight. Next: BUG-56/57 (Azure compute JWKS) or start next phase. |
-| Last merged | PR #114 — 16.C PR4: GCP TF `google_compute_instance` + Azure TF/CLI deferred (BUG-56/57) + INTERSECTION.md. |
-| Upstream watch | Sockerless #373/374/375 open — block 16.C sockerless lane. |
+| Active branch | `main` — preparing 16.C PR5: sockerless instance lane (+ LB RegisterTargets). |
+| In-flight | `TestSockerless_EC2_Instances_ThroughShim` + `TestSockerless_ELBv2_Through_Shim_RegisterTargets` — to be committed on a new branch. |
+| Last merged | PR #115 — docs: mark 16.C PR4 (#114) merged. |
+| Upstream watch | Sockerless #373/#374/#375 **closed** by PR #372. PR #392 merged (GCP SA keys + instance templates). |
 | Phases 1–15 | All closed. See [PLAN.md § Closed phases](PLAN.md#closed-phases-pr-index). |
 | Phase 16 | 16.A ✅ · 16.B ✅ · 16.C ◐ (PR1–PR4 merged; Azure TF/CLI blocked on BUG-56/57) · 16.D ✅. |
 | Bugs | **57 filed · 51 fixed · 5 open · 1 false positive.** Open: **BUG-8** + **BUG-15** + **BUG-41** (Track A) + **BUG-56** + **BUG-57** (16.C Azure compute TF/CLI JWKS). |
