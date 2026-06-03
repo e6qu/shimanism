@@ -467,3 +467,15 @@ Closed audit items:
 **Trade-off.** ALB workloads cannot be migrated through the shim without redesigning the routing layer. This is acceptable for the intersection — ALB is meaningfully richer than any single L4 abstraction, and shimming it would require fabricating L7 behaviour that doesn't exist on all backends.
 
 **Reference.** `internal/loadbalancer/domain/`; `services/loadbalancer/INTERSECTION.md` documents the L7 exclusions. Exercised by `TestLB_Layer7OptionsRejected_*` conformance tests.
+
+---
+
+## N28 — Block storage: volume size, type, and attach semantics
+
+**Asymmetry.** Volume size units: all three clouds use GiB at the API level but the AWS CLI historically shows GiB as "GB". Volume type names are cloud-specific and opaque (gp3 / pd-ssd / Premium_LRS). Attach/detach are asynchronous on AWS (polling required) and on GCP (LRO), but synchronous on Azure (ARM returns 200). K8s block storage uses PersistentVolume / PersistentVolumeClaim, not the cloud volume API.
+
+**Rule.** Volume size is always in GiB in the domain. Volume type is opaque per-cloud — it passes through without translation (same rule as N13 for cache tiers and N23 for instance types). Attach and detach are modelled as **synchronous** in the domain: the operation returns with the final state immediately, same as the GCP compute operation pattern. AWS backends handle the async wait inside the backend implementation.
+
+**Trade-off.** Callers using AWS-specific volume types (io2, sc1, st1) will receive those types back unchanged; GCP and Azure backends reject unknown types with `InvalidParameterValue` / `BadRequest`. Cross-cloud volume type migration requires explicit type mapping by the caller — the shim does not translate.
+
+**Reference.** `internal/compute/domain/volumes.go`; `services/compute/INTERSECTION.md` § Phase 17. Exercised by `TestAWSSDK_EBS_VolumeLifecycle`, `TestAWSSDK_EBS_SnapshotLifecycle`, `TestAWSCLI_EBS_VolumeLifecycle`, `TestAWSCLI_EBS_SnapshotLifecycle`, `TestTerraformAWS_EBS_VolumeLifecycle`.

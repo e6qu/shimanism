@@ -588,3 +588,29 @@ func nodeToInstance(node corev1.Node) domain.Instance {
 		Tags:         tagsFromLabels(node.Labels),
 	}
 }
+
+// ─── BlockStorage — NotImplemented ───────────────────────────────────
+// K8s nodes are not EBS/PD/Disk peers; block storage domain operations
+// are out of intersection for the K8s compute backend. Callers receive
+// the source cloud's "OperationNotSupported" error (N28 note).
+
+func (b *Backend) CreateVolume(_ context.Context, _ domain.CreateVolumeOptions) (domain.Volume, error) {
+	return domain.Volume{}, domain.ErrNotSupported
+}
+func (b *Backend) DescribeVolumes(_ context.Context, _ domain.DescribeVolumesOptions) (domain.DescribeVolumesResult, error) {
+	return domain.DescribeVolumesResult{}, nil
+}
+func (b *Backend) DeleteVolume(_ context.Context, _ string) error { return domain.ErrNotSupported }
+func (b *Backend) AttachVolume(_ context.Context, _, _ string, _ domain.AttachVolumeOptions) (domain.VolumeAttachment, error) {
+	return domain.VolumeAttachment{}, domain.ErrNotSupported
+}
+func (b *Backend) DetachVolume(_ context.Context, _, _ string) (domain.VolumeAttachment, error) {
+	return domain.VolumeAttachment{}, domain.ErrNotSupported
+}
+func (b *Backend) CreateSnapshot(_ context.Context, _ string, _ domain.CreateSnapshotOptions) (domain.Snapshot, error) {
+	return domain.Snapshot{}, domain.ErrNotSupported
+}
+func (b *Backend) DescribeSnapshots(_ context.Context, _ domain.DescribeSnapshotsOptions) (domain.DescribeSnapshotsResult, error) {
+	return domain.DescribeSnapshotsResult{}, nil
+}
+func (b *Backend) DeleteSnapshot(_ context.Context, _ string) error { return domain.ErrNotSupported }

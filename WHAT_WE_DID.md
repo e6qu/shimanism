@@ -4,6 +4,16 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 
 > Reverse chronological. One section per phase. The *why*, the surprises, the root causes — not per-PR detail. For commit-level history, `git log`. For per-bug detail, [BUGS.md](BUGS.md). For pipeline + verifier architecture, [docs/codegen-pipelines.md](docs/codegen-pipelines.md) + [docs/verifiers.md](docs/verifiers.md).
 
+## Phase 17.A — Block Storage domain + AWS EBS lane
+
+**In progress (branch `phase-17a-block-storage`).** Phase 17 begins block storage — volumes + snapshots — the natural continuation of the Phase 16 compute surface.
+
+The shape reuses everything Phase 16 built: the ec2Query codegen lane just needed 7 more operations added to `services/compute/codegen.json` (CreateVolume / DeleteVolume / AttachVolume / DetachVolume / CreateSnapshot / DeleteSnapshot / DescribeSnapshots — DescribeVolumes was already there as a stub from 16.C). The inmem backend grows two maps; the AWS frontend gains 7 handlers; the AWS real backend wraps the EBS SDK calls. `domain.BlockStorage` is a third interface satisfied by the same `inmem.Backend` struct, joining `domain.Networking` and `domain.Instances`.
+
+**One surprise — the provider nil-deref.** `hashicorp/aws`'s `resourceEBSVolumeRead` calls `volume.CreateTime.Format(time.RFC3339)` with no nil guard (ebs_volume.go:238). Our `DescribeVolumes` response omitted `CreateTime`, so the provider plugin crashed with a SIGSEGV during `terraform apply`. Same class as the GCP `flattenMetadataBeta` nil-deref in 16.C PR4 — cloud providers assume their own API always populates certain fields. Fix: `domainVolumeToGen` always sets `CreateTime` to a non-nil timestamp. This is the recurring lesson of Terraform conformance: the provider is written against the real cloud's invariants, and the shim must honor every field the provider reads unconditionally, not just the ones it logically needs.
+
+N28 added to `docs/normalizations.md`: volume size in GiB, volume type opaque per-cloud (like N13/N23), attach/detach synchronous in the domain (async wait absorbed by the AWS backend).
+
 ## Phase 16.C PR7 — Azure TF azurerm_linux_virtual_machine (BUG-56 closed)
 
 **In progress (branch `phase-16-azure-tf-conformance`).** Key insight: the "combined compute+network server" was never needed. The DNS TF test already demonstrates the right pattern — Microsoft.Compute paths go to the shim, everything else (Microsoft.Network VNets/Subnets/NICs, resource groups, Entra) goes to sockerless via the passthrough proxy. The `azure_compute.HandlerWithConfig` (added in PR6) already supports passthrough.

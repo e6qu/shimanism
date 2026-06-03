@@ -14,10 +14,10 @@ import (
 	"github.com/e6qu/shimanism/internal/compute/domain"
 )
 
-// Backend implements domain.Networking and domain.Instances entirely
-// in memory. Both interfaces are satisfied by the same struct so that
-// a single AWS EC2 / GCP Compute frontend can dispatch both networking
-// and instance operations to the same backend.
+// Backend implements domain.Networking, domain.Instances, and
+// domain.BlockStorage entirely in memory. All three interfaces are
+// satisfied by the same struct so a single frontend can dispatch
+// networking, instance, and block-storage operations to one backend.
 type Backend struct {
 	mu sync.RWMutex
 
@@ -26,6 +26,8 @@ type Backend struct {
 	sgs       map[string]*domain.SecurityGroup
 	ips       map[string]*domain.PublicIP
 	instances map[string]*domain.Instance
+	volumes   map[string]*domain.Volume
+	snapshots map[string]*domain.Snapshot
 
 	// ID sequence counters — monotonic, collision-free within a
 	// single Backend instance.
@@ -34,6 +36,8 @@ type Backend struct {
 	sgSeq   int
 	ipSeq   int
 	instSeq int
+	volSeq  int
+	snapSeq int
 }
 
 // New returns an empty in-memory compute + networking backend.
@@ -44,11 +48,14 @@ func New() *Backend {
 		sgs:       map[string]*domain.SecurityGroup{},
 		ips:       map[string]*domain.PublicIP{},
 		instances: map[string]*domain.Instance{},
+		volumes:   map[string]*domain.Volume{},
+		snapshots: map[string]*domain.Snapshot{},
 	}
 }
 
 var _ domain.Networking = (*Backend)(nil)
 var _ domain.Instances = (*Backend)(nil)
+var _ domain.BlockStorage = (*Backend)(nil)
 
 func (b *Backend) nextID(prefix string, seq *int) string {
 	*seq++
@@ -540,4 +547,155 @@ func (b *Backend) DescribeInstanceTypes(_ context.Context, opt domain.DescribeIn
 		out = append(out, t)
 	}
 	return domain.DescribeInstanceTypesResult{InstanceTypes: out}, nil
+}
+
+// ─── BlockStorage ────────────────────────────────────────────────────
+
+func (b *Backend) CreateVolume(_ context.Context, opts domain.CreateVolumeOptions) (domain.Volume, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	id := b.nextID("vol", &b.volSeq)
+	vol := &domain.Volume{
+		ID:         id,
+		SizeGiB:    opts.SizeGiB,
+		VolumeType: opts.VolumeType,
+		Zone:       opts.Zone,
+		SnapshotID: opts.SnapshotID,
+		State:      domain.VolumeStateAvailable,
+		Tags:       copyTags(opts.Tags),
+	}
+	if vol.VolumeType == "" {
+		vol.VolumeType = "gp3"
+	}
+	b.volumes[id] = vol
+	return *vol, nil
+}
+
+func (b *Backend) DescribeVolumes(_ context.Context, opts domain.DescribeVolumesOptions) (domain.DescribeVolumesResult, error) {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	wantID := make(map[string]bool, len(opts.IDs))
+	for _, id := range opts.IDs {
+		wantID[id] = true
+	}
+	var out []domain.Volume
+	for _, vol := range b.volumes {
+		if len(wantID) > 0 && !wantID[vol.ID] {
+			continue
+		}
+		if opts.InstanceID != "" && vol.InstanceID != opts.InstanceID {
+			continue
+		}
+		out = append(out, *vol)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
+	return domain.DescribeVolumesResult{Volumes: out}, nil
+}
+
+func (b *Backend) DeleteVolume(_ context.Context, id string) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if _, ok := b.volumes[id]; !ok {
+		return domain.ErrNotFound
+	}
+	delete(b.volumes, id)
+	return nil
+}
+
+func (b *Backend) AttachVolume(_ context.Context, volumeID, instanceID string, opts domain.AttachVolumeOptions) (domain.VolumeAttachment, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	vol, ok := b.volumes[volumeID]
+	if !ok {
+		return domain.VolumeAttachment{}, domain.ErrNotFound
+	}
+	if vol.State == domain.VolumeStateInUse {
+		return domain.VolumeAttachment{}, domain.ErrAlreadyExists
+	}
+	if _, ok := b.instances[instanceID]; !ok {
+		return domain.VolumeAttachment{}, domain.ErrNotFound
+	}
+	dev := opts.DeviceName
+	if dev == "" {
+		dev = "/dev/sdf"
+	}
+	vol.State = domain.VolumeStateInUse
+	vol.InstanceID = instanceID
+	vol.DeviceName = dev
+	return domain.VolumeAttachment{
+		VolumeID:   volumeID,
+		InstanceID: instanceID,
+		DeviceName: dev,
+		State:      domain.VolumeAttachmentStateAttached,
+	}, nil
+}
+
+func (b *Backend) DetachVolume(_ context.Context, volumeID, _ string) (domain.VolumeAttachment, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	vol, ok := b.volumes[volumeID]
+	if !ok {
+		return domain.VolumeAttachment{}, domain.ErrNotFound
+	}
+	att := domain.VolumeAttachment{
+		VolumeID:   volumeID,
+		InstanceID: vol.InstanceID,
+		DeviceName: vol.DeviceName,
+		State:      domain.VolumeAttachmentStateDetached,
+	}
+	vol.State = domain.VolumeStateAvailable
+	vol.InstanceID = ""
+	vol.DeviceName = ""
+	return att, nil
+}
+
+func (b *Backend) CreateSnapshot(_ context.Context, volumeID string, opts domain.CreateSnapshotOptions) (domain.Snapshot, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	vol, ok := b.volumes[volumeID]
+	if !ok {
+		return domain.Snapshot{}, domain.ErrNotFound
+	}
+	id := b.nextID("snap", &b.snapSeq)
+	snap := &domain.Snapshot{
+		ID:          id,
+		VolumeID:    volumeID,
+		VolumeSize:  vol.SizeGiB,
+		State:       domain.SnapshotStateCompleted,
+		Description: opts.Description,
+		Tags:        copyTags(opts.Tags),
+	}
+	b.snapshots[id] = snap
+	return *snap, nil
+}
+
+func (b *Backend) DescribeSnapshots(_ context.Context, opts domain.DescribeSnapshotsOptions) (domain.DescribeSnapshotsResult, error) {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	wantID := make(map[string]bool, len(opts.IDs))
+	for _, id := range opts.IDs {
+		wantID[id] = true
+	}
+	var out []domain.Snapshot
+	for _, snap := range b.snapshots {
+		if len(wantID) > 0 && !wantID[snap.ID] {
+			continue
+		}
+		if opts.VolumeID != "" && snap.VolumeID != opts.VolumeID {
+			continue
+		}
+		out = append(out, *snap)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
+	return domain.DescribeSnapshotsResult{Snapshots: out}, nil
+}
+
+func (b *Backend) DeleteSnapshot(_ context.Context, id string) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if _, ok := b.snapshots[id]; !ok {
+		return domain.ErrNotFound
+	}
+	delete(b.snapshots, id)
+	return nil
 }

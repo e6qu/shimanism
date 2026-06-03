@@ -558,6 +558,41 @@ const (
 	VolumeStateIn_use    VolumeState = "in-use"
 )
 
+// SnapshotLocationEnum is a generated Smithy enum.
+type SnapshotLocationEnum string
+
+const (
+	SnapshotLocationEnumLOCAL    SnapshotLocationEnum = "local"
+	SnapshotLocationEnumREGIONAL SnapshotLocationEnum = "regional"
+)
+
+// SnapshotState is a generated Smithy enum.
+type SnapshotState string
+
+const (
+	SnapshotStateCompleted   SnapshotState = "completed"
+	SnapshotStateError       SnapshotState = "error"
+	SnapshotStatePending     SnapshotState = "pending"
+	SnapshotStateRecoverable SnapshotState = "recoverable"
+	SnapshotStateRecovering  SnapshotState = "recovering"
+)
+
+// StorageTier is a generated Smithy enum.
+type StorageTier string
+
+const (
+	StorageTierArchive  StorageTier = "archive"
+	StorageTierStandard StorageTier = "standard"
+)
+
+// TransferType is a generated Smithy enum.
+type TransferType string
+
+const (
+	TransferTypeStandard   TransferType = "standard"
+	TransferTypeTime_based TransferType = "time-based"
+)
+
 // CapacityReservationPreference is a generated Smithy enum.
 type CapacityReservationPreference string
 
@@ -2544,15 +2579,6 @@ type InstanceStatusList struct {
 	Member []InstanceStatus `xml:"item"`
 }
 
-// VolumeIdStringList is a generated Smithy list. The Member field is
-// XML-tagged with the element name from the spec's @xmlName trait
-// (defaulting to the target shape's short name when absent).
-// EC2 response XML uses per-list element names like `<item>` for most
-// ec2Query list shapes.
-type VolumeIdStringList struct {
-	Member []string `xml:"VolumeId"`
-}
-
 // VolumeAttachmentList is a generated Smithy list. The Member field is
 // XML-tagged with the element name from the spec's @xmlName trait
 // (defaulting to the target shape's short name when absent).
@@ -2562,6 +2588,15 @@ type VolumeAttachmentList struct {
 	Member []VolumeAttachment `xml:"item"`
 }
 
+// VolumeIdStringList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type VolumeIdStringList struct {
+	Member []string `xml:"VolumeId"`
+}
+
 // VolumeList is a generated Smithy list. The Member field is
 // XML-tagged with the element name from the spec's @xmlName trait
 // (defaulting to the target shape's short name when absent).
@@ -2569,6 +2604,33 @@ type VolumeAttachmentList struct {
 // ec2Query list shapes.
 type VolumeList struct {
 	Member []Volume `xml:"item"`
+}
+
+// RestorableByStringList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type RestorableByStringList struct {
+	Member []string `xml:"String"`
+}
+
+// SnapshotIdStringList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type SnapshotIdStringList struct {
+	Member []string `xml:"SnapshotId"`
+}
+
+// SnapshotList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent).
+// EC2 response XML uses per-list element names like `<item>` for most
+// ec2Query list shapes.
+type SnapshotList struct {
+	Member []Snapshot `xml:"item"`
 }
 
 // InstanceBlockDeviceMappingSpecificationList is a generated Smithy list. The Member field is
@@ -4016,14 +4078,29 @@ type DescribeInstanceStatusResult struct {
 	NextToken        *string            `xml:"nextToken,omitempty"`
 }
 
-// DescribeVolumesRequest is a generated Smithy structure.
-type DescribeVolumesRequest struct {
-	DryRun                  *bool              `xml:"dryRun,omitempty"`
-	Filters                 FilterList         `xml:"Filter,omitempty"`
-	IncludeManagedResources *bool              `xml:"IncludeManagedResources,omitempty"`
-	MaxResults              *int32             `xml:"maxResults,omitempty"`
-	NextToken               *string            `xml:"nextToken,omitempty"`
-	VolumeIds               VolumeIdStringList `xml:"VolumeId,omitempty"`
+// OperatorRequest is a generated Smithy structure.
+type OperatorRequest struct {
+	Principal *string `xml:"Principal,omitempty"`
+}
+
+// CreateVolumeRequest is a generated Smithy structure.
+type CreateVolumeRequest struct {
+	AvailabilityZone         *string              `xml:"AvailabilityZone,omitempty"`
+	AvailabilityZoneId       *string              `xml:"AvailabilityZoneId,omitempty"`
+	ClientToken              *string              `xml:"ClientToken,omitempty"`
+	DryRun                   *bool                `xml:"dryRun,omitempty"`
+	Encrypted                *bool                `xml:"encrypted,omitempty"`
+	Iops                     *int32               `xml:"Iops,omitempty"`
+	KmsKeyId                 *string              `xml:"KmsKeyId,omitempty"`
+	MultiAttachEnabled       *bool                `xml:"MultiAttachEnabled,omitempty"`
+	Operator                 *OperatorRequest     `xml:"Operator,omitempty"`
+	OutpostArn               *string              `xml:"OutpostArn,omitempty"`
+	Size                     *int32               `xml:"Size,omitempty"`
+	SnapshotId               *string              `xml:"SnapshotId,omitempty"`
+	TagSpecifications        TagSpecificationList `xml:"TagSpecification,omitempty"`
+	Throughput               *int32               `xml:"Throughput,omitempty"`
+	VolumeInitializationRate *int32               `xml:"VolumeInitializationRate,omitempty"`
+	VolumeType               *VolumeType          `xml:"VolumeType,omitempty"`
 }
 
 // VolumeAttachment is a generated Smithy structure.
@@ -4064,10 +4141,104 @@ type Volume struct {
 	VolumeType               *VolumeType          `xml:"volumeType,omitempty"`
 }
 
+// DeleteVolumeRequest is a generated Smithy structure.
+type DeleteVolumeRequest struct {
+	DryRun   *bool  `xml:"dryRun,omitempty"`
+	VolumeId string `xml:"VolumeId,omitempty"`
+}
+
+// DescribeVolumesRequest is a generated Smithy structure.
+type DescribeVolumesRequest struct {
+	DryRun                  *bool              `xml:"dryRun,omitempty"`
+	Filters                 FilterList         `xml:"Filter,omitempty"`
+	IncludeManagedResources *bool              `xml:"IncludeManagedResources,omitempty"`
+	MaxResults              *int32             `xml:"maxResults,omitempty"`
+	NextToken               *string            `xml:"nextToken,omitempty"`
+	VolumeIds               VolumeIdStringList `xml:"VolumeId,omitempty"`
+}
+
 // DescribeVolumesResult is a generated Smithy structure.
 type DescribeVolumesResult struct {
 	NextToken *string    `xml:"nextToken,omitempty"`
 	Volumes   VolumeList `xml:"volumeSet,omitempty"`
+}
+
+// AttachVolumeRequest is a generated Smithy structure.
+type AttachVolumeRequest struct {
+	Device       string `xml:"Device,omitempty"`
+	DryRun       *bool  `xml:"dryRun,omitempty"`
+	EbsCardIndex *int32 `xml:"EbsCardIndex,omitempty"`
+	InstanceId   string `xml:"InstanceId,omitempty"`
+	VolumeId     string `xml:"VolumeId,omitempty"`
+}
+
+// DetachVolumeRequest is a generated Smithy structure.
+type DetachVolumeRequest struct {
+	Device     *string `xml:"Device,omitempty"`
+	DryRun     *bool   `xml:"dryRun,omitempty"`
+	Force      *bool   `xml:"Force,omitempty"`
+	InstanceId *string `xml:"InstanceId,omitempty"`
+	VolumeId   string  `xml:"VolumeId,omitempty"`
+}
+
+// CreateSnapshotRequest is a generated Smithy structure.
+type CreateSnapshotRequest struct {
+	Description       *string               `xml:"Description,omitempty"`
+	DryRun            *bool                 `xml:"dryRun,omitempty"`
+	Location          *SnapshotLocationEnum `xml:"Location,omitempty"`
+	OutpostArn        *string               `xml:"OutpostArn,omitempty"`
+	TagSpecifications TagSpecificationList  `xml:"TagSpecification,omitempty"`
+	VolumeId          string                `xml:"VolumeId,omitempty"`
+}
+
+// Snapshot is a generated Smithy structure.
+type Snapshot struct {
+	AvailabilityZone          *string        `xml:"availabilityZone,omitempty"`
+	CompletionDurationMinutes *int32         `xml:"completionDurationMinutes,omitempty"`
+	CompletionTime            *time.Time     `xml:"completionTime,omitempty"`
+	DataEncryptionKeyId       *string        `xml:"dataEncryptionKeyId,omitempty"`
+	Description               *string        `xml:"description,omitempty"`
+	Encrypted                 *bool          `xml:"encrypted,omitempty"`
+	FullSnapshotSizeInBytes   *int64         `xml:"fullSnapshotSizeInBytes,omitempty"`
+	KmsKeyId                  *string        `xml:"kmsKeyId,omitempty"`
+	OutpostArn                *string        `xml:"outpostArn,omitempty"`
+	OwnerAlias                *string        `xml:"ownerAlias,omitempty"`
+	OwnerId                   *string        `xml:"ownerId,omitempty"`
+	Progress                  *string        `xml:"progress,omitempty"`
+	RestoreExpiryTime         *time.Time     `xml:"restoreExpiryTime,omitempty"`
+	SnapshotId                *string        `xml:"snapshotId,omitempty"`
+	SseType                   *SSEType       `xml:"sseType,omitempty"`
+	StartTime                 *time.Time     `xml:"startTime,omitempty"`
+	State                     *SnapshotState `xml:"status,omitempty"`
+	StateMessage              *string        `xml:"statusMessage,omitempty"`
+	StorageTier               *StorageTier   `xml:"storageTier,omitempty"`
+	Tags                      TagList        `xml:"tagSet,omitempty"`
+	TransferType              *TransferType  `xml:"transferType,omitempty"`
+	VolumeId                  *string        `xml:"volumeId,omitempty"`
+	VolumeSize                *int32         `xml:"volumeSize,omitempty"`
+}
+
+// DeleteSnapshotRequest is a generated Smithy structure.
+type DeleteSnapshotRequest struct {
+	DryRun     *bool  `xml:"dryRun,omitempty"`
+	SnapshotId string `xml:"SnapshotId,omitempty"`
+}
+
+// DescribeSnapshotsRequest is a generated Smithy structure.
+type DescribeSnapshotsRequest struct {
+	DryRun              *bool                  `xml:"dryRun,omitempty"`
+	Filters             FilterList             `xml:"Filter,omitempty"`
+	MaxResults          *int32                 `xml:"MaxResults,omitempty"`
+	NextToken           *string                `xml:"NextToken,omitempty"`
+	OwnerIds            OwnerStringList        `xml:"Owner,omitempty"`
+	RestorableByUserIds RestorableByStringList `xml:"RestorableBy,omitempty"`
+	SnapshotIds         SnapshotIdStringList   `xml:"SnapshotId,omitempty"`
+}
+
+// DescribeSnapshotsResult is a generated Smithy structure.
+type DescribeSnapshotsResult struct {
+	NextToken *string      `xml:"nextToken,omitempty"`
+	Snapshots SnapshotList `xml:"snapshotSet,omitempty"`
 }
 
 // EbsInstanceBlockDeviceSpecification is a generated Smithy structure.
@@ -4279,11 +4450,6 @@ type InstanceNetworkInterfaceSpecification struct {
 // InstanceNetworkPerformanceOptionsRequest is a generated Smithy structure.
 type InstanceNetworkPerformanceOptionsRequest struct {
 	BandwidthWeighting *InstanceBandwidthWeighting `xml:"BandwidthWeighting,omitempty"`
-}
-
-// OperatorRequest is a generated Smithy structure.
-type OperatorRequest struct {
-	Principal *string `xml:"Principal,omitempty"`
 }
 
 // Placement is a generated Smithy structure.
@@ -5024,7 +5190,14 @@ type EC2Backend interface {
 	DescribeImagesBackend
 	DescribeInstanceAttributeBackend
 	DescribeInstanceStatusBackend
+	CreateVolumeBackend
+	DeleteVolumeBackend
 	DescribeVolumesBackend
+	AttachVolumeBackend
+	DetachVolumeBackend
+	CreateSnapshotBackend
+	DeleteSnapshotBackend
+	DescribeSnapshotsBackend
 	ModifyInstanceAttributeBackend
 	RunInstancesBackend
 	DescribeInstancesBackend
@@ -5069,7 +5242,14 @@ func RegisterEC2Routes(b EC2Backend) *ec2query.Router {
 	rt.Register("DescribeImages", DescribeImagesHandler(b))
 	rt.Register("DescribeInstanceAttribute", DescribeInstanceAttributeHandler(b))
 	rt.Register("DescribeInstanceStatus", DescribeInstanceStatusHandler(b))
+	rt.Register("CreateVolume", CreateVolumeHandler(b))
+	rt.Register("DeleteVolume", DeleteVolumeHandler(b))
 	rt.Register("DescribeVolumes", DescribeVolumesHandler(b))
+	rt.Register("AttachVolume", AttachVolumeHandler(b))
+	rt.Register("DetachVolume", DetachVolumeHandler(b))
+	rt.Register("CreateSnapshot", CreateSnapshotHandler(b))
+	rt.Register("DeleteSnapshot", DeleteSnapshotHandler(b))
+	rt.Register("DescribeSnapshots", DescribeSnapshotsHandler(b))
 	rt.Register("ModifyInstanceAttribute", ModifyInstanceAttributeHandler(b))
 	rt.Register("RunInstances", RunInstancesHandler(b))
 	rt.Register("DescribeInstances", DescribeInstancesHandler(b))
@@ -6639,6 +6819,134 @@ func DescribeInstanceStatusHandler(b DescribeInstanceStatusBackend) http.Handler
 	})
 }
 
+// CreateVolumeBackend serves the CreateVolume operation.
+type CreateVolumeBackend interface {
+	CreateVolume(ctx context.Context, in *CreateVolumeRequest) (*Volume, error)
+}
+
+// CreateVolumeHandler decodes a CreateVolume request, dispatches
+// to the backend, and encodes the response per ec2Query semantics.
+// Form-encoded request bodies are decoded field-by-field for scalars
+// and list<string> shapes. EC2 flattened lists use `Field.N` (no
+// `.member.` interfix). Complex shapes (e.g. Filter structs, nested
+// tagged lists) are available via ec2query.FormFromContext(ctx).
+func CreateVolumeHandler(b CreateVolumeBackend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := ec2query.WithForm(r.Context(), r.Form)
+		in := &CreateVolumeRequest{}
+		_ = in
+		// Decode top-level scalar + map<string,string> + list<string>
+		// form fields. EC2 ec2Query serialises lists as flat `Field.N`
+		// pairs (no `.member.` interfix) and maps as
+		// `Field.N.key + Field.N.value` pairs.
+		if v := r.Form.Get("AvailabilityZone"); v != "" {
+			s := v
+			in.AvailabilityZone = &s
+		}
+		if v := r.Form.Get("AvailabilityZoneId"); v != "" {
+			s := v
+			in.AvailabilityZoneId = &s
+		}
+		if v := r.Form.Get("ClientToken"); v != "" {
+			s := v
+			in.ClientToken = &s
+		}
+		if v := r.Form.Get("DryRun"); v != "" {
+			if x, err := strconv.ParseBool(v); err == nil {
+				in.DryRun = &x
+			}
+		}
+		if v := r.Form.Get("Encrypted"); v != "" {
+			if x, err := strconv.ParseBool(v); err == nil {
+				in.Encrypted = &x
+			}
+		}
+		if v := r.Form.Get("Iops"); v != "" {
+			if n, err := strconv.Atoi(v); err == nil {
+				x := int32(n)
+				in.Iops = &x
+			}
+		}
+		if v := r.Form.Get("KmsKeyId"); v != "" {
+			s := v
+			in.KmsKeyId = &s
+		}
+		if v := r.Form.Get("MultiAttachEnabled"); v != "" {
+			if x, err := strconv.ParseBool(v); err == nil {
+				in.MultiAttachEnabled = &x
+			}
+		}
+		if v := r.Form.Get("OutpostArn"); v != "" {
+			s := v
+			in.OutpostArn = &s
+		}
+		if v := r.Form.Get("Size"); v != "" {
+			if n, err := strconv.Atoi(v); err == nil {
+				x := int32(n)
+				in.Size = &x
+			}
+		}
+		if v := r.Form.Get("SnapshotId"); v != "" {
+			s := v
+			in.SnapshotId = &s
+		}
+		if v := r.Form.Get("Throughput"); v != "" {
+			if n, err := strconv.Atoi(v); err == nil {
+				x := int32(n)
+				in.Throughput = &x
+			}
+		}
+		if v := r.Form.Get("VolumeInitializationRate"); v != "" {
+			if n, err := strconv.Atoi(v); err == nil {
+				x := int32(n)
+				in.VolumeInitializationRate = &x
+			}
+		}
+
+		out, err := b.CreateVolume(ctx, in)
+		if err != nil {
+			ec2query.WriteBackendError(w, err)
+			return
+		}
+		ec2query.WriteResult(w, "CreateVolume", out)
+	})
+}
+
+// DeleteVolumeBackend serves the DeleteVolume operation.
+type DeleteVolumeBackend interface {
+	DeleteVolume(ctx context.Context, in *DeleteVolumeRequest) (struct{}, error)
+}
+
+// DeleteVolumeHandler decodes a DeleteVolume request, dispatches
+// to the backend, and encodes the response per ec2Query semantics.
+// Form-encoded request bodies are decoded field-by-field for scalars
+// and list<string> shapes. EC2 flattened lists use `Field.N` (no
+// `.member.` interfix). Complex shapes (e.g. Filter structs, nested
+// tagged lists) are available via ec2query.FormFromContext(ctx).
+func DeleteVolumeHandler(b DeleteVolumeBackend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := ec2query.WithForm(r.Context(), r.Form)
+		in := &DeleteVolumeRequest{}
+		_ = in
+		// Decode top-level scalar + map<string,string> + list<string>
+		// form fields. EC2 ec2Query serialises lists as flat `Field.N`
+		// pairs (no `.member.` interfix) and maps as
+		// `Field.N.key + Field.N.value` pairs.
+		if v := r.Form.Get("DryRun"); v != "" {
+			if x, err := strconv.ParseBool(v); err == nil {
+				in.DryRun = &x
+			}
+		}
+		in.VolumeId = r.Form.Get("VolumeId")
+
+		if _, err := b.DeleteVolume(ctx, in); err != nil {
+			ec2query.WriteBackendError(w, err)
+			return
+		}
+		ec2query.WriteResult(w, "DeleteVolume", nil)
+	})
+}
+
 // DescribeVolumesBackend serves the DescribeVolumes operation.
 type DescribeVolumesBackend interface {
 	DescribeVolumes(ctx context.Context, in *DescribeVolumesRequest) (*DescribeVolumesResult, error)
@@ -6695,6 +7003,250 @@ func DescribeVolumesHandler(b DescribeVolumesBackend) http.Handler {
 			return
 		}
 		ec2query.WriteResult(w, "DescribeVolumes", out)
+	})
+}
+
+// AttachVolumeBackend serves the AttachVolume operation.
+type AttachVolumeBackend interface {
+	AttachVolume(ctx context.Context, in *AttachVolumeRequest) (*VolumeAttachment, error)
+}
+
+// AttachVolumeHandler decodes a AttachVolume request, dispatches
+// to the backend, and encodes the response per ec2Query semantics.
+// Form-encoded request bodies are decoded field-by-field for scalars
+// and list<string> shapes. EC2 flattened lists use `Field.N` (no
+// `.member.` interfix). Complex shapes (e.g. Filter structs, nested
+// tagged lists) are available via ec2query.FormFromContext(ctx).
+func AttachVolumeHandler(b AttachVolumeBackend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := ec2query.WithForm(r.Context(), r.Form)
+		in := &AttachVolumeRequest{}
+		_ = in
+		// Decode top-level scalar + map<string,string> + list<string>
+		// form fields. EC2 ec2Query serialises lists as flat `Field.N`
+		// pairs (no `.member.` interfix) and maps as
+		// `Field.N.key + Field.N.value` pairs.
+		in.Device = r.Form.Get("Device")
+		if v := r.Form.Get("DryRun"); v != "" {
+			if x, err := strconv.ParseBool(v); err == nil {
+				in.DryRun = &x
+			}
+		}
+		if v := r.Form.Get("EbsCardIndex"); v != "" {
+			if n, err := strconv.Atoi(v); err == nil {
+				x := int32(n)
+				in.EbsCardIndex = &x
+			}
+		}
+		in.InstanceId = r.Form.Get("InstanceId")
+		in.VolumeId = r.Form.Get("VolumeId")
+
+		out, err := b.AttachVolume(ctx, in)
+		if err != nil {
+			ec2query.WriteBackendError(w, err)
+			return
+		}
+		ec2query.WriteResult(w, "AttachVolume", out)
+	})
+}
+
+// DetachVolumeBackend serves the DetachVolume operation.
+type DetachVolumeBackend interface {
+	DetachVolume(ctx context.Context, in *DetachVolumeRequest) (*VolumeAttachment, error)
+}
+
+// DetachVolumeHandler decodes a DetachVolume request, dispatches
+// to the backend, and encodes the response per ec2Query semantics.
+// Form-encoded request bodies are decoded field-by-field for scalars
+// and list<string> shapes. EC2 flattened lists use `Field.N` (no
+// `.member.` interfix). Complex shapes (e.g. Filter structs, nested
+// tagged lists) are available via ec2query.FormFromContext(ctx).
+func DetachVolumeHandler(b DetachVolumeBackend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := ec2query.WithForm(r.Context(), r.Form)
+		in := &DetachVolumeRequest{}
+		_ = in
+		// Decode top-level scalar + map<string,string> + list<string>
+		// form fields. EC2 ec2Query serialises lists as flat `Field.N`
+		// pairs (no `.member.` interfix) and maps as
+		// `Field.N.key + Field.N.value` pairs.
+		if v := r.Form.Get("Device"); v != "" {
+			s := v
+			in.Device = &s
+		}
+		if v := r.Form.Get("DryRun"); v != "" {
+			if x, err := strconv.ParseBool(v); err == nil {
+				in.DryRun = &x
+			}
+		}
+		if v := r.Form.Get("Force"); v != "" {
+			if x, err := strconv.ParseBool(v); err == nil {
+				in.Force = &x
+			}
+		}
+		if v := r.Form.Get("InstanceId"); v != "" {
+			s := v
+			in.InstanceId = &s
+		}
+		in.VolumeId = r.Form.Get("VolumeId")
+
+		out, err := b.DetachVolume(ctx, in)
+		if err != nil {
+			ec2query.WriteBackendError(w, err)
+			return
+		}
+		ec2query.WriteResult(w, "DetachVolume", out)
+	})
+}
+
+// CreateSnapshotBackend serves the CreateSnapshot operation.
+type CreateSnapshotBackend interface {
+	CreateSnapshot(ctx context.Context, in *CreateSnapshotRequest) (*Snapshot, error)
+}
+
+// CreateSnapshotHandler decodes a CreateSnapshot request, dispatches
+// to the backend, and encodes the response per ec2Query semantics.
+// Form-encoded request bodies are decoded field-by-field for scalars
+// and list<string> shapes. EC2 flattened lists use `Field.N` (no
+// `.member.` interfix). Complex shapes (e.g. Filter structs, nested
+// tagged lists) are available via ec2query.FormFromContext(ctx).
+func CreateSnapshotHandler(b CreateSnapshotBackend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := ec2query.WithForm(r.Context(), r.Form)
+		in := &CreateSnapshotRequest{}
+		_ = in
+		// Decode top-level scalar + map<string,string> + list<string>
+		// form fields. EC2 ec2Query serialises lists as flat `Field.N`
+		// pairs (no `.member.` interfix) and maps as
+		// `Field.N.key + Field.N.value` pairs.
+		if v := r.Form.Get("Description"); v != "" {
+			s := v
+			in.Description = &s
+		}
+		if v := r.Form.Get("DryRun"); v != "" {
+			if x, err := strconv.ParseBool(v); err == nil {
+				in.DryRun = &x
+			}
+		}
+		if v := r.Form.Get("OutpostArn"); v != "" {
+			s := v
+			in.OutpostArn = &s
+		}
+		in.VolumeId = r.Form.Get("VolumeId")
+
+		out, err := b.CreateSnapshot(ctx, in)
+		if err != nil {
+			ec2query.WriteBackendError(w, err)
+			return
+		}
+		ec2query.WriteResult(w, "CreateSnapshot", out)
+	})
+}
+
+// DeleteSnapshotBackend serves the DeleteSnapshot operation.
+type DeleteSnapshotBackend interface {
+	DeleteSnapshot(ctx context.Context, in *DeleteSnapshotRequest) (struct{}, error)
+}
+
+// DeleteSnapshotHandler decodes a DeleteSnapshot request, dispatches
+// to the backend, and encodes the response per ec2Query semantics.
+// Form-encoded request bodies are decoded field-by-field for scalars
+// and list<string> shapes. EC2 flattened lists use `Field.N` (no
+// `.member.` interfix). Complex shapes (e.g. Filter structs, nested
+// tagged lists) are available via ec2query.FormFromContext(ctx).
+func DeleteSnapshotHandler(b DeleteSnapshotBackend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := ec2query.WithForm(r.Context(), r.Form)
+		in := &DeleteSnapshotRequest{}
+		_ = in
+		// Decode top-level scalar + map<string,string> + list<string>
+		// form fields. EC2 ec2Query serialises lists as flat `Field.N`
+		// pairs (no `.member.` interfix) and maps as
+		// `Field.N.key + Field.N.value` pairs.
+		if v := r.Form.Get("DryRun"); v != "" {
+			if x, err := strconv.ParseBool(v); err == nil {
+				in.DryRun = &x
+			}
+		}
+		in.SnapshotId = r.Form.Get("SnapshotId")
+
+		if _, err := b.DeleteSnapshot(ctx, in); err != nil {
+			ec2query.WriteBackendError(w, err)
+			return
+		}
+		ec2query.WriteResult(w, "DeleteSnapshot", nil)
+	})
+}
+
+// DescribeSnapshotsBackend serves the DescribeSnapshots operation.
+type DescribeSnapshotsBackend interface {
+	DescribeSnapshots(ctx context.Context, in *DescribeSnapshotsRequest) (*DescribeSnapshotsResult, error)
+}
+
+// DescribeSnapshotsHandler decodes a DescribeSnapshots request, dispatches
+// to the backend, and encodes the response per ec2Query semantics.
+// Form-encoded request bodies are decoded field-by-field for scalars
+// and list<string> shapes. EC2 flattened lists use `Field.N` (no
+// `.member.` interfix). Complex shapes (e.g. Filter structs, nested
+// tagged lists) are available via ec2query.FormFromContext(ctx).
+func DescribeSnapshotsHandler(b DescribeSnapshotsBackend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := ec2query.WithForm(r.Context(), r.Form)
+		in := &DescribeSnapshotsRequest{}
+		_ = in
+		// Decode top-level scalar + map<string,string> + list<string>
+		// form fields. EC2 ec2Query serialises lists as flat `Field.N`
+		// pairs (no `.member.` interfix) and maps as
+		// `Field.N.key + Field.N.value` pairs.
+		if v := r.Form.Get("DryRun"); v != "" {
+			if x, err := strconv.ParseBool(v); err == nil {
+				in.DryRun = &x
+			}
+		}
+		if v := r.Form.Get("MaxResults"); v != "" {
+			if n, err := strconv.Atoi(v); err == nil {
+				x := int32(n)
+				in.MaxResults = &x
+			}
+		}
+		if v := r.Form.Get("NextToken"); v != "" {
+			s := v
+			in.NextToken = &s
+		}
+		// list<string> via `Owner.N` (ec2Query flattened — no
+		// `.member.` interfix unlike awsQuery).
+		for i := 1; ; i++ {
+			v := r.Form.Get("Owner." + strconv.Itoa(i))
+			if v == "" {
+				break
+			}
+			in.OwnerIds.Member = append(in.OwnerIds.Member, v)
+		}
+		// list<string> via `RestorableBy.N` (ec2Query flattened — no
+		// `.member.` interfix unlike awsQuery).
+		for i := 1; ; i++ {
+			v := r.Form.Get("RestorableBy." + strconv.Itoa(i))
+			if v == "" {
+				break
+			}
+			in.RestorableByUserIds.Member = append(in.RestorableByUserIds.Member, v)
+		}
+		// list<string> via `SnapshotId.N` (ec2Query flattened — no
+		// `.member.` interfix unlike awsQuery).
+		for i := 1; ; i++ {
+			v := r.Form.Get("SnapshotId." + strconv.Itoa(i))
+			if v == "" {
+				break
+			}
+			in.SnapshotIds.Member = append(in.SnapshotIds.Member, v)
+		}
+
+		out, err := b.DescribeSnapshots(ctx, in)
+		if err != nil {
+			ec2query.WriteBackendError(w, err)
+			return
+		}
+		ec2query.WriteResult(w, "DescribeSnapshots", out)
 	})
 }
 
