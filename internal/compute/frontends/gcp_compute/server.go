@@ -73,11 +73,24 @@ func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "Resource not found: "+r.URL.Path)
 		return
 	}
-	// Drop /projects/{project}/
+	// Drop /projects/{project}[/...]
 	rest := strings.TrimPrefix(path, "/projects/")
 	slash := strings.Index(rest, "/")
 	if slash < 0 {
-		writeError(w, http.StatusNotFound, "Resource not found: "+r.URL.Path)
+		// Path is /compute/v1/projects/{project} — the project resource itself.
+		// The hashicorp/google provider calls projects.get during init.
+		if r.Method != http.MethodGet {
+			writeError(w, http.StatusMethodNotAllowed, r.Method+" not allowed")
+			return
+		}
+		project := rest
+		writeJSON(w, http.StatusOK, map[string]any{
+			"kind":                   "compute#project",
+			"id":                     fmt.Sprintf("%d", addrID(project)),
+			"name":                   project,
+			"selfLink":               fmt.Sprintf("https://www.googleapis.com/compute/v1/projects/%s", project),
+			"commonInstanceMetadata": map[string]any{"kind": "compute#metadata"},
+		})
 		return
 	}
 	// project = rest[:slash]; we don't use project as the shim is
@@ -89,6 +102,8 @@ func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		srv.routeNetworks(w, r, strings.TrimPrefix(rest, "global/networks"))
 	case strings.HasPrefix(rest, "global/firewalls"):
 		srv.routeFirewalls(w, r, strings.TrimPrefix(rest, "global/firewalls"))
+	case strings.HasPrefix(rest, "global/images"):
+		srv.routeImages(w, r, strings.TrimPrefix(rest, "global/images"))
 	case strings.HasPrefix(rest, "aggregated/instances"):
 		srv.aggregatedListInstances(w, r)
 	case strings.HasPrefix(rest, "aggregated/machineTypes"):
@@ -353,6 +368,34 @@ func (srv *Server) patchFirewall(w http.ResponseWriter, r *http.Request, name st
 		}
 	}
 	writeError(w, http.StatusNotFound, fmt.Sprintf("The resource 'projects/.../global/firewalls/%s' was not found", name))
+}
+
+// ─── Images (read-only stub) ─────────────────────────────────────────
+
+// routeImages handles GET /compute/v1/projects/{p}/global/images/{name}.
+// The hashicorp/google provider resolves boot-disk image references via
+// this endpoint during apply. We return a minimal READY image stub so
+// the provider can read back the disk size and continue without error.
+func (srv *Server) routeImages(w http.ResponseWriter, r *http.Request, tail string) {
+	tail = strings.TrimPrefix(tail, "/")
+	if r.Method != http.MethodGet {
+		writeError(w, http.StatusMethodNotAllowed, r.Method+" not allowed")
+		return
+	}
+	if tail == "" {
+		writeError(w, http.StatusNotFound, "images list not supported")
+		return
+	}
+	name := tail
+	writeJSON(w, http.StatusOK, map[string]any{
+		"kind":       "compute#image",
+		"id":         fmt.Sprintf("%d", addrID(name)),
+		"name":       name,
+		"status":     "READY",
+		"selfLink":   fmt.Sprintf("https://www.googleapis.com/compute/v1/projects/shim/global/images/%s", name),
+		"diskSizeGb": "10",
+		"sourceType": "RAW",
+	})
 }
 
 // ─── Regional: Subnetworks + Addresses ───────────────────────────────
@@ -784,9 +827,38 @@ func (srv *Server) routeZonal(w http.ResponseWriter, r *http.Request, rest strin
 		srv.routeInstances(w, r, strings.TrimPrefix(tail, "instances"))
 	case strings.HasPrefix(tail, "machineTypes"):
 		srv.routeMachineTypes(w, r, strings.TrimPrefix(tail, "machineTypes"))
+	case strings.HasPrefix(tail, "disks"):
+		srv.routeDisks(w, r, strings.TrimPrefix(tail, "disks"))
 	default:
 		writeError(w, http.StatusNotFound, "Zonal resource type not supported: "+tail)
 	}
+}
+
+// routeDisks handles GET /compute/v1/projects/{p}/zones/{z}/disks/{name}.
+// The hashicorp/google provider reads disk details to populate boot_disk
+// initialize_params during resource read. We return a minimal READY disk
+// stub with the source image set so the provider can reconstruct the config.
+func (srv *Server) routeDisks(w http.ResponseWriter, r *http.Request, tail string) {
+	tail = strings.TrimPrefix(tail, "/")
+	if r.Method != http.MethodGet {
+		writeError(w, http.StatusMethodNotAllowed, r.Method+" not allowed")
+		return
+	}
+	if tail == "" {
+		writeError(w, http.StatusNotFound, "disk list not supported")
+		return
+	}
+	name := tail
+	writeJSON(w, http.StatusOK, map[string]any{
+		"kind":        "compute#disk",
+		"id":          fmt.Sprintf("%d", addrID(name)),
+		"name":        name,
+		"status":      "READY",
+		"sizeGb":      "10",
+		"type":        "https://www.googleapis.com/compute/v1/projects/shim/zones/us-central1-a/diskTypes/pd-standard",
+		"selfLink":    fmt.Sprintf("https://www.googleapis.com/compute/v1/projects/shim/zones/us-central1-a/disks/%s", name),
+		"sourceImage": "https://www.googleapis.com/compute/v1/projects/shim/global/images/shim-test-image",
+	})
 }
 
 // ─── Instances ────────────────────────────────────────────────────────
@@ -1086,6 +1158,25 @@ func domainInstanceToGCP(inst domain.Instance) *computeraw.Instance {
 			{NetworkIP: inst.PrivateIP},
 		}
 	}
+	// Include boot disk with InitializeParams so the hashicorp/google
+	// provider can read the source image during flattenBootDisk without
+	// needing to call disks.get separately.
+	imageRef := inst.ImageID
+	if imageRef == "" {
+		imageRef = "shim-image"
+	}
+	g.Disks = []*computeraw.AttachedDisk{{
+		Boot:       true,
+		AutoDelete: true,
+		Type:       "PERSISTENT",
+		Mode:       "READ_WRITE",
+		DeviceName: inst.Name + "-boot",
+		Source:     fmt.Sprintf("https://www.googleapis.com/compute/v1/projects/shim/zones/us-central1-a/disks/%s-boot", inst.Name),
+		InitializeParams: &computeraw.AttachedDiskInitializeParams{
+			SourceImage: fmt.Sprintf("https://www.googleapis.com/compute/v1/projects/shim/global/images/%s", imageRef),
+			DiskSizeGb:  10,
+		},
+	}}
 	return g
 }
 

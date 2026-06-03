@@ -81,8 +81,35 @@ and return the source cloud's own "not supported" error:
 - **IPv6 CIDRs / IPAM** — IPv6 is out-of-intersection for Phase 16.B
 - **VPN Gateways** — connectivity products; out of scope
 
-## Phase 16.C additions (planned)
+## Phase 16.C — Compute Instance Lifecycle
 
-Instances (RunInstances / DescribeInstances / Start / Stop / Terminate / Reboot)
-and machine types will extend this table. K8s peer: DescribeInstances →
-Nodes (read-only); all mutations → NotImplemented.
+### Instances
+
+| Operation | AWS EC2 | GCP Compute v1 | Azure Compute | K8s peer | Notes |
+|-----------|---------|---------------|---------------|----------|-------|
+| RunInstances / Insert | `RunInstances` | `instances.insert` | `virtualMachines.createOrUpdate` | **NotImplemented** | |
+| DescribeInstances / Get | `DescribeInstances` | `instances.get` / `instances.list` / `instances.aggregatedList` | `virtualMachines.get` / `virtualMachines.list` | `nodes.list` (read-only) | K8s: instance type from Node capacity; no state mutations |
+| StartInstances | `StartInstances` | `instances.start` | `virtualMachines.start` | **NotImplemented** | |
+| StopInstances | `StopInstances` | `instances.stop` | `virtualMachines.deallocate` | **NotImplemented** | |
+| TerminateInstances / Delete | `TerminateInstances` | `instances.delete` | `virtualMachines.delete` | **NotImplemented** | AWS: instance stays as "terminated" for ~1hr (N20); GCP: instance removed; Azure: resource deleted |
+| RebootInstances | `RebootInstances` | `instances.reset` | `virtualMachines.restart` | **NotImplemented** | |
+
+**N20 instance lifecycle note**: AWS "terminated" state stays visible by instance ID for ~1 hour. GCP "TERMINATED" means stopped (not deleted). The shim inmem backend keeps terminated instances so AWS API waiters see the terminal state; GCP's list-all excludes them. See `docs/normalizations.md` rule N20.
+
+### Machine Types
+
+| Operation | AWS EC2 | GCP Compute v1 | Azure Compute | K8s peer | Notes |
+|-----------|---------|---------------|---------------|----------|-------|
+| DescribeInstanceTypes | `DescribeInstanceTypes` | `machineTypes.list` / `machineTypes.get` / `machineTypes.aggregatedList` | `virtualMachineSizes.list` | Node capacity | Fixed catalog: t3.micro (2 vCPU/1 GiB), t3.small (2/2), m5.large (2/8), m5.xlarge (4/16), c5.xlarge (4/8), r5.large (2/16) |
+
+### Out-of-Intersection (Phase 16.C)
+
+- **Auto Scaling Groups / Managed Instance Groups / VMSS** — diverge too much; future phase
+- **EBS / Persistent Disk / Azure Managed Disk** — block storage is a separate phase
+- **Instance Metadata Service (IMDS)** — tracked in sockerless #371
+- **Spot / Preemptible / Spot VM** — pricing/availability semantics differ
+- **Placement Groups / Availability Sets** — AWS-/Azure-specific scheduling
+- **SSH keys / OS Login / Azure admin credentials** — instance-access; out of intersection
+- **User data / startup scripts** — execution environment varies; out of intersection
+- **Instance store volumes** — AWS-only
+- **Custom images (AMI create/copy, image families)** — image management is a separate concern; the shim accepts any opaque image reference (N24)

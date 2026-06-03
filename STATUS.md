@@ -8,13 +8,13 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 
 | | |
 |---|---|
-| Active branch | `phase-16c-instances-pr3` — Phase 16.C PR3: Terraform + CLI instance conformance + cross-cloud cell. |
-| In-flight | 16.C PR3. AWS Terraform `aws_instance` lifecycle, AWS+GCP CLI instance tests, cross-cloud Apply cell, TF destroy waiter fix (terminated-instance visibility). |
-| Last merged | PR #112 — 16.C PR2: GCP + Azure Compute instance frontends + real backends. |
+| Active branch | `phase-16c-instances-pr4` — Phase 16.C PR4: GCP Terraform instance + Azure TF/CLI (deferred BUG-56/BUG-57) + INTERSECTION.md. |
+| In-flight | 16.C PR4. GCP `google_compute_instance` TF test (Linux-only). Azure TF/CLI skipped on BUG-56/BUG-57. INTERSECTION.md extended with 16.C instance/machine-type tables. |
+| Last merged | PR #113 — 16.C PR3: AWS TF `aws_instance` lifecycle + destroy waiter fix + CLI + cross-cloud Apply cell. |
 | Upstream watch | Sockerless #373/374/375 open — block 16.C sockerless lane. |
 | Phases 1–15 | All closed. See [PLAN.md § Closed phases](PLAN.md#closed-phases-pr-index). |
-| Phase 16 | 16.A ✅ · 16.B ✅ · 16.C ◐ (PR1+PR2 merged; PR3 in progress) · 16.D ✅. |
-| Bugs | **55 filed · 51 fixed · 3 open · 1 false positive.** Open: **BUG-8** + **BUG-15** + **BUG-41** (all Track A). |
+| Phase 16 | 16.A ✅ · 16.B ✅ · 16.C ◐ (PR1+PR2+PR3 merged; PR4 in progress) · 16.D ✅. |
+| Bugs | **57 filed · 51 fixed · 5 open · 1 false positive.** Open: **BUG-8** + **BUG-15** + **BUG-41** (Track A) + **BUG-56** + **BUG-57** (16.C Azure compute TF/CLI JWKS). |
 | CI | 18 required checks. Real-cloud lanes wait on Track A. |
 | Renovate | Config + custom manager for vendored-spec SHAs. **User must install the Renovate GitHub App.** |
 | Standing merge auth | **None.** User merges every PR. |
