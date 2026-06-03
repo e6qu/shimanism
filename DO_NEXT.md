@@ -37,9 +37,8 @@ All items closed. Full 3×4×3 conformance matrix for LB operations. Sockerless 
 **PR4 ✅ (#114):** GCP TF `google_compute_instance` (Linux-only) + Azure TF/CLI deferred + INTERSECTION.md.
 
 **Remaining for 16.C closure:**
-- [x] Sockerless instance lane unblocked: `TestSockerless_EC2_Instances_ThroughShim` implemented (sockerless #373/#374/#375 closed by PR #372). Also `TestSockerless_ELBv2_Through_Shim_RegisterTargets` in loadbalancer.
+- [x] Sockerless instance lane unblocked: `TestSockerless_EC2_Instances_ThroughShim` + `TestSockerless_ELBv2_Through_Shim_RegisterTargets` — merged as PR #116.
 - [ ] **BUG-56/57 (Azure compute JWKS):** add `HandlerWithConfig` to `azure_compute` frontend (same pattern as `azure_dns.HandlerWithConfig`); wire JWKS from sockerless's Entra stub; re-enable `TestTerraformAzure_Compute_VMLifecycle` + `TestAzureCLI_Compute_VMList`.
-- [ ] **Commit + push + create PR** for this sockerless unblocking.
 
 ## Upstream watch
 

@@ -4,6 +4,14 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 
 > Reverse chronological. One section per phase. The *why*, the surprises, the root causes — not per-PR detail. For commit-level history, `git log`. For per-bug detail, [BUGS.md](BUGS.md). For pipeline + verifier architecture, [docs/codegen-pipelines.md](docs/codegen-pipelines.md) + [docs/verifiers.md](docs/verifiers.md).
 
+## Phase 16.C PR5 — Sockerless instance + LB RegisterTargets lanes unblocked
+
+**Merged as PR #116.** Sockerless PR #372 (2026-06-02) closed all three Firecracker CI blockers (#373/#374/#375). The compute instance lane and loadbalancer RegisterTargets lane were un-gated in the same PR.
+
+The two tests went from `t.Skip(...)` stubs to real implementations. The compute test creates a VPC + subnet (required by sockerless `RunInstances`), launches an instance, polls until Firecracker reports `running` (up to 2 minutes), then terminates. The LB test uses a pending-state instance — `RegisterTargets` itself only stores the instance ID and doesn't require a live Firecracker VM, so no boot wait is needed there.
+
+Sockerless PR #392 (also merged by the user before this PR) added GCP SA keys and instance templates; no shim-side action required.
+
 ## Phase 16.C PR4 — GCP TF instance + Azure deferred (BUG-56/57) + INTERSECTION.md
 
 **Merged as PR #114.** PR3 closed the AWS Terraform + CLI + cross-cloud cells; PR4 closes the GCP Terraform row and defers Azure on BUG-56/57.
