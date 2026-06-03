@@ -817,7 +817,21 @@ func (srv *Server) routeZonal(w http.ResponseWriter, r *http.Request, rest strin
 	// rest = "{zone}/instances/..." or "{zone}/machineTypes/..."
 	slash := strings.Index(rest, "/")
 	if slash < 0 {
-		writeError(w, http.StatusNotFound, "Resource not found")
+		// Path is /compute/v1/projects/{p}/zones/{zone} — the zone resource itself.
+		// hashicorp/google calls zones.get to validate the zone before creating an instance.
+		if r.Method != http.MethodGet {
+			writeError(w, http.StatusMethodNotAllowed, r.Method+" not allowed")
+			return
+		}
+		zone := rest
+		writeJSON(w, http.StatusOK, map[string]any{
+			"kind":     "compute#zone",
+			"id":       fmt.Sprintf("%d", addrID(zone)),
+			"name":     zone,
+			"status":   "UP",
+			"selfLink": fmt.Sprintf("https://www.googleapis.com/compute/v1/projects/shim/zones/%s", zone),
+			"region":   fmt.Sprintf("https://www.googleapis.com/compute/v1/projects/shim/regions/%s", zone[:strings.LastIndex(zone, "-")]),
+		})
 		return
 	}
 	// zone = rest[:slash]; shim is zone-agnostic
