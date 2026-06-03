@@ -895,6 +895,28 @@ func StartComputeServerAzureVM(t *testing.T, backend azurecomputefront.ComputeBa
 	return &ComputeServer{URL: ts.URL, Close: ts.Close}
 }
 
+// ComputeServerAzureVMTLS is the HTTPS variant of ComputeServer for the
+// Azure Compute frontend, carrying the self-signed cert as PEM so callers
+// can inject it into a combined CA bundle for child processes (az CLI).
+type ComputeServerAzureVMTLS struct {
+	URL     string
+	CertPEM []byte
+	Close   func()
+}
+
+// StartComputeServerAzureVMWithConfig starts the Azure Compute VM frontend
+// with the given Config (passthrough + metadata + JWKS bearer options).
+// Returns the TLS server's cert so callers can build a combined CA bundle.
+func StartComputeServerAzureVMWithConfig(t *testing.T, backend azurecomputefront.ComputeBackend, cfg azurecomputefront.Config) *ComputeServerAzureVMTLS {
+	t.Helper()
+	srv := azurecomputefront.HandlerWithConfig(backend, cfg)
+	ts := httptest.NewTLSServer(&logRoundTrip{t: t, mux: srv})
+	t.Cleanup(ts.Close)
+	cert := ts.Certificate()
+	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw})
+	return &ComputeServerAzureVMTLS{URL: ts.URL, CertPEM: certPEM, Close: ts.Close}
+}
+
 // LoadBalancerServer is a started load-balancer-shim instance.
 type LoadBalancerServer struct {
 	URL   string
