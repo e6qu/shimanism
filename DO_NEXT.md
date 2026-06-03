@@ -2,51 +2,33 @@
 
 Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BUGS.md) · narrative [WHAT_WE_DID.md](WHAT_WE_DID.md) · philosophy [PHILOSOPHY.md](PHILOSOPHY.md) · rules [AGENTS.md](AGENTS.md).
 
-> **Cold-start entry point.** Read top-to-bottom; pick up where Phase 16 left off.
+> **Cold-start entry point.** Phase 16 is complete. Pick up the next phase.
 
 ## Where we are
 
-**Phase 16.C PR4 merged as #114.** GCP `google_compute_instance` TF conformance green in CI. Azure TF/CLI rows deferred on BUG-56/BUG-57.
+**Phase 16 complete.** All sub-phases closed (16.A ✅ 16.B ✅ 16.C ✅ 16.D ✅). PRs #104–#120. Only Track A bugs remain (BUG-8 · BUG-15 · BUG-41 — blocked on real GCP credentials).
 
-**Open bugs:** BUG-8 · BUG-15 · BUG-41 (Track A) · BUG-56 · BUG-57 (Azure compute JWKS).
+**Open bugs:** BUG-8 · BUG-15 · BUG-41 (Track A only).
 
 ## Session-start checklist
 
 1. `git fetch origin && git checkout main && git pull --ff-only origin main` — sync `main`.
-2. Pick up next task below.
+2. Start the next phase (see PLAN.md for what follows Phase 16).
 
-## Phase 16 sub-phase checklist
+## Phase 16 — all closed ✅ (PRs #104–#120)
 
-### 16.A — Normalization audit + scoping + ec2Query codegen ✅ (PR #104)
+| Sub-phase | PRs | Status |
+|---|---|---|
+| 16.A — ec2Query codegen + normalization | #104 | ✅ |
+| 16.B — VPC networking primitives | #105–#108 | ✅ |
+| 16.D — Load balancers | #109–#110 | ✅ |
+| 16.C — Compute instance lifecycle | #111–#120 | ✅ |
 
-All items closed.
-
-### 16.B — VPC networking primitives ✅ (PRs #105–#108)
-
-All items closed. Full 3×4×3 conformance matrix for networking operations.
-
-### 16.D — Load balancers ✅ (PRs #109–#110)
-
-All items closed. Full 3×4×3 conformance matrix for LB operations. Sockerless RegisterTargets lane gated on #373–#375.
-
-### 16.C — Compute instance lifecycle ◐ (PRs #111–#114 merged; Azure TF/CLI blocked)
-
-**PR1 ✅ (#111):** domain.Instances + inmem + AWS EC2 frontend + BUG-55.
-**PR2 ✅ (#112):** GCP + Azure Compute frontends + real backends + SDK conformance.
-**PR3 ✅ (#113):** AWS TF `aws_instance` + AWS+GCP CLI + cross-cloud Apply cell.
-**PR4 ✅ (#114):** GCP TF `google_compute_instance` (Linux-only) + Azure TF/CLI deferred + INTERSECTION.md.
-
-**Remaining for 16.C closure:**
-- [x] Sockerless instance lane — merged as PR #116.
-- [x] **BUG-57 (Azure CLI):** merged as PR #118.
-- [x] **BUG-56 (Azure TF):** `TestSockerless_AzureCompute_Through_Shim_Terraform_Apply` — same passthrough pattern as DNS. In PR7 (branch `phase-16-azure-tf-conformance`).
-- [ ] **Merge PR7 + PR119 (docs).**
+16.C highlights: AWS TF `aws_instance` (destroy waiter fix), GCP TF `google_compute_instance`, Azure CLI `az vm` (BUG-57), Azure TF `azurerm_linux_virtual_machine` via sockerless passthrough (BUG-56), sockerless Firecracker instance + LB RegisterTargets lanes (sockerless #373/#374/#375).
 
 ## Upstream watch
 
-Sockerless #373/#374/#375 **closed** by PR #372 (merged 2026-06-02). Instance lanes unblocked.
-
-Sockerless PR #392 merged: GCP SA keys + instance templates + SDK/CLI/Terraform tests.
+All Firecracker blockers resolved. Sockerless PRs #372/#392/#395 merged.
 
 ## Standing rules
 

@@ -4,6 +4,16 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 
 > Reverse chronological. One section per phase. The *why*, the surprises, the root causes — not per-PR detail. For commit-level history, `git log`. For per-bug detail, [BUGS.md](BUGS.md). For pipeline + verifier architecture, [docs/codegen-pipelines.md](docs/codegen-pipelines.md) + [docs/verifiers.md](docs/verifiers.md).
 
+## Phase 16 — Compute and Networking (closed, PRs #104–#120)
+
+**Closed 2026-06-03.** All four sub-phases complete across 17 PRs.
+
+Phase 16 brought the full compute + networking surface: VPC networking primitives (16.B), layer-4 TCP load balancers (16.D), and compute instance lifecycle (16.C). The ec2Query codegen lane (16.A) was the prerequisite that unlocked all of them.
+
+**What made 16.C hard:** The Terraform destroy waiter required terminated instances to stay visible by ID (real AWS semantics), which needed a three-layer fix in inmem + the adapter + filter parsing. The GCP Terraform provider needed several stub routes (`projects.get`, `zones.get`, `images.get`, `disks.get`) and several non-nil fields in the instance response (`Metadata`, `Scheduling`, `Tags`, `Zone`) before it would function without panics. The Azure CLI and TF tests required `HandlerWithConfig` + metadata endpoint + JWKS passthrough wiring on the azure_compute frontend — same infrastructure pattern as azure_dns but with the added wrinkle that the "combined server" concern was a red herring: the passthrough pattern already routes non-Compute paths to sockerless.
+
+**Sockerless unblocking mid-phase:** Sockerless PR #372 closed three Firecracker CI blockers (#373/#374/#375) that had been gating the instance lifecycle lane and LB RegisterTargets. The sockerless tests were implemented and shipped as PR #116 immediately after.
+
 ## Phase 16.C PR7 — Azure TF azurerm_linux_virtual_machine (BUG-56 closed)
 
 **In progress (branch `phase-16-azure-tf-conformance`).** Key insight: the "combined compute+network server" was never needed. The DNS TF test already demonstrates the right pattern — Microsoft.Compute paths go to the shim, everything else (Microsoft.Network VNets/Subnets/NICs, resource groups, Entra) goes to sockerless via the passthrough proxy. The `azure_compute.HandlerWithConfig` (added in PR6) already supports passthrough.
