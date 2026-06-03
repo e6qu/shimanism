@@ -31,11 +31,12 @@ import (
 	_ "github.com/e6qu/shimanism/services/compute/gen/gcp" // spec-drift contract
 )
 
-// ComputeBackend is satisfied by any type that implements both
-// domain.Networking and domain.Instances.
+// ComputeBackend is satisfied by any type that implements
+// domain.Networking, domain.Instances, and domain.BlockStorage.
 type ComputeBackend interface {
 	domain.Networking
 	domain.Instances
+	domain.BlockStorage
 }
 
 // Server is a Compute-Engine-v1-shaped HTTP frontend.
@@ -104,6 +105,8 @@ func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		srv.routeFirewalls(w, r, strings.TrimPrefix(rest, "global/firewalls"))
 	case strings.HasPrefix(rest, "global/images"):
 		srv.routeImages(w, r, strings.TrimPrefix(rest, "global/images"))
+	case strings.HasPrefix(rest, "global/snapshots"):
+		srv.routeSnapshots(w, r, strings.TrimPrefix(rest, "global/snapshots"))
 	case strings.HasPrefix(rest, "aggregated/instances"):
 		srv.aggregatedListInstances(w, r)
 	case strings.HasPrefix(rest, "aggregated/machineTypes"):
@@ -848,21 +851,72 @@ func (srv *Server) routeZonal(w http.ResponseWriter, r *http.Request, rest strin
 	}
 }
 
-// routeDisks handles GET /compute/v1/projects/{p}/zones/{z}/disks/{name}.
-// The hashicorp/google provider reads disk details to populate boot_disk
-// initialize_params during resource read. We return a minimal READY disk
-// stub with the source image set so the provider can reconstruct the config.
+// routeDisks handles disks.insert/get/list/delete under
+// /compute/v1/projects/{p}/zones/{z}/disks[/{name}].
 func (srv *Server) routeDisks(w http.ResponseWriter, r *http.Request, tail string) {
 	tail = strings.TrimPrefix(tail, "/")
-	if r.Method != http.MethodGet {
-		writeError(w, http.StatusMethodNotAllowed, r.Method+" not allowed")
-		return
-	}
 	if tail == "" {
-		writeError(w, http.StatusNotFound, "disk list not supported")
+		switch r.Method {
+		case http.MethodGet:
+			srv.listDisks(w, r)
+		case http.MethodPost:
+			srv.insertDisk(w, r)
+		default:
+			writeError(w, http.StatusMethodNotAllowed, r.Method+" not allowed")
+		}
 		return
 	}
 	name := tail
+	switch r.Method {
+	case http.MethodGet:
+		srv.getDisk(w, r, name)
+	case http.MethodDelete:
+		srv.deleteDisk(w, r, name)
+	default:
+		writeError(w, http.StatusMethodNotAllowed, r.Method+" not allowed")
+	}
+}
+
+func (srv *Server) insertDisk(w http.ResponseWriter, r *http.Request) {
+	var req computeraw.Disk
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
+		return
+	}
+	opts := domain.CreateVolumeOptions{
+		SizeGiB:    int(req.SizeGb),
+		VolumeType: gcpLastPathSeg(req.Type),
+		Zone:       "us-central1-a",
+		Tags:       gcpLabelsToTags(req.Labels),
+	}
+	if req.SourceSnapshot != "" {
+		opts.SnapshotID = gcpLastPathSeg(req.SourceSnapshot)
+	}
+	if req.Name != "" {
+		if opts.Tags == nil {
+			opts.Tags = map[string]string{}
+		}
+		opts.Tags["Name"] = req.Name
+	}
+	vol, err := srv.n.CreateVolume(r.Context(), opts)
+	if err != nil {
+		writeComputeErr(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, gcpOperation("insert", vol.ID))
+}
+
+func (srv *Server) getDisk(w http.ResponseWriter, r *http.Request, name string) {
+	vol, ok := srv.findVolumeByNameOrID(r, name)
+	if ok {
+		writeJSON(w, http.StatusOK, domainVolumeToGCPDisk(vol))
+		return
+	}
+	// Boot disks created implicitly by instances.insert are not modelled as
+	// standalone domain volumes; the hashicorp/google provider reads them
+	// back via disks.get during instance resource read. Represent the boot
+	// disk that the instance's initializeParams implies (real GCP auto-creates
+	// it). Named disks created via disks.insert always resolve above.
 	writeJSON(w, http.StatusOK, map[string]any{
 		"kind":        "compute#disk",
 		"id":          fmt.Sprintf("%d", addrID(name)),
@@ -873,6 +927,287 @@ func (srv *Server) routeDisks(w http.ResponseWriter, r *http.Request, tail strin
 		"selfLink":    fmt.Sprintf("https://www.googleapis.com/compute/v1/projects/shim/zones/us-central1-a/disks/%s", name),
 		"sourceImage": "https://www.googleapis.com/compute/v1/projects/shim/global/images/shim-test-image",
 	})
+}
+
+func (srv *Server) listDisks(w http.ResponseWriter, r *http.Request) {
+	res, err := srv.n.DescribeVolumes(r.Context(), domain.DescribeVolumesOptions{})
+	if err != nil {
+		writeComputeErr(w, err)
+		return
+	}
+	list := &computeraw.DiskList{Kind: "compute#diskList"}
+	for _, vol := range res.Volumes {
+		list.Items = append(list.Items, domainVolumeToGCPDisk(vol))
+	}
+	writeJSON(w, http.StatusOK, list)
+}
+
+func (srv *Server) deleteDisk(w http.ResponseWriter, r *http.Request, name string) {
+	vol, ok := srv.findVolumeByNameOrID(r, name)
+	if !ok {
+		writeError(w, http.StatusNotFound, "The resource 'disks/"+name+"' was not found")
+		return
+	}
+	if err := srv.n.DeleteVolume(r.Context(), vol.ID); err != nil {
+		writeComputeErr(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, deleteOperation("disks", vol.ID))
+}
+
+// ─── Snapshots (global) ───────────────────────────────────────────────
+
+func (srv *Server) routeSnapshots(w http.ResponseWriter, r *http.Request, tail string) {
+	tail = strings.TrimPrefix(tail, "/")
+	if tail == "" {
+		switch r.Method {
+		case http.MethodGet:
+			srv.listSnapshots(w, r)
+		case http.MethodPost:
+			srv.insertSnapshot(w, r)
+		default:
+			writeError(w, http.StatusMethodNotAllowed, r.Method+" not allowed")
+		}
+		return
+	}
+	name := tail
+	switch r.Method {
+	case http.MethodGet:
+		srv.getSnapshot(w, r, name)
+	case http.MethodDelete:
+		srv.deleteSnapshot(w, r, name)
+	default:
+		writeError(w, http.StatusMethodNotAllowed, r.Method+" not allowed")
+	}
+}
+
+// insertSnapshot handles POST .../zones/{z}/disks/{disk}/createSnapshot in
+// real GCP, but the global snapshots.insert path carries SourceDisk in the
+// body. We accept the body's SourceDisk reference.
+func (srv *Server) insertSnapshot(w http.ResponseWriter, r *http.Request) {
+	var req computeraw.Snapshot
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
+		return
+	}
+	volID := gcpLastPathSeg(req.SourceDisk)
+	if vol, ok := srv.findVolumeByNameOrID(r, volID); ok {
+		volID = vol.ID
+	}
+	opts := domain.CreateSnapshotOptions{
+		Description: req.Description,
+		Tags:        gcpLabelsToTags(req.Labels),
+	}
+	if req.Name != "" {
+		if opts.Tags == nil {
+			opts.Tags = map[string]string{}
+		}
+		opts.Tags["Name"] = req.Name
+	}
+	snap, err := srv.n.CreateSnapshot(r.Context(), volID, opts)
+	if err != nil {
+		writeComputeErr(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, gcpOperation("insert", snap.ID))
+}
+
+func (srv *Server) getSnapshot(w http.ResponseWriter, r *http.Request, name string) {
+	snap, ok := srv.findSnapshotByNameOrID(r, name)
+	if !ok {
+		writeError(w, http.StatusNotFound, "The resource 'snapshots/"+name+"' was not found")
+		return
+	}
+	writeJSON(w, http.StatusOK, domainSnapshotToGCP(snap, srv.sourceDiskName(r, snap.VolumeID)))
+}
+
+func (srv *Server) listSnapshots(w http.ResponseWriter, r *http.Request) {
+	res, err := srv.n.DescribeSnapshots(r.Context(), domain.DescribeSnapshotsOptions{})
+	if err != nil {
+		writeComputeErr(w, err)
+		return
+	}
+	list := &computeraw.SnapshotList{Kind: "compute#snapshotList"}
+	for _, snap := range res.Snapshots {
+		list.Items = append(list.Items, domainSnapshotToGCP(snap, srv.sourceDiskName(r, snap.VolumeID)))
+	}
+	writeJSON(w, http.StatusOK, list)
+}
+
+// sourceDiskName maps an internal volume ID back to its GCP disk name for
+// SourceDisk references. Falls back to the raw ID if the disk is gone.
+func (srv *Server) sourceDiskName(r *http.Request, volID string) string {
+	if vol, ok := srv.findVolumeByNameOrID(r, volID); ok && vol.Name != "" {
+		return vol.Name
+	}
+	return volID
+}
+
+func (srv *Server) deleteSnapshot(w http.ResponseWriter, r *http.Request, name string) {
+	snap, ok := srv.findSnapshotByNameOrID(r, name)
+	if !ok {
+		writeError(w, http.StatusNotFound, "The resource 'snapshots/"+name+"' was not found")
+		return
+	}
+	if err := srv.n.DeleteSnapshot(r.Context(), snap.ID); err != nil {
+		writeComputeErr(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, deleteOperation("snapshots", snap.ID))
+}
+
+// ─── Disk attach / detach (instance sub-actions) ──────────────────────
+
+func (srv *Server) attachDisk(w http.ResponseWriter, r *http.Request, instName string) {
+	res, err := srv.findInstanceByNameOrID(r, instName)
+	if err != nil || len(res.Instances) == 0 {
+		writeError(w, http.StatusNotFound, "Instance '"+instName+"' not found")
+		return
+	}
+	var req computeraw.AttachedDisk
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
+		return
+	}
+	volName := gcpLastPathSeg(req.Source)
+	vol, ok := srv.findVolumeByNameOrID(r, volName)
+	if !ok {
+		writeError(w, http.StatusNotFound, "The resource 'disks/"+volName+"' was not found")
+		return
+	}
+	if _, err := srv.n.AttachVolume(r.Context(), vol.ID, res.Instances[0].ID, domain.AttachVolumeOptions{DeviceName: req.DeviceName}); err != nil {
+		writeComputeErr(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, gcpOperation("attachDisk", res.Instances[0].ID))
+}
+
+func (srv *Server) detachDisk(w http.ResponseWriter, r *http.Request, instName string) {
+	res, err := srv.findInstanceByNameOrID(r, instName)
+	if err != nil || len(res.Instances) == 0 {
+		writeError(w, http.StatusNotFound, "Instance '"+instName+"' not found")
+		return
+	}
+	devName := r.URL.Query().Get("deviceName")
+	// Find the volume attached to this instance with the matching device.
+	vres, err := srv.n.DescribeVolumes(r.Context(), domain.DescribeVolumesOptions{InstanceID: res.Instances[0].ID})
+	if err != nil {
+		writeComputeErr(w, err)
+		return
+	}
+	var volID string
+	for _, v := range vres.Volumes {
+		if devName == "" || v.DeviceName == devName || gcpLastPathSeg(devName) == v.Name {
+			volID = v.ID
+			break
+		}
+	}
+	if volID == "" {
+		writeError(w, http.StatusNotFound, "no attached disk matching deviceName "+devName)
+		return
+	}
+	if _, err := srv.n.DetachVolume(r.Context(), volID, res.Instances[0].ID); err != nil {
+		writeComputeErr(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, gcpOperation("detachDisk", res.Instances[0].ID))
+}
+
+// ─── block-storage lookup + converters ────────────────────────────────
+
+func (srv *Server) findVolumeByNameOrID(r *http.Request, nameOrID string) (domain.Volume, bool) {
+	res, err := srv.n.DescribeVolumes(r.Context(), domain.DescribeVolumesOptions{IDs: []string{nameOrID}})
+	if err == nil && len(res.Volumes) > 0 {
+		return res.Volumes[0], true
+	}
+	all, err := srv.n.DescribeVolumes(r.Context(), domain.DescribeVolumesOptions{})
+	if err != nil {
+		return domain.Volume{}, false
+	}
+	for _, v := range all.Volumes {
+		if v.Name == nameOrID || v.ID == nameOrID {
+			return v, true
+		}
+	}
+	return domain.Volume{}, false
+}
+
+func (srv *Server) findSnapshotByNameOrID(r *http.Request, nameOrID string) (domain.Snapshot, bool) {
+	res, err := srv.n.DescribeSnapshots(r.Context(), domain.DescribeSnapshotsOptions{IDs: []string{nameOrID}})
+	if err == nil && len(res.Snapshots) > 0 {
+		return res.Snapshots[0], true
+	}
+	all, err := srv.n.DescribeSnapshots(r.Context(), domain.DescribeSnapshotsOptions{})
+	if err != nil {
+		return domain.Snapshot{}, false
+	}
+	for _, s := range all.Snapshots {
+		if s.ID == nameOrID || s.Tags["Name"] == nameOrID {
+			return s, true
+		}
+	}
+	return domain.Snapshot{}, false
+}
+
+func diskName(vol domain.Volume) string {
+	if vol.Name != "" {
+		return vol.Name
+	}
+	return vol.ID
+}
+
+func domainVolumeToGCPDisk(vol domain.Volume) *computeraw.Disk {
+	status := "READY"
+	switch vol.State {
+	case domain.VolumeStateCreating:
+		status = "CREATING"
+	case domain.VolumeStateDeleting:
+		status = "DELETING"
+	case domain.VolumeStateInUse:
+		status = "READY"
+	}
+	name := diskName(vol)
+	d := &computeraw.Disk{
+		Kind:     "compute#disk",
+		Id:       gcpIDHash(vol.ID),
+		Name:     name,
+		SizeGb:   int64(vol.SizeGiB),
+		Status:   status,
+		Type:     fmt.Sprintf("https://www.googleapis.com/compute/v1/projects/shim/zones/us-central1-a/diskTypes/%s", vol.VolumeType),
+		SelfLink: fmt.Sprintf("https://www.googleapis.com/compute/v1/projects/shim/zones/us-central1-a/disks/%s", name),
+	}
+	if vol.SnapshotID != "" {
+		d.SourceSnapshot = fmt.Sprintf("https://www.googleapis.com/compute/v1/projects/shim/global/snapshots/%s", vol.SnapshotID)
+	}
+	if vol.InstanceID != "" {
+		d.Users = []string{fmt.Sprintf("https://www.googleapis.com/compute/v1/projects/shim/zones/us-central1-a/instances/%s", vol.InstanceID)}
+	}
+	return d
+}
+
+func domainSnapshotToGCP(snap domain.Snapshot, sourceDiskName string) *computeraw.Snapshot {
+	status := "READY"
+	switch snap.State {
+	case domain.SnapshotStatePending:
+		status = "CREATING"
+	case domain.SnapshotStateError:
+		status = "FAILED"
+	}
+	name := snap.ID
+	if n := snap.Tags["Name"]; n != "" {
+		name = n
+	}
+	return &computeraw.Snapshot{
+		Kind:         "compute#snapshot",
+		Id:           gcpIDHash(snap.ID),
+		Name:         name,
+		Status:       status,
+		DiskSizeGb:   int64(snap.VolumeSize),
+		Description:  snap.Description,
+		SourceDisk:   fmt.Sprintf("https://www.googleapis.com/compute/v1/projects/shim/zones/us-central1-a/disks/%s", sourceDiskName),
+		SelfLink:     fmt.Sprintf("https://www.googleapis.com/compute/v1/projects/shim/global/snapshots/%s", name),
+		StorageBytes: int64(snap.VolumeSize) * 1024 * 1024 * 1024,
+	}
 }
 
 // ─── Instances ────────────────────────────────────────────────────────
@@ -900,6 +1235,10 @@ func (srv *Server) routeInstances(w http.ResponseWriter, r *http.Request, tail s
 			srv.stopInstance(w, r, name)
 		case "reset":
 			srv.resetInstance(w, r, name)
+		case "attachDisk":
+			srv.attachDisk(w, r, name)
+		case "detachDisk":
+			srv.detachDisk(w, r, name)
 		default:
 			writeError(w, http.StatusNotFound, "Instance action not supported: "+action)
 		}

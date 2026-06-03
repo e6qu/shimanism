@@ -6,13 +6,13 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 
 ## Where we are
 
-**Phase 17.A in progress** (branch `phase-17a-block-storage`). Block storage domain + inmem + AWS EC2 frontend + SDK/CLI/Terraform conformance. AWS lane complete; all tests pass.
+**Phase 17.B in progress** (branch `phase-17b-block-storage-gcp-azure`). GCP + Azure disk/snapshot frontends + real backends + SDK conformance. SDK lanes green. 17.A merged as #122.
 
 **Open bugs:** BUG-8 · BUG-15 · BUG-41 (Track A only — blocked on real GCP credentials).
 
 ## Session-start checklist
 
-1. `git fetch origin && git checkout phase-17a-block-storage` — resume in-flight branch.
+1. `git fetch origin && git checkout phase-17b-block-storage-gcp-azure` — resume in-flight branch.
 2. Continue with Phase 17 items below.
 
 ## Phase 16 ✅ (PRs #104–#120)
@@ -21,27 +21,22 @@ All sub-phases closed. See PLAN.md and WHAT_WE_DID.md for narrative.
 
 ## Phase 17 — Block Storage ◐
 
-### 17.A — Domain + inmem + AWS lane ◐ (in progress)
+### 17.A — Domain + inmem + AWS lane ✅ (PR #122)
 
-- [x] `internal/compute/domain/volumes.go` — Volume + Snapshot types + BlockStorage interface.
-- [x] `services/compute/backends/inmem/` — Full BlockStorage implementation (volumes map + snapshots map).
-- [x] `services/compute/codegen.json` — Added CreateVolume, DeleteVolume, AttachVolume, DetachVolume, CreateSnapshot, DeleteSnapshot, DescribeSnapshots (7 new operations; 45 total).
-- [x] `internal/compute/frontends/aws_ec2/adapter.go` — All 7 handlers + domainVolumeToGen/domainSnapshotToGen (CreateTime non-nil for provider compatibility).
-- [x] `services/compute/backends/aws/` — Real AWS EBS backend (CreateVolume/Attach/Detach/Delete/Snapshots).
-- [x] `services/compute/backends/k8scompute/` — NotImplemented stubs (volumes + snapshots are out of K8s intersection).
-- [x] `services/compute/conformance/aws_ebs_test.go` — SDK: VolumeLifecycle + SnapshotLifecycle.
-- [x] `services/compute/conformance/aws_ebs_cli_test.go` — CLI: VolumeLifecycle + SnapshotLifecycle.
-- [x] `services/compute/conformance/aws_ebs_terraform_test.go` — TF: aws_ebs_volume apply + destroy.
-- [x] `docs/normalizations.md` — N28 (volume size GiB, type opaque, attach synchronous in domain).
-- [x] `services/compute/INTERSECTION.md` — Phase 17 volumes + snapshots tables.
+domain.BlockStorage + inmem + AWS EBS frontend/backend + K8s NotImplemented + SDK/CLI/TF conformance + N28 + INTERSECTION.md.
+
+### 17.B — GCP + Azure frontends + real backends ◐ (in progress)
+
+- [x] GCP frontend: `disks.insert/get/list/delete` + `snapshots.insert/get/list/delete` + `instances.attachDisk/detachDisk` (`internal/compute/frontends/gcp_compute/server.go`).
+- [x] GCP real backend: `Disks.*` + `Snapshots.*` + `Instances.AttachDisk/DetachDisk` (`services/compute/backends/gcp/gcp.go`).
+- [x] Azure frontend: `Microsoft.Compute/disks` + `Microsoft.Compute/snapshots` createOrUpdate/get/list/delete (returns 200 — armcompute disk/snapshot poller expects 200/202, not 201).
+- [x] Azure real backend: `DisksClient` + `SnapshotsClient` + attach/detach via VM `dataDisks` update.
+- [x] GCP SDK conformance: `gcp_disks_test.go` (Disk, Snapshot, AttachDetach lifecycles).
+- [x] Azure SDK conformance: `azure_disks_test.go` (Disk, Snapshot lifecycles).
+- [x] inmem CreateVolume stores Name from Tags["Name"] (GCP/Azure disks are name-addressed).
+- [ ] GCP + Azure CLI conformance (gcloud compute disks/snapshots; az disk/snapshot).
+- [ ] GCP + Azure Terraform conformance (google_compute_disk; azurerm_managed_disk).
 - [ ] **Commit + push + open PR.**
-
-### 17.B — GCP Compute + Azure Compute frontends + real backends
-
-- [ ] GCP: `disks.insert/delete/get/list` + `instances.attachDisk/detachDisk` + `snapshots.*`
-- [ ] Azure: `Microsoft.Compute/disks` + `Microsoft.Compute/snapshots`
-- [ ] GCP real backend + GCP SDK/CLI/TF conformance tests
-- [ ] Azure real backend + Azure SDK/CLI/TF conformance tests
 
 ### 17.C — K8s peer + sockerless lane
 

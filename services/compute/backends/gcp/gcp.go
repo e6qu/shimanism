@@ -35,6 +35,7 @@ func New(svc *compute.Service, project, region string) *Backend {
 
 var _ domain.Networking = (*Backend)(nil)
 var _ domain.Instances = (*Backend)(nil)
+var _ domain.BlockStorage = (*Backend)(nil)
 
 // ─── Networks ────────────────────────────────────────────────────────
 
@@ -590,5 +591,200 @@ func gcpInstanceToDomain(i *compute.Instance) domain.Instance {
 		InstanceType: it,
 		State:        state,
 		PrivateIP:    ip,
+	}
+}
+
+// ─── BlockStorage ─────────────────────────────────────────────────────
+
+func (b *Backend) CreateVolume(ctx context.Context, opt domain.CreateVolumeOptions) (domain.Volume, error) {
+	zone := opt.Zone
+	if zone == "" {
+		zone = b.defaultZone()
+	}
+	name := opt.Tags["Name"]
+	if name == "" {
+		name = fmt.Sprintf("shim-disk-%d", len(opt.Tags))
+	}
+	disk := &compute.Disk{
+		Name:   name,
+		SizeGb: int64(opt.SizeGiB),
+	}
+	if opt.VolumeType != "" {
+		disk.Type = fmt.Sprintf("zones/%s/diskTypes/%s", zone, opt.VolumeType)
+	}
+	if opt.SnapshotID != "" {
+		disk.SourceSnapshot = fmt.Sprintf("global/snapshots/%s", opt.SnapshotID)
+	}
+	if _, err := b.svc.Disks.Insert(b.project, zone, disk).Context(ctx).Do(); err != nil {
+		return domain.Volume{}, mapGCPErr(err)
+	}
+	return domain.Volume{
+		ID:         name,
+		Name:       name,
+		SizeGiB:    opt.SizeGiB,
+		VolumeType: opt.VolumeType,
+		Zone:       zone,
+		State:      domain.VolumeStateAvailable,
+		SnapshotID: opt.SnapshotID,
+		Tags:       opt.Tags,
+	}, nil
+}
+
+func (b *Backend) DescribeVolumes(ctx context.Context, opt domain.DescribeVolumesOptions) (domain.DescribeVolumesResult, error) {
+	list, err := b.svc.Disks.List(b.project, b.defaultZone()).Context(ctx).Do()
+	if err != nil {
+		return domain.DescribeVolumesResult{}, mapGCPErr(err)
+	}
+	wantID := map[string]bool{}
+	for _, id := range opt.IDs {
+		wantID[id] = true
+	}
+	var out []domain.Volume
+	for _, d := range list.Items {
+		if len(wantID) > 0 && !wantID[d.Name] {
+			continue
+		}
+		vol := gcpDiskToDomain(d)
+		if opt.InstanceID != "" && vol.InstanceID != opt.InstanceID {
+			continue
+		}
+		out = append(out, vol)
+	}
+	return domain.DescribeVolumesResult{Volumes: out}, nil
+}
+
+func (b *Backend) DeleteVolume(ctx context.Context, id string) error {
+	_, err := b.svc.Disks.Delete(b.project, b.defaultZone(), id).Context(ctx).Do()
+	return mapGCPErr(err)
+}
+
+func (b *Backend) AttachVolume(ctx context.Context, volumeID, instanceID string, opt domain.AttachVolumeOptions) (domain.VolumeAttachment, error) {
+	dev := opt.DeviceName
+	if dev == "" {
+		dev = volumeID
+	}
+	att := &compute.AttachedDisk{
+		Source:     fmt.Sprintf("zones/%s/disks/%s", b.defaultZone(), volumeID),
+		DeviceName: dev,
+	}
+	if _, err := b.svc.Instances.AttachDisk(b.project, b.defaultZone(), instanceID, att).Context(ctx).Do(); err != nil {
+		return domain.VolumeAttachment{}, mapGCPErr(err)
+	}
+	return domain.VolumeAttachment{
+		VolumeID:   volumeID,
+		InstanceID: instanceID,
+		DeviceName: dev,
+		State:      domain.VolumeAttachmentStateAttached,
+	}, nil
+}
+
+func (b *Backend) DetachVolume(ctx context.Context, volumeID, instanceID string) (domain.VolumeAttachment, error) {
+	if _, err := b.svc.Instances.DetachDisk(b.project, b.defaultZone(), instanceID, volumeID).Context(ctx).Do(); err != nil {
+		return domain.VolumeAttachment{}, mapGCPErr(err)
+	}
+	return domain.VolumeAttachment{
+		VolumeID:   volumeID,
+		InstanceID: instanceID,
+		State:      domain.VolumeAttachmentStateDetached,
+	}, nil
+}
+
+func (b *Backend) CreateSnapshot(ctx context.Context, volumeID string, opt domain.CreateSnapshotOptions) (domain.Snapshot, error) {
+	name := opt.Tags["Name"]
+	if name == "" {
+		name = fmt.Sprintf("shim-snap-%s", volumeID)
+	}
+	snap := &compute.Snapshot{
+		Name:        name,
+		Description: opt.Description,
+	}
+	if _, err := b.svc.Disks.CreateSnapshot(b.project, b.defaultZone(), volumeID, snap).Context(ctx).Do(); err != nil {
+		return domain.Snapshot{}, mapGCPErr(err)
+	}
+	tags := opt.Tags
+	if tags == nil {
+		tags = map[string]string{}
+	}
+	tags["Name"] = name
+	return domain.Snapshot{
+		ID:          name,
+		VolumeID:    volumeID,
+		State:       domain.SnapshotStateCompleted,
+		Description: opt.Description,
+		Tags:        tags,
+	}, nil
+}
+
+func (b *Backend) DescribeSnapshots(ctx context.Context, opt domain.DescribeSnapshotsOptions) (domain.DescribeSnapshotsResult, error) {
+	list, err := b.svc.Snapshots.List(b.project).Context(ctx).Do()
+	if err != nil {
+		return domain.DescribeSnapshotsResult{}, mapGCPErr(err)
+	}
+	wantID := map[string]bool{}
+	for _, id := range opt.IDs {
+		wantID[id] = true
+	}
+	var out []domain.Snapshot
+	for _, s := range list.Items {
+		if len(wantID) > 0 && !wantID[s.Name] {
+			continue
+		}
+		snap := gcpSnapshotToDomain(s)
+		if opt.VolumeID != "" && snap.VolumeID != opt.VolumeID {
+			continue
+		}
+		out = append(out, snap)
+	}
+	return domain.DescribeSnapshotsResult{Snapshots: out}, nil
+}
+
+func (b *Backend) DeleteSnapshot(ctx context.Context, id string) error {
+	_, err := b.svc.Snapshots.Delete(b.project, id).Context(ctx).Do()
+	return mapGCPErr(err)
+}
+
+func gcpDiskToDomain(d *compute.Disk) domain.Volume {
+	state := domain.VolumeStateAvailable
+	switch d.Status {
+	case "CREATING", "RESTORING":
+		state = domain.VolumeStateCreating
+	case "DELETING":
+		state = domain.VolumeStateDeleting
+	case "FAILED":
+		state = domain.VolumeStateError
+	}
+	vol := domain.Volume{
+		ID:         d.Name,
+		Name:       d.Name,
+		SizeGiB:    int(d.SizeGb),
+		VolumeType: gcpLastPathSegment(d.Type),
+		Zone:       gcpLastPathSegment(d.Zone),
+		State:      state,
+	}
+	if d.SourceSnapshot != "" {
+		vol.SnapshotID = gcpLastPathSegment(d.SourceSnapshot)
+	}
+	if len(d.Users) > 0 {
+		vol.InstanceID = gcpLastPathSegment(d.Users[0])
+		vol.State = domain.VolumeStateInUse
+	}
+	return vol
+}
+
+func gcpSnapshotToDomain(s *compute.Snapshot) domain.Snapshot {
+	state := domain.SnapshotStateCompleted
+	switch s.Status {
+	case "CREATING", "UPLOADING":
+		state = domain.SnapshotStatePending
+	case "FAILED":
+		state = domain.SnapshotStateError
+	}
+	return domain.Snapshot{
+		ID:          s.Name,
+		VolumeID:    gcpLastPathSegment(s.SourceDisk),
+		VolumeSize:  int(s.DiskSizeGb),
+		State:       state,
+		Description: s.Description,
+		Tags:        map[string]string{"Name": s.Name},
 	}
 }
