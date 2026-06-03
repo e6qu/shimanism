@@ -17,7 +17,7 @@
 ![cache](https://img.shields.io/badge/cache-7.6k-00ADD8)
 ![functions](https://img.shields.io/badge/functions-5.5k-00ADD8)
 ![apigateway](https://img.shields.io/badge/apigateway-2.7k-00ADD8)
-![internal](https://img.shields.io/badge/internal-29.5k-5BC0DE)
+![internal](https://img.shields.io/badge/internal-29.6k-5BC0DE)
 ![cmd](https://img.shields.io/badge/cmd-3.3k-5BC0DE)
 ![peers](https://img.shields.io/badge/peers-109-A0D8EF)
 

@@ -1166,6 +1166,17 @@ func domainInstanceToGCP(inst domain.Instance) *computeraw.Instance {
 		MachineType: fmt.Sprintf("zones/us-central1-a/machineTypes/%s", inst.InstanceType),
 		Status:      status,
 		SelfLink:    fmt.Sprintf("https://www.googleapis.com/compute/v1/projects/shim/zones/us-central1-a/instances/%s", inst.Name),
+		// Metadata and Scheduling must be non-nil: flattenMetadataBeta and
+		// flattenScheduling in the hashicorp/google provider dereference these
+		// fields without a nil guard on some code paths.
+		Metadata: &computeraw.Metadata{
+			Kind: "compute#metadata",
+		},
+		Scheduling: &computeraw.Scheduling{
+			OnHostMaintenance: "MIGRATE",
+			AutomaticRestart:  boolPtr(true),
+		},
+		Tags: &computeraw.Tags{},
 	}
 	if inst.PrivateIP != "" {
 		g.NetworkInterfaces = []*computeraw.NetworkInterface{
@@ -1203,6 +1214,8 @@ func domainTypeToGCP(t domain.InstanceTypeInfo) *computeraw.MachineType {
 		SelfLink:  fmt.Sprintf("https://www.googleapis.com/compute/v1/projects/shim/zones/us-central1-a/machineTypes/%s", t.InstanceType),
 	}
 }
+
+func boolPtr(b bool) *bool { return &b }
 
 func gcpIDHash(id string) uint64 {
 	var h uint64
