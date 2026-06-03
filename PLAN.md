@@ -283,16 +283,16 @@ Per intersection-only scope: every new service must work across **AWS + GCP + Az
 
 > **Premise.** Phase 15 closed NoSQL + DNS. Phase 16 adds the compute + networking surface: VPC networking primitives (networks, subnets, security groups, public IPs), compute instance lifecycle (run/start/stop/terminate/describe + machine types), and basic layer-4 TCP load balancers. Two new service directories: `services/compute/` (AWS EC2 + GCP Compute Engine + Azure Compute/Network + K8s Nodes/Namespace/NetworkPolicy) and `services/loadbalancer/` (AWS ELBv2 + GCP Compute LB + Azure LB + K8s Service). AWS VPC and EC2 instances share `ec2.amazonaws.com`; GCP networks and GCE instances share `compute.googleapis.com/v1` — both fit in one `services/compute/` directory to avoid action-dispatch split-brain. ELBv2 is a distinct AWS endpoint and lives in `services/loadbalancer/`.
 >
-> **Status: planned (2026-06-02).**
+> **Status: 16.A ✅ · 16.B ✅ · 16.C ◐ (PR3 in progress) · 16.D ✅.**
 
 ### Sub-phases
 
 | Track | What | Dependency | Status |
 |---|---|---|---|
-| 16.A | Normalization audit (N20–N27) + `docs/phase-16-scoping.md` + ec2Query codegen lane in `cmd/codegen` + `internal/ec2query/` runtime | — | ◐ planned |
-| 16.B | VPC networking primitives (VPCs/subnets/security groups/public IPs) — AWS + GCP + Azure frontends + K8s peer (Namespace/NetworkPolicy; subnets/EIPs NotImplemented) | 16.A (ec2Query lane) | ◐ planned |
-| 16.C | Compute instance lifecycle (RunInstances/Describe/Start/Stop/Terminate/Reboot + DescribeInstanceTypes) — K8s peer is Nodes read-only; mutations return NotImplemented | 16.B; sockerless lane gated on sockerless #373/#374/#375 | ◐ planned |
-| 16.D | Load balancers — layer-4 TCP only (LB + target group + listener); `services/loadbalancer/`; K8s peer = Service type:LoadBalancer; RegisterTargets gated on #373/#374/#375 | 16.A (ELBv2 = awsQuery, no new codegen); parallels 16.B | ◐ planned |
+| 16.A | Normalization audit (N20–N27) + `docs/phase-16-scoping.md` + ec2Query codegen lane + `internal/ec2query/` runtime | — | ✅ PR #104 |
+| 16.B | VPC networking primitives (VPCs/subnets/security groups/public IPs) — AWS + GCP + Azure frontends + K8s peer | 16.A | ✅ PRs #105–#108 |
+| 16.C | Compute instance lifecycle (RunInstances/Describe/Start/Stop/Terminate/Reboot + DescribeInstanceTypes) — K8s Nodes read-only; mutations NotImplemented | 16.B; sockerless lane gated on #373/#374/#375 | ◐ PR3 in progress (PR4 = az CLI + GCP/Azure TF) |
+| 16.D | Load balancers — layer-4 TCP (LB + target group + listener); `services/loadbalancer/`; K8s = Service:LB; RegisterTargets gated on #373/#374/#375 | 16.A | ✅ PRs #109–#110 |
 
 ### Codegen prerequisite (16.A)
 
@@ -359,7 +359,9 @@ NAT Gateways · Internet Gateways · Route Tables · VPC Peering · Auto Scaling
 
 | PR | Phase | Headline | Merged |
 |---|---|---|---|
-| #21–#67 (umbrella) | 14 | Sockerless-verified validation lane + through-shim azurerm Apply matrix. 14.A re-enabled deferred shim assertions; 14.B/C closed the 33+1 sockerless lane sweep; 14.D simulator audit + 14.E cross-cloud Apply (10 PRs, #58–#67) closed the storage matrix across every source/backend permutation + the Azure-source secrets row. Six upstream sockerless gaps filed + closed (#257/#260/#261/#269/#272/#276). Track A (real-cloud credentials) and 14.E secrets AWS/GCS-source rows + SB cross-cloud carry into Phase 15. | through 2026-05-30 |
+| #109–#112 | 16.A/B/D + 16.C PR1+PR2 | Phase 16 compute + networking + LB: ec2Query codegen lane, VPC networking primitives, compute instance lifecycle, load balancers. All four frontends (AWS/GCP/Azure/K8s) + real backends + conformance matrices. | 2026-06-03 |
+| #90–#108 (umbrella) | 15 | Cross-cloud normalization standard (N1–N27), NoSQL (DynamoDB/Firestore/Cosmos Tables), DNS (Route 53/Cloud DNS/Azure DNS/CoreDNS), sockerless Cosmos Tables ARM passthrough. 10 PRs, all four frontends × five backends. | 2026-06-02 |
+| #21–#67 (umbrella) | 14 | Sockerless-verified validation lane + through-shim azurerm Apply matrix. 14.A re-enabled deferred shim assertions; 14.B/C closed the 33+1 sockerless lane sweep; 14.D simulator audit + 14.E cross-cloud Apply closed the storage matrix. | through 2026-05-30 |
 | #20 | 13 | Azure + GCP adapter migrations, production RS256 JWKS, and the first sockerless storage/secrets lane. | 2026-05-24 `3cf9e13` |
 | #19 | 12 | Spec-driven toolchain across all 8 services × 3 lanes (AWS Smithy / Azure OpenAPI / GCP Discovery). 8-stage Azure preprocessor closes BUG-20. Vendored-spec `_provenance` + spec-freshness lane + per-service Terraform walkthroughs. 82+ granular commits. | 2026-05-22 `778e8e9` |
 | #18 | 11 | Tighten the wire boundary — 8/8 AWS frontends spec-driven (5 protocols); 24/24 frontends verifier-wrapped; BUG-18 closed end-to-end; Azure oapi-codegen pilot. | 2026-05-22 `bcd72e5` |

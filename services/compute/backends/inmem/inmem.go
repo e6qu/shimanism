@@ -439,7 +439,16 @@ func (b *Backend) DescribeInstances(_ context.Context, opt domain.DescribeInstan
 		if len(wantID) > 0 && !wantID[inst.ID] {
 			continue
 		}
-		if len(wantState) > 0 && !wantState[inst.State] {
+		if len(wantState) > 0 {
+			if !wantState[inst.State] {
+				continue
+			}
+		} else if len(wantID) == 0 && inst.State == domain.InstanceStateTerminated {
+			// Default list-all (no ID or state filter): exclude terminated,
+			// mirroring AWS DescribeInstances default behavior. When a
+			// specific ID is given, terminated instances are returned so
+			// that callers (e.g. the Terraform destroy waiter) can observe
+			// the terminal "terminated" state.
 			continue
 		}
 		out = append(out, *inst)
@@ -488,8 +497,10 @@ func (b *Backend) TerminateInstances(_ context.Context, ids []string) ([]domain.
 			return nil, domain.ErrNotFound
 		}
 		inst.State = domain.InstanceStateTerminated
+		// Keep instance in map so subsequent DescribeInstances calls return
+		// state="terminated" (AWS provider waiter polls for this exact state
+		// before considering destroy complete).
 		out = append(out, *inst)
-		delete(b.instances, id)
 	}
 	return out, nil
 }
