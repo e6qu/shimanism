@@ -50,6 +50,7 @@ resource "aws_ebs_volume" "shim" {
 `
 
 func TestTerraformAWS_EBS_VolumeLifecycle(t *testing.T) {
+	t.Parallel()
 	tfBin := requireTerraformForEC2(t)
 	srv := harness.StartComputeServerAWS(t, inmem.New())
 
