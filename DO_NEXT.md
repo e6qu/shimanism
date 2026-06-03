@@ -31,12 +31,14 @@ domain.BlockStorage + inmem + AWS EBS frontend/backend + K8s NotImplemented + SD
 - [x] GCP real backend: `Disks.*` + `Snapshots.*` + `Instances.AttachDisk/DetachDisk` (`services/compute/backends/gcp/gcp.go`).
 - [x] Azure frontend: `Microsoft.Compute/disks` + `Microsoft.Compute/snapshots` createOrUpdate/get/list/delete (returns 200 — armcompute disk/snapshot poller expects 200/202, not 201).
 - [x] Azure real backend: `DisksClient` + `SnapshotsClient` + attach/detach via VM `dataDisks` update.
-- [x] GCP SDK conformance: `gcp_disks_test.go` (Disk, Snapshot, AttachDetach lifecycles).
-- [x] Azure SDK conformance: `azure_disks_test.go` (Disk, Snapshot lifecycles).
-- [x] inmem CreateVolume stores Name from Tags["Name"] (GCP/Azure disks are name-addressed).
-- [ ] GCP + Azure CLI conformance (gcloud compute disks/snapshots; az disk/snapshot).
-- [ ] GCP + Azure Terraform conformance (google_compute_disk; azurerm_managed_disk).
-- [ ] **Commit + push + open PR.**
+- [x] GCP SDK conformance: `gcp_disks_test.go` (Disk, Snapshot, AttachDetach lifecycles). Merged #123.
+- [x] Azure SDK conformance: `azure_disks_test.go` (Disk, Snapshot lifecycles). Merged #123.
+- [x] inmem CreateVolume stores Name from Tags["Name"] (GCP/Azure disks are name-addressed). Merged #123.
+- [x] GCP CLI conformance: `gcp_disks_cli_test.go` (disks list, snapshots list).
+- [x] GCP Terraform: `gcp_disks_terraform_test.go` (google_compute_disk apply+destroy, Linux-only).
+- [x] Azure CLI conformance: `azure_disks_cli_test.go` (az disk create/show/list/delete via sockerless).
+- [x] Azure Terraform: `TestSockerless_AzureDisk_Through_Shim_Terraform_Apply` (azurerm_managed_disk).
+- [ ] **Commit + push + open PR for CLI+TF.**
 
 ### 17.C — K8s peer + sockerless lane
 
