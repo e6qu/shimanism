@@ -8,13 +8,13 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 
 | | |
 |---|---|
-| Active branch | `main` — 16.C PR5 merged as #116. |
-| In-flight | Nothing. Next: BUG-56/57 (Azure compute JWKS) to finish the 16.C matrix. |
-| Last merged | PR #116 — 16.C PR5: sockerless instance lane + LB RegisterTargets (sockerless #373/#374/#375 closed). |
-| Upstream watch | All Firecracker blockers resolved. PR #392 merged (GCP SA keys + instance templates). |
+| Active branch | `phase-16c-instances-azure-conformance` — 16.C PR6: BUG-57 closed (Azure CLI az vm). |
+| In-flight | HandlerWithConfig for azure_compute + TestAzureCLI_Compute_VMList. |
+| Last merged | PR #117 — docs: mark 16.C PR5 merged. |
+| Upstream watch | All Firecracker blockers resolved. PR #392 merged. |
 | Phases 1–15 | All closed. See [PLAN.md § Closed phases](PLAN.md#closed-phases-pr-index). |
-| Phase 16 | 16.A ✅ · 16.B ✅ · 16.C ◐ (PR1–PR4 merged; Azure TF/CLI blocked on BUG-56/57) · 16.D ✅. |
-| Bugs | **57 filed · 51 fixed · 5 open · 1 false positive.** Open: **BUG-8** + **BUG-15** + **BUG-41** (Track A) + **BUG-56** + **BUG-57** (16.C Azure compute TF/CLI JWKS). |
+| Phase 16 | 16.A ✅ · 16.B ✅ · 16.C ◐ (PR1–PR5 merged; PR6 in progress = BUG-57 CLI close) · 16.D ✅. |
+| Bugs | **57 filed · 52 fixed · 4 open · 1 false positive.** Open: **BUG-8** + **BUG-15** + **BUG-41** (Track A) + **BUG-56** (Azure TF needs combined compute+network). |
 | CI | 18 required checks. Real-cloud lanes wait on Track A. |
 | Renovate | Config + custom manager for vendored-spec SHAs. **User must install the Renovate GitHub App.** |
 | Standing merge auth | **None.** User merges every PR. |

@@ -4,6 +4,16 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 
 > Reverse chronological. One section per phase. The *why*, the surprises, the root causes — not per-PR detail. For commit-level history, `git log`. For per-bug detail, [BUGS.md](BUGS.md). For pipeline + verifier architecture, [docs/codegen-pipelines.md](docs/codegen-pipelines.md) + [docs/verifiers.md](docs/verifiers.md).
 
+## Phase 16.C PR6 — Azure CLI az vm conformance (BUG-57 closed)
+
+**In progress (branch `phase-16c-instances-azure-conformance`).** BUG-57 root cause: `azure_compute` frontend had a fixed test-key bearer verifier with no way to configure JWKS from sockerless's Entra stub.
+
+Added `Config` / `HandlerWithConfig` / `serveMetadata` / `passthroughOr404` to the `azure_compute` frontend — same pattern as `azure_dns`. `ServeHTTP` now forwards non-Microsoft.Compute paths to an upstream (sockerless passthrough for resource groups, subscriptions, Entra). The metadata endpoint serves the cloud-environment JSON the azurerm provider reads to discover token URLs.
+
+`TestAzureCLI_Compute_VMList` follows the DNS CLI test template exactly: `az cloud register` + `az login --service-principal` against sockerless Entra → `az vm list --resource-group` → verifies empty list.
+
+BUG-56 (Azure TF) remains: `azurerm_linux_virtual_machine` requires Microsoft.Network resources on a separate frontend — same structural gap as DNS BUG-44.
+
 ## Phase 16.C PR5 — Sockerless instance + LB RegisterTargets lanes unblocked
 
 **Merged as PR #116.** Sockerless PR #372 (2026-06-02) closed all three Firecracker CI blockers (#373/#374/#375). The compute instance lane and loadbalancer RegisterTargets lane were un-gated in the same PR.

@@ -37,8 +37,9 @@ All items closed. Full 3×4×3 conformance matrix for LB operations. Sockerless 
 **PR4 ✅ (#114):** GCP TF `google_compute_instance` (Linux-only) + Azure TF/CLI deferred + INTERSECTION.md.
 
 **Remaining for 16.C closure:**
-- [x] Sockerless instance lane unblocked: `TestSockerless_EC2_Instances_ThroughShim` + `TestSockerless_ELBv2_Through_Shim_RegisterTargets` — merged as PR #116.
-- [ ] **BUG-56/57 (Azure compute JWKS):** add `HandlerWithConfig` to `azure_compute` frontend (same pattern as `azure_dns.HandlerWithConfig`); wire JWKS from sockerless's Entra stub; re-enable `TestTerraformAzure_Compute_VMLifecycle` + `TestAzureCLI_Compute_VMList`.
+- [x] Sockerless instance lane — merged as PR #116.
+- [x] **BUG-57 (Azure CLI):** `HandlerWithConfig` + `serveMetadata` + `passthroughOr404` added to `azure_compute`; `TestAzureCLI_Compute_VMList` implemented — PR6 in progress.
+- [ ] **BUG-56 (Azure TF):** `azurerm_linux_virtual_machine` requires `azurerm_network_interface` (Microsoft.Network). Needs combined compute+network TLS server or full ARM passthrough. Deferred; skip message updated with specific blocker.
 
 ## Upstream watch
 

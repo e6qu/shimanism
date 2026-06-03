@@ -31,27 +31,89 @@ type ComputeBackend interface {
 	domain.Instances
 }
 
+// Config carries optional Server configuration.
+type Config struct {
+	// Passthrough forwards ARM paths not handled by this frontend
+	// (resource groups, subscriptions, Microsoft.Network, Entra ID
+	// token requests when MetadataLoginURL is unset, …) to the
+	// upstream handler. Typically a reverse proxy to sockerless.
+	Passthrough http.Handler
+
+	// MetadataLoginURL is the base URL for endpoints the shim does
+	// not intercept (Entra ID loginEndpoint, graph, batch, …).
+	// When set, the frontend serves GET /metadata/endpoints returning
+	// a cloud-environment JSON document whose resourceManager points
+	// at the shim itself and whose loginEndpoint points here.
+	MetadataLoginURL string
+
+	// BearerOptions configures the Azure Bearer-token verifier. Through-
+	// shim tests set JWKS + Issuer so the shim accepts tokens issued
+	// by sockerless's Entra stub. Zero value falls back to the default
+	// test-key HMAC verifier.
+	BearerOptions azurebearer.Options
+}
+
 // Server is an Azure Compute ARM HTTP frontend.
 type Server struct {
-	inst domain.Instances
+	inst             domain.Instances
+	upstream         http.Handler
+	metadataLoginURL string
 }
 
 // New returns a frontend bound to the given backend.
 func New(inst domain.Instances) *Server { return &Server{inst: inst} }
 
+// NewWithConfig is the general constructor; honors every Config field.
+func NewWithConfig(inst domain.Instances, c Config) *Server {
+	return &Server{
+		inst:             inst,
+		upstream:         c.Passthrough,
+		metadataLoginURL: c.MetadataLoginURL,
+	}
+}
+
 // Handler wraps Server with the Azure bearer verifier middleware.
 func Handler(inst domain.Instances) http.Handler {
-	verifier := azurebearer.New(azurebearer.Options{
-		Audience: "https://management.azure.com/",
-		TestKey:  []byte("test-key-do-not-use-in-prod"),
+	return HandlerWithConfig(inst, Config{})
+}
+
+// HandlerWithConfig is the verifier-wrapped form of NewWithConfig.
+// The metadata endpoint is served without bearer auth (public discovery).
+func HandlerWithConfig(inst domain.Instances, c Config) http.Handler {
+	server := NewWithConfig(inst, c)
+	if c.MetadataLoginURL == "" {
+		return wrapWithBearerVM(server, c.BearerOptions)
+	}
+	bearerWrapped := wrapWithBearerVM(server, c.BearerOptions)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == "/metadata/endpoints" {
+			server.ServeHTTP(w, r)
+			return
+		}
+		bearerWrapped.ServeHTTP(w, r)
 	})
-	mw := azurebearer.Middleware(verifier, azurebearer.WithChallenge("https://management.azure.com/"))
-	return mw(New(inst))
+}
+
+func wrapWithBearerVM(h http.Handler, opts azurebearer.Options) http.Handler {
+	if opts.JWKS == nil && opts.JWKSURL == "" && len(opts.TestKey) == 0 {
+		opts.TestKey = []byte("test-key-do-not-use-in-prod")
+	}
+	if opts.Audience == "" {
+		opts.Audience = "https://management.azure.com/"
+	}
+	verifier := azurebearer.New(opts)
+	return azurebearer.Middleware(verifier, azurebearer.WithChallenge("https://management.azure.com/"))(h)
 }
 
 // ServeHTTP routes ARM paths for Microsoft.Compute resources.
 func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path
+
+	// Public metadata discovery endpoint — answer without bearer auth.
+	if r.Method == http.MethodGet && path == "/metadata/endpoints" && srv.metadataLoginURL != "" {
+		srv.serveMetadata(w, r)
+		return
+	}
 
 	// vmSizes: /subscriptions/.../providers/Microsoft.Compute/locations/{loc}/vmSizes
 	lowerPath := strings.ToLower(path)
@@ -63,7 +125,7 @@ func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	idx := strings.Index(lowerPath, "/providers/microsoft.compute/")
 	if idx < 0 {
-		writeAzureError(w, http.StatusNotFound, "NotFound", "path not matched: "+path)
+		srv.passthroughOr404(w, r)
 		return
 	}
 	tail := path[idx+len("/providers/microsoft.compute/"):]
@@ -83,7 +145,64 @@ func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		srv.routeVMs(w, r, resourceName)
 	default:
-		writeAzureError(w, http.StatusNotFound, "NotFound", "resource type not supported: "+resourceType)
+		srv.passthroughOr404(w, r)
+	}
+}
+
+// passthroughOr404 forwards to the configured upstream when present;
+// otherwise emits an Azure-shaped 404 envelope.
+func (srv *Server) passthroughOr404(w http.ResponseWriter, r *http.Request) {
+	if srv.upstream != nil {
+		srv.upstream.ServeHTTP(w, r)
+		return
+	}
+	writeAzureError(w, http.StatusNotFound, "NotFound", "path not matched: "+r.URL.Path)
+}
+
+// serveMetadata returns the Azure cloud-environment JSON document the
+// azurerm provider fetches via metadata_host. Mirrors the shape from
+// azure_dns.serveMetadata (BUG-46 pattern).
+func (srv *Server) serveMetadata(w http.ResponseWriter, r *http.Request) {
+	scheme := "https"
+	if r.TLS == nil {
+		scheme = "http"
+	}
+	if fp := r.Header.Get("X-Forwarded-Proto"); fp != "" {
+		scheme = strings.ToLower(fp)
+	}
+	shimBase := fmt.Sprintf("%s://%s", scheme, r.Host)
+	env := map[string]any{
+		"name": "AzureCloud",
+		"authentication": map[string]any{
+			"loginEndpoint": srv.metadataLoginURL,
+			"audiences": []string{
+				srv.metadataLoginURL + "/",
+				"https://management.core.windows.net/",
+				"https://management.azure.com/",
+			},
+			"tenant":           "common",
+			"identityProvider": "AAD",
+		},
+		"resourceManager":          shimBase,
+		"microsoftGraphResourceId": srv.metadataLoginURL + "/",
+		"graph":                    srv.metadataLoginURL,
+		"portal":                   srv.metadataLoginURL,
+		"gallery":                  srv.metadataLoginURL,
+		"batch":                    srv.metadataLoginURL,
+		"suffixes": map[string]any{
+			"keyVaultDns":       "vault.localhost",
+			"storage":           "storage.localhost",
+			"acrLoginServer":    "localhost",
+			"sqlServerHostname": "localhost",
+		},
+	}
+	apiVersion := r.URL.Query().Get("api-version")
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	if apiVersion == "2022-09-01" {
+		_ = json.NewEncoder(w).Encode(env)
+	} else {
+		_ = json.NewEncoder(w).Encode([]any{env})
 	}
 }
 

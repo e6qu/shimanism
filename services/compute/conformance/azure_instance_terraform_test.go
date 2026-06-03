@@ -1,21 +1,25 @@
 // Conformance: Azure Compute-shaped frontend for the official
 // `hashicorp/azurerm` Terraform provider with `azurerm_linux_virtual_machine`.
 //
-// BLOCKED: The azurerm provider requires an ARM metadata endpoint
-// (CloudShellToken / IMDS) and an Entra token issuer that signs JWTs
-// with the tenant's JWKS. The shim's azure_compute frontend uses a fixed
-// test-key verifier; feeding it a real Entra-signed token from azurerm
-// requires either real Azure credentials (CI doesn't have them) or a
-// local Entra stub (sockerless) with the shim configured to trust its
-// JWKS. The latter mirrors BUG-44 (DNS Azure Terraform).
+// BLOCKED: `azurerm_linux_virtual_machine` requires network_interface_ids
+// referencing an azurerm_network_interface, which requires azurerm_subnet /
+// azurerm_virtual_network. These live under Microsoft.Network — a separate
+// frontend (azure_network). A single-server Terraform test would need to
+// combine azure_compute + azure_network on one TLS listener, or use a full
+// ARM passthrough to sockerless for the network resources.
+//
+// The azure_compute frontend now has HandlerWithConfig + metadata endpoint
+// (BUG-56 infrastructure is complete). The remaining gap is the combined
+// compute+network server for the Terraform provider's full HCL lifecycle.
+// This mirrors DNS BUG-44: azure_dns TF is also deferred for the same
+// reason.
 //
 // BUG-56: implement azurerm_linux_virtual_machine Terraform conformance
-// once the shim's azure_compute frontend supports configurable JWKS-based
-// bearer verification (same prereq as BUG-44 for DNS).
+// once a combined compute+network TLS server is available for Terraform.
 package conformance_test
 
 import "testing"
 
 func TestTerraformAzure_Compute_VMLifecycle(t *testing.T) {
-	t.Skip("blocked on BUG-56: azurerm provider needs configurable JWKS bearer verification in azure_compute frontend")
+	t.Skip("BUG-56: azurerm_linux_virtual_machine requires network_interface (Microsoft.Network) resources not available on the azure_compute-only TLS server; needs combined compute+network server or full ARM passthrough")
 }
