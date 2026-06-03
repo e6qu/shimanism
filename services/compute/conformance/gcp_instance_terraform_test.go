@@ -41,6 +41,7 @@ terraform {
 provider "google" {
   project                 = "shim-conformance"
   region                  = "us-central1"
+  zone                    = "us-central1-a"
   access_token            = "%s"
   compute_custom_endpoint = "%s/compute/v1/"
 }

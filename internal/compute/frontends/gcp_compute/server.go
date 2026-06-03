@@ -1166,6 +1166,11 @@ func domainInstanceToGCP(inst domain.Instance) *computeraw.Instance {
 		MachineType: fmt.Sprintf("zones/us-central1-a/machineTypes/%s", inst.InstanceType),
 		Status:      status,
 		SelfLink:    fmt.Sprintf("https://www.googleapis.com/compute/v1/projects/shim/zones/us-central1-a/instances/%s", inst.Name),
+		// Zone must be the full resource URL: the provider calls d.Set("zone",
+		// GetResourceNameFromSelfLink(instance.Zone)) after every read. If Zone
+		// is empty, the zone attribute is overwritten with "" and subsequent
+		// zonal API calls fail with "Cannot determine zone".
+		Zone: "https://www.googleapis.com/compute/v1/projects/shim/zones/us-central1-a",
 		// Metadata and Scheduling must be non-nil: flattenMetadataBeta and
 		// flattenScheduling in the hashicorp/google provider dereference these
 		// fields without a nil guard on some code paths.
