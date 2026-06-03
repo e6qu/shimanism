@@ -46,6 +46,7 @@ resource "aws_instance" "shim" {
 `
 
 func TestTerraformAWS_EC2_Instance(t *testing.T) {
+	t.Parallel()
 	tfBin, err := exec.LookPath("terraform")
 	if err != nil {
 		t.Skipf("terraform not installed: %v", err)

@@ -8,13 +8,13 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 
 | | |
 |---|---|
-| Active branch | `phase-16-azure-tf-conformance` — 16.C PR7: BUG-56 closed (Azure TF azurerm_linux_virtual_machine). |
-| In-flight | TestSockerless_AzureCompute_Through_Shim_Terraform_Apply + DNS azure_terraform_test.go BUG-44 stub cleanup. |
-| Last merged | PR #118 — 16.C PR6: BUG-57 closed (azure_compute HandlerWithConfig + az vm CLI). |
-| Upstream watch | All Firecracker blockers resolved. PR #392 merged. |
-| Phases 1–15 | All closed. See [PLAN.md § Closed phases](PLAN.md#closed-phases-pr-index). |
-| Phase 16 | 16.A ✅ · 16.B ✅ · 16.C ◐ (PRs #111–#118 merged; PR7 = BUG-56 TF close) · 16.D ✅. |
-| Bugs | **57 filed · 53 fixed · 3 open · 1 false positive.** Open: **BUG-8** + **BUG-15** + **BUG-41** (Track A only). |
+| Active branch | `phase-17a-block-storage` — Phase 17.A: domain + inmem + AWS frontend + SDK/CLI/TF conformance. |
+| In-flight | CreateVolume/AttachVolume/DetachVolume/DeleteVolume + CreateSnapshot/DeleteSnapshot. AWS lane complete. |
+| Last merged | PR #120 — 16.C PR7: BUG-56 + DNS BUG-44 stub cleanup. |
+| Upstream watch | All Firecracker blockers resolved. Sockerless PRs #392/#395 merged. |
+| Phases 1–16 | All closed. See [PLAN.md § Closed phases](PLAN.md#closed-phases-pr-index). |
+| Phase 17 | 17.A ◐ (in progress — AWS lane). Planned: 17.B GCP + Azure, 17.C K8s + sockerless. |
+| Bugs | **57 filed · 53 fixed · 3 open · 1 false positive.** Open: **BUG-8** + **BUG-15** + **BUG-41** (Track A). |
 | CI | 18 required checks. Real-cloud lanes wait on Track A. |
 | Renovate | Config + custom manager for vendored-spec SHAs. **User must install the Renovate GitHub App.** |
 | Standing merge auth | **None.** User merges every PR. |

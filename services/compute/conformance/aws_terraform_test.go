@@ -71,8 +71,10 @@ func runTerraformEC2(t *testing.T, dir, bin string, args ...string) ([]byte, []b
 	t.Helper()
 	cmd := exec.Command(bin, args...)
 	cmd.Dir = dir
-	cacheDir := filepath.Join(os.TempDir(), "shimanism-tf-plugin-cache")
-	os.MkdirAll(cacheDir, 0o755)
+	// Per-workdir plugin cache (BUG-25): a shared package-level cache races
+	// when tests run with t.Parallel() during concurrent `terraform init`.
+	cacheDir := filepath.Join(dir, ".terraform-plugin-cache")
+	_ = os.MkdirAll(cacheDir, 0o755)
 	cmd.Env = append(os.Environ(),
 		"TF_IN_AUTOMATION=1",
 		"TF_INPUT=0",
@@ -87,6 +89,7 @@ func runTerraformEC2(t *testing.T, dir, bin string, args ...string) ([]byte, []b
 }
 
 func TestTerraformAWS_EC2_VPCAndSG(t *testing.T) {
+	t.Parallel()
 	tfBin := requireTerraformForEC2(t)
 	srv := harness.StartComputeServerAWS(t, inmem.New())
 

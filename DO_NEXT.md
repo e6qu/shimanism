@@ -2,63 +2,66 @@
 
 Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BUGS.md) · narrative [WHAT_WE_DID.md](WHAT_WE_DID.md) · philosophy [PHILOSOPHY.md](PHILOSOPHY.md) · rules [AGENTS.md](AGENTS.md).
 
-> **Cold-start entry point.** Read top-to-bottom; pick up where Phase 16 left off.
+> **Cold-start entry point.** Phase 16 complete. Phase 17 in progress.
 
 ## Where we are
 
-**Phase 16.C PR4 merged as #114.** GCP `google_compute_instance` TF conformance green in CI. Azure TF/CLI rows deferred on BUG-56/BUG-57.
+**Phase 17.A in progress** (branch `phase-17a-block-storage`). Block storage domain + inmem + AWS EC2 frontend + SDK/CLI/Terraform conformance. AWS lane complete; all tests pass.
 
-**Open bugs:** BUG-8 · BUG-15 · BUG-41 (Track A) · BUG-56 · BUG-57 (Azure compute JWKS).
+**Open bugs:** BUG-8 · BUG-15 · BUG-41 (Track A only — blocked on real GCP credentials).
 
 ## Session-start checklist
 
-1. `git fetch origin && git checkout main && git pull --ff-only origin main` — sync `main`.
-2. Pick up next task below.
+1. `git fetch origin && git checkout phase-17a-block-storage` — resume in-flight branch.
+2. Continue with Phase 17 items below.
 
-## Phase 16 sub-phase checklist
+## Phase 16 ✅ (PRs #104–#120)
 
-### 16.A — Normalization audit + scoping + ec2Query codegen ✅ (PR #104)
+All sub-phases closed. See PLAN.md and WHAT_WE_DID.md for narrative.
 
-All items closed.
+## Phase 17 — Block Storage ◐
 
-### 16.B — VPC networking primitives ✅ (PRs #105–#108)
+### 17.A — Domain + inmem + AWS lane ◐ (in progress)
 
-All items closed. Full 3×4×3 conformance matrix for networking operations.
+- [x] `internal/compute/domain/volumes.go` — Volume + Snapshot types + BlockStorage interface.
+- [x] `services/compute/backends/inmem/` — Full BlockStorage implementation (volumes map + snapshots map).
+- [x] `services/compute/codegen.json` — Added CreateVolume, DeleteVolume, AttachVolume, DetachVolume, CreateSnapshot, DeleteSnapshot, DescribeSnapshots (7 new operations; 45 total).
+- [x] `internal/compute/frontends/aws_ec2/adapter.go` — All 7 handlers + domainVolumeToGen/domainSnapshotToGen (CreateTime non-nil for provider compatibility).
+- [x] `services/compute/backends/aws/` — Real AWS EBS backend (CreateVolume/Attach/Detach/Delete/Snapshots).
+- [x] `services/compute/backends/k8scompute/` — NotImplemented stubs (volumes + snapshots are out of K8s intersection).
+- [x] `services/compute/conformance/aws_ebs_test.go` — SDK: VolumeLifecycle + SnapshotLifecycle.
+- [x] `services/compute/conformance/aws_ebs_cli_test.go` — CLI: VolumeLifecycle + SnapshotLifecycle.
+- [x] `services/compute/conformance/aws_ebs_terraform_test.go` — TF: aws_ebs_volume apply + destroy.
+- [x] `docs/normalizations.md` — N28 (volume size GiB, type opaque, attach synchronous in domain).
+- [x] `services/compute/INTERSECTION.md` — Phase 17 volumes + snapshots tables.
+- [ ] **Commit + push + open PR.**
 
-### 16.D — Load balancers ✅ (PRs #109–#110)
+### 17.B — GCP Compute + Azure Compute frontends + real backends
 
-All items closed. Full 3×4×3 conformance matrix for LB operations. Sockerless RegisterTargets lane gated on #373–#375.
+- [ ] GCP: `disks.insert/delete/get/list` + `instances.attachDisk/detachDisk` + `snapshots.*`
+- [ ] Azure: `Microsoft.Compute/disks` + `Microsoft.Compute/snapshots`
+- [ ] GCP real backend + GCP SDK/CLI/TF conformance tests
+- [ ] Azure real backend + Azure SDK/CLI/TF conformance tests
 
-### 16.C — Compute instance lifecycle ◐ (PRs #111–#114 merged; Azure TF/CLI blocked)
+### 17.C — K8s peer + sockerless lane
 
-**PR1 ✅ (#111):** domain.Instances + inmem + AWS EC2 frontend + BUG-55.
-**PR2 ✅ (#112):** GCP + Azure Compute frontends + real backends + SDK conformance.
-**PR3 ✅ (#113):** AWS TF `aws_instance` + AWS+GCP CLI + cross-cloud Apply cell.
-**PR4 ✅ (#114):** GCP TF `google_compute_instance` (Linux-only) + Azure TF/CLI deferred + INTERSECTION.md.
-
-**Remaining for 16.C closure:**
-- [x] Sockerless instance lane — merged as PR #116.
-- [x] **BUG-57 (Azure CLI):** merged as PR #118.
-- [x] **BUG-56 (Azure TF):** `TestSockerless_AzureCompute_Through_Shim_Terraform_Apply` — same passthrough pattern as DNS. In PR7 (branch `phase-16-azure-tf-conformance`).
-- [ ] **Merge PR7 + PR119 (docs).**
+- [ ] K8s: PersistentVolume + PersistentVolumeClaim lifecycle
+- [ ] Sockerless: EBS volumes + snapshots through shim
 
 ## Upstream watch
 
-Sockerless #373/#374/#375 **closed** by PR #372 (merged 2026-06-02). Instance lanes unblocked.
-
-Sockerless PR #392 merged: GCP SA keys + instance templates + SDK/CLI/Terraform tests.
+All Firecracker blockers resolved. Sockerless PRs #392/#395 merged.
 
 ## Standing rules
 
-- File sockerless issues for any gap found during shim work; never paper over gaps in shim test code.
+- File sockerless issues for any gap found during shim work.
 - Test driver is always the cloud SDK / CLI / Terraform provider.
 - Never auto-merge; user merges every PR.
-- File BUGs in [BUGS.md](BUGS.md) before fixing.
+- File BUGs in BUGS.md before fixing.
 - Update STATUS / WHAT_WE_DID / DO_NEXT every significant chunk.
 
 ## Validation lanes
 
-- `make codegen-check` — regenerates every gen file + provenance; mirrors CI `codegen deterministic`.
-- `make spec-freshness` — informational; weekly CI workflow surfaces upstream spec drift.
+- `make codegen-check` — regenerates every gen file; mirrors CI.
 - `make test` — all unit + conformance tests.
 - `make sockerless` — through-shim e2e lane.

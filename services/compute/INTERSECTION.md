@@ -113,3 +113,34 @@ and return the source cloud's own "not supported" error:
 - **User data / startup scripts** — execution environment varies; out of intersection
 - **Instance store volumes** — AWS-only
 - **Custom images (AMI create/copy, image families)** — image management is a separate concern; the shim accepts any opaque image reference (N24)
+
+## Phase 17 — Block Storage
+
+### Volumes
+
+| Operation | AWS EC2 | GCP Compute v1 | Azure Compute | K8s peer | Notes |
+|-----------|---------|---------------|---------------|----------|-------|
+| CreateVolume | `CreateVolume` | `disks.insert` | `disks.createOrUpdate` | PersistentVolumeClaim | N28: size in GiB; type opaque |
+| DescribeVolumes / Get | `DescribeVolumes` | `disks.get` / `disks.list` | `disks.get` / `disks.list` | PVC list | |
+| DeleteVolume | `DeleteVolume` | `disks.delete` | `disks.delete` | PVC delete | |
+| AttachVolume | `AttachVolume` | `instances.attachDisk` | VM `storageProfile.dataDisks` update | PVC → Pod binding | |
+| DetachVolume | `DetachVolume` | `instances.detachDisk` | VM `storageProfile.dataDisks` remove | PVC unbind | |
+
+**N28 intersection note**: Volume size in GiB; volume type is opaque per-cloud. Attach/detach are synchronous in the domain. K8s: PV/PVC lifecycle.
+
+### Snapshots
+
+| Operation | AWS EC2 | GCP Compute v1 | Azure Compute | K8s peer | Notes |
+|-----------|---------|---------------|---------------|----------|-------|
+| CreateSnapshot | `CreateSnapshot` | `snapshots.insert` | `snapshots.createOrUpdate` | VolumeSnapshot | |
+| DescribeSnapshots / Get | `DescribeSnapshots` | `snapshots.get` / `snapshots.list` | `snapshots.get` / `snapshots.list` | VolumeSnapshot list | |
+| DeleteSnapshot | `DeleteSnapshot` | `snapshots.delete` | `snapshots.delete` | VolumeSnapshot delete | |
+
+### Out-of-Intersection (Phase 17)
+
+- **Encryption-at-rest key management** — KMS / Cloud KMS / Azure Key Vault keys (Phase 19)
+- **Multi-attach volumes** (AWS io2 only) — no clean intersection
+- **Volume resizing** (`ModifyVolume` / `disks.resize`) — async on all clouds, deferred
+- **IOPS / throughput tuning** — cloud-specific parameters
+- **Cross-region snapshot copy** — no clean K8s analog
+- **Instance store volumes** (AWS) — ephemeral, no equivalent elsewhere

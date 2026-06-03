@@ -74,7 +74,8 @@ func runTerraformComputeGCPWithCA(t *testing.T, dir, bin, caBundle string, args 
 	t.Helper()
 	cmd := exec.Command(bin, args...)
 	cmd.Dir = dir
-	cacheDir := filepath.Join(os.TempDir(), "shimanism-tf-plugin-cache")
+	// Per-workdir plugin cache (BUG-25) for parallel-safe `terraform init`.
+	cacheDir := filepath.Join(dir, ".terraform-plugin-cache")
 	_ = os.MkdirAll(cacheDir, 0o755)
 	cmd.Env = append(os.Environ(),
 		"TF_IN_AUTOMATION=1",

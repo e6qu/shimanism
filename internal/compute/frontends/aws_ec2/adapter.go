@@ -1,8 +1,9 @@
 // Package aws_ec2 is the AWS EC2 frontend for shimanism's compute
-// service (Phase 16.B networking + Phase 16.C instance lifecycle). It
-// bridges the spec-driven ec2Query generated stubs
-// (services/compute/gen) onto the neutral domain.Networking and
-// domain.Instances interfaces.
+// service (Phase 16.B networking + Phase 16.C instance lifecycle +
+// Phase 17 block storage). It bridges the spec-driven ec2Query
+// generated stubs (services/compute/gen) onto the neutral
+// domain.Networking, domain.Instances, and domain.BlockStorage
+// interfaces.
 //
 // Protocol: ec2Query (form-encoded POST, Action dispatch, flattened
 // lists, EC2 XML error envelope). Auth: SigV4 with service="ec2".
@@ -28,6 +29,7 @@ import (
 type ComputeBackend interface {
 	domain.Networking
 	domain.Instances
+	domain.BlockStorage
 }
 
 // Adapter binds gen.EC2Backend to a ComputeBackend.
@@ -676,12 +678,6 @@ func (a *Adapter) ModifyInstanceAttribute(_ context.Context, _ *gen.ModifyInstan
 // requested attribute. The Terraform provider reads several attributes
 // after creating an instance (instanceInitiatedShutdownBehavior,
 // disableApiTermination, userData, etc.) to populate state.
-// DescribeVolumes returns an empty volume set. The shim is stateless
-// and manages no EBS volumes; the Terraform provider calls this to
-// populate root_block_device state after RunInstances.
-func (a *Adapter) DescribeVolumes(_ context.Context, _ *gen.DescribeVolumesRequest) (*gen.DescribeVolumesResult, error) {
-	return &gen.DescribeVolumesResult{}, nil
-}
 
 // DescribeInstanceStatus returns "ok/ok" (2/2 checks passed) for all
 // requested instance IDs. The Terraform provider polls this to wait for
@@ -1047,4 +1043,159 @@ func domainStateToGen(s domain.InstanceState) *gen.InstanceState {
 		sc = stateCode{16, gen.InstanceStateNameRunning}
 	}
 	return &gen.InstanceState{Code: &sc.code, Name: &sc.name}
+}
+
+// ─── Block Storage ───────────────────────────────────────────────────
+
+func (a *Adapter) CreateVolume(ctx context.Context, in *gen.CreateVolumeRequest) (*gen.Volume, error) {
+	opts := domain.CreateVolumeOptions{}
+	if in.Size != nil {
+		opts.SizeGiB = int(*in.Size)
+	}
+	if in.VolumeType != nil {
+		opts.VolumeType = string(*in.VolumeType)
+	}
+	if in.AvailabilityZone != nil {
+		opts.Zone = *in.AvailabilityZone
+	}
+	if in.SnapshotId != nil {
+		opts.SnapshotID = *in.SnapshotId
+	}
+	vol, err := a.n.CreateVolume(ctx, opts)
+	if err != nil {
+		return nil, mapDomainErr(err)
+	}
+	return domainVolumeToGen(vol), nil
+}
+
+func (a *Adapter) DeleteVolume(ctx context.Context, in *gen.DeleteVolumeRequest) (struct{}, error) {
+	if err := a.n.DeleteVolume(ctx, in.VolumeId); err != nil {
+		return struct{}{}, mapDomainErr(err)
+	}
+	return struct{}{}, nil
+}
+
+func (a *Adapter) DescribeVolumes(ctx context.Context, in *gen.DescribeVolumesRequest) (*gen.DescribeVolumesResult, error) {
+	opts := domain.DescribeVolumesOptions{IDs: in.VolumeIds.Member}
+	res, err := a.n.DescribeVolumes(ctx, opts)
+	if err != nil {
+		return nil, mapDomainErr(err)
+	}
+	result := &gen.DescribeVolumesResult{}
+	for _, vol := range res.Volumes {
+		result.Volumes.Member = append(result.Volumes.Member, *domainVolumeToGen(vol))
+	}
+	return result, nil
+}
+
+func (a *Adapter) AttachVolume(ctx context.Context, in *gen.AttachVolumeRequest) (*gen.VolumeAttachment, error) {
+	opts := domain.AttachVolumeOptions{DeviceName: in.Device}
+	att, err := a.n.AttachVolume(ctx, in.VolumeId, in.InstanceId, opts)
+	if err != nil {
+		return nil, mapDomainErr(err)
+	}
+	return domainVolumeAttachmentToGen(att), nil
+}
+
+func (a *Adapter) DetachVolume(ctx context.Context, in *gen.DetachVolumeRequest) (*gen.VolumeAttachment, error) {
+	instanceID := ""
+	if in.InstanceId != nil {
+		instanceID = *in.InstanceId
+	}
+	att, err := a.n.DetachVolume(ctx, in.VolumeId, instanceID)
+	if err != nil {
+		return nil, mapDomainErr(err)
+	}
+	return domainVolumeAttachmentToGen(att), nil
+}
+
+func (a *Adapter) CreateSnapshot(ctx context.Context, in *gen.CreateSnapshotRequest) (*gen.Snapshot, error) {
+	opts := domain.CreateSnapshotOptions{}
+	if in.Description != nil {
+		opts.Description = *in.Description
+	}
+	snap, err := a.n.CreateSnapshot(ctx, in.VolumeId, opts)
+	if err != nil {
+		return nil, mapDomainErr(err)
+	}
+	return domainSnapshotToGen(snap), nil
+}
+
+func (a *Adapter) DeleteSnapshot(ctx context.Context, in *gen.DeleteSnapshotRequest) (struct{}, error) {
+	if err := a.n.DeleteSnapshot(ctx, in.SnapshotId); err != nil {
+		return struct{}{}, mapDomainErr(err)
+	}
+	return struct{}{}, nil
+}
+
+func (a *Adapter) DescribeSnapshots(ctx context.Context, in *gen.DescribeSnapshotsRequest) (*gen.DescribeSnapshotsResult, error) {
+	opts := domain.DescribeSnapshotsOptions{IDs: in.SnapshotIds.Member}
+	res, err := a.n.DescribeSnapshots(ctx, opts)
+	if err != nil {
+		return nil, mapDomainErr(err)
+	}
+	result := &gen.DescribeSnapshotsResult{}
+	for _, snap := range res.Snapshots {
+		result.Snapshots.Member = append(result.Snapshots.Member, *domainSnapshotToGen(snap))
+	}
+	return result, nil
+}
+
+// ─── block-storage wire-type converters ─────────────────────────────
+
+func domainVolumeToGen(vol domain.Volume) *gen.Volume {
+	state := gen.VolumeState(vol.State)
+	volType := gen.VolumeType(vol.VolumeType)
+	size := int32(vol.SizeGiB)
+	now := time.Now()
+	g := &gen.Volume{
+		VolumeId:         &vol.ID,
+		Size:             &size,
+		VolumeType:       &volType,
+		State:            &state,
+		AvailabilityZone: &vol.Zone,
+		CreateTime:       &now, // provider calls .Format() without nil guard
+		Tags:             domainTagsToGen(vol.Tags),
+	}
+	if vol.SnapshotID != "" {
+		g.SnapshotId = &vol.SnapshotID
+	}
+	if vol.InstanceID != "" {
+		attState := gen.VolumeAttachmentState(domain.VolumeAttachmentStateAttached)
+		g.Attachments.Member = append(g.Attachments.Member, gen.VolumeAttachment{
+			VolumeId:   &vol.ID,
+			InstanceId: &vol.InstanceID,
+			Device:     &vol.DeviceName,
+			State:      &attState,
+		})
+	}
+	return g
+}
+
+func domainVolumeAttachmentToGen(att domain.VolumeAttachment) *gen.VolumeAttachment {
+	state := gen.VolumeAttachmentState(att.State)
+	return &gen.VolumeAttachment{
+		VolumeId:   &att.VolumeID,
+		InstanceId: &att.InstanceID,
+		Device:     &att.DeviceName,
+		State:      &state,
+	}
+}
+
+func domainSnapshotToGen(snap domain.Snapshot) *gen.Snapshot {
+	state := gen.SnapshotState(snap.State)
+	size := int32(snap.VolumeSize)
+	progress := "100%"
+	if snap.State == domain.SnapshotStatePending {
+		progress = "0%"
+	}
+	return &gen.Snapshot{
+		SnapshotId:  &snap.ID,
+		VolumeId:    &snap.VolumeID,
+		VolumeSize:  &size,
+		State:       &state,
+		Description: &snap.Description,
+		Progress:    &progress,
+		Tags:        domainTagsToGen(snap.Tags),
+	}
 }

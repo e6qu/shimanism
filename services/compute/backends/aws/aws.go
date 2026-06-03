@@ -618,3 +618,180 @@ func awsStateToDomain(s *ec2types.InstanceState) domain.InstanceState {
 		return domain.InstanceStatePending
 	}
 }
+
+// ─── BlockStorage ────────────────────────────────────────────────────
+
+func (b *Backend) CreateVolume(ctx context.Context, opt domain.CreateVolumeOptions) (domain.Volume, error) {
+	size := int32(opt.SizeGiB)
+	in := &ec2.CreateVolumeInput{
+		AvailabilityZone: awsapi.String(opt.Zone),
+		Size:             &size,
+	}
+	if opt.VolumeType != "" {
+		in.VolumeType = ec2types.VolumeType(opt.VolumeType)
+	}
+	if opt.SnapshotID != "" {
+		in.SnapshotId = awsapi.String(opt.SnapshotID)
+	}
+	out, err := b.c.CreateVolume(ctx, in)
+	if err != nil {
+		return domain.Volume{}, fmt.Errorf("CreateVolume: %w", err)
+	}
+	return awsVolumeToDomain(out), nil
+}
+
+func (b *Backend) DescribeVolumes(ctx context.Context, opt domain.DescribeVolumesOptions) (domain.DescribeVolumesResult, error) {
+	in := &ec2.DescribeVolumesInput{}
+	if len(opt.IDs) > 0 {
+		in.VolumeIds = opt.IDs
+	}
+	if opt.InstanceID != "" {
+		in.Filters = []ec2types.Filter{{
+			Name:   awsapi.String("attachment.instance-id"),
+			Values: []string{opt.InstanceID},
+		}}
+	}
+	out, err := b.c.DescribeVolumes(ctx, in)
+	if err != nil {
+		return domain.DescribeVolumesResult{}, fmt.Errorf("DescribeVolumes: %w", err)
+	}
+	var vols []domain.Volume
+	for _, v := range out.Volumes {
+		vols = append(vols, awsVolumeTypeToDomain(v))
+	}
+	return domain.DescribeVolumesResult{Volumes: vols}, nil
+}
+
+func (b *Backend) DeleteVolume(ctx context.Context, id string) error {
+	_, err := b.c.DeleteVolume(ctx, &ec2.DeleteVolumeInput{VolumeId: awsapi.String(id)})
+	if err != nil {
+		return fmt.Errorf("DeleteVolume: %w", err)
+	}
+	return nil
+}
+
+func (b *Backend) AttachVolume(ctx context.Context, volumeID, instanceID string, opt domain.AttachVolumeOptions) (domain.VolumeAttachment, error) {
+	dev := opt.DeviceName
+	if dev == "" {
+		dev = "/dev/sdf"
+	}
+	out, err := b.c.AttachVolume(ctx, &ec2.AttachVolumeInput{
+		VolumeId:   awsapi.String(volumeID),
+		InstanceId: awsapi.String(instanceID),
+		Device:     awsapi.String(dev),
+	})
+	if err != nil {
+		return domain.VolumeAttachment{}, fmt.Errorf("AttachVolume: %w", err)
+	}
+	return domain.VolumeAttachment{
+		VolumeID:   awsapi.ToString(out.VolumeId),
+		InstanceID: awsapi.ToString(out.InstanceId),
+		DeviceName: awsapi.ToString(out.Device),
+		State:      domain.VolumeAttachmentState(out.State),
+	}, nil
+}
+
+func (b *Backend) DetachVolume(ctx context.Context, volumeID, instanceID string) (domain.VolumeAttachment, error) {
+	in := &ec2.DetachVolumeInput{VolumeId: awsapi.String(volumeID)}
+	if instanceID != "" {
+		in.InstanceId = awsapi.String(instanceID)
+	}
+	out, err := b.c.DetachVolume(ctx, in)
+	if err != nil {
+		return domain.VolumeAttachment{}, fmt.Errorf("DetachVolume: %w", err)
+	}
+	return domain.VolumeAttachment{
+		VolumeID:   awsapi.ToString(out.VolumeId),
+		InstanceID: awsapi.ToString(out.InstanceId),
+		DeviceName: awsapi.ToString(out.Device),
+		State:      domain.VolumeAttachmentState(out.State),
+	}, nil
+}
+
+func (b *Backend) CreateSnapshot(ctx context.Context, volumeID string, opt domain.CreateSnapshotOptions) (domain.Snapshot, error) {
+	in := &ec2.CreateSnapshotInput{VolumeId: awsapi.String(volumeID)}
+	if opt.Description != "" {
+		in.Description = awsapi.String(opt.Description)
+	}
+	out, err := b.c.CreateSnapshot(ctx, in)
+	if err != nil {
+		return domain.Snapshot{}, fmt.Errorf("CreateSnapshot: %w", err)
+	}
+	return domain.Snapshot{
+		ID:          awsapi.ToString(out.SnapshotId),
+		VolumeID:    awsapi.ToString(out.VolumeId),
+		VolumeSize:  int(awsapi.ToInt32(out.VolumeSize)),
+		State:       domain.SnapshotState(out.State),
+		Description: awsapi.ToString(out.Description),
+	}, nil
+}
+
+func (b *Backend) DescribeSnapshots(ctx context.Context, opt domain.DescribeSnapshotsOptions) (domain.DescribeSnapshotsResult, error) {
+	in := &ec2.DescribeSnapshotsInput{}
+	if len(opt.IDs) > 0 {
+		in.SnapshotIds = opt.IDs
+	}
+	if opt.VolumeID != "" {
+		in.Filters = []ec2types.Filter{{
+			Name:   awsapi.String("volume-id"),
+			Values: []string{opt.VolumeID},
+		}}
+	}
+	out, err := b.c.DescribeSnapshots(ctx, in)
+	if err != nil {
+		return domain.DescribeSnapshotsResult{}, fmt.Errorf("DescribeSnapshots: %w", err)
+	}
+	var snaps []domain.Snapshot
+	for _, s := range out.Snapshots {
+		snaps = append(snaps, domain.Snapshot{
+			ID:          awsapi.ToString(s.SnapshotId),
+			VolumeID:    awsapi.ToString(s.VolumeId),
+			VolumeSize:  int(awsapi.ToInt32(s.VolumeSize)),
+			State:       domain.SnapshotState(s.State),
+			Description: awsapi.ToString(s.Description),
+		})
+	}
+	return domain.DescribeSnapshotsResult{Snapshots: snaps}, nil
+}
+
+func (b *Backend) DeleteSnapshot(ctx context.Context, id string) error {
+	_, err := b.c.DeleteSnapshot(ctx, &ec2.DeleteSnapshotInput{SnapshotId: awsapi.String(id)})
+	if err != nil {
+		return fmt.Errorf("DeleteSnapshot: %w", err)
+	}
+	return nil
+}
+
+func awsVolumeToDomain(v *ec2.CreateVolumeOutput) domain.Volume {
+	vol := domain.Volume{
+		ID:         awsapi.ToString(v.VolumeId),
+		SizeGiB:    int(awsapi.ToInt32(v.Size)),
+		VolumeType: string(v.VolumeType),
+		Zone:       awsapi.ToString(v.AvailabilityZone),
+		State:      domain.VolumeState(v.State),
+	}
+	if v.SnapshotId != nil {
+		vol.SnapshotID = *v.SnapshotId
+	}
+	return vol
+}
+
+func awsVolumeTypeToDomain(v ec2types.Volume) domain.Volume {
+	vol := domain.Volume{
+		ID:         awsapi.ToString(v.VolumeId),
+		SizeGiB:    int(awsapi.ToInt32(v.Size)),
+		VolumeType: string(v.VolumeType),
+		Zone:       awsapi.ToString(v.AvailabilityZone),
+		State:      domain.VolumeState(v.State),
+	}
+	if v.SnapshotId != nil {
+		vol.SnapshotID = *v.SnapshotId
+	}
+	for _, att := range v.Attachments {
+		if att.InstanceId != nil {
+			vol.InstanceID = *att.InstanceId
+			vol.DeviceName = awsapi.ToString(att.Device)
+		}
+	}
+	return vol
+}
