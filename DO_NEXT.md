@@ -6,15 +6,14 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 
 ## Where we are
 
-**Phase 16.C PR3 in progress** (branch `phase-16c-instances-pr3`). AWS Terraform `aws_instance` lifecycle now passing. Cross-cloud Apply cell written. CLI instance tests added (GCP + AWS). Remaining: merge PR3, then do 16.C PR4 (az CLI + GCP TF + Azure TF).
+**Phase 16.C PR4 in progress** (branch `phase-16c-instances-pr4`). GCP `google_compute_instance` Terraform test written (Linux-only, TLS server). Azure TF/CLI tests explicitly skipped on BUG-56/BUG-57 (configurable JWKS in azure_compute frontend). INTERSECTION.md extended with 16.C instance/machine-type tables.
 
-**Open bugs:** BUG-8 · BUG-15 · BUG-41 (Track A, blocked on real-cloud credentials — not actionable).
+**Open bugs:** BUG-8 · BUG-15 · BUG-41 (Track A) · BUG-56 · BUG-57 (Azure compute JWKS).
 
 ## Session-start checklist
 
 1. `git fetch origin && git checkout main && git pull --ff-only origin main` — sync `main`.
-2. Check if PR3 is already merged; if so, create `phase-16c-instances-pr4` from `main`.
-3. Continue with 16.C PR4 items below.
+2. Continue with PR4 commit + push + PR creation (or next phase if PR4 already merged).
 
 ## Phase 16 sub-phase checklist
 
@@ -30,31 +29,28 @@ All items closed. Full 3×4×3 conformance matrix for networking operations.
 
 All items closed. Full 3×4×3 conformance matrix for LB operations. Sockerless RegisterTargets lane gated on #373–#375.
 
-### 16.C — Compute instance lifecycle ◐ (PRs #111–#112 merged; PR3 in progress)
+### 16.C — Compute instance lifecycle ◐ (PRs #111–#113 merged; PR4 in progress)
 
 **PR1 ✅ (PR #111):** domain.Instances + inmem + AWS EC2 frontend + BUG-55.
 
 **PR2 ✅ (PR #112):** GCP Compute + Azure Compute frontends + real backends + SDK conformance.
 
-**PR3 (branch `phase-16c-instances-pr3`) — ready to merge:**
-- [x] Terraform `aws_instance` lifecycle: apply + plan + destroy (destroy waiter fix: keep terminated instances in inmem store; use ID-scoped visibility).
-- [x] AWS CLI instance conformance tests (aws_instances_cli_test.go).
-- [x] GCP CLI instance conformance tests (gcp_instances_cli_test.go) with proper empty-output skip.
-- [x] Cross-cloud Apply cell: `TestCrossCloudApply_Roundtrip_Compute_AWStoGCP`.
-- [x] TF_LOG debug removed from Terraform test.
-- [x] immem `TerminateInstances` keeps instance in store (state=terminated) so Terraform destroy waiter sees terminal state.
-- [x] `DescribeInstances` by ID returns terminated instances; list-all excludes them (mirrors AWS behavior).
-- [x] `ec2StateToDomain` reverse mapping + `instance-state-name` filter parsing in AWS adapter.
-- [x] AWS SDK test + inmem unit test updated to reflect corrected terminated-visibility semantics.
-- [x] GCP CLI machine-types + instances list: empty-output skip (gcloud exits 0 after 401).
-- [x] Continuity docs updated.
+**PR3 ✅ (PR #113):** AWS TF `aws_instance` lifecycle (destroy waiter fix) + AWS+GCP CLI conformance + cross-cloud Apply cell.
 
-**PR4 (to create after PR3 merges):**
-- [ ] GCP Terraform conformance: `hashicorp/google google_compute_instance` apply + destroy.
-- [ ] Azure Terraform conformance: `hashicorp/azurerm azurerm_linux_virtual_machine` apply + destroy.
-- [ ] Azure CLI conformance: `az vm create/show/list/delete` (requires az binary).
-- [ ] Sockerless instance lane (gated: t.Skip referencing #373/#374/#375 until they close).
-- [ ] 16.C INTERSECTION.md additions for instance lifecycle.
+**PR4 (branch `phase-16c-instances-pr4`) — ready to push + create PR:**
+- [x] GCP Terraform `google_compute_instance` apply + destroy (Linux-only TLS test, `StartComputeServerGCPTLS`).
+- [x] GCP compute frontend: project-level `GET /projects/{p}` stub + `global/images` stub + `zones/{z}/disks` stub + boot disk in `domainInstanceToGCP`.
+- [x] Harness: `ComputeServerTLS` type + `StartComputeServerGCPTLS`.
+- [x] Azure TF test: skipped on BUG-56 (configurable JWKS in azure_compute).
+- [x] Azure CLI test: skipped on BUG-57 (same prereq).
+- [x] INTERSECTION.md: Phase 16.C instances + machine types tables + out-of-intersection list.
+- [x] BUGS.md: BUG-56 + BUG-57 filed.
+- [ ] **Commit + push + open PR #114.**
+
+**Next after PR4 merges:**
+- Resolve BUG-56/BUG-57 to complete the Azure conformance matrix (add `HandlerWithConfig` to azure_compute, wire JWKS from sockerless).
+- Close Phase 16.C with full 3×4×3 matrix once Azure lanes unblock.
+- Sockerless instance lane: write tests (same structure as other cloud tests — no special cases) once sockerless #373/#374/#375 close.
 
 ## Upstream watch
 

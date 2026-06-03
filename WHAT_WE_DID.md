@@ -4,9 +4,31 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 
 > Reverse chronological. One section per phase. The *why*, the surprises, the root causes — not per-PR detail. For commit-level history, `git log`. For per-bug detail, [BUGS.md](BUGS.md). For pipeline + verifier architecture, [docs/codegen-pipelines.md](docs/codegen-pipelines.md) + [docs/verifiers.md](docs/verifiers.md).
 
+## Phase 16.C PR4 — GCP TF instance + Azure deferred (BUG-56/57) + INTERSECTION.md
+
+**In progress (branch `phase-16c-instances-pr4`).** PR3 merged as #113; PR4 finishes the 16.C Terraform and CLI matrix.
+
+### GCP Terraform `google_compute_instance` (Linux-only)
+
+The hashicorp/google provider requires HTTPS endpoints (`RemoveBasePathVersion` regex matches only `https://`). Same pattern as DNS BUG-41: `StartComputeServerGCPTLS` + combined CA bundle + `SSL_CERT_FILE`. New stub handlers were needed in the GCP compute frontend:
+- `GET /compute/v1/projects/{project}` — project-level GET (the provider calls `projects.get` during init).
+- `GET /compute/v1/projects/{p}/global/images/{name}` — image stub (provider resolves boot-disk image reference).
+- `GET /compute/v1/projects/{p}/zones/{z}/disks/{name}` — disk stub (provider may read disk during `flattenBootDisk`).
+- `domainInstanceToGCP` now includes a `Disks` entry with `InitializeParams.SourceImage` populated so the provider can round-trip boot disk config without an extra `disks.get` call.
+
+The HCL creates `google_compute_network` first, then `google_compute_instance` depending on it, so all resource operations hit live backend state rather than stubbing network references.
+
+### Azure Terraform + CLI blocked
+
+Both require configurable JWKS-based bearer verification in the `azure_compute` frontend — the fixed test-key verifier can't accept tokens from a real Entra stub (sockerless) or real Azure AD. Filed BUG-56 (Terraform) and BUG-57 (CLI). Tests are present and skip immediately with a clear message; the fix follows the BUG-44/BUG-43 pattern from the DNS service (add `HandlerWithConfig` + wire sockerless's JWKS).
+
+### INTERSECTION.md — Phase 16.C addition
+
+Extended with full tables for instance lifecycle (RunInstances/Get/Start/Stop/Terminate/Reboot) and machine types across all four frontends + K8s peer. Out-of-intersection list includes auto-scaling, block storage, IMDS, spot/preemptible, placement groups.
+
 ## Phase 16.C PR3 — Terraform + CLI instance conformance + cross-cloud cell
 
-**In progress (branch `phase-16c-instances-pr3`).** PRs #111 and #112 shipped the core implementation; PR3 closes the Terraform + CLI conformance rows and the cross-cloud Apply cell.
+**Merged as PR #113.** PRs #111 and #112 shipped the core implementation; PR3 closed the Terraform + CLI conformance rows and the cross-cloud Apply cell.
 
 ### The Terraform `aws_instance` destroy waiter: three layers of the same bug
 

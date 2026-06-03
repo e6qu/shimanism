@@ -845,6 +845,30 @@ func StartComputeServerGCP(t *testing.T, backend gcpcomputefront.ComputeBackend)
 	return &ComputeServer{URL: ts.URL, Close: ts.Close}
 }
 
+// ComputeServerTLS is the HTTPS variant of ComputeServer, carrying the
+// self-signed certificate as PEM so callers (Terraform child processes)
+// can inject it into SSL_CERT_FILE alongside the system CA bundle.
+// Required because the hashicorp/google provider's RemoveBasePathVersion
+// regex only matches https:// endpoints — HTTP endpoints corrupt the URL.
+type ComputeServerTLS struct {
+	URL     string
+	CertPEM []byte
+	Close   func()
+}
+
+// StartComputeServerGCPTLS is the HTTPS variant of StartComputeServerGCP.
+// Returns the auto-generated self-signed cert as PEM so callers can
+// inject it into a combined CA bundle for child processes (Terraform).
+func StartComputeServerGCPTLS(t *testing.T, backend gcpcomputefront.ComputeBackend) *ComputeServerTLS {
+	t.Helper()
+	srv := gcpcomputefront.Handler(backend)
+	ts := httptest.NewTLSServer(&logRoundTrip{t: t, mux: srv})
+	t.Cleanup(ts.Close)
+	cert := ts.Certificate()
+	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw})
+	return &ComputeServerTLS{URL: ts.URL, CertPEM: certPEM, Close: ts.Close}
+}
+
 // StartComputeServerAzure starts a shim instance with the Azure Network
 // ARM frontend backed by the given networking implementation. The
 // httptest server uses TLS so the Azure SDK sends Bearer tokens.
