@@ -1,14 +1,12 @@
-// Conformance: Azure DNS-shaped frontend exercised by the official
-// `hashicorp/azurerm` Terraform provider.
+// Conformance: Azure DNS-shaped frontend for the official `hashicorp/azurerm`
+// Terraform provider with `azurerm_dns_zone` and `azurerm_dns_a_record`.
 //
-// Tracked as BUG-44: shim needs ARM passthrough mode so `azurerm`'s
-// `azurerm_resource_group` (and subscription operations) can route
-// to sockerless's existing ARM mock while DNS-specific paths stay on
-// the shim's Azure DNS frontend.
+// The full end-to-end Terraform test (apply + destroy) lives in
+// sockerless_test.go as TestSockerless_AzureDNS_Through_Shim_Terraform_Apply.
+// That test exercises the shim's azure_dns frontend with the azurerm provider
+// in ARM passthrough mode — DNS paths handled locally, resource groups
+// forwarded to sockerless. Closed BUG-46 (passthrough primitive) and
+// BUG-44 (ARM passthrough mode for Terraform).
+//
+// This file is a placeholder for non-sockerless Terraform tests.
 package conformance_test
-
-import "testing"
-
-func TestTerraform_AzureDNS_ZoneLifecycle(t *testing.T) {
-	t.Skip("BUG-44: Azure DNS Terraform needs shim ARM passthrough so azurerm's resource-group + subscription calls reach sockerless's ARM mock while DNS-specific calls stay on the shim. Sockerless coverage exists; gap is shim test wiring.")
-}
