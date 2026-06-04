@@ -41,6 +41,8 @@ import (
 	azurecafront "github.com/e6qu/shimanism/internal/functions/frontends/azure_containerapps"
 	gcpcrfront "github.com/e6qu/shimanism/internal/functions/frontends/gcp_cloudrun"
 	"github.com/e6qu/shimanism/internal/gcpbearer"
+	kmsdomain "github.com/e6qu/shimanism/internal/kms/domain"
+	awskmsfront "github.com/e6qu/shimanism/internal/kms/frontends/aws_kms"
 	lbdomain "github.com/e6qu/shimanism/internal/loadbalancer/domain"
 	awselbv2front "github.com/e6qu/shimanism/internal/loadbalancer/frontends/aws_elbv2"
 	azurelbfront "github.com/e6qu/shimanism/internal/loadbalancer/frontends/azure_lb"
@@ -334,6 +336,25 @@ func StartSecretsServerAWS(t *testing.T, backend secretsdomain.Secrets) *Secrets
 	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
 	t.Cleanup(ts.Close)
 	return &SecretsServer{URL: ts.URL, Close: ts.Close}
+}
+
+// KMSServer is a started key-management-shim instance with its
+// addressable URL.
+type KMSServer struct {
+	URL   string
+	Close func()
+}
+
+// StartKMSServerAWS starts a shim instance with the AWS KMS (awsJson1_1)
+// frontend backed by the given KMS implementation. AWS-shaped clients
+// (aws-sdk-go-v2/service/kms, aws kms CLI, hashicorp/aws Terraform
+// provider) drive it via BaseEndpoint.
+func StartKMSServerAWS(t *testing.T, backend kmsdomain.KMS) *KMSServer {
+	t.Helper()
+	srv := awskmsfront.New(backend)
+	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
+	t.Cleanup(ts.Close)
+	return &KMSServer{URL: ts.URL, Close: ts.Close}
 }
 
 // StartSecretsServerGCP starts a shim instance with the GCP Secret
