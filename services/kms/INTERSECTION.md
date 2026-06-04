@@ -34,6 +34,12 @@ mirroring every cloud KMS's Decrypt semantics.
 | DisableKeyRotation | `DisableKeyRotation` | clear rotationPeriod | clear policy | **NotImplemented** | |
 | GetKeyRotationStatus | `GetKeyRotationStatus` | read rotationPeriod | read policy | **NotImplemented** | |
 
+## Cloud-specific shapes (Phase 19.B)
+
+- **GCP Cloud KMS** has a project/location/keyRing/cryptoKey/version hierarchy the flat domain doesn't model. `keyRings` are a GCP-only container with no cross-cloud analog — the frontend accepts `keyRings.create`/`get` as synthetic success (out of intersection) so clients can proceed. A `cryptoKey` maps to a domain key; the user-chosen `cryptoKeyId` becomes the domain key ID. Decrypt addresses a specific cryptoKey (key from the URL path). Rotation is `cryptoKeys.patch` with `rotationPeriod`.
+- **Azure Key Vault keys** are asymmetric (RSA/EC) for standard vaults, unlike AWS/GCP symmetric. The shim's encrypt/decrypt treats the ciphertext as **opaque bytes** (the SDK round-trips it without inspecting), so the inmem backend's AES-GCM and a real vault's RSA-OAEP are interchangeable at the shim boundary. The key name is the domain key ID; byte values ride the wire as base64url (handled by the azkeys serde). Delete maps to `ScheduleKeyDeletion` (soft-delete).
+- **Cross-cloud Decrypt** is why `domain.Decrypt` takes an optional keyID: AWS symmetric omits it (key ref in the ciphertext), GCP/Azure pass the key from the request path.
+
 ## K8s peer
 
 Direct KMS operations have no K8s-native built-in analog — etcd encryption

@@ -75,6 +75,11 @@ type Key struct {
 
 // CreateKeyOptions carries inputs for CreateKey.
 type CreateKeyOptions struct {
+	// KeyID, when non-empty, requests a specific key identifier. GCP
+	// Cloud KMS and Azure Key Vault address keys by a user-chosen name;
+	// their frontends set this. AWS leaves it empty (KMS auto-generates
+	// a key ID).
+	KeyID       string
 	Description string
 	Usage       KeyUsage // default ENCRYPT_DECRYPT
 	KeySpec     string   // opaque; backend default if empty
@@ -106,7 +111,12 @@ type KMS interface {
 	ListKeys(ctx context.Context) (ListKeysResult, error)
 
 	Encrypt(ctx context.Context, keyID string, plaintext []byte) (EncryptResult, error)
-	Decrypt(ctx context.Context, ciphertext []byte) (DecryptResult, error)
+	// Decrypt recovers plaintext. keyID is optional: AWS symmetric decrypt
+	// omits it (the key reference rides in the ciphertext blob), while GCP
+	// Cloud KMS and Azure Key Vault address decrypt at a specific key, so
+	// their frontends pass the key from the request path. Backends that
+	// can recover the key from the blob ignore an empty keyID.
+	Decrypt(ctx context.Context, keyID string, ciphertext []byte) (DecryptResult, error)
 
 	ScheduleKeyDeletion(ctx context.Context, keyID string, pendingWindowDays int) (Key, error)
 	CancelKeyDeletion(ctx context.Context, keyID string) (Key, error)
