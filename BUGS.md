@@ -20,7 +20,6 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 | BUG-8 | P3 | apigateway/gcp-tf-frontend | `hashicorp/google` | API Gateway endpoint-override attribute name changed across provider major versions and the current provider's API Gateway resource lifecycle requires real OAuth-signed requests the mock httptest server can't sign. `services/apigateway/conformance/gcp_terraform_test.go` is smoke-skipped pending Track A real-cloud TF coverage. The sockerless GCP APIGW backend lane passes; this is now only the Terraform-provider leg. | **14.D** |
 | BUG-15 | P3 | queue/gcp-frontend | GCP Pub/Sub `subscriptions.get` | `message_retention_duration = "604800s"` declared in HCL and the shim responding "604800s" at every call, hashicorp/google records `"345600s"` in state. Plan after apply diffs `"345600s" -> "604800s"`. Shim's backend retention PATCH/read path now passes against sockerless; the open question is whether the provider shows the same state drift against real GCP or the shim frontend still misses a provider-needed field. | **14.D** |
 | BUG-41 | P2 | dns/gcp-tf-frontend | `hashicorp/google` `RemoveBasePathVersion` | Provider regex hardcodes `http[s]://` (literal `s`) when stripping the version path from `dns_custom_endpoint`. HTTP test endpoints fall through the regex no-op; the subsequent `strings.ReplaceAll("/dns/", "")` then mangles the URL into `http://localhost:PORTv1/` which `url.Parse` rejects → SDK panic at `googleapi.ResolveRelative`. Worked around by serving the GCP DNS Terraform conformance over TLS (`StartDNSServerGCPTLS`) with `SSL_CERT_FILE` threading the self-signed cert into the provider process. Linux-only (SSL_CERT_FILE platform limit); skips on macOS. Upstream fix would be `http[s]?://`. **Not filing upstream pending user direction; the local workaround is sufficient.** | **15.D** |
-| BUG-52 | P2 | secrets/azure-backend (sockerless lane) | sockerless Azure Key Vault `GET /secrets/{name}/versions` | Sockerless KV `handleKVListSecretVersions` sorts versions by random version UUID (`keyvault.go:2526`), not creation order, and stamps `created` at whole-second resolution (`keyvault.go:2359`). When a value-less Create's empty placeholder version and the follow-up real-value version land in the same second, version ordering is unrecoverable; the shim's created-ordered monotonic mapping can resolve "version 2" to the empty placeholder → empty `payload.data` → `terraform-provider-google` v5.45.2 panics on the unguarded `payload["data"].(string)` in `flattenSecretManagerSecretVersionPayload`. `TestSockerless_E2E_GCPSecrets_Through_Shim_ApplyTF_BackendAzure` skipped pending the fix; BackendAWS variant unaffected. **Filed upstream: [sockerless#407](https://github.com/e6qu/sockerless/issues/407).** | **19.C** |
 
 ## Upstream-tracked (sockerless validation lane)
 
@@ -95,6 +94,14 @@ Phase 14.A re-enabled the shim assertions for #173/#174/#175 (storage + secrets 
 
 Shim action: `TestSockerless_EC2_Instances_ThroughShim` (compute) and `TestSockerless_ELBv2_Through_Shim_RegisterTargets` (loadbalancer) un-gated. Implemented in 16.C PR5.
 
+### Phase 19 KMS lane finding (BUG-52) — closed by [sockerless PR #412](https://github.com/e6qu/sockerless/pull/412) on 2026-06-04
+
+| Upstream | Status |
+|---|---|
+| [e6qu/sockerless#407](https://github.com/e6qu/sockerless/issues/407) — Azure KV sim lists secret versions by random UUID, not creation order | ✅ closed by PR #412; version-list handlers (secret/key/cert) now stable-sort by `Created`, preserving append order for same-second ties (oldest-first, matching real Azure). |
+
+Discovered during 19.C (PR #129): the value-less GCP `google_secret_manager_secret` Create writes an empty placeholder version 1 to the Azure backend; the follow-up `_secret_version` writes the real value. With sockerless listing versions in random-UUID order + second-precision `created`, the shim's created-ordered monotonic mapping resolved GCP "version 2" to the empty placeholder → empty `payload.data` → `terraform-provider-google` v5.45.2 panicked on the unguarded `payload["data"].(string)`. Shim action: `TestSockerless_E2E_GCPSecrets_Through_Shim_ApplyTF_BackendAzure` un-gated. No shim-logic change — the shim's created-ordered mapping is correct given a creation-ordered version list.
+
 ### Sockerless coverage history
 
 - **Round 1** ([#173-178](https://github.com/e6qu/sockerless/issues/173)) — all closed by sockerless PR #179. Initial fidelity gaps (S3 `/s3/` URL prefix, `aws-chunked` envelope, missing `ListSecretVersionIds`) + missing-service rollups (AWS / GCP / Azure).
@@ -103,6 +110,7 @@ Shim action: `TestSockerless_EC2_Instances_ThroughShim` (compute) and `TestSocke
 - **Later rounds** ([#193-215](https://github.com/e6qu/sockerless/issues/193), excluding unused issue numbers) — closed by sockerless PRs #200, #202, #211, and #216.
 - **Next-lane fix**: [#218](https://github.com/e6qu/sockerless/issues/218) — GCP Secret Manager `ListSecretVersions`, `UpdateSecret`, and `DeleteSecret` landed in sockerless PR #219. The full `services/secrets/backends/gcp` sockerless lane is now green.
 - **Phase 16 Firecracker** ([#373-375](https://github.com/e6qu/sockerless/issues/373)) — closed by PR #372 (2026-06-02). Enables compute instance lifecycle + LB RegisterTargets sockerless lanes.
+- **Phase 19 KMS lane** ([#407](https://github.com/e6qu/sockerless/issues/407)) — closed by PR #412 (2026-06-04). Azure KV version listing now creation-ordered; un-gates the GCP-secrets-on-Azure-backend cross-cloud Apply cell.
 
 ### End-to-end walkthrough findings (BUG-30..33)
 
