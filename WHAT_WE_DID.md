@@ -4,9 +4,21 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 
 > Reverse chronological. One section per phase. The *why*, the surprises, the root causes — not per-PR detail. For commit-level history, `git log`. For per-bug detail, [BUGS.md](BUGS.md). For pipeline + verifier architecture, [docs/codegen-pipelines.md](docs/codegen-pipelines.md) + [docs/verifiers.md](docs/verifiers.md).
 
+## Phase 17.C — K8s PVC peer + sockerless EBS lane (closes Phase 17)
+
+**In progress (branch `phase-17c-block-storage-k8s-sockerless`).** The last piece of block storage.
+
+**K8s peer:** volume CRUD maps to PersistentVolumeClaim (create/list/delete) in the parent namespace, with `VolumeType` → `StorageClassName` and size → `resources.requests.storage`. Tested against the fake clientset (same as the networking K8s lane — no KIND needed). Attach/detach and snapshots are honestly NotImplemented: K8s has no imperative volume-attach API (volumes mount into pods via the pod spec), and VolumeSnapshot is a CSI CRD (`snapshot.storage.k8s.io`), not a core built-in — both outside the common-denominator intersection. The AWS frontend surfaces these as `UnsupportedOperation`, verified by conformance.
+
+**Sockerless:** `TestSockerless_EBS_Through_Shim` exercises CreateVolume → DescribeVolumes → CreateSnapshot → DescribeSnapshots → DeleteSnapshot → DeleteVolume through the AWS EBS backend against sockerless's EC2 sim (pure metadata, no Firecracker).
+
+This completes the full Phase 17 matrix: AWS/GCP/Azure get SDK+CLI+Terraform; K8s gets PVC volume CRUD; sockerless validates the AWS backend end-to-end.
+
 ## Phase 17.B CLI + Terraform — GCP + Azure block storage driver matrix
 
-**In progress (branch `phase-17b-cli-terraform`).** Completes the cloud driver matrix for the disk/snapshot frontends landed in #123: `gcloud compute disks/snapshots list`, `google_compute_disk` Terraform (Linux-only, TLS), `az disk` CLI through sockerless, and `azurerm_managed_disk` Terraform through sockerless passthrough. The Azure sockerless TF setup was factored into `azureSockerlessTFSession` (the VM TF test now shares it) and the az-CLI sockerless setup into `newAzSockerlessComputeSession`. All lanes skip cleanly without their drivers; SDK + AWS suite stays green.
+**Merged as PR #124.** Completes the cloud driver matrix for the disk/snapshot frontends landed in #123: `gcloud compute disks/snapshots list`, `google_compute_disk` Terraform (Linux-only, TLS), `az disk` CLI through sockerless, and `azurerm_managed_disk` Terraform through sockerless passthrough. The Azure sockerless TF setup was factored into `azureSockerlessTFSession` (the VM TF test now shares it) and the az-CLI sockerless setup into `newAzSockerlessComputeSession`. All lanes skip cleanly without their drivers; SDK + AWS suite stays green.
+
+A late CI catch: the hashicorp/google provider sends `google_compute_disk`'s `sizeGb` as an unquoted integer, but the GCP Discovery type tags it `,string`. Decoding the TF body into `computeraw.Disk` failed; fixed with a `flexInt64` decode that accepts both quoted and unquoted (same provider-wire-quirk class as `CreateTime` and the Azure 200-vs-201 poller).
 
 ## Phase 17.B — GCP + Azure block storage frontends + backends
 

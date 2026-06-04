@@ -6,13 +6,13 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 
 ## Where we are
 
-**Phase 17.B in progress** (branch `phase-17b-block-storage-gcp-azure`). GCP + Azure disk/snapshot frontends + real backends + SDK conformance. SDK lanes green. 17.A merged as #122.
+**Phase 17.C in progress** (branch `phase-17c-block-storage-k8s-sockerless`). K8s volume CRUD → PersistentVolumeClaim + sockerless EBS lane. 17.A/17.B merged (#122–#124).
 
 **Open bugs:** BUG-8 · BUG-15 · BUG-41 (Track A only — blocked on real GCP credentials).
 
 ## Session-start checklist
 
-1. `git fetch origin && git checkout phase-17b-block-storage-gcp-azure` — resume in-flight branch.
+1. `git fetch origin && git checkout phase-17c-block-storage-k8s-sockerless` — resume in-flight branch.
 2. Continue with Phase 17 items below.
 
 ## Phase 16 ✅ (PRs #104–#120)
@@ -40,10 +40,13 @@ domain.BlockStorage + inmem + AWS EBS frontend/backend + K8s NotImplemented + SD
 - [x] Azure Terraform: `TestSockerless_AzureDisk_Through_Shim_Terraform_Apply` (azurerm_managed_disk).
 - [ ] **Commit + push + open PR for CLI+TF.**
 
-### 17.C — K8s peer + sockerless lane
+### 17.C — K8s peer + sockerless lane ◐ (in progress)
 
-- [ ] K8s: PersistentVolume + PersistentVolumeClaim lifecycle
-- [ ] Sockerless: EBS volumes + snapshots through shim
+- [x] K8s: volume CRUD → PersistentVolumeClaim (`k8scompute`); attach/detach + snapshots NotImplemented (no imperative K8s attach API; VolumeSnapshot is a CSI CRD).
+- [x] K8s conformance: `k8s_ebs_test.go` (VolumeLifecycle via PVC + Attach/Snapshot UnsupportedOperation).
+- [x] Sockerless: `TestSockerless_EBS_Through_Shim` (CreateVolume/Describe/Snapshot/Delete via AWS EBS backend → sockerless EC2 sim).
+- [x] INTERSECTION.md: K8s volume = PVC; attach/snapshot NotImplemented rows.
+- [ ] **Commit + push + open PR. Closes Phase 17.**
 
 ## Upstream watch
 

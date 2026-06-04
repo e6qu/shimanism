@@ -28,6 +28,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
@@ -589,18 +590,80 @@ func nodeToInstance(node corev1.Node) domain.Instance {
 	}
 }
 
-// ─── BlockStorage — NotImplemented ───────────────────────────────────
-// K8s nodes are not EBS/PD/Disk peers; block storage domain operations
-// are out of intersection for the K8s compute backend. Callers receive
-// the source cloud's "OperationNotSupported" error (N28 note).
+// ─── BlockStorage — PersistentVolumeClaim ────────────────────────────
+// Volumes map to PersistentVolumeClaims in parentNS — the K8s-native
+// block storage primitive (N28). Attach/detach and snapshots are out of
+// the built-in intersection: K8s has no imperative volume-attach API
+// (volumes mount into pods via the pod spec), and VolumeSnapshot is a
+// CSI CRD (snapshot.storage.k8s.io), not a core built-in. Those return
+// the source cloud's "OperationNotSupported" error.
 
-func (b *Backend) CreateVolume(_ context.Context, _ domain.CreateVolumeOptions) (domain.Volume, error) {
-	return domain.Volume{}, domain.ErrNotSupported
+func (b *Backend) CreateVolume(ctx context.Context, opt domain.CreateVolumeOptions) (domain.Volume, error) {
+	name := opt.Tags["Name"]
+	if name == "" {
+		name = "shim-pvc"
+	}
+	q, err := resourcequantity(opt.SizeGiB)
+	if err != nil {
+		return domain.Volume{}, err
+	}
+	pvc := &corev1.PersistentVolumeClaim{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: b.parentNS,
+			Labels:    map[string]string{"shimanism.io/managed": "true"},
+		},
+		Spec: corev1.PersistentVolumeClaimSpec{
+			AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+			Resources: corev1.VolumeResourceRequirements{
+				Requests: corev1.ResourceList{corev1.ResourceStorage: q},
+			},
+		},
+	}
+	if opt.VolumeType != "" {
+		sc := opt.VolumeType
+		pvc.Spec.StorageClassName = &sc
+	}
+	created, err := b.cs.CoreV1().PersistentVolumeClaims(b.parentNS).Create(ctx, pvc, metav1.CreateOptions{})
+	if err != nil {
+		if apierrors.IsAlreadyExists(err) {
+			return domain.Volume{}, fmt.Errorf("volume %q: %w", name, domain.ErrAlreadyExists)
+		}
+		return domain.Volume{}, err
+	}
+	return pvcToDomain(created), nil
 }
-func (b *Backend) DescribeVolumes(_ context.Context, _ domain.DescribeVolumesOptions) (domain.DescribeVolumesResult, error) {
-	return domain.DescribeVolumesResult{}, nil
+
+func (b *Backend) DescribeVolumes(ctx context.Context, opt domain.DescribeVolumesOptions) (domain.DescribeVolumesResult, error) {
+	wantID := map[string]bool{}
+	for _, id := range opt.IDs {
+		wantID[id] = true
+	}
+	list, err := b.cs.CoreV1().PersistentVolumeClaims(b.parentNS).List(ctx, metav1.ListOptions{
+		LabelSelector: "shimanism.io/managed=true",
+	})
+	if err != nil {
+		return domain.DescribeVolumesResult{}, err
+	}
+	var out []domain.Volume
+	for i := range list.Items {
+		vol := pvcToDomain(&list.Items[i])
+		if len(wantID) > 0 && !wantID[vol.ID] && !wantID[vol.Name] {
+			continue
+		}
+		out = append(out, vol)
+	}
+	return domain.DescribeVolumesResult{Volumes: out}, nil
 }
-func (b *Backend) DeleteVolume(_ context.Context, _ string) error { return domain.ErrNotSupported }
+
+func (b *Backend) DeleteVolume(ctx context.Context, id string) error {
+	err := b.cs.CoreV1().PersistentVolumeClaims(b.parentNS).Delete(ctx, id, metav1.DeleteOptions{})
+	if apierrors.IsNotFound(err) {
+		return fmt.Errorf("volume %q: %w", id, domain.ErrNotFound)
+	}
+	return err
+}
+
 func (b *Backend) AttachVolume(_ context.Context, _, _ string, _ domain.AttachVolumeOptions) (domain.VolumeAttachment, error) {
 	return domain.VolumeAttachment{}, domain.ErrNotSupported
 }
@@ -614,3 +677,29 @@ func (b *Backend) DescribeSnapshots(_ context.Context, _ domain.DescribeSnapshot
 	return domain.DescribeSnapshotsResult{}, nil
 }
 func (b *Backend) DeleteSnapshot(_ context.Context, _ string) error { return domain.ErrNotSupported }
+
+func pvcToDomain(pvc *corev1.PersistentVolumeClaim) domain.Volume {
+	vol := domain.Volume{
+		ID:    pvc.Name,
+		Name:  pvc.Name,
+		State: domain.VolumeStateAvailable,
+	}
+	if pvc.Spec.StorageClassName != nil {
+		vol.VolumeType = *pvc.Spec.StorageClassName
+	}
+	if q, ok := pvc.Spec.Resources.Requests[corev1.ResourceStorage]; ok {
+		// Quantity is in bytes-scaled units; ScaledValue(Giga=9) ~ GiB approx.
+		vol.SizeGiB = int(q.Value() / (1024 * 1024 * 1024))
+	}
+	switch pvc.Status.Phase {
+	case corev1.ClaimBound:
+		vol.State = domain.VolumeStateInUse
+	case corev1.ClaimLost:
+		vol.State = domain.VolumeStateError
+	}
+	return vol
+}
+
+func resourcequantity(gib int) (resource.Quantity, error) {
+	return resource.ParseQuantity(fmt.Sprintf("%dGi", gib))
+}
