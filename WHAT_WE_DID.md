@@ -4,9 +4,13 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 
 > Reverse chronological. One section per phase. The *why*, the surprises, the root causes — not per-PR detail. For commit-level history, `git log`. For per-bug detail, [BUGS.md](BUGS.md). For pipeline + verifier architecture, [docs/codegen-pipelines.md](docs/codegen-pipelines.md) + [docs/verifiers.md](docs/verifiers.md).
 
+## Phase 17.B CLI + Terraform — GCP + Azure block storage driver matrix
+
+**In progress (branch `phase-17b-cli-terraform`).** Completes the cloud driver matrix for the disk/snapshot frontends landed in #123: `gcloud compute disks/snapshots list`, `google_compute_disk` Terraform (Linux-only, TLS), `az disk` CLI through sockerless, and `azurerm_managed_disk` Terraform through sockerless passthrough. The Azure sockerless TF setup was factored into `azureSockerlessTFSession` (the VM TF test now shares it) and the az-CLI sockerless setup into `newAzSockerlessComputeSession`. All lanes skip cleanly without their drivers; SDK + AWS suite stays green.
+
 ## Phase 17.B — GCP + Azure block storage frontends + backends
 
-**In progress (branch `phase-17b-block-storage-gcp-azure`).** Disk + snapshot CRUD on the GCP Compute and Azure Compute frontends, plus their real backends, all on the same `domain.BlockStorage` interface from 17.A.
+**Merged as PR #123.** Disk + snapshot CRUD on the GCP Compute and Azure Compute frontends, plus their real backends, all on the same `domain.BlockStorage` interface from 17.A.
 
 **GCP:** `disks.insert/get/list/delete`, `snapshots.insert/get/list/delete`, and `instances.attachDisk/detachDisk` (GCP attaches disks through the instance, not a standalone API). The 16.C read-only `routeDisks` stub became real CRUD; the boot-disk-not-found fallback is retained (documented) because instance boot disks aren't modelled as standalone domain volumes but the provider reads them via `disks.get`.
 

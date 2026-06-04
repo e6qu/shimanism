@@ -8,12 +8,12 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 
 | | |
 |---|---|
-| Active branch | `phase-17b-block-storage-gcp-azure` — Phase 17.B: GCP + Azure disk/snapshot frontends + real backends + SDK conformance. |
-| In-flight | GCP disks/snapshots/attachDisk + Azure disks/snapshots. SDK lanes green. |
-| Last merged | PR #122 — 17.A: block storage domain + inmem + AWS EBS lane. |
+| Active branch | `phase-17b-cli-terraform` — Phase 17.B follow-up: GCP + Azure CLI + Terraform disk/snapshot conformance. |
+| In-flight | gcloud disks/snapshots list, google_compute_disk TF, az disk CLI, azurerm_managed_disk TF. All skip cleanly without drivers. |
+| Last merged | PR #123 — 17.B: GCP + Azure disk/snapshot frontends + backends + SDK. |
 | Upstream watch | All Firecracker blockers resolved. Sockerless PRs #392/#395 merged. |
 | Phases 1–16 | All closed. See [PLAN.md § Closed phases](PLAN.md#closed-phases-pr-index). |
-| Phase 17 | 17.A ✅ (#122) · 17.B ◐ (GCP + Azure). Planned: 17.C K8s + sockerless + CLI/TF. |
+| Phase 17 | 17.A ✅ (#122) · 17.B ✅ (#123, SDK) + CLI/TF follow-up in flight. Planned: 17.C K8s + sockerless. |
 | Bugs | **57 filed · 53 fixed · 3 open · 1 false positive.** Open: **BUG-8** + **BUG-15** + **BUG-41** (Track A). |
 | CI | 18 required checks. Real-cloud lanes wait on Track A. |
 | Renovate | Config + custom manager for vendored-spec SHAs. **User must install the Renovate GitHub App.** |

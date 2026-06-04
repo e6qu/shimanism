@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 
 	computeraw "google.golang.org/api/compute/v1"
@@ -877,8 +878,37 @@ func (srv *Server) routeDisks(w http.ResponseWriter, r *http.Request, tail strin
 	}
 }
 
+// diskInsertReq decodes a disks.insert body. SizeGb uses flexInt64 because
+// the Compute Discovery type tags it `,string` (GCP serializes int64 as a
+// quoted string), but the hashicorp/google Terraform provider sends it as an
+// unquoted number — decoding the SDK's computeraw.Disk directly fails on the
+// TF body ("invalid use of ,string struct tag"). flexInt64 accepts both.
+type diskInsertReq struct {
+	Name           string            `json:"name"`
+	SizeGb         flexInt64         `json:"sizeGb"`
+	Type           string            `json:"type"`
+	SourceSnapshot string            `json:"sourceSnapshot"`
+	Labels         map[string]string `json:"labels"`
+}
+
+// flexInt64 unmarshals from either a JSON number or a quoted JSON string.
+type flexInt64 int64
+
+func (f *flexInt64) UnmarshalJSON(b []byte) error {
+	s := strings.Trim(string(b), `"`)
+	if s == "" || s == "null" {
+		return nil
+	}
+	n, err := strconv.ParseInt(s, 10, 64)
+	if err != nil {
+		return err
+	}
+	*f = flexInt64(n)
+	return nil
+}
+
 func (srv *Server) insertDisk(w http.ResponseWriter, r *http.Request) {
-	var req computeraw.Disk
+	var req diskInsertReq
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
 		return

@@ -323,7 +323,13 @@ func TestSockerless_EC2_Instances_ThroughShim(t *testing.T) {
 //
 // Requires: SOCKERLESS_AZURE_TLS_PORT + SOCKERLESS_AZURE_TLS_CERT, az CLI
 // not required. Linux-only (SSL_CERT_FILE).
-func TestSockerless_AzureCompute_Through_Shim_Terraform_Apply(t *testing.T) {
+// azureSockerlessTFSession sets up the shim+sockerless azurerm Terraform
+// session and returns the working dir, a runTf runner, and the azurerm
+// provider substitution values (metadata_host, subscription, tenant,
+// client). All teardown is registered on t.Cleanup; the test is skipped
+// if any prerequisite is missing.
+func azureSockerlessTFSession(t *testing.T) (dir string, runTf func(args ...string), metaHost, sub, tenant, client string) {
+	t.Helper()
 	azureTLSPort := os.Getenv("SOCKERLESS_AZURE_TLS_PORT")
 	if azureTLSPort == "" {
 		t.Skip("SOCKERLESS_AZURE_TLS_PORT not set")
@@ -345,13 +351,9 @@ func TestSockerless_AzureCompute_Through_Shim_Terraform_Apply(t *testing.T) {
 		t.Skipf("terraform not installed: %v", err)
 	}
 
-	const (
-		subscriptionID = "00000000-0000-0000-0000-000000000001"
-		tenantID       = "00000000-0000-0000-0000-000000000000"
-		clientID       = "00000000-0000-0000-0000-000000000000"
-		resourceGroup  = "shim-compute-tf-rg"
-		vmName         = "shim-test-vm"
-	)
+	sub = "00000000-0000-0000-0000-000000000001"
+	tenant = "00000000-0000-0000-0000-000000000000"
+	client = "00000000-0000-0000-0000-000000000000"
 
 	sockerlessARM, err := url.Parse("https://localhost:" + azureTLSPort)
 	if err != nil {
@@ -364,20 +366,17 @@ func TestSockerless_AzureCompute_Through_Shim_Terraform_Apply(t *testing.T) {
 	proxy := httputil.NewSingleHostReverseProxy(sockerlessARM)
 	proxy.Transport = &http.Transport{TLSClientConfig: &tls.Config{RootCAs: rootCAs}} //nolint:gosec
 
-	// Fetch sockerless JWKS so the shim's bearer verifier accepts tokens
-	// azurerm acquires from sockerless's Entra stub.
-	jwks := fetchSockerlessComputeJWKS(t, azureTLSPort, tenantID, sockCertPEM)
-
+	jwks := fetchSockerlessComputeJWKS(t, azureTLSPort, tenant, sockCertPEM)
 	shim := harness.StartComputeServerAzureVMWithConfig(t, inmem.New(), azurecomputefront.Config{
 		Passthrough:      proxy,
 		MetadataLoginURL: sockerlessARM.String(),
 		BearerOptions: azurebearer.Options{
-			Issuer: fmt.Sprintf("https://sts.windows.net/%s/", tenantID),
+			Issuer: fmt.Sprintf("https://sts.windows.net/%s/", tenant),
 			JWKS:   jwks,
 		},
 	})
 
-	dir := t.TempDir()
+	dir = t.TempDir()
 	systemBytes, err := os.ReadFile(systemCA)
 	if err != nil {
 		t.Fatalf("read system CA: %v", err)
@@ -390,6 +389,31 @@ func TestSockerless_AzureCompute_Through_Shim_Terraform_Apply(t *testing.T) {
 	if err := os.WriteFile(combinedPath, combined, 0o644); err != nil {
 		t.Fatalf("write combined CA: %v", err)
 	}
+
+	cacheDir := filepath.Join(dir, ".terraform-plugin-cache")
+	_ = os.MkdirAll(cacheDir, 0o755)
+	runTf = func(args ...string) {
+		t.Helper()
+		cmd := exec.Command(tfBin, args...)
+		cmd.Dir = dir
+		cmd.Env = append(os.Environ(),
+			"TF_IN_AUTOMATION=1", "TF_INPUT=0", "CHECKPOINT_DISABLE=1",
+			"TF_PLUGIN_CACHE_DIR="+cacheDir,
+			"SSL_CERT_FILE="+combinedPath,
+		)
+		var stdout, stderr bytes.Buffer
+		cmd.Stdout = &stdout
+		cmd.Stderr = &stderr
+		if err := cmd.Run(); err != nil {
+			t.Fatalf("terraform %s\nstdout: %s\nstderr: %s\nerr: %v",
+				strings.Join(args, " "), stdout.String(), stderr.String(), err)
+		}
+	}
+	return dir, runTf, computeShimHost(shim.URL), sub, tenant, client
+}
+
+func TestSockerless_AzureCompute_Through_Shim_Terraform_Apply(t *testing.T) {
+	dir, runTf, metaHost, sub, tenant, client := azureSockerlessTFSession(t)
 
 	hcl := fmt.Sprintf(`
 terraform {
@@ -411,7 +435,7 @@ provider "azurerm" {
 }
 
 resource "azurerm_resource_group" "shim" {
-  name     = %q
+  name     = "shim-compute-tf-rg"
   location = "East US"
 }
 
@@ -442,7 +466,7 @@ resource "azurerm_network_interface" "shim" {
 }
 
 resource "azurerm_linux_virtual_machine" "shim" {
-  name                            = %q
+  name                            = "shim-test-vm"
   resource_group_name             = azurerm_resource_group.shim.name
   location                        = azurerm_resource_group.shim.location
   size                            = "Standard_B1s"
@@ -464,31 +488,59 @@ resource "azurerm_linux_virtual_machine" "shim" {
     version   = "latest"
   }
 }
-`, computeShimHost(shim.URL), subscriptionID, tenantID, clientID, resourceGroup, vmName)
+`, metaHost, sub, tenant, client)
 
 	if err := os.WriteFile(filepath.Join(dir, "main.tf"), []byte(hcl), 0o644); err != nil {
 		t.Fatalf("write main.tf: %v", err)
 	}
+	runTf("init", "-no-color")
+	runTf("apply", "-auto-approve", "-no-color")
+	runTf("destroy", "-auto-approve", "-no-color")
+}
 
-	cacheDir := filepath.Join(os.TempDir(), "shimanism-tf-plugin-cache")
-	_ = os.MkdirAll(cacheDir, 0o755)
+// TestSockerless_AzureDisk_Through_Shim_Terraform_Apply exercises the
+// azurerm_managed_disk + azurerm_snapshot resources through the shim's
+// azure_compute frontend (Microsoft.Compute paths) with resource groups
+// forwarded to sockerless. Closes the Azure Terraform row of Phase 17.
+func TestSockerless_AzureDisk_Through_Shim_Terraform_Apply(t *testing.T) {
+	dir, runTf, metaHost, sub, tenant, client := azureSockerlessTFSession(t)
 
-	runTf := func(args ...string) {
-		t.Helper()
-		cmd := exec.Command(tfBin, args...)
-		cmd.Dir = dir
-		cmd.Env = append(os.Environ(),
-			"TF_IN_AUTOMATION=1", "TF_INPUT=0", "CHECKPOINT_DISABLE=1",
-			"TF_PLUGIN_CACHE_DIR="+cacheDir,
-			"SSL_CERT_FILE="+combinedPath,
-		)
-		var stdout, stderr bytes.Buffer
-		cmd.Stdout = &stdout
-		cmd.Stderr = &stderr
-		if err := cmd.Run(); err != nil {
-			t.Fatalf("terraform %s\nstdout: %s\nstderr: %s\nerr: %v",
-				strings.Join(args, " "), stdout.String(), stderr.String(), err)
-		}
+	hcl := fmt.Sprintf(`
+terraform {
+  required_providers {
+    azurerm = { source = "hashicorp/azurerm", version = "~> 4.0" }
+  }
+}
+
+provider "azurerm" {
+  features {}
+  metadata_host                   = %q
+  subscription_id                 = %q
+  tenant_id                       = %q
+  client_id                       = %q
+  client_secret                   = "shim-test"
+  use_oidc                        = false
+  use_cli                         = false
+  resource_provider_registrations = "none"
+}
+
+resource "azurerm_resource_group" "shim" {
+  name     = "shim-disk-tf-rg"
+  location = "East US"
+}
+
+resource "azurerm_managed_disk" "shim" {
+  name                 = "shim-tf-disk"
+  location             = azurerm_resource_group.shim.location
+  resource_group_name  = azurerm_resource_group.shim.name
+  storage_account_type = "Standard_LRS"
+  create_option        = "Empty"
+  disk_size_gb         = 16
+}
+`, metaHost, sub, tenant, client)
+
+	if err := os.WriteFile(filepath.Join(dir, "main.tf"), []byte(hcl), 0o644); err != nil {
+		t.Fatalf("write main.tf: %v", err)
 	}
 	runTf("init", "-no-color")
 	runTf("apply", "-auto-approve", "-no-color")
