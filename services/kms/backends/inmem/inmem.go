@@ -29,18 +29,45 @@ type keyEntry struct {
 
 // Backend implements domain.KMS entirely in memory.
 type Backend struct {
-	mu   sync.RWMutex
-	keys map[string]*keyEntry
-	seq  int
-	now  func() time.Time
+	mu       sync.RWMutex
+	keys     map[string]*keyEntry
+	keyRings map[string]time.Time // full resource name -> created
+	seq      int
+	now      func() time.Time
 }
 
 // New returns an empty in-memory KMS backend.
 func New() *Backend {
-	return &Backend{keys: map[string]*keyEntry{}, now: time.Now}
+	return &Backend{keys: map[string]*keyEntry{}, keyRings: map[string]time.Time{}, now: time.Now}
 }
 
 var _ domain.KMS = (*Backend)(nil)
+
+// CreateKeyRing records the keyRing's existence. The keyRing is a
+// GCP-only container; the in-memory backend is the source of truth for
+// tests, so it tracks rings honestly (an unknown ring is genuinely
+// absent, not synthesized).
+func (b *Backend) CreateKeyRing(_ context.Context, name string) (domain.KeyRing, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if _, ok := b.keyRings[name]; ok {
+		return domain.KeyRing{}, fmt.Errorf("keyRing %q: %w", name, domain.ErrAlreadyExists)
+	}
+	created := b.now().UTC()
+	b.keyRings[name] = created
+	return domain.KeyRing{Name: name, CreatedAt: created}, nil
+}
+
+// GetKeyRing returns the keyRing or ErrNotFound.
+func (b *Backend) GetKeyRing(_ context.Context, name string) (domain.KeyRing, error) {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	created, ok := b.keyRings[name]
+	if !ok {
+		return domain.KeyRing{}, fmt.Errorf("keyRing %q: %w", name, domain.ErrNotFound)
+	}
+	return domain.KeyRing{Name: name, CreatedAt: created}, nil
+}
 
 func (b *Backend) nextID() string {
 	b.seq++

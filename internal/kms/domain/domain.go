@@ -124,4 +124,24 @@ type KMS interface {
 	EnableKeyRotation(ctx context.Context, keyID string) error
 	DisableKeyRotation(ctx context.Context, keyID string) error
 	GetKeyRotationStatus(ctx context.Context, keyID string) (bool, error)
+
+	// CreateKeyRing creates the GCP keyRing container; ErrAlreadyExists if
+	// it is already present. GetKeyRing returns it or ErrNotFound. The
+	// keyRing is a GCP-only concept (the GCP frontend uses it); backends
+	// with no native keyRing and no honest place to store one (AWS KMS,
+	// Azure Key Vault) return ErrNotSupported rather than fabricating a
+	// keyRing that does not exist.
+	CreateKeyRing(ctx context.Context, name string) (KeyRing, error)
+	GetKeyRing(ctx context.Context, name string) (KeyRing, error)
+}
+
+// KeyRing is the GCP-only container that groups cryptoKeys within a
+// project/location. AWS KMS and Azure Key Vault have no analog, so it is
+// addressed by its full resource name and only honestly representable on
+// backends that can hold real state for it.
+type KeyRing struct {
+	// Name is the full resource name,
+	// projects/{p}/locations/{l}/keyRings/{r}.
+	Name      string
+	CreatedAt time.Time
 }

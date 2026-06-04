@@ -14,7 +14,7 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 | Upstream watch | Firecracker blockers resolved. sockerless#407 (KV version order) closed by PR #412; #413 (KMS tagging) closed by PR #415. GCP Cloud KMS simulator still absent. |
 | Phases 1–18 | 1–17 closed; 18 (Container Registry) not started. See [PLAN.md § Closed phases](PLAN.md#closed-phases-pr-index). |
 | Phase 19 | 19.A ✅ (#127 AWS KMS) · 19.B ✅ (#128 GCP+Azure frontends/SDK) · 19.C ✅ (#129 backends+K8s+sockerless). 19.D (CLI/TF breadth) next. |
-| Bugs | **59 filed · 55 fixed · 3 open · 1 false positive.** Open: **BUG-8** + **BUG-15** + **BUG-41** (Track A). |
+| Bugs | **60 filed · 56 fixed · 3 open · 1 false positive.** Open: **BUG-8** + **BUG-15** + **BUG-41** (Track A). |
 | CI | 18 required checks. Real-cloud lanes wait on Track A. |
 | Renovate | Config + custom manager for vendored-spec SHAs. **User must install the Renovate GitHub App.** |
 | Standing merge auth | **None.** User merges every PR. **One PR open at a time** — ask before opening if one's active. |

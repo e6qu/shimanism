@@ -4,12 +4,13 @@
 // drive, and translates onto the neutral domain.KMS interface.
 //
 // Cloud KMS has a project/location/keyRing/cryptoKey/cryptoKeyVersion
-// hierarchy the flat domain doesn't model. keyRings are a GCP-specific
-// container with no cross-cloud analog — the frontend accepts
-// keyRings.create/get as synthetic success (out of intersection) so GCP
-// clients can proceed to create keys. A cryptoKey maps to a domain key:
-// the user-chosen cryptoKeyId becomes the domain key ID. Encrypt/Decrypt
-// target a cryptoKey (its primary version, implicitly).
+// hierarchy the flat domain doesn't model. The keyRing is a GCP-specific
+// container with no cross-cloud data-plane analog (see INTERSECTION.md);
+// it is tracked honestly via domain.KMS CreateKeyRing/GetKeyRing — real on
+// backends that can hold state (inmem, native GCP), NotSupported on those
+// that can't (AWS/Azure) — never synthesized. A cryptoKey maps to a domain
+// key: the user-chosen cryptoKeyId becomes the domain key ID.
+// Encrypt/Decrypt target a cryptoKey (its primary version, implicitly).
 //
 // Plaintext/ciphertext ride the wire as base64 strings (REST `bytes`).
 package gcp_cloudkms
@@ -143,23 +144,53 @@ func gcpKeyName(path string) string {
 	return path
 }
 
-// ─── keyRings (synthetic — out of intersection) ──────────────────────
+// ─── keyRings (GCP-only container; tracked honestly via the backend) ──
 
 func (srv *Server) createKeyRing(w http.ResponseWriter, r *http.Request) {
 	id := r.URL.Query().Get("keyRingId")
 	parent := strings.TrimSuffix(strings.TrimPrefix(r.URL.Path, "/v1/"), "/keyRings")
 	name := parent + "/keyRings/" + id
-	writeJSON(w, http.StatusOK, &kmsraw.KeyRing{Name: name, CreateTime: nowRFC3339()})
+	kr, err := srv.k.CreateKeyRing(r.Context(), name)
+	if err != nil {
+		writeKMSErr(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, domainKeyRingToGCP(kr, name))
 }
 
-func (srv *Server) getKeyRing(w http.ResponseWriter, _ *http.Request, rest string) {
-	writeJSON(w, http.StatusOK, &kmsraw.KeyRing{Name: rest, CreateTime: nowRFC3339()})
+func (srv *Server) getKeyRing(w http.ResponseWriter, r *http.Request, rest string) {
+	kr, err := srv.k.GetKeyRing(r.Context(), rest)
+	if err != nil {
+		writeKMSErr(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, domainKeyRingToGCP(kr, rest))
+}
+
+func domainKeyRingToGCP(kr domain.KeyRing, name string) *kmsraw.KeyRing {
+	out := &kmsraw.KeyRing{Name: name}
+	if kr.Name != "" {
+		out.Name = kr.Name
+	}
+	if !kr.CreatedAt.IsZero() {
+		out.CreateTime = kr.CreatedAt.UTC().Format(time.RFC3339)
+	}
+	return out
 }
 
 // ─── cryptoKeys ──────────────────────────────────────────────────────
 
 func (srv *Server) createCryptoKey(w http.ResponseWriter, r *http.Request) {
 	id := r.URL.Query().Get("cryptoKeyId")
+	parent := strings.TrimSuffix(strings.TrimPrefix(r.URL.Path, "/v1/"), "/cryptoKeys")
+	// Cloud KMS requires the parent keyRing to exist. Enforce it on
+	// backends that track rings; backends with no keyRing concept return
+	// ErrNotSupported, in which case the ring is just path decoration and
+	// the check is skipped.
+	if _, err := srv.k.GetKeyRing(r.Context(), parent); err != nil && !domain.IsNotSupported(err) {
+		writeKMSErr(w, err)
+		return
+	}
 	var req kmsraw.CryptoKey
 	_ = json.NewDecoder(r.Body).Decode(&req)
 	opts := domain.CreateKeyOptions{
@@ -173,7 +204,6 @@ func (srv *Server) createCryptoKey(w http.ResponseWriter, r *http.Request) {
 		writeKMSErr(w, err)
 		return
 	}
-	parent := strings.TrimSuffix(strings.TrimPrefix(r.URL.Path, "/v1/"), "/cryptoKeys")
 	writeJSON(w, http.StatusOK, domainKeyToGCP(key, parent+"/cryptoKeys/"+key.ID))
 }
 
@@ -401,8 +431,6 @@ func domainKeyToGCP(k domain.Key, name string) *kmsraw.CryptoKey {
 	}
 	return ck
 }
-
-func nowRFC3339() string { return time.Now().UTC().Format(time.RFC3339) }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")

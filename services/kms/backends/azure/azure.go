@@ -28,6 +28,20 @@ func New(c *azkeys.Client) *Backend { return &Backend{c: c} }
 
 var _ domain.KMS = (*Backend)(nil)
 
+// CreateKeyRing / GetKeyRing: in Azure the key container is the Key Vault,
+// but that is an ARM control-plane resource (Microsoft.KeyVault), not a
+// data-plane (azkeys) operation. The KMS service shims the data plane, so
+// the vault is pre-existing infrastructure out of this backend's scope —
+// these return the source cloud's not-supported error rather than
+// fabricating a ring.
+func (b *Backend) CreateKeyRing(_ context.Context, _ string) (domain.KeyRing, error) {
+	return domain.KeyRing{}, domain.ErrNotSupported
+}
+
+func (b *Backend) GetKeyRing(_ context.Context, _ string) (domain.KeyRing, error) {
+	return domain.KeyRing{}, domain.ErrNotSupported
+}
+
 func (b *Backend) CreateKey(ctx context.Context, opt domain.CreateKeyOptions) (domain.Key, error) {
 	if opt.KeyID == "" {
 		return domain.Key{}, fmt.Errorf("key name required for Azure Key Vault: %w", domain.ErrInvalidInput)
