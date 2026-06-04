@@ -40,6 +40,16 @@ mirroring every cloud KMS's Decrypt semantics.
 - **Azure Key Vault keys** are asymmetric (RSA/EC) for standard vaults, unlike AWS/GCP symmetric. The shim's encrypt/decrypt treats the ciphertext as **opaque bytes** (the SDK round-trips it without inspecting), so the inmem backend's AES-GCM and a real vault's RSA-OAEP are interchangeable at the shim boundary. The key name is the domain key ID; byte values ride the wire as base64url (handled by the azkeys serde). Delete maps to `ScheduleKeyDeletion` (soft-delete).
 - **Cross-cloud Decrypt** is why `domain.Decrypt` takes an optional keyID: AWS symmetric omits it (key ref in the ciphertext), GCP/Azure pass the key from the request path.
 
+## Backends (Phase 19.C)
+
+| Backend | Status | Validated by |
+|---|---|---|
+| inmem | full (real AES-256-GCM) | SDK/CLI/TF conformance (all three frontends) |
+| AWS KMS (`services/kms/backends/aws`) | full | sockerless lane (`TestSockerless_AWSKMS_Through_Shim`) + Track A |
+| GCP Cloud KMS (`services/kms/backends/gcp`) | full; ScheduleKeyDeletion/CancelKeyDeletion → NotSupported (Cloud KMS destroys versions, not keys) | Track A only — **sockerless has no Cloud KMS simulator** (filed upstream) |
+| Azure Key Vault keys (`services/kms/backends/azure`) | full | sockerless KV sim (lane wiring is a 19.D follow-on) + Track A |
+| K8s | out of intersection (no K8s key-crypto primitive) | n/a |
+
 ## K8s peer
 
 Direct KMS operations have no K8s-native built-in analog — etcd encryption
