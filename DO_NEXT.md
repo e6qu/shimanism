@@ -27,10 +27,11 @@ domain.KMS (symmetric ENCRYPT_DECRYPT; Decrypt key-ref-in-ciphertext) + inmem (r
 - [ ] Azure frontend: Key Vault keys `PUT/GET/LIST /keys` + `encrypt/decrypt`.
 - [ ] Real backends + SDK/CLI/Terraform conformance for both.
 
-### 19.C — K8s NotImplemented + sockerless lane
+### 19.C — K8s NotImplemented + sockerless lane (PR #129)
 
-- [ ] K8s peer: all KMS ops NotImplemented (no core built-in key-crypto API; etcd-encryption is cluster config).
-- [ ] Sockerless: AWS KMS through-shim lane (if sockerless has KMS; else file the gap upstream).
+- [x] K8s peer: all KMS ops NotImplemented (no core built-in key-crypto API; etcd-encryption is cluster config).
+- [x] Sockerless: AWS KMS through-shim lane wired; GCP Cloud KMS absent upstream (skip referencing the filed gap); Azure KV-keys lane is a 19.D follow-on.
+- [x] **CI unblock (BUG-52):** `sockerless through-shim e2e` was red on a *secrets* test, not KMS — `TestSockerless_E2E_GCPSecrets_..._BackendAzure` deterministically crashed `terraform-provider-google` v5.45.2. Root cause: sockerless KV lists secret versions by random UUID (not creation order) + 1s-resolution `created` → shim's created-ordered version mapping resolves "version 2" to the empty placeholder → empty `payload.data` → provider panic. Filed [sockerless#407](https://github.com/e6qu/sockerless/issues/407). **Closed by [sockerless PR #412](https://github.com/e6qu/sockerless/pull/412) (2026-06-04)** — version listing now creation-ordered. Test un-gated. No shim-logic change (per user: "Only file sockerless").
 
 ## Phase 17 ✅ (PRs #122–#125)
 

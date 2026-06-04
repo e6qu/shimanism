@@ -94,6 +94,14 @@ Phase 14.A re-enabled the shim assertions for #173/#174/#175 (storage + secrets 
 
 Shim action: `TestSockerless_EC2_Instances_ThroughShim` (compute) and `TestSockerless_ELBv2_Through_Shim_RegisterTargets` (loadbalancer) un-gated. Implemented in 16.C PR5.
 
+### Phase 19 KMS lane finding (BUG-52) — closed by [sockerless PR #412](https://github.com/e6qu/sockerless/pull/412) on 2026-06-04
+
+| Upstream | Status |
+|---|---|
+| [e6qu/sockerless#407](https://github.com/e6qu/sockerless/issues/407) — Azure KV sim lists secret versions by random UUID, not creation order | ✅ closed by PR #412; version-list handlers (secret/key/cert) now stable-sort by `Created`, preserving append order for same-second ties (oldest-first, matching real Azure). |
+
+Discovered during 19.C (PR #129): the value-less GCP `google_secret_manager_secret` Create writes an empty placeholder version 1 to the Azure backend; the follow-up `_secret_version` writes the real value. With sockerless listing versions in random-UUID order + second-precision `created`, the shim's created-ordered monotonic mapping resolved GCP "version 2" to the empty placeholder → empty `payload.data` → `terraform-provider-google` v5.45.2 panicked on the unguarded `payload["data"].(string)`. Shim action: `TestSockerless_E2E_GCPSecrets_Through_Shim_ApplyTF_BackendAzure` un-gated. No shim-logic change — the shim's created-ordered mapping is correct given a creation-ordered version list.
+
 ### Sockerless coverage history
 
 - **Round 1** ([#173-178](https://github.com/e6qu/sockerless/issues/173)) — all closed by sockerless PR #179. Initial fidelity gaps (S3 `/s3/` URL prefix, `aws-chunked` envelope, missing `ListSecretVersionIds`) + missing-service rollups (AWS / GCP / Azure).
@@ -102,6 +110,7 @@ Shim action: `TestSockerless_EC2_Instances_ThroughShim` (compute) and `TestSocke
 - **Later rounds** ([#193-215](https://github.com/e6qu/sockerless/issues/193), excluding unused issue numbers) — closed by sockerless PRs #200, #202, #211, and #216.
 - **Next-lane fix**: [#218](https://github.com/e6qu/sockerless/issues/218) — GCP Secret Manager `ListSecretVersions`, `UpdateSecret`, and `DeleteSecret` landed in sockerless PR #219. The full `services/secrets/backends/gcp` sockerless lane is now green.
 - **Phase 16 Firecracker** ([#373-375](https://github.com/e6qu/sockerless/issues/373)) — closed by PR #372 (2026-06-02). Enables compute instance lifecycle + LB RegisterTargets sockerless lanes.
+- **Phase 19 KMS lane** ([#407](https://github.com/e6qu/sockerless/issues/407)) — closed by PR #412 (2026-06-04). Azure KV version listing now creation-ordered; un-gates the GCP-secrets-on-Azure-backend cross-cloud Apply cell.
 
 ### End-to-end walkthrough findings (BUG-30..33)
 

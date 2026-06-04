@@ -3,9 +3,9 @@
 # shimanism
 
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
-[![Go](https://img.shields.io/badge/Go-60.4k_lines-00ADD8?logo=go&logoColor=white)](#code-architecture-and-how-the-build-works)
+[![Go](https://img.shields.io/badge/Go-60.9k_lines-00ADD8?logo=go&logoColor=white)](#code-architecture-and-how-the-build-works)
 [![Generated](https://img.shields.io/badge/Generated-76k_lines-blue)](docs/codegen.md)
-[![Tests](https://img.shields.io/badge/Tests-37.4k_lines-brightgreen)](docs/testing.md)
+[![Tests](https://img.shields.io/badge/Tests-37.5k_lines-brightgreen)](docs/testing.md)
 [![Modules](https://img.shields.io/badge/Go_Modules-2-informational)](#code-architecture-and-how-the-build-works)
 
 <!-- per-major-component (numbers auto-updated by scripts/update-readme-badges.sh) -->
