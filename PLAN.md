@@ -348,6 +348,167 @@ NAT Gateways · Internet Gateways · Route Tables · VPC Peering · Auto Scaling
 - `services/loadbalancer/` full 3 × 4 × 3 conformance matrix; layer-4 restriction enforced; sockerless LB-create lane green; RegisterTargets lane skipping until #373–375.
 - Cross-cloud Apply cell for at least one networking operation and one compute operation.
 
+## Phase 17 — Block Storage
+
+> **Premise.** The natural continuation of Phase 16: compute instances need persistent block storage. Phase 17 adds volume lifecycle (create / attach / detach / delete) and snapshots. Block storage completes the compute surface and unlocks Phase 22 (Auto Scaling, which needs volumes for boot disks).
+>
+> **Status: ✅ complete (PRs #122–#125).**
+
+| Domain | AWS | GCP | Azure | K8s |
+|---|---|---|---|---|
+| Volumes | EC2 `CreateVolume / AttachVolume / DetachVolume / DeleteVolume / DescribeVolumes` | Compute v1 `disks.insert / attach / detach / delete / list / get` | `Microsoft.Compute/disks` createOrUpdate / get / list / delete; VM `dataDisks` patch | PersistentVolume + PersistentVolumeClaim |
+| Snapshots | EC2 `CreateSnapshot / DeleteSnapshot / DescribeSnapshots` | Compute v1 `snapshots.insert / delete / list / get` | `Microsoft.Compute/snapshots` createOrUpdate / get / list / delete | VolumeSnapshot (snapshot.storage.k8s.io) |
+| Storage classes | EC2 `VolumeType` (gp3 / io2 / st1 …) | `diskType` (pd-ssd / pd-balanced / pd-extreme) | `sku.name` (Premium_LRS / Standard_LRS …) | StorageClass |
+
+**Intersection notes.** Volume size + type are opaque per-cloud (N-series rule like N13/N23). Attach/detach are synchronous in the domain but async on all clouds — returns an operation the caller polls. K8s peer: full PV/PVC lifecycle backed by a `shima<storage>` peer (built on `shimakit`). Snapshots are in-intersection; cross-region snapshot copy is out.
+
+**Out of intersection:** encryption-at-rest key management (Phase 19), multi-attach (io2 only, no GCP/Azure equivalent), volume resizing, IOPS tuning, instance store volumes.
+
+**Sub-phases (as shipped):** 17.A domain + inmem + AWS EBS (SDK/CLI/TF, #122); 17.B GCP + Azure frontends + backends (SDK #123, CLI/TF #124); 17.C K8s PVC peer + sockerless EBS lane (#125). K8s: volume CRUD → PersistentVolumeClaim; attach/detach + snapshots NotImplemented (no imperative K8s attach API; VolumeSnapshot is a CSI CRD).
+
+---
+
+## Phase 18 — Container Registry
+
+> **Premise.** Standalone service family with a tight intersection: all three clouds speak the OCI Distribution Spec (v1) for image push/pull. The control-plane (create/delete repository, list images, delete tags) sits on top. No compute dependency.
+>
+> **Status: planned.**
+
+| Surface | AWS | GCP | Azure | K8s |
+|---|---|---|---|---|
+| Repository lifecycle | ECR `CreateRepository / DeleteRepository / DescribeRepositories` | Artifact Registry `repositories.create / delete / list` | ACR `registries.create / delete / list` | — (shim hosts registry; K8s pulls from it) |
+| Image list / delete | ECR `ListImages / BatchDeleteImage / DescribeImages` | Artifact Registry `dockerImages.list / delete` | ACR `repositories.list`, `manifests.delete` | — |
+| Push / pull | ECR login + OCI Distribution Spec | Artifact Registry OCI | ACR OCI | OCI Distribution Spec |
+
+**Wire protocols.** Control plane: restJson1 (AWS) / REST Discovery (GCP) / ARM (Azure). Data plane: all three use OCI Distribution Spec v1 — one shim data-plane handler covers all three frontends. The data plane routes image layers to the configured backend (MinIO for AWS-source tests, GCS for GCP, Azure Blob for Azure).
+
+**Sockerless support:** ACR routes exist in sockerless (PR #388). ECR + GCR gaps to be filed when work starts.
+
+**Out of intersection:** geo-replication, vulnerability scanning, image signing, registry webhooks.
+
+**Sub-phases:** 18.A control-plane domain + codegen; 18.B OCI data-plane handler (shared); 18.C all three control frontends + conformance. **~4–5 PRs.**
+
+---
+
+## Phase 19 — Key Management
+
+> **Premise.** Extends Phase 2 (Secrets) to the key-management layer: cryptographic key lifecycle, encrypt/decrypt, and sign/verify. Distinct from secrets — keys are never exported, only used for crypto operations. Azure Key Vault keys share the same vault URL as KV secrets but use a different API surface.
+>
+> **Status: ◐ in progress — 19.A AWS KMS lane merged (#127).** Scope: symmetric ENCRYPT_DECRYPT (CreateKey/Describe/List, Encrypt/Decrypt, ScheduleKeyDeletion/Cancel, rotation enable/disable/status). Decrypt takes only the ciphertext (key ref embedded). Sign/Verify (asymmetric) deferred — noted follow-on. N29 published.
+>
+> **Sub-phases:** 19.A domain + inmem (real AES-256-GCM) + AWS KMS (SDK/CLI/TF) ✅ #127; 19.B GCP Cloud KMS + Azure Key Vault keys + backends; 19.C K8s NotImplemented + sockerless lane.
+
+| Operation | AWS KMS | GCP Cloud KMS | Azure Key Vault keys |
+|---|---|---|---|
+| CreateKey | `CreateKey` | `keyRings.cryptoKeys.create` | `PUT /keys/{name}` |
+| Encrypt | `Encrypt` | `cryptoKeys.cryptoKeyVersions.asymmetricEncrypt` / `encrypt` | `POST /keys/{name}/{version}/encrypt` |
+| Decrypt | `Decrypt` | `decrypt` | `POST /keys/{name}/{version}/decrypt` |
+| Sign / Verify | `Sign` / `Verify` | `asymmetricSign` / `macVerify` | `POST /keys/{name}/sign` / `verify` |
+| ListKeys | `ListKeys` | `cryptoKeys.list` | `GET /keys` |
+| DeleteKey / schedule deletion | `ScheduleKeyDeletion` / `CancelKeyDeletion` | `cryptoKeyVersions.destroy` | `DELETE /keys/{name}` |
+| Key rotation | `EnableKeyRotation` / `RotateKeyOnDemand` | `cryptoKeys.updatePrimaryVersion` | `POST /keys/{name}/rotate` |
+
+**K8s peer.** `cert-manager` manages TLS certificates; `external-secrets` manages key references. Direct KMS operations in K8s are cluster-specific (etcd encryption provider). K8s row = NotImplemented with `OperationNotSupported`.
+
+**Intersection notes.** Key algorithm (RSA/EC/AES) and key usage (ENCRYPT_DECRYPT vs SIGN_VERIFY) are in-intersection. HSM-backed vs software keys (FIPS compliance) are out. Cross-region key replication is out.
+
+**Sub-phases:** 19.A domain + inmem; 19.B AWS KMS + GCP KMS frontends; 19.C Azure Key Vault keys + K8s + conformance. **~4–5 PRs.**
+
+---
+
+## Phase 20 — Event Streaming
+
+> **Premise.** Ordered, partitioned stream ingestion — distinct from the fan-out pub/sub model in Phase 4. The tightest three-cloud intersection is the **Apache Kafka-compatible** surface: AWS MSK (Managed Streaming for Apache Kafka), GCP Managed Apache Kafka, and Azure Event Hubs with Kafka endpoint. All three speak the Kafka wire protocol over the same port. The shim fronts the Kafka protocol directly.
+>
+> **Status: planned.**
+
+| Operation | AWS MSK | GCP Managed Kafka | Azure Event Hubs (Kafka) |
+|---|---|---|---|
+| Create cluster/namespace | `MSK CreateCluster` | `clusters.create` | Event Hubs namespace createOrUpdate |
+| Create topic / event hub | `CreateTopics` (Kafka wire) | `topics.create` | `eventhubs.createOrUpdate` |
+| Produce records | Kafka `ProduceRequest` | Kafka `ProduceRequest` | Kafka `ProduceRequest` |
+| Consume records | Kafka `FetchRequest` / consumer groups | Kafka `FetchRequest` | Kafka `FetchRequest` |
+| Delete topic | `DeleteTopics` | `topics.delete` | `eventhubs.delete` |
+
+**Wire protocol.** Control plane: restJson1 / REST / ARM. **Data plane: Kafka wire protocol (binary TCP, port 9092/9093).** One shim data-plane handler speaks Kafka; all three cloud control-planes configure topics on it. K8s peer: `shimaqueue` backed by `shimakit` extended for Kafka protocol.
+
+**Intersection notes.** Partition count, replication factor, retention are in-intersection. Schema Registry, Kafka Connect, Stream Processing are out.
+
+**Sub-phases:** 20.A Kafka data-plane handler (shared) + domain; 20.B control-plane frontends; 20.C K8s peer + full conformance. **~5–7 PRs.** (Kafka wire protocol is the new complexity; budget accordingly.)
+
+---
+
+## Phase 21 — L7 Load Balancers
+
+> **Premise.** Extends Phase 16.D (layer-4 TCP) to layer-7 HTTP/HTTPS routing. The intersection is narrower than L4: HTTPS listener + host/path-based rules + backend target groups. TLS termination, HTTP→HTTPS redirect, and health-check HTTP codes are in-intersection.
+>
+> **Status: planned.** Depends on Phase 16.D (L4 LB) being closed (it is).
+
+| Surface | AWS ALB | GCP HTTP(S) LB | Azure Application Gateway |
+|---|---|---|---|
+| LB create/delete | ELBv2 `CreateLoadBalancer` (type=application) | `urlMaps + targetHttpsProxies + forwardingRules` | `applicationGateways.createOrUpdate` |
+| HTTPS listener | `CreateListener` (HTTPS) | Target HTTPS proxy + forwarding rule | HTTP listener + SSL certificate |
+| Path rules | `CreateRule` (path conditions) | URL map path matchers | Request routing rule with path map |
+| Target group | `CreateTargetGroup` (HTTP) | Backend service + health check | Backend pool + HTTP settings |
+| Health check | HTTP status code check in `TargetGroup` | Backend service health check | Probe + HTTP settings |
+
+**Normalization.** New rule N28: L7 routing intersection = HTTPS termination + host + path prefix rules + HTTP health check. SSL/TLS certificate management (ACM / Google-managed / Azure-managed certs) is out-of-intersection — callers supply a pre-provisioned cert ARN/resource-id.
+
+**K8s peer.** Ingress (networking.k8s.io/v1) + IngressClass — maps to K8s-native L7 routing.
+
+**Out of intersection:** WAF rules, WebSockets, HTTP/2 push, sticky sessions, Lambda/Cloud Run targets, mutual TLS (mTLS).
+
+**Sub-phases:** 21.A domain + scoping (N28 rule) + inmem; 21.B AWS ALB + GCP HTTP(S) LB frontends; 21.C Azure App Gateway + K8s Ingress + conformance. **~5–6 PRs.**
+
+---
+
+## Phase 22 — Auto Scaling
+
+> **Premise.** Depends on Phase 17 (block storage) and Phase 16 (instances). Adds instance-group lifecycle: create a group with min/max/desired count, attach a launch template, trigger scale-out/in, and observe group state. The intersection is narrow — focus on the core CRUD + resize operations; event-driven scaling policies and predictive scaling are out.
+>
+> **Status: planned.** Dependency: Phase 17 (instances need volumes for launch templates).
+
+| Surface | AWS ASG | GCP MIG | Azure VMSS |
+|---|---|---|---|
+| Create group | `CreateAutoScalingGroup` | `instanceGroupManagers.insert` | `virtualMachineScaleSets.createOrUpdate` |
+| Set capacity | `SetDesiredCapacity` | `instanceGroupManagers.resize` | `virtualMachineScaleSets.update` (capacity) |
+| Describe group | `DescribeAutoScalingGroups` | `instanceGroupManagers.get / list` | `virtualMachineScaleSets.get / list` |
+| List instances | `DescribeAutoScalingInstances` | `instanceGroupManagers.listManagedInstances` | `virtualMachineScaleSetVMs.list` |
+| Delete group | `DeleteAutoScalingGroup` | `instanceGroupManagers.delete` | `virtualMachineScaleSets.delete` |
+
+**K8s peer.** HorizontalPodAutoscaler (HPA) — maps min/max replicas to Deployment or StatefulSet. Instance list maps to Pod list via the owning controller.
+
+**Intersection notes.** Health-check–triggered replacement is in-intersection (heartbeat protocol: replace unhealthy instances). Scale-based-on-metric policies (CloudWatch / Stackdriver / Azure Metrics) require Phase 23 and are out for Phase 22. Spot/preemptible instance pools are out.
+
+**Sub-phases:** 22.A domain + inmem; 22.B AWS ASG + GCP MIG frontends; 22.C Azure VMSS + K8s HPA + conformance. **~4–5 PRs.**
+
+---
+
+## Phase 23 — Monitoring and Metrics
+
+> **Premise.** Write-side custom metrics ingestion: publish application metrics to the cloud's time-series store. Read-side (queries, dashboards, alerts) has a narrower intersection and is deferred. The write-side intersection is well-defined: metric name + dimensions/labels + value + timestamp.
+>
+> **Status: planned.**
+
+| Surface | AWS CloudWatch | GCP Cloud Monitoring | Azure Monitor |
+|---|---|---|---|
+| Put metrics | `PutMetricData` | `timeSeries.create` (projects.timeSeries) | `POST /metrics/batch` (data collection endpoint) |
+| List metrics | `ListMetrics` | `metricDescriptors.list` | `GET /metrics/definitions` |
+| Get metric data | `GetMetricData` | `timeSeries.list` | `GET /metrics` |
+| Create alarm/alert | `PutMetricAlarm` | `alertPolicies.create` | `metricAlerts.createOrUpdate` |
+
+**Write path only in Phase 23.** Read-side query APIs (CloudWatch Insights, MQL, KQL/Azure Monitor query) have diverging query languages and are out-of-intersection for this phase. Phase 23 delivers: custom metric ingestion + metric descriptor list + a single alarm/alert resource per frontend.
+
+**K8s peer.** Prometheus `remote_write` endpoint — the shim accepts Prometheus remote-write protocol and translates to domain metrics. Read via PromQL is out-of-intersection.
+
+**Wire protocols.** restJson1 (AWS) / REST (GCP) / Azure Monitor REST. Write path is REST in all cases. AWS additionally supports EMF (Embedded Metric Format) — out-of-intersection.
+
+**Normalization.** New rule N29: metric dimensions (AWS) = labels (GCP) = dimensions (Azure). Metric namespace (AWS) = metric type prefix (GCP) = metric namespace (Azure) — opaque per-cloud string, passed through without translation.
+
+**Sub-phases:** 23.A domain + inmem + write-path only; 23.B AWS + GCP frontends; 23.C Azure + K8s (Prometheus remote_write) + conformance. **~4–5 PRs.**
+
+---
+
 ## Standing open questions (not phase-gated)
 
 - Single org-wide deployment vs per-tenant — affects auth model.
@@ -359,7 +520,9 @@ NAT Gateways · Internet Gateways · Route Tables · VPC Peering · Auto Scaling
 
 | PR | Phase | Headline | Merged |
 |---|---|---|---|
-| #109–#114 | 16.A/B/D + 16.C PR1–PR4 | Phase 16 compute + networking + LB: ec2Query codegen lane, VPC networking primitives (PR #104–#108), load balancers (#109–#110), instance lifecycle (#111–#114). GCP/Azure/K8s frontends + real backends + conformance matrices. 16.C Azure TF/CLI rows deferred on BUG-56/57. | 2026-06-03 |
+| #127 | 19.A | Key Management — AWS KMS lane: domain.KMS + inmem (real AES-256-GCM) + AWS KMS frontend (awsJson1_1, SigV4) across SDK+CLI+Terraform. Symmetric encrypt/decrypt + key lifecycle + rotation; Decrypt key-ref-in-ciphertext; Sign/Verify deferred. N29. GetKeyPolicy returns AWS default (policies out of intersection). | 2026-06-04 |
+| #122–#125 | 17 (all) | Block storage: volumes + snapshots. AWS EBS / GCP disks / Azure managed disks across SDK+CLI+Terraform; K8s PVC volume CRUD (attach/snapshot NotImplemented); sockerless EBS lane. N28. Provider wire-quirks absorbed in-shim (CreateTime nil-deref, Azure 200-vs-201 poller, GCP sizeGb quoting). | 2026-06-04 |
+| #104–#120 | 16 (all) | Phase 16 compute + networking + LB: ec2Query codegen lane, VPC networking primitives (#104–#108), load balancers (#109–#110), instance lifecycle (#111–#120 incl. AWS/GCP/Azure TF+CLI, sockerless Firecracker lanes; BUG-55/56/57 closed). GCP/Azure/K8s frontends + real backends + full conformance matrix. | 2026-06-03 |
 | #90–#108 (umbrella) | 15 | Cross-cloud normalization standard (N1–N27), NoSQL (DynamoDB/Firestore/Cosmos Tables), DNS (Route 53/Cloud DNS/Azure DNS/CoreDNS), sockerless Cosmos Tables ARM passthrough. 10 PRs, all four frontends × five backends. | 2026-06-02 |
 | #21–#67 (umbrella) | 14 | Sockerless-verified validation lane + through-shim azurerm Apply matrix. 14.A re-enabled deferred shim assertions; 14.B/C closed the 33+1 sockerless lane sweep; 14.D simulator audit + 14.E cross-cloud Apply closed the storage matrix. | through 2026-05-30 |
 | #20 | 13 | Azure + GCP adapter migrations, production RS256 JWKS, and the first sockerless storage/secrets lane. | 2026-05-24 `3cf9e13` |

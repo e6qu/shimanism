@@ -4,9 +4,21 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 
 > Reverse chronological. One section per phase. The *why*, the surprises, the root causes — not per-PR detail. For commit-level history, `git log`. For per-bug detail, [BUGS.md](BUGS.md). For pipeline + verifier architecture, [docs/codegen-pipelines.md](docs/codegen-pipelines.md) + [docs/verifiers.md](docs/verifiers.md).
 
+## Phase 19.A — Key Management: AWS KMS lane (PR #127)
+
+**Merged.** Phase 19 begins the KMS service — encrypt/decrypt + key lifecycle + rotation — chosen over Phase 18 (Container Registry) as the next standalone service. It's deliberately distinct from Phase 2 secrets: a KMS key's material never leaves the backend's HSM, so the shim forwards crypto operations rather than moving key bytes. The inmem test backend is a *real* backend — it generates a real AES-256-GCM key per key ID and performs real authenticated encryption; the unit tests assert tamper-detection and nonce-uniqueness, not just round-trip.
+
+Two design points worth recording. First, **Decrypt takes no key ID** — the ciphertext blob carries the key reference (the inmem backend prepends `keyIDLen || keyID || nonce || sealed`), mirroring every cloud KMS, where Decrypt resolves the key from the structured ciphertext. Second, the intersection is **symmetric ENCRYPT_DECRYPT only** (N29); Sign/Verify needs asymmetric key specs that diverge across clouds and is a noted follow-on.
+
+AWS KMS reuses the awsJson1_1 codegen lane (same as Secrets Manager). The Terraform `aws_kms_key` resource forced two read-side operations the provider calls unconditionally: `GetKeyPolicy` (the shim returns AWS's well-known default key policy — policies are out of intersection, same posture as the EC2 `DescribeVpcAttribute` defaults) and `ListResourceTags` (reads the key's real tags). A Go gotcha also surfaced in the CLI test helper: `return buf.Bytes(), …, cmd.Run()` snapshots the buffer *before* `cmd.Run()` executes (left-to-right argument evaluation), so it returned empty output — fixed by running first, then reading.
+
+## Phase 17 — Block Storage (closed, PRs #122–#125)
+
+**Closed 2026-06-04.** Volumes + snapshots across the full matrix: AWS EBS / GCP persistent disks / Azure managed disks via SDK + CLI + Terraform; K8s PVC volume CRUD; sockerless EBS lane validating the AWS backend end-to-end. N28 normalization (size in GiB, type opaque, attach synchronous in domain). The recurring lesson was provider/SDK wire-quirks the shim must absorb locally: the EBS `CreateTime` nil-deref (`resourceEBSVolumeRead` calls `.Format()` with no nil guard), the Azure disk/snapshot LRO poller expecting 200/202 (not the VM's 201), and the hashicorp/google provider sending `sizeGb` unquoted against the GCP Discovery `,string` tag. Each was fixed in the shim frontend, reported nowhere.
+
 ## Phase 17.C — K8s PVC peer + sockerless EBS lane (closes Phase 17)
 
-**In progress (branch `phase-17c-block-storage-k8s-sockerless`).** The last piece of block storage.
+**Merged as PR #125.** The last piece of block storage.
 
 **K8s peer:** volume CRUD maps to PersistentVolumeClaim (create/list/delete) in the parent namespace, with `VolumeType` → `StorageClassName` and size → `resources.requests.storage`. Tested against the fake clientset (same as the networking K8s lane — no KIND needed). Attach/detach and snapshots are honestly NotImplemented: K8s has no imperative volume-attach API (volumes mount into pods via the pod spec), and VolumeSnapshot is a CSI CRD (`snapshot.storage.k8s.io`), not a core built-in — both outside the common-denominator intersection. The AWS frontend surfaces these as `UnsupportedOperation`, verified by conformance.
 
