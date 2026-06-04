@@ -1382,7 +1382,19 @@ func TestSockerless_E2E_GCPSecrets_Through_Shim_ApplyTF_BackendAWS(t *testing.T)
 // TestSockerless_E2E_GCPSecrets_Through_Shim_ApplyTF_BackendAzure
 // drives `hashicorp/google` Terraform Apply → shim GCP frontend →
 // shim Azure Key Vault backend → sockerless Azure simulator.
+//
+// Gated on sockerless e6qu/sockerless#407: the Key Vault sim lists a
+// secret's versions sorted by their random version UUID instead of
+// creation order, and stamps `created` at whole-second resolution.
+// When the value-less Create's empty placeholder version and the
+// follow-up real-value version land in the same second, the version
+// ordering is unrecoverable, so the shim's created-ordered version
+// mapping can resolve "version 2" to the empty placeholder. The GCP
+// provider then panics on the empty payload. Un-skip once #407 lands.
+// (The BackendAWS variant is unaffected — only the Key Vault path has
+// the placeholder/rapid-version ordering ambiguity.)
 func TestSockerless_E2E_GCPSecrets_Through_Shim_ApplyTF_BackendAzure(t *testing.T) {
+	t.Skip("blocked on sockerless e6qu/sockerless#407 (Key Vault version listing not in creation order); un-skip when it lands")
 	tfBin, err := exec.LookPath("terraform")
 	if err != nil {
 		t.Skipf("terraform not installed: %v", err)
