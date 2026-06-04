@@ -10,6 +10,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/e6qu/shimanism/internal/awsjson"
 	"github.com/e6qu/shimanism/internal/kms/domain"
@@ -159,7 +160,15 @@ func (a *Adapter) Encrypt(ctx context.Context, in *gen.EncryptRequest) (*gen.Enc
 }
 
 func (a *Adapter) Decrypt(ctx context.Context, in *gen.DecryptRequest) (*gen.DecryptResponse, error) {
-	res, err := a.k.Decrypt(ctx, in.CiphertextBlob)
+	keyID := ""
+	if in.KeyId != nil {
+		keyID = *in.KeyId
+		// Accept ARN form (arn:aws:kms:...:key/<id>) by reducing to the id.
+		if i := strings.LastIndex(keyID, "key/"); i >= 0 {
+			keyID = keyID[i+len("key/"):]
+		}
+	}
+	res, err := a.k.Decrypt(ctx, keyID, in.CiphertextBlob)
 	if err != nil {
 		return nil, mapDomainErr(err)
 	}

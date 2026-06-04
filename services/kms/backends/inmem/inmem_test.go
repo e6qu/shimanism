@@ -60,7 +60,7 @@ func TestKey_EncryptDecryptRoundTrip(t *testing.T) {
 		t.Fatal("ciphertext equals plaintext")
 	}
 
-	dec, err := b.Decrypt(ctx, enc.Ciphertext)
+	dec, err := b.Decrypt(ctx, "", enc.Ciphertext)
 	if err != nil {
 		t.Fatalf("Decrypt: %v", err)
 	}
@@ -80,7 +80,7 @@ func TestKey_EncryptDecryptRoundTrip(t *testing.T) {
 	// Tampered ciphertext fails authentication.
 	bad := append([]byte{}, enc.Ciphertext...)
 	bad[len(bad)-1] ^= 0xff
-	if _, err := b.Decrypt(ctx, bad); err == nil {
+	if _, err := b.Decrypt(ctx, "", bad); err == nil {
 		t.Error("tampered ciphertext decrypted without error")
 	}
 }

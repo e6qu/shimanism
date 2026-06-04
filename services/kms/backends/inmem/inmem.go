@@ -78,7 +78,12 @@ func (b *Backend) CreateKey(_ context.Context, opts domain.CreateKeyOptions) (do
 	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	id := b.nextID()
+	id := opts.KeyID
+	if id == "" {
+		id = b.nextID()
+	} else if _, exists := b.keys[id]; exists {
+		return domain.Key{}, fmt.Errorf("key %q: %w", id, domain.ErrAlreadyExists)
+	}
 	e := &keyEntry{
 		meta: domain.Key{
 			ID:          id,
@@ -145,7 +150,7 @@ func (b *Backend) Encrypt(_ context.Context, keyID string, plaintext []byte) (do
 	return domain.EncryptResult{KeyID: keyID, Ciphertext: blob}, nil
 }
 
-func (b *Backend) Decrypt(_ context.Context, ciphertext []byte) (domain.DecryptResult, error) {
+func (b *Backend) Decrypt(_ context.Context, wantKey string, ciphertext []byte) (domain.DecryptResult, error) {
 	if len(ciphertext) < 2 {
 		return domain.DecryptResult{}, fmt.Errorf("malformed ciphertext: %w", domain.ErrInvalidInput)
 	}
@@ -154,6 +159,11 @@ func (b *Backend) Decrypt(_ context.Context, ciphertext []byte) (domain.DecryptR
 		return domain.DecryptResult{}, fmt.Errorf("malformed ciphertext: %w", domain.ErrInvalidInput)
 	}
 	keyID := string(ciphertext[2 : 2+keyLen])
+	// If the caller named a key (GCP/Azure decrypt-at-key), it must match the
+	// key embedded in the blob.
+	if wantKey != "" && wantKey != keyID {
+		return domain.DecryptResult{}, fmt.Errorf("ciphertext key %q != requested %q: %w", keyID, wantKey, domain.ErrInvalidInput)
+	}
 	rest := ciphertext[2+keyLen:]
 
 	b.mu.RLock()

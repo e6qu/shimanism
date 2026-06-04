@@ -43,6 +43,8 @@ import (
 	"github.com/e6qu/shimanism/internal/gcpbearer"
 	kmsdomain "github.com/e6qu/shimanism/internal/kms/domain"
 	awskmsfront "github.com/e6qu/shimanism/internal/kms/frontends/aws_kms"
+	azurekvkeysfront "github.com/e6qu/shimanism/internal/kms/frontends/azure_keyvault_keys"
+	gcpkmsfront "github.com/e6qu/shimanism/internal/kms/frontends/gcp_cloudkms"
 	lbdomain "github.com/e6qu/shimanism/internal/loadbalancer/domain"
 	awselbv2front "github.com/e6qu/shimanism/internal/loadbalancer/frontends/aws_elbv2"
 	azurelbfront "github.com/e6qu/shimanism/internal/loadbalancer/frontends/azure_lb"
@@ -353,6 +355,34 @@ func StartKMSServerAWS(t *testing.T, backend kmsdomain.KMS) *KMSServer {
 	t.Helper()
 	srv := awskmsfront.New(backend)
 	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
+	t.Cleanup(ts.Close)
+	return &KMSServer{URL: ts.URL, Close: ts.Close}
+}
+
+// StartKMSServerGCP starts a shim instance with the GCP Cloud KMS (REST)
+// frontend backed by the given KMS implementation. GCP-shaped clients
+// (google.golang.org/api/cloudkms/v1, gcloud kms) drive it via the
+// endpoint-override path.
+func StartKMSServerGCP(t *testing.T, backend kmsdomain.KMS) *KMSServer {
+	t.Helper()
+	srv := gcpkmsfront.Handler(backend)
+	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
+	t.Cleanup(ts.Close)
+	return &KMSServer{URL: ts.URL, Close: ts.Close}
+}
+
+// StartKMSServerAzure starts a shim instance with the Azure Key Vault
+// keys data-plane frontend backed by the given KMS implementation. The
+// httptest server uses TLS so the Azure SDK sends Bearer tokens.
+func StartKMSServerAzure(t *testing.T, backend kmsdomain.KMS) *KMSServer {
+	t.Helper()
+	srv := azurekvkeysfront.New(backend)
+	verifier := azurebearer.New(azurebearer.Options{
+		Audience: "https://vault.azure.net",
+		TestKey:  []byte("test-key-do-not-use-in-prod"),
+	})
+	mw := azurebearer.Middleware(verifier, azurebearer.WithChallenge("https://vault.azure.net"))
+	ts := httptest.NewTLSServer(&logRoundTrip{t: t, mux: mw(srv)})
 	t.Cleanup(ts.Close)
 	return &KMSServer{URL: ts.URL, Close: ts.Close}
 }
