@@ -2,51 +2,39 @@
 
 Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BUGS.md) · narrative [WHAT_WE_DID.md](WHAT_WE_DID.md) · philosophy [PHILOSOPHY.md](PHILOSOPHY.md) · rules [AGENTS.md](AGENTS.md).
 
-> **Cold-start entry point.** Phase 16 complete. Phase 17 in progress.
+> **Cold-start entry point.** Phases 1–17 complete; Phase 19 (Key Management) in progress.
 
 ## Where we are
 
-**Phase 17.C in progress** (branch `phase-17c-block-storage-k8s-sockerless`). K8s volume CRUD → PersistentVolumeClaim + sockerless EBS lane. 17.A/17.B merged (#122–#124).
+**Phase 19.A merged** (PR #127). AWS KMS lane: domain + inmem (real AES-256-GCM) + SDK/CLI/Terraform. Phase 17 (block storage) complete (#122–#125). Phase 18 (Container Registry) not started.
 
 **Open bugs:** BUG-8 · BUG-15 · BUG-41 (Track A only — blocked on real GCP credentials).
 
 ## Session-start checklist
 
-1. `git fetch origin && git checkout phase-17c-block-storage-k8s-sockerless` — resume in-flight branch.
-2. Continue with Phase 17 items below.
+1. `git fetch origin && git checkout main && git pull --ff-only origin main` — sync `main`.
+2. Continue Phase 19 (see below), or pick up Phase 18 / 20–23 from PLAN.md.
 
-## Phase 16 ✅ (PRs #104–#120)
+## Phase 19 — Key Management ◐
 
-All sub-phases closed. See PLAN.md and WHAT_WE_DID.md for narrative.
+### 19.A — domain + inmem + AWS KMS lane ✅ (PR #127)
 
-## Phase 17 — Block Storage ◐
+domain.KMS (symmetric ENCRYPT_DECRYPT; Decrypt key-ref-in-ciphertext) + inmem (real AES-256-GCM) + AWS KMS frontend (SigV4, awsJson1_1) + SDK/CLI/Terraform conformance + N29 + INTERSECTION.md. GetKeyPolicy returns AWS default (policies out of intersection); ListResourceTags reads real tags.
 
-### 17.A — Domain + inmem + AWS lane ✅ (PR #122)
+### 19.B — GCP Cloud KMS + Azure Key Vault keys (next)
 
-domain.BlockStorage + inmem + AWS EBS frontend/backend + K8s NotImplemented + SDK/CLI/TF conformance + N28 + INTERSECTION.md.
+- [ ] GCP frontend: `cryptoKeys.create/get/list` + `cryptoKeyVersions.encrypt/decrypt` + rotation (rotationPeriod).
+- [ ] Azure frontend: Key Vault keys `PUT/GET/LIST /keys` + `encrypt/decrypt`.
+- [ ] Real backends + SDK/CLI/Terraform conformance for both.
 
-### 17.B — GCP + Azure frontends + real backends ◐ (in progress)
+### 19.C — K8s NotImplemented + sockerless lane
 
-- [x] GCP frontend: `disks.insert/get/list/delete` + `snapshots.insert/get/list/delete` + `instances.attachDisk/detachDisk` (`internal/compute/frontends/gcp_compute/server.go`).
-- [x] GCP real backend: `Disks.*` + `Snapshots.*` + `Instances.AttachDisk/DetachDisk` (`services/compute/backends/gcp/gcp.go`).
-- [x] Azure frontend: `Microsoft.Compute/disks` + `Microsoft.Compute/snapshots` createOrUpdate/get/list/delete (returns 200 — armcompute disk/snapshot poller expects 200/202, not 201).
-- [x] Azure real backend: `DisksClient` + `SnapshotsClient` + attach/detach via VM `dataDisks` update.
-- [x] GCP SDK conformance: `gcp_disks_test.go` (Disk, Snapshot, AttachDetach lifecycles). Merged #123.
-- [x] Azure SDK conformance: `azure_disks_test.go` (Disk, Snapshot lifecycles). Merged #123.
-- [x] inmem CreateVolume stores Name from Tags["Name"] (GCP/Azure disks are name-addressed). Merged #123.
-- [x] GCP CLI conformance: `gcp_disks_cli_test.go` (disks list, snapshots list).
-- [x] GCP Terraform: `gcp_disks_terraform_test.go` (google_compute_disk apply+destroy, Linux-only).
-- [x] Azure CLI conformance: `azure_disks_cli_test.go` (az disk create/show/list/delete via sockerless).
-- [x] Azure Terraform: `TestSockerless_AzureDisk_Through_Shim_Terraform_Apply` (azurerm_managed_disk).
-- [ ] **Commit + push + open PR for CLI+TF.**
+- [ ] K8s peer: all KMS ops NotImplemented (no core built-in key-crypto API; etcd-encryption is cluster config).
+- [ ] Sockerless: AWS KMS through-shim lane (if sockerless has KMS; else file the gap upstream).
 
-### 17.C — K8s peer + sockerless lane ◐ (in progress)
+## Phase 17 ✅ (PRs #122–#125)
 
-- [x] K8s: volume CRUD → PersistentVolumeClaim (`k8scompute`); attach/detach + snapshots NotImplemented (no imperative K8s attach API; VolumeSnapshot is a CSI CRD).
-- [x] K8s conformance: `k8s_ebs_test.go` (VolumeLifecycle via PVC + Attach/Snapshot UnsupportedOperation).
-- [x] Sockerless: `TestSockerless_EBS_Through_Shim` (CreateVolume/Describe/Snapshot/Delete via AWS EBS backend → sockerless EC2 sim).
-- [x] INTERSECTION.md: K8s volume = PVC; attach/snapshot NotImplemented rows.
-- [ ] **Commit + push + open PR. Closes Phase 17.**
+Block storage — AWS/GCP/Azure SDK+CLI+Terraform, K8s PVC volume CRUD, sockerless EBS. Provider wire-quirks absorbed in-shim: EBS `CreateTime` nil-deref, Azure disk/snapshot 200-vs-201 poller, GCP `sizeGb` unquoted-vs-`,string`.
 
 ## Upstream watch
 
@@ -54,7 +42,8 @@ All Firecracker blockers resolved. Sockerless PRs #392/#395 merged.
 
 ## Standing rules
 
-- File sockerless issues for any gap found during shim work.
+- **One PR open at a time.** Before opening any PR, check `gh pr list --state open`; if one exists, ask the user first. Close stale/superseded PRs.
+- **Fix shim problems in the shim.** Only ever file with `github.com/e6qu/sockerless` (real sockerless-side gaps, after asking) — never Hashicorp or any other upstream.
 - Test driver is always the cloud SDK / CLI / Terraform provider.
 - Never auto-merge; user merges every PR.
 - File BUGs in BUGS.md before fixing.

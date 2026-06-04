@@ -8,16 +8,16 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 
 | | |
 |---|---|
-| Active branch | `phase-17c-block-storage-k8s-sockerless` — Phase 17.C: K8s PVC peer + sockerless EBS lane. |
-| In-flight | K8s volume CRUD → PVC (attach/snapshot NotImplemented); sockerless EBS volume+snapshot lane. |
-| Last merged | PR #124 — 17.B CLI+TF: GCP + Azure block storage driver matrix. |
+| Active branch | `main` — Phase 19 (Key Management) in progress; 19.A merged. |
+| In-flight | 19.B next: GCP Cloud KMS + Azure Key Vault keys frontends + backends. |
+| Last merged | PR #127 — 19.A: KMS domain + inmem + AWS KMS lane (SDK/CLI/TF). |
 | Upstream watch | All Firecracker blockers resolved. Sockerless PRs #392/#395 merged. |
-| Phases 1–16 | All closed. See [PLAN.md § Closed phases](PLAN.md#closed-phases-pr-index). |
-| Phase 17 | 17.A ✅ (#122) · 17.B ✅ (#123 SDK, #124 CLI/TF) · 17.C ◐ (K8s PVC + sockerless EBS). |
+| Phases 1–18 | 1–17 closed; 18 (Container Registry) not started. See [PLAN.md § Closed phases](PLAN.md#closed-phases-pr-index). |
+| Phase 19 | 19.A ✅ (#127 AWS KMS). 19.B GCP+Azure · 19.C K8s+sockerless planned. |
 | Bugs | **57 filed · 53 fixed · 3 open · 1 false positive.** Open: **BUG-8** + **BUG-15** + **BUG-41** (Track A). |
 | CI | 18 required checks. Real-cloud lanes wait on Track A. |
 | Renovate | Config + custom manager for vendored-spec SHAs. **User must install the Renovate GitHub App.** |
-| Standing merge auth | **None.** User merges every PR. |
+| Standing merge auth | **None.** User merges every PR. **One PR open at a time** — ask before opening if one's active. |
 
 ## Toolchain (locked-in across phases)
 
