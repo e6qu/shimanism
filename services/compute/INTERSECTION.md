@@ -123,18 +123,18 @@ and return the source cloud's own "not supported" error:
 | CreateVolume | `CreateVolume` | `disks.insert` | `disks.createOrUpdate` | PersistentVolumeClaim | N28: size in GiB; type opaque |
 | DescribeVolumes / Get | `DescribeVolumes` | `disks.get` / `disks.list` | `disks.get` / `disks.list` | PVC list | |
 | DeleteVolume | `DeleteVolume` | `disks.delete` | `disks.delete` | PVC delete | |
-| AttachVolume | `AttachVolume` | `instances.attachDisk` | VM `storageProfile.dataDisks` update | PVC → Pod binding | |
-| DetachVolume | `DetachVolume` | `instances.detachDisk` | VM `storageProfile.dataDisks` remove | PVC unbind | |
+| AttachVolume | `AttachVolume` | `instances.attachDisk` | VM `storageProfile.dataDisks` update | **NotImplemented** | K8s mounts volumes into pods via the pod spec — no imperative attach API |
+| DetachVolume | `DetachVolume` | `instances.detachDisk` | VM `storageProfile.dataDisks` remove | **NotImplemented** | same as attach |
 
-**N28 intersection note**: Volume size in GiB; volume type is opaque per-cloud. Attach/detach are synchronous in the domain. K8s: PV/PVC lifecycle.
+**N28 intersection note**: Volume size in GiB; volume type is opaque per-cloud. Attach/detach are synchronous in the domain. K8s: volume CRUD maps to PersistentVolumeClaim (create/list/delete); volume type maps to StorageClassName. Attach/detach are out-of-intersection on K8s — volumes mount into pods through the pod spec, there is no imperative volume-attach API.
 
 ### Snapshots
 
 | Operation | AWS EC2 | GCP Compute v1 | Azure Compute | K8s peer | Notes |
 |-----------|---------|---------------|---------------|----------|-------|
-| CreateSnapshot | `CreateSnapshot` | `snapshots.insert` | `snapshots.createOrUpdate` | VolumeSnapshot | |
-| DescribeSnapshots / Get | `DescribeSnapshots` | `snapshots.get` / `snapshots.list` | `snapshots.get` / `snapshots.list` | VolumeSnapshot list | |
-| DeleteSnapshot | `DeleteSnapshot` | `snapshots.delete` | `snapshots.delete` | VolumeSnapshot delete | |
+| CreateSnapshot | `CreateSnapshot` | `snapshots.insert` | `snapshots.createOrUpdate` | **NotImplemented** | VolumeSnapshot is a CSI CRD (snapshot.storage.k8s.io), not a core built-in |
+| DescribeSnapshots / Get | `DescribeSnapshots` | `snapshots.get` / `snapshots.list` | `snapshots.get` / `snapshots.list` | **NotImplemented** | |
+| DeleteSnapshot | `DeleteSnapshot` | `snapshots.delete` | `snapshots.delete` | **NotImplemented** | |
 
 ### Out-of-Intersection (Phase 17)
 

@@ -312,6 +312,92 @@ func TestSockerless_EC2_Instances_ThroughShim(t *testing.T) {
 	}
 }
 
+// TestSockerless_EBS_Through_Shim drives:
+//
+//	AWS SDK → shim's EC2 frontend → AWS EC2 backend → sockerless EC2 sim.
+//
+// Block storage lifecycle: CreateVolume, DescribeVolumes, CreateSnapshot,
+// DescribeSnapshots, DeleteSnapshot, DeleteVolume — all pure metadata in
+// sockerless (no Firecracker required).
+func TestSockerless_EBS_Through_Shim(t *testing.T) {
+	endpoint := os.Getenv("SOCKERLESS_AWS_ENDPOINT")
+	if endpoint == "" {
+		t.Skip("SOCKERLESS_AWS_ENDPOINT not set")
+	}
+
+	backendClient := newSockerlessAWSEC2Client(t, endpoint)
+	backend := awsbackend.New(backendClient)
+	shim := harness.StartComputeServerAWS(t, backend)
+	frontendClient := newEC2Client(t, shim.URL)
+	ctx := context.Background()
+
+	// CreateVolume through shim → sockerless.
+	vol, err := frontendClient.CreateVolume(ctx, &awsec2sdk.CreateVolumeInput{
+		AvailabilityZone: awsapi.String("us-east-1a"),
+		Size:             awsapi.Int32(10),
+		VolumeType:       ec2types.VolumeTypeGp3,
+	})
+	if err != nil {
+		t.Fatalf("CreateVolume (through shim → sockerless): %v", err)
+	}
+	volID := awsapi.ToString(vol.VolumeId)
+	if volID == "" {
+		t.Fatal("CreateVolume returned empty VolumeId")
+	}
+	t.Cleanup(func() {
+		frontendClient.DeleteVolume(ctx, &awsec2sdk.DeleteVolumeInput{VolumeId: awsapi.String(volID)}) //nolint:errcheck
+	})
+
+	// DescribeVolumes — verify presence.
+	desc, err := frontendClient.DescribeVolumes(ctx, &awsec2sdk.DescribeVolumesInput{
+		VolumeIds: []string{volID},
+	})
+	if err != nil {
+		t.Fatalf("DescribeVolumes: %v", err)
+	}
+	if len(desc.Volumes) != 1 || awsapi.ToString(desc.Volumes[0].VolumeId) != volID {
+		t.Fatalf("DescribeVolumes: got %d volumes, want 1 with id %q", len(desc.Volumes), volID)
+	}
+
+	// CreateSnapshot.
+	snap, err := frontendClient.CreateSnapshot(ctx, &awsec2sdk.CreateSnapshotInput{
+		VolumeId:    awsapi.String(volID),
+		Description: awsapi.String("sockerless ebs conformance"),
+	})
+	if err != nil {
+		t.Fatalf("CreateSnapshot: %v", err)
+	}
+	snapID := awsapi.ToString(snap.SnapshotId)
+	t.Cleanup(func() {
+		frontendClient.DeleteSnapshot(ctx, &awsec2sdk.DeleteSnapshotInput{SnapshotId: awsapi.String(snapID)}) //nolint:errcheck
+	})
+
+	// DescribeSnapshots — verify presence.
+	dsnap, err := frontendClient.DescribeSnapshots(ctx, &awsec2sdk.DescribeSnapshotsInput{
+		SnapshotIds: []string{snapID},
+	})
+	if err != nil {
+		t.Fatalf("DescribeSnapshots: %v", err)
+	}
+	if len(dsnap.Snapshots) != 1 || awsapi.ToString(dsnap.Snapshots[0].SnapshotId) != snapID {
+		t.Fatalf("DescribeSnapshots: got %d, want 1 with id %q", len(dsnap.Snapshots), snapID)
+	}
+
+	// DeleteSnapshot.
+	if _, err := frontendClient.DeleteSnapshot(ctx, &awsec2sdk.DeleteSnapshotInput{
+		SnapshotId: awsapi.String(snapID),
+	}); err != nil {
+		t.Fatalf("DeleteSnapshot: %v", err)
+	}
+
+	// DeleteVolume.
+	if _, err := frontendClient.DeleteVolume(ctx, &awsec2sdk.DeleteVolumeInput{
+		VolumeId: awsapi.String(volID),
+	}); err != nil {
+		t.Fatalf("DeleteVolume: %v", err)
+	}
+}
+
 // TestSockerless_AzureCompute_Through_Shim_Terraform_Apply exercises the
 // shim's azure_compute frontend end-to-end with the `hashicorp/azurerm`
 // Terraform provider.
