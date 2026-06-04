@@ -479,3 +479,15 @@ Closed audit items:
 **Trade-off.** Callers using AWS-specific volume types (io2, sc1, st1) will receive those types back unchanged; GCP and Azure backends reject unknown types with `InvalidParameterValue` / `BadRequest`. Cross-cloud volume type migration requires explicit type mapping by the caller — the shim does not translate.
 
 **Reference.** `internal/compute/domain/volumes.go`; `services/compute/INTERSECTION.md` § Phase 17. Exercised by `TestAWSSDK_EBS_VolumeLifecycle`, `TestAWSSDK_EBS_SnapshotLifecycle`, `TestAWSCLI_EBS_VolumeLifecycle`, `TestAWSCLI_EBS_SnapshotLifecycle`, `TestTerraformAWS_EBS_VolumeLifecycle`.
+
+---
+
+## N29 — KMS key spec opaque; symmetric encrypt/decrypt intersection
+
+**Asymmetry.** Key algorithm/spec names differ across clouds: AWS `SYMMETRIC_DEFAULT` / `RSA_2048` / `ECC_NIST_P256`; GCP `google-symmetric-encryption` / `rsa-decrypt-oaep-2048-sha256`; Azure `oct-256` / `RSA` / `EC`. Decrypt on all three clouds recovers the key reference from the ciphertext blob (the caller does not supply a key ID on decrypt). Asymmetric Sign/Verify exposes per-cloud signing-algorithm surfaces that diverge further.
+
+**Rule.** Domain `Key.KeySpec` is opaque per-cloud — it passes through without translation (same pattern as N13 cache tiers, N23 instance types, N24 images). The Phase 19 intersection is **symmetric ENCRYPT_DECRYPT**: CreateKey defaults to a symmetric key; Encrypt takes a key ID, Decrypt takes only the ciphertext blob (key reference embedded), on every backend. Sign/Verify (asymmetric) is out of the Phase 19 intersection — a `SIGN_VERIFY` usage returns the source cloud's "UnsupportedOperation" error until a later phase adds it.
+
+**Trade-off.** Cross-cloud key migration is not meaningful for KMS — key material never leaves the HSM, so a key created on one cloud cannot be re-homed to another. The shim's value is a uniform encrypt/decrypt/lifecycle API surface, not key portability. Callers needing a specific algorithm pass the destination cloud's own spec string.
+
+**Reference.** `internal/kms/domain/domain.go`; `services/kms/INTERSECTION.md`. Exercised by `TestAWSSDK_KMS_KeyLifecycle`, `TestAWSSDK_KMS_EncryptDecrypt`, `TestAWSSDK_KMS_Rotation` + inmem unit tests (real AES-256-GCM).

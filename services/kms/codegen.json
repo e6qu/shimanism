@@ -1,0 +1,20 @@
+{
+  "_comment": "Phase 19 Key Management intersection operations from the AWS KMS API (awsJson1_1 protocol). See INTERSECTION.md for the per-cloud equivalence table.",
+  "spec": "services/kms/spec/aws-kms.smithy.json",
+  "package": "gen",
+  "out": "services/kms/gen/aws_kms.gen.go",
+  "operations": [
+    "CreateKey",
+    "DescribeKey",
+    "ListKeys",
+    "Encrypt",
+    "Decrypt",
+    "ScheduleKeyDeletion",
+    "CancelKeyDeletion",
+    "EnableKeyRotation",
+    "DisableKeyRotation",
+    "GetKeyRotationStatus",
+    "GetKeyPolicy",
+    "ListResourceTags"
+  ]
+}
