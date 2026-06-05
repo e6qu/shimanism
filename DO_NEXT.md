@@ -35,9 +35,13 @@ Scoping: [docs/phase-18-scoping.md](docs/phase-18-scoping.md). Normalizations N3
 - [x] **PR2:** AR control plane — `repositories.create/get/list/delete` (LROs, returned done) + `dockerImages.list` via `google.golang.org/api/artifactregistry/v1` SDK (`TestARSDK_RepositoryLifecycle`). Repos keyed by full AR resource name; control plane `gcpbearer`-gated, data plane keeps the OCI Bearer challenge.
 - [x] **PR3:** AR control-plane CLI (`gcloud artifacts`) + Terraform (`google_artifact_registry_repository`). Handler accepts both `repositoryId` (gcloud) and `repository_id` (TF provider) query forms. **GCP AR frontend now conformance-complete: SDK + CLI + TF control plane + go-containerregistry data plane.**
 
-### 18.C–D (planned)
-- **18.C** — AWS ECR frontend (`GetAuthorizationToken` Basic) + Azure ACR frontend (`/oauth2/exchange`+`/oauth2/token`); full control-plane SDK/CLI/TF.
-- **18.D** — connected backends + CNCF `distribution` K8s peer + full 3×3×4 matrix + sockerless lanes (GCP AR + ACR green; **AWS-ECR data-plane skip-with-issue** — sockerless ECR has no `/v2/`, ask user before filing).
+### 18.C — AWS ECR + Azure ACR frontends
+
+- [x] **PR1 — AWS ECR.** Codegen'd awsJson1_1 control plane (`services/registry/{spec,codegen.json,gen}`, 6 ops) + SigV4; OCI `/v2/` data plane gated by HTTP **Basic** auth minted by `GetAuthorizationToken` (N31; HMAC token, stateless verify). ECR repo names are flat, so control + data planes **unify** on the repo name. Conformance: `aws-sdk-go-v2/service/ecr` SDK (repo lifecycle) + go-containerregistry push/pull via the real docker-login flow (`GetAuthorizationToken`→Basic) + ListImages-after-push + unauthenticated-challenge. New dep `aws-sdk-go-v2/service/ecr`.
+- [ ] **PR2 — Azure ACR.** ARM control plane + the `/oauth2/exchange`→`/oauth2/token` token-exchange data-plane auth (N31, the most involved scheme); go-containerregistry push/pull + `az acr` / Terraform.
+
+### 18.D (planned)
+- connected backends (aws/gcp/azure real) + CNCF `distribution` K8s peer + full 3×3×4 matrix + sockerless lanes (GCP AR + ACR green; **AWS-ECR data-plane skip-with-issue** — sockerless ECR has no `/v2/`, ask user before filing).
 
 ## Phase 19 — Key Management ✅ COMPLETE
 
