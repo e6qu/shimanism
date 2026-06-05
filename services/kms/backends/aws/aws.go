@@ -61,7 +61,44 @@ func (b *Backend) DescribeKey(ctx context.Context, id string) (domain.Key, error
 	if err != nil {
 		return domain.Key{}, fmt.Errorf("DescribeKey: %w", err)
 	}
-	return awsKeyToDomain(out.KeyMetadata), nil
+	key := awsKeyToDomain(out.KeyMetadata)
+	// AWS KMS DescribeKey does not return tags — they come from the
+	// separate ListResourceTags API. Fetch them so the frontend's
+	// ListResourceTags reads real tag state (without this the
+	// hashicorp/aws provider polls tag propagation until it times out).
+	tags, err := b.listResourceTags(ctx, id)
+	if err != nil {
+		return domain.Key{}, err
+	}
+	key.Tags = tags
+	return key, nil
+}
+
+// listResourceTags reads all tags for a key, following pagination.
+func (b *Backend) listResourceTags(ctx context.Context, id string) (map[string]string, error) {
+	tags := map[string]string{}
+	var marker *string
+	for {
+		out, err := b.c.ListResourceTags(ctx, &kms.ListResourceTagsInput{
+			KeyId:  awsapi.String(id),
+			Marker: marker,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("ListResourceTags: %w", err)
+		}
+		for _, t := range out.Tags {
+			tags[awsapi.ToString(t.TagKey)] = awsapi.ToString(t.TagValue)
+		}
+		if out.Truncated && out.NextMarker != nil {
+			marker = out.NextMarker
+			continue
+		}
+		break
+	}
+	if len(tags) == 0 {
+		return nil, nil
+	}
+	return tags, nil
 }
 
 func (b *Backend) ListKeys(ctx context.Context) (domain.ListKeysResult, error) {
