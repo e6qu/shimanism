@@ -3,7 +3,7 @@
 # shimanism
 
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
-[![Go](https://img.shields.io/badge/Go-63.8k_lines-00ADD8?logo=go&logoColor=white)](#code-architecture-and-how-the-build-works)
+[![Go](https://img.shields.io/badge/Go-64.2k_lines-00ADD8?logo=go&logoColor=white)](#code-architecture-and-how-the-build-works)
 [![Generated](https://img.shields.io/badge/Generated-76.5k_lines-blue)](docs/codegen.md)
 [![Tests](https://img.shields.io/badge/Tests-39.9k_lines-brightgreen)](docs/testing.md)
 [![Modules](https://img.shields.io/badge/Go_Modules-2-informational)](#code-architecture-and-how-the-build-works)

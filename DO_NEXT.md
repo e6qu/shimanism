@@ -2,15 +2,15 @@
 
 Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BUGS.md) · narrative [WHAT_WE_DID.md](WHAT_WE_DID.md) · philosophy [PHILOSOPHY.md](PHILOSOPHY.md) · rules [AGENTS.md](AGENTS.md).
 
-> **Cold-start entry point.** Phases 1–17 + 19 complete; Phase 18 (Container Registry) is starting 18.D.
+> **Cold-start entry point.** Phases 1–17 + 19 complete; Phase 18 (Container Registry) is in 18.D.
 
 ## Where we are
 
 **Phase 19 (Key Management) is complete** — PRs #127 (19.A) / #128 (19.B) / #129 (19.C) / #130 (19.D CLI/TF) / #131 (19.D sockerless), all merged. KMS across AWS/GCP/Azure + K8s: domain + inmem (real AES-256-GCM) + all three frontends + real backends + full SDK/CLI/TF conformance + all sockerless lanes green with **zero skips**. All four KMS sockerless gaps closed upstream (#407/#413/#419/#423).
 
-**Phase 18 — Container Registry is in 18.D.** OCI Distribution `/v2/` data plane (shared hand-written router) + ECR/AR/ACR control planes + CNCF `distribution` K8s peer. See [docs/phase-18-scoping.md](docs/phase-18-scoping.md). 18.A, 18.B, and 18.C are complete: GCP AR, AWS ECR, and Azure ACR frontends all have SDK/CLI/Terraform control-plane coverage plus go-containerregistry OCI data-plane coverage. 18.D PR1 is implemented locally: `services/registry/backends/distribution` calls a real Distribution registry and does not keep a sidecar catalog.
+**Phase 18 — Container Registry is in 18.D.** OCI Distribution `/v2/` data plane (shared hand-written router) + ECR/AR/ACR control planes + connected backends. See [docs/phase-18-scoping.md](docs/phase-18-scoping.md). 18.A, 18.B, and 18.C are complete: GCP AR, AWS ECR, and Azure ACR frontends all have SDK/CLI/Terraform control-plane coverage plus go-containerregistry OCI data-plane coverage. 18.D PR1 (#139) merged the real CNCF `distribution` backend. Current PR2 adds the real AWS ECR backend using the AWS SDK control plane plus ECR's own `/v2/` data-plane credentials; GCP AR and Azure ACR cloud backends remain next.
 
-**Open bugs:** BUG-8 · BUG-15 · BUG-41 (Track A only — blocked on real GCP credentials) · BUG-61 (ECR `BatchDeleteImage` must report per-image failures).
+**Open bugs:** BUG-8 · BUG-15 · BUG-41 (Track A only — blocked on real GCP credentials).
 
 ## Session-start checklist
 
@@ -42,8 +42,9 @@ Scoping: [docs/phase-18-scoping.md](docs/phase-18-scoping.md). Normalizations N3
 
 ### 18.D
 - [x] **PR1 — CNCF `distribution` connected backend.** Added `services/registry/backends/distribution` as a real connected backend to the reference OCI registry. It implements `domain.Registry` by calling `/v2/`, `/v2/_catalog`, tags, manifests, blobs, and upload sessions; it stores no sidecar catalog and returns `ErrNotSupported` for empty repository creation because Distribution has no honest API for it. Conformance: `TestDistributionBackend_GCPAR_ImagePushPull` pushes/pulls through the GCP AR-shaped frontend into a live registry when `SHIMANISM_DISTRIBUTION_URL` is set; package tests skip only when that live registry is unavailable. Also fixed BUG-62 by omitting optional source-cloud time fields when a backend exposes no real timestamp.
-- [ ] **PR2 — real cloud backends.** AWS ECR, GCP Artifact Registry, Azure ACR connected backends using official SDKs/data-plane HTTP. No synthetic repository/image state; derive from backend APIs only.
-- [ ] **PR3 — sockerless lanes.** GCP AR + Azure ACR push/pull through-shim green. AWS ECR data-plane lane must fail loudly/document skip on the known simulator gap (sockerless ECR has no `/v2/`); if confirmed, ask user before filing at `github.com/e6qu/sockerless`.
+- [ ] **PR2 — AWS ECR connected backend (in flight).** `services/registry/backends/aws_ecr` uses a real `*ecr.Client` for repository lifecycle, tag reads, image list, image delete, and `GetAuthorizationToken`; OCI blob/manifest/tag traffic delegates to the real ECR `/v2/` endpoint with the Basic credential ECR returns. No repository/image sidecar state. Also fixes BUG-61 by returning ECR `BatchDeleteImage.failures[]` instead of dropping per-image delete failures.
+- [ ] **PR3 — GCP Artifact Registry + Azure ACR connected backends.** Use official SDK/control APIs where available and real data-plane HTTP. No synthetic repository/image state; derive from backend APIs only. Be explicit about source-shaped repository-name asymmetries.
+- [ ] **PR4 — sockerless lanes.** GCP AR + Azure ACR push/pull through-shim green. AWS ECR data-plane lane must fail loudly/document skip on the known simulator gap (sockerless ECR has no `/v2/`); if confirmed, ask user before filing at `github.com/e6qu/sockerless`.
 - [ ] Full matrix/docs closeout: `services/registry/INTERSECTION.md`, Apply/cross-cloud cell, PLAN/STATUS/WHAT_WE_DID updates.
 
 ## Phase 19 — Key Management ✅ COMPLETE
