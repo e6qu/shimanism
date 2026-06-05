@@ -4,6 +4,14 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 
 > Reverse chronological. One section per phase. The *why*, the surprises, the root causes — not per-PR detail. For commit-level history, `git log`. For per-bug detail, [BUGS.md](BUGS.md). For pipeline + verifier architecture, [docs/codegen-pipelines.md](docs/codegen-pipelines.md) + [docs/verifiers.md](docs/verifiers.md).
 
+## Phase 18 — Container Registry: in progress
+
+18.A established the split architecture: a neutral `domain.Registry`, the shared hand-written OCI Distribution `/v2/` router, and the inmem content-addressable backend. 18.B mounted that router behind GCP Artifact Registry and filled the AR control-plane SDK/CLI/Terraform rows. 18.C first added AWS ECR: awsJson1_1 control plane, SigV4, `GetAuthorizationToken`, and ECR Basic-auth OCI push/pull.
+
+The current 18.C ACR chunk adds the hard part of Azure's data plane: `/oauth2/exchange` validates an Entra-shaped token with `internal/azurebearer`, `/oauth2/token` mints a scoped ACR access token, and `/v2/` + `/acr/v1/` verify that token statelessly. The tokens are HMAC-signed payloads, not stored server state, so the shim can restart or scale horizontally without losing issued credentials. Conformance pushes and pulls a real image through go-containerregistry, then reads `/acr/v1/_catalog` and `/{repo}/_manifests` from the same backend state.
+
+ACR's main asymmetry is still N30: Azure repositories are implicit. The ARM `registries/{name}` resource is the registry host, not a repository. The current frontend returns a minimal ARM registry-host envelope for clients that need to discover `loginServer`, but repository lifecycle and image inventory come from the ACR/OCI data plane, not invented host-side state. The official `armcontainerregistry` SDK forced one useful ARM-fidelity correction: synchronous `DELETE registries/{name}` must return `204 No Content`, not a headerless `202`, because Azure pollers require a polling URL for async deletes. `az acr` and `azurerm_container_registry` lanes are present behind the same sockerless Entra/passthrough setup used by prior Azure ARM services.
+
 ## Phase 19 — Key Management: complete (PRs #128–#131)
 
 **Closed 2026-06-05.** 19.B added the GCP Cloud KMS + Azure Key Vault keys frontends (SDK), 19.C the real AWS/GCP/Azure backends + K8s-NotImplemented + the first sockerless lane, 19.D the CLI/Terraform breadth (#130) and the real sockerless lanes (#131). End state: all four backends, full SDK/CLI/TF conformance, every KMS sockerless lane green with **zero skips**.
