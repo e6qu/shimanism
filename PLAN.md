@@ -372,7 +372,7 @@ NAT Gateways · Internet Gateways · Route Tables · VPC Peering · Auto Scaling
 
 > **Premise.** Standalone service family with a tight intersection: all three clouds speak the OCI Distribution Spec (v1) for image push/pull. The control-plane (create/delete repository, list images, delete tags) sits on top. No compute dependency.
 >
-> **Status: ◐ in progress — 18.D closeout.** **Authoritative design: [docs/phase-18-scoping.md](docs/phase-18-scoping.md)** (the sketch below is superseded by it where they differ — e.g. ECR control plane is awsJson1_1 not restJson1; the K8s peer is CNCF `distribution`, not "shim hosts registry"; the data plane targets the backend registry, not object storage). Per-service contracts: [services/registry/INTERSECTION.md](services/registry/INTERSECTION.md) and [services/registry/APPLY_INTERSECTION.md](services/registry/APPLY_INTERSECTION.md).
+> **Status: ✅ complete — #132–#141.** **Authoritative design: [docs/phase-18-scoping.md](docs/phase-18-scoping.md)** (the sketch below is superseded by it where they differ — e.g. ECR control plane is awsJson1_1 not restJson1; the K8s peer is CNCF `distribution`, not "shim hosts registry"; the data plane targets the backend registry, not object storage). Per-service contracts: [services/registry/INTERSECTION.md](services/registry/INTERSECTION.md) and [services/registry/APPLY_INTERSECTION.md](services/registry/APPLY_INTERSECTION.md).
 
 | Surface | AWS | GCP | Azure | K8s |
 |---|---|---|---|---|
@@ -386,7 +386,7 @@ NAT Gateways · Internet Gateways · Route Tables · VPC Peering · Auto Scaling
 
 **Out of intersection:** geo-replication, vulnerability scanning, image signing, lifecycle/cache policies, tag-immutability modes (N33), registry webhooks.
 
-**Sub-phases:** 18.A scoping + `domain.Registry` + `ocidistribution` router + inmem; 18.B OCI data plane behind GCP AR frontend; 18.C ECR + ACR frontends + control-plane conformance; 18.D connected backends + sockerless + docs closeout. Registry sockerless data-plane gaps are BUG-64/65/66 (simulator `/v2/` gaps; no shim fallback).
+**Sub-phases:** 18.A scoping + `domain.Registry` + `ocidistribution` router + inmem; 18.B OCI data plane behind GCP AR frontend; 18.C ECR + ACR frontends + control-plane conformance; 18.D connected backends + sockerless + docs closeout. Registry sockerless data-plane gaps remain open BUG-64/65/66 (simulator `/v2/` gaps; no shim fallback).
 
 ---
 
@@ -420,7 +420,7 @@ NAT Gateways · Internet Gateways · Route Tables · VPC Peering · Auto Scaling
 
 > **Premise.** Ordered, partitioned stream ingestion — distinct from the fan-out pub/sub model in Phase 4. The tightest three-cloud intersection is the **Apache Kafka-compatible** surface: AWS MSK (Managed Streaming for Apache Kafka), GCP Managed Apache Kafka, and Azure Event Hubs with Kafka endpoint. All three speak the Kafka wire protocol over the same port. The shim fronts the Kafka protocol directly.
 >
-> **Status: planned.**
+> **Status: next.**
 
 | Operation | AWS MSK | GCP Managed Kafka | Azure Event Hubs (Kafka) |
 |---|---|---|---|
@@ -520,7 +520,8 @@ NAT Gateways · Internet Gateways · Route Tables · VPC Peering · Auto Scaling
 
 | PR | Phase | Headline | Merged |
 |---|---|---|---|
-| #127 | 19.A | Key Management — AWS KMS lane: domain.KMS + inmem (real AES-256-GCM) + AWS KMS frontend (awsJson1_1, SigV4) across SDK+CLI+Terraform. Symmetric encrypt/decrypt + key lifecycle + rotation; Decrypt key-ref-in-ciphertext; Sign/Verify deferred. N29. GetKeyPolicy returns AWS default (policies out of intersection). | 2026-06-04 |
+| #132–#141 | 18 (all) | Container Registry: OCI Distribution `/v2/` shared data plane; GCP Artifact Registry, AWS ECR, and Azure ACR frontends across SDK/CLI/Terraform plus go-containerregistry; connected backends for CNCF Distribution, AWS ECR, GCP Artifact Registry, Azure ACR, and inmem. N30–N34. Registry sockerless lanes wired; simulator data-plane gaps tracked as BUG-64/65/66. | 2026-06-06 |
+| #127–#131 | 19 (all) | Key Management: domain.KMS + inmem (real AES-256-GCM); AWS KMS, GCP Cloud KMS, and Azure Key Vault keys frontends; real AWS/GCP/Azure backends; K8s NotImplemented; full SDK/CLI/Terraform conformance; all sockerless lanes green with zero skips. N29. BUG-58/59/60 closed. | 2026-06-05 |
 | #122–#125 | 17 (all) | Block storage: volumes + snapshots. AWS EBS / GCP disks / Azure managed disks across SDK+CLI+Terraform; K8s PVC volume CRUD (attach/snapshot NotImplemented); sockerless EBS lane. N28. Provider wire-quirks absorbed in-shim (CreateTime nil-deref, Azure 200-vs-201 poller, GCP sizeGb quoting). | 2026-06-04 |
 | #104–#120 | 16 (all) | Phase 16 compute + networking + LB: ec2Query codegen lane, VPC networking primitives (#104–#108), load balancers (#109–#110), instance lifecycle (#111–#120 incl. AWS/GCP/Azure TF+CLI, sockerless Firecracker lanes; BUG-55/56/57 closed). GCP/Azure/K8s frontends + real backends + full conformance matrix. | 2026-06-03 |
 | #90–#108 (umbrella) | 15 | Cross-cloud normalization standard (N1–N27), NoSQL (DynamoDB/Firestore/Cosmos Tables), DNS (Route 53/Cloud DNS/Azure DNS/CoreDNS), sockerless Cosmos Tables ARM passthrough. 10 PRs, all four frontends × five backends. | 2026-06-02 |

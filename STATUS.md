@@ -8,13 +8,13 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 
 | | |
 |---|---|
-| Active branch | `phase-18d-registry-cloud-closeout` — single remaining Phase 18.D closeout PR. |
-| In-flight | 18.D closeout: GCP Artifact Registry + Azure ACR connected backends, registry sockerless lanes, `INTERSECTION.md` / `APPLY_INTERSECTION.md`, and continuity closeout in one PR. Registry sockerless `/v2/` gaps remain BUG-64/65/66 pending upstream/user approval. |
-| Last merged | PR #140 — 18.D PR2: real AWS ECR backend + ECR `BatchDeleteImage.failures[]` fix. |
+| Active branch | `postmerge-phase-18-continuity` — post-merge continuity correction after PR #141. |
+| In-flight | No runtime shim work. Next substantive phase is Phase 20 (Event Streaming), starting with 20.A scoping/domain/Kafka data-plane design. Registry sockerless `/v2/` gaps remain BUG-64/65/66 pending upstream/user approval. |
+| Last merged | PR #141 — 18.D closeout: GCP Artifact Registry + Azure ACR connected backends, registry sockerless lanes, and registry service docs. |
 | Upstream watch | All KMS sockerless gaps closed: #407 (PR #412), #413 (PR #415), #419 GCP Cloud KMS sim (PR #422), #423 Azure no-version crypto (PR #425). |
-| Phases 1–19 | 1–17 + 19 closed; 18 (Container Registry) starting. See [PLAN.md § Closed phases](PLAN.md#closed-phases-pr-index). |
+| Phases 1–19 | 1–19 closed. See [PLAN.md § Closed phases](PLAN.md#closed-phases-pr-index). |
 | Phase 19 | ✅ complete — 19.A (#127) · 19.B (#128) · 19.C (#129) · 19.D (#130 CLI/TF, #131 sockerless). All 4 backends, full SDK/CLI/TF, all sockerless lanes green, zero skips. |
-| Phase 18 | 18.A complete; 18.B GCP Artifact Registry complete; 18.C AWS ECR + Azure ACR complete; 18.D closeout in progress. OCI Distribution data plane + ECR/AR/ACR frontends + connected backends. |
+| Phase 18 | ✅ complete — PRs #132–#141. OCI Distribution data plane + ECR/AR/ACR frontends + connected backends + registry docs. Simulator-only gaps remain tracked as BUG-64/65/66. |
 | Bugs | **63 filed · 56 fixed · 6 open · 1 false positive.** Open: **BUG-8** + **BUG-15** + **BUG-41** (Track A) + **BUG-64/65/66** (sockerless registry `/v2/`). |
 | CI | 20 required checks. Real-cloud lanes wait on Track A. |
 | Renovate | Config + custom manager for vendored-spec SHAs. **User must install the Renovate GitHub App.** |
