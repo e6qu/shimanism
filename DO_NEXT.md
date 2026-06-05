@@ -31,9 +31,11 @@ GCP frontend (`cryptoKeys.create/get/list` + `cryptoKeyVersions.encrypt/decrypt`
 - [x] Sockerless: AWS KMS through-shim lane wired; GCP Cloud KMS absent upstream (skip referencing the filed gap); Azure KV-keys lane is a 19.D follow-on.
 - [x] **CI unblock (BUG-52):** `sockerless through-shim e2e` was red on a *secrets* test, not KMS — `TestSockerless_E2E_GCPSecrets_..._BackendAzure` deterministically crashed `terraform-provider-google` v5.45.2. Root cause: sockerless KV lists secret versions by random UUID (not creation order) + 1s-resolution `created` → shim's created-ordered version mapping resolves "version 2" to the empty placeholder → empty `payload.data` → provider panic. Filed [sockerless#407](https://github.com/e6qu/sockerless/issues/407). **Closed by [sockerless PR #412](https://github.com/e6qu/sockerless/pull/412) (2026-06-04)** — version listing now creation-ordered. Test un-gated. No shim-logic change (per user: "Only file sockerless").
 
-### 19.D — KMS conformance breadth + sockerless lanes (next)
+### 19.D — KMS conformance breadth + sockerless lanes
 
-- [ ] **GCP CLI + Terraform** KMS conformance (`gcloud kms` + `hashicorp/google` `google_kms_crypto_key`/`key_ring`) — 19.B shipped GCP SDK only.
+**PR1 (#130, open):** GCP `gcloud kms` CLI + `hashicorp/google` Terraform conformance. Surfaced + fixed real frontend fidelity gaps: CRC32C data-integrity (BUG-53), cryptoKeyVersions list/get/`:destroy`, std/URL-safe base64, AAD rejection. **Also made keyRings honest (BUG-58):** promoted keyRing to a non-optional `domain.KMS` capability — inmem + native GCP track rings for real, AWS/Azure return `NotSupported` (no honest container home; keyRing is out of the cross-cloud data-plane intersection — see INTERSECTION.md). Reported the missing GCP Cloud KMS *simulator* to sockerless ([#419](https://github.com/e6qu/sockerless/issues/419)). GCP-KMS × AWS/Azure keyRing cell documented out-of-intersection.
+
+- [x] **GCP CLI + Terraform** KMS conformance (`gcloud kms` + `hashicorp/google` `google_kms_crypto_key`/`key_ring`) — PR #130.
 - [ ] **Azure CLI + Terraform** Key Vault keys conformance (`az keyvault key` + `hashicorp/azurerm` `azurerm_key_vault_key`) — 19.B shipped Azure SDK only.
 - [ ] **Azure KV-keys sockerless lane** — wire `TestSockerless_AzureKVKeys_Through_Shim` (currently a 19.D-gated `t.Skip` behind `SOCKERLESS_AZURE_TLS_PORT`).
 - [ ] **AWS KMS tagged-`aws_kms_key` Terraform-against-sockerless lane** — now unblocked by [sockerless#413](https://github.com/e6qu/sockerless/issues/413) (KMS tagging) closed by [PR #415](https://github.com/e6qu/sockerless/pull/415) (2026-06-04): sockerless now round-trips KMS tags + implements `TagResource`/`UntagResource`/`ListResourceTags`.
