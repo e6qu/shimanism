@@ -16,6 +16,7 @@ For runnable cross-cloud commands, start with the [complete end-to-end examples]
 | Cache (control plane) | [docs/services/cache.md](services/cache.md) | [services/cache/](../services/cache/) |
 | Functions (control plane) | [docs/services/functions.md](services/functions.md) | [services/functions/](../services/functions/) |
 | API gateway | [docs/services/apigateway.md](services/apigateway.md) | [services/apigateway/](../services/apigateway/) |
+| Container registry | [docs/services/registry.md](services/registry.md) | [services/registry/](../services/registry/) |
 
 Each per-service doc covers:
 

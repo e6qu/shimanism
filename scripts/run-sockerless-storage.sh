@@ -160,6 +160,25 @@ build_sim gcp "$GCP_BIN"
 build_sim azure "$AZURE_BIN"
 ensure_cert
 
+if [[ -n ${SOCKERLESS_GO_TEST_PACKAGES:-} ]]; then
+    read -r -a TEST_PACKAGES <<< "$SOCKERLESS_GO_TEST_PACKAGES"
+else
+    TEST_PACKAGES=(
+        ./services/storage/conformance/...
+        ./services/secrets/conformance/...
+        ./services/queue/conformance/...
+        ./services/pubsub/conformance/...
+        ./services/rdbms/conformance/...
+        ./services/cache/conformance/...
+        ./services/functions/conformance/...
+        ./services/apigateway/conformance/...
+        ./services/dns/conformance/...
+        ./services/nosql/conformance/...
+        ./services/kms/conformance/...
+        ./services/registry/conformance/...
+    )
+fi
+
 echo "start: AWS sim → https://localhost:$AWS_PORT (TLS, self-signed)"
 SIM_LISTEN_ADDR=":$AWS_PORT" \
 SIM_TLS_CERT="$CERT_DIR/sim.crt" \
@@ -197,7 +216,7 @@ AZURE_PID=$!
 # is plenty on local; CI can override via SOCKERLESS_STARTUP_DELAY.
 sleep "${SOCKERLESS_STARTUP_DELAY:-1}"
 
-echo "run: shim sockerless lane (storage + secrets + queue + pubsub + rdbms + cache + functions + apigateway)"
+echo "run: shim sockerless lane (${TEST_PACKAGES[*]})"
 SOCKERLESS_AWS_ENDPOINT="https://localhost:$AWS_PORT" \
 SOCKERLESS_GCP_ENDPOINT="localhost:$GCP_PORT" \
 SOCKERLESS_AWS_SM_ENDPOINT="https://localhost:$AWS_PORT" \
@@ -213,14 +232,4 @@ SOCKERLESS_AZURE_CONTAINERAPPS_IMAGE="$SOCKERLESS_AZURE_CONTAINERAPPS_IMAGE" \
 SOCKERLESS_GCP_CLOUDRUN_IMAGE="$SOCKERLESS_GCP_CLOUDRUN_IMAGE" \
 AWS_S3_CONFORMANCE_INSECURE_TLS=1 \
 go test -run '^TestSockerless_' -count=1 -v \
-    ./services/storage/conformance/... \
-    ./services/secrets/conformance/... \
-    ./services/queue/conformance/... \
-    ./services/pubsub/conformance/... \
-    ./services/rdbms/conformance/... \
-    ./services/cache/conformance/... \
-    ./services/functions/conformance/... \
-    ./services/apigateway/conformance/... \
-    ./services/dns/conformance/... \
-    ./services/nosql/conformance/... \
-    ./services/kms/conformance/...
+    "${TEST_PACKAGES[@]}"
