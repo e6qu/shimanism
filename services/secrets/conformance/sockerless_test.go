@@ -1290,6 +1290,22 @@ func secretsGCSBearerJWT() string {
 	)
 }
 
+func applyTerraformSecret(t *testing.T, tfBin, hcl, secretName, secretValue, backendLabel string, backend domain.Secrets) {
+	t.Helper()
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "main.tf"), []byte(hcl), 0o644); err != nil {
+		t.Fatalf("write main.tf: %v", err)
+	}
+
+	runTf, mustRun := terraformSecretsRunner(t, tfBin, dir, nil)
+	mustRun("init", "-no-color")
+	applyOut := mustRun("apply", "-no-color", "-auto-approve")
+	t.Logf("terraform apply stdout:\n%s", applyOut)
+	t.Cleanup(func() { _, _, _ = runTf("destroy", "-no-color", "-auto-approve") })
+
+	expectSecretValueInBackend(t, backend, secretName, secretValue, backendLabel)
+}
+
 // TestSockerless_E2E_AWSSecrets_Through_Shim_ApplyTF_BackendAzure
 // drives `hashicorp/aws` Terraform Apply through the shim's AWS
 // Secrets Manager frontend, then through the shim's Azure Key Vault
@@ -1305,19 +1321,8 @@ func TestSockerless_E2E_AWSSecrets_Through_Shim_ApplyTF_BackendAzure(t *testing.
 	secretName := "shim-aws-az-applied-" + randomHex(4)
 	secretValue := "aws-source-azure-backend-payload"
 
-	dir := t.TempDir()
 	hcl := fmt.Sprintf(terraformAWSSecretsCrossCloudApplyConfig, shim.URL, secretName, secretValue)
-	if err := os.WriteFile(filepath.Join(dir, "main.tf"), []byte(hcl), 0o644); err != nil {
-		t.Fatalf("write main.tf: %v", err)
-	}
-
-	runTf, mustRun := terraformSecretsRunner(t, tfBin, dir, nil)
-	mustRun("init", "-no-color")
-	applyOut := mustRun("apply", "-no-color", "-auto-approve")
-	t.Logf("terraform apply stdout:\n%s", applyOut)
-	t.Cleanup(func() { _, _, _ = runTf("destroy", "-no-color", "-auto-approve") })
-
-	expectSecretValueInBackend(t, backend, secretName, secretValue, "sockerless Azure KV")
+	applyTerraformSecret(t, tfBin, hcl, secretName, secretValue, "sockerless Azure KV", backend)
 }
 
 // TestSockerless_E2E_AWSSecrets_Through_Shim_ApplyTF_BackendGCP
@@ -1334,19 +1339,8 @@ func TestSockerless_E2E_AWSSecrets_Through_Shim_ApplyTF_BackendGCP(t *testing.T)
 	secretName := "shim-aws-gcp-applied-" + randomHex(4)
 	secretValue := "aws-source-gcp-backend-payload"
 
-	dir := t.TempDir()
 	hcl := fmt.Sprintf(terraformAWSSecretsCrossCloudApplyConfig, shim.URL, secretName, secretValue)
-	if err := os.WriteFile(filepath.Join(dir, "main.tf"), []byte(hcl), 0o644); err != nil {
-		t.Fatalf("write main.tf: %v", err)
-	}
-
-	runTf, mustRun := terraformSecretsRunner(t, tfBin, dir, nil)
-	mustRun("init", "-no-color")
-	applyOut := mustRun("apply", "-no-color", "-auto-approve")
-	t.Logf("terraform apply stdout:\n%s", applyOut)
-	t.Cleanup(func() { _, _, _ = runTf("destroy", "-no-color", "-auto-approve") })
-
-	expectSecretValueInBackend(t, backend, secretName, secretValue, "sockerless GCP SM")
+	applyTerraformSecret(t, tfBin, hcl, secretName, secretValue, "sockerless GCP SM", backend)
 }
 
 // TestSockerless_E2E_GCPSecrets_Through_Shim_ApplyTF_BackendAWS
@@ -1363,20 +1357,9 @@ func TestSockerless_E2E_GCPSecrets_Through_Shim_ApplyTF_BackendAWS(t *testing.T)
 	secretName := "shim-gcp-aws-applied-" + randomHex(4)
 	secretValue := "gcp-source-aws-backend-payload"
 
-	dir := t.TempDir()
 	jwt := secretsGCSBearerJWT()
 	hcl := fmt.Sprintf(terraformGCPSecretsCrossCloudApplyConfig, jwt, shim.URL, secretName, secretValue)
-	if err := os.WriteFile(filepath.Join(dir, "main.tf"), []byte(hcl), 0o644); err != nil {
-		t.Fatalf("write main.tf: %v", err)
-	}
-
-	runTf, mustRun := terraformSecretsRunner(t, tfBin, dir, nil)
-	mustRun("init", "-no-color")
-	applyOut := mustRun("apply", "-no-color", "-auto-approve")
-	t.Logf("terraform apply stdout:\n%s", applyOut)
-	t.Cleanup(func() { _, _, _ = runTf("destroy", "-no-color", "-auto-approve") })
-
-	expectSecretValueInBackend(t, backend, secretName, secretValue, "sockerless AWS SM")
+	applyTerraformSecret(t, tfBin, hcl, secretName, secretValue, "sockerless AWS SM", backend)
 }
 
 // TestSockerless_E2E_GCPSecrets_Through_Shim_ApplyTF_BackendAzure
@@ -1393,20 +1376,9 @@ func TestSockerless_E2E_GCPSecrets_Through_Shim_ApplyTF_BackendAzure(t *testing.
 	secretName := "shim-gcp-az-applied-" + randomHex(4)
 	secretValue := "gcp-source-azure-backend-payload"
 
-	dir := t.TempDir()
 	jwt := secretsGCSBearerJWT()
 	hcl := fmt.Sprintf(terraformGCPSecretsCrossCloudApplyConfig, jwt, shim.URL, secretName, secretValue)
-	if err := os.WriteFile(filepath.Join(dir, "main.tf"), []byte(hcl), 0o644); err != nil {
-		t.Fatalf("write main.tf: %v", err)
-	}
-
-	runTf, mustRun := terraformSecretsRunner(t, tfBin, dir, nil)
-	mustRun("init", "-no-color")
-	applyOut := mustRun("apply", "-no-color", "-auto-approve")
-	t.Logf("terraform apply stdout:\n%s", applyOut)
-	t.Cleanup(func() { _, _, _ = runTf("destroy", "-no-color", "-auto-approve") })
-
-	expectSecretValueInBackend(t, backend, secretName, secretValue, "sockerless Azure KV")
+	applyTerraformSecret(t, tfBin, hcl, secretName, secretValue, "sockerless Azure KV", backend)
 }
 
 // terraformAWSSecretsCrossCloudApplyConfig is the `hashicorp/aws`

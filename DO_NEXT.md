@@ -12,7 +12,7 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 
 **Open bugs:** BUG-8 · BUG-15 · BUG-41 (Track A only — blocked on real GCP credentials) · BUG-64/65/66 (sockerless registry `/v2/` gaps filed upstream as sockerless#450/#451/#452).
 
-**Current branch:** `cleanup-cmd-shim-runners` removes the first advisory duplicate-code finding by refactoring `cmd/shim` cache/rdbms command wiring into shared managed-control helpers plus small service-specific constructor files. Baseline tooling landed in PR #143.
+**Current branch:** `cleanup-duplicate-code-followups` removes the remaining advisory duplicate-code findings: secrets Terraform apply conformance bodies, compute inmem list/describe helpers, and K8s NetworkPolicy ingress/egress conversion. Baseline tooling landed in PR #143; `cmd/shim` cleanup landed in PR #144.
 
 ## Session-start checklist
 
@@ -42,8 +42,11 @@ Closed by PRs #132–#141. Registry sockerless tests are wired and fail loud on 
 - [x] Publish [docs/code-health.md](docs/code-health.md) with triage rules and cleanup order.
 - [x] Open and merge the baseline PR (#143).
 - [x] Refactor `cmd/shim/cache.go` / `cmd/shim/rdbms.go` runner duplication without hiding backend/frontend errors.
-- [ ] Open the `cmd/shim` cleanup PR.
-- [ ] Next cleanup candidate: repeated Terraform apply bodies in `services/secrets/conformance/sockerless_test.go`.
+- [x] Open and merge the `cmd/shim` cleanup PR (#144).
+- [x] Extract focused helpers for repeated Terraform apply bodies in `services/secrets/conformance/sockerless_test.go`.
+- [x] Review and deduplicate compute inmem and K8s duplicate helpers while preserving domain-specific behavior.
+- [ ] Open the remaining duplicate-code cleanup PR.
+- [ ] Next code-health candidate: triage hand-written `deadcode` findings one package at a time.
 
 ## Phase 19 — Key Management ✅ COMPLETE
 

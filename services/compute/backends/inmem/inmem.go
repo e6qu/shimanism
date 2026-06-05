@@ -73,6 +73,62 @@ func copyTags(in map[string]string) map[string]string {
 	return out
 }
 
+func wantedIDSet(ids []string) map[string]bool {
+	if len(ids) == 0 {
+		return nil
+	}
+	want := make(map[string]bool, len(ids))
+	for _, id := range ids {
+		want[id] = true
+	}
+	return want
+}
+
+func listByNetwork[T any](
+	items map[string]*T,
+	ids []string,
+	networkID string,
+	idOf func(*T) string,
+	networkOf func(*T) string,
+	nameOf func(*T) string,
+) []T {
+	want := wantedIDSet(ids)
+	var out []T
+	for _, item := range items {
+		if networkID != "" && networkOf(item) != networkID {
+			continue
+		}
+		if len(want) > 0 && !want[idOf(item)] {
+			continue
+		}
+		out = append(out, *item)
+	}
+	sort.Slice(out, func(i, j int) bool { return nameOf(&out[i]) < nameOf(&out[j]) })
+	return out
+}
+
+func describeByIDAndRef[T any](
+	items map[string]*T,
+	ids []string,
+	ref string,
+	idOf func(*T) string,
+	refOf func(*T) string,
+) []T {
+	want := wantedIDSet(ids)
+	var out []T
+	for _, item := range items {
+		if len(want) > 0 && !want[idOf(item)] {
+			continue
+		}
+		if ref != "" && refOf(item) != ref {
+			continue
+		}
+		out = append(out, *item)
+	}
+	sort.Slice(out, func(i, j int) bool { return idOf(&out[i]) < idOf(&out[j]) })
+	return out
+}
+
 // ─── Networks ───────────────────────────────────────────────────────
 
 func (b *Backend) CreateNetwork(_ context.Context, name string, opt domain.CreateNetworkOptions) (domain.Network, error) {
@@ -172,21 +228,11 @@ func (b *Backend) GetSubnet(_ context.Context, id string) (domain.Subnet, error)
 func (b *Backend) ListSubnets(_ context.Context, opt domain.ListSubnetsOptions) (domain.ListSubnetsResult, error) {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
-	want := map[string]bool{}
-	for _, id := range opt.IDs {
-		want[id] = true
-	}
-	var out []domain.Subnet
-	for _, s := range b.subnets {
-		if opt.NetworkID != "" && s.NetworkID != opt.NetworkID {
-			continue
-		}
-		if len(want) > 0 && !want[s.ID] {
-			continue
-		}
-		out = append(out, *s)
-	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+	out := listByNetwork(b.subnets, opt.IDs, opt.NetworkID,
+		func(s *domain.Subnet) string { return s.ID },
+		func(s *domain.Subnet) string { return s.NetworkID },
+		func(s *domain.Subnet) string { return s.Name },
+	)
 	return domain.ListSubnetsResult{Subnets: out}, nil
 }
 
@@ -234,21 +280,11 @@ func (b *Backend) GetSecurityGroup(_ context.Context, id string) (domain.Securit
 func (b *Backend) ListSecurityGroups(_ context.Context, opt domain.ListSecurityGroupsOptions) (domain.ListSecurityGroupsResult, error) {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
-	want := map[string]bool{}
-	for _, id := range opt.IDs {
-		want[id] = true
-	}
-	var out []domain.SecurityGroup
-	for _, sg := range b.sgs {
-		if opt.NetworkID != "" && sg.NetworkID != opt.NetworkID {
-			continue
-		}
-		if len(want) > 0 && !want[sg.ID] {
-			continue
-		}
-		out = append(out, *sg)
-	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+	out := listByNetwork(b.sgs, opt.IDs, opt.NetworkID,
+		func(sg *domain.SecurityGroup) string { return sg.ID },
+		func(sg *domain.SecurityGroup) string { return sg.NetworkID },
+		func(sg *domain.SecurityGroup) string { return sg.Name },
+	)
 	return domain.ListSecurityGroupsResult{SecurityGroups: out}, nil
 }
 
@@ -575,21 +611,10 @@ func (b *Backend) CreateVolume(_ context.Context, opts domain.CreateVolumeOption
 func (b *Backend) DescribeVolumes(_ context.Context, opts domain.DescribeVolumesOptions) (domain.DescribeVolumesResult, error) {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
-	wantID := make(map[string]bool, len(opts.IDs))
-	for _, id := range opts.IDs {
-		wantID[id] = true
-	}
-	var out []domain.Volume
-	for _, vol := range b.volumes {
-		if len(wantID) > 0 && !wantID[vol.ID] {
-			continue
-		}
-		if opts.InstanceID != "" && vol.InstanceID != opts.InstanceID {
-			continue
-		}
-		out = append(out, *vol)
-	}
-	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
+	out := describeByIDAndRef(b.volumes, opts.IDs, opts.InstanceID,
+		func(vol *domain.Volume) string { return vol.ID },
+		func(vol *domain.Volume) string { return vol.InstanceID },
+	)
 	return domain.DescribeVolumesResult{Volumes: out}, nil
 }
 
@@ -673,21 +698,10 @@ func (b *Backend) CreateSnapshot(_ context.Context, volumeID string, opts domain
 func (b *Backend) DescribeSnapshots(_ context.Context, opts domain.DescribeSnapshotsOptions) (domain.DescribeSnapshotsResult, error) {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
-	wantID := make(map[string]bool, len(opts.IDs))
-	for _, id := range opts.IDs {
-		wantID[id] = true
-	}
-	var out []domain.Snapshot
-	for _, snap := range b.snapshots {
-		if len(wantID) > 0 && !wantID[snap.ID] {
-			continue
-		}
-		if opts.VolumeID != "" && snap.VolumeID != opts.VolumeID {
-			continue
-		}
-		out = append(out, *snap)
-	}
-	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
+	out := describeByIDAndRef(b.snapshots, opts.IDs, opts.VolumeID,
+		func(snap *domain.Snapshot) string { return snap.ID },
+		func(snap *domain.Snapshot) string { return snap.VolumeID },
+	)
 	return domain.DescribeSnapshotsResult{Snapshots: out}, nil
 }
 
