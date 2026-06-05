@@ -491,3 +491,63 @@ Closed audit items:
 **Trade-off.** Cross-cloud key migration is not meaningful for KMS — key material never leaves the HSM, so a key created on one cloud cannot be re-homed to another. The shim's value is a uniform encrypt/decrypt/lifecycle API surface, not key portability. Callers needing a specific algorithm pass the destination cloud's own spec string.
 
 **Reference.** `internal/kms/domain/domain.go`; `services/kms/INTERSECTION.md`. Exercised by `TestAWSSDK_KMS_KeyLifecycle`, `TestAWSSDK_KMS_EncryptDecrypt`, `TestAWSSDK_KMS_Rotation` + inmem unit tests (real AES-256-GCM).
+
+---
+
+## N30 — Repository lifecycle: explicit on AWS/GCP, implicit on Azure ACR
+
+**Asymmetry.** ECR `CreateRepository` and Artifact Registry `repositories.create` are explicit lifecycle calls with their own API; on **Azure ACR a repository is implicit** — it materializes on first manifest push and is addressed only via data-plane catalog/manifest APIs. ACR's `registries.create` creates the *registry host*, one level up (the analog of "the registry endpoint", not "a repository"). The CNCF `distribution` peer is also implicit (repo exists once it has a tag).
+
+**Rule.** Domain `CreateRepository` is explicit. The ACR backend treats it as an idempotent metadata no-op that succeeds (the repo materializes on first push); `DescribeRepository`/`ListRepositories` derive from ACR's `/acr/v1/_catalog`. `DeleteRepository` on ACR enumerates and deletes all manifests.
+
+**Trade-off.** An empty repository cannot truly exist on ACR — `CreateRepository` then `DescribeRepository` with no images returns an empty-but-present shape derived from the catalog; an observer querying ACR directly sees nothing until first push. Direct analog of N18 (NoSQL table implicit on Firestore).
+
+**Reference.** `internal/registry/domain/domain.go`; `services/registry/INTERSECTION.md` § Phase 18.
+
+---
+
+## N31 — Data-plane auth-token exchange (Basic vs Bearer vs ACR refresh→access)
+
+**Asymmetry.** OCI `/v2/` auth differs per cloud: ECR uses HTTP **Basic** with a `GetAuthorizationToken`-minted credential; Artifact Registry uses a **Bearer** OAuth2 access token; ACR requires a two-step exchange — `/oauth2/exchange` (AAD JWT → ACR refresh token) then `/oauth2/token` (refresh → scoped access token) — before Bearer on `/v2/`.
+
+**Rule.** Each frontend implements its cloud's native scheme at its own door and verifies against the shim's test credentials (ECR Basic via the issued token; AR Bearer via `internal/gcpbearer`; ACR exchange validates the Entra JWT via `internal/azurebearer`, then mints + checks an ACR-scoped token). The domain layer is auth-agnostic — the verified identity never reaches `domain.Registry`.
+
+**Trade-off.** A client's data-plane token is cloud-specific and non-portable; cross-cloud push requires re-authenticating with the destination cloud's scheme. The sockerless ACR sim leaves `/v2/` ungated, so ACR token-exchange fidelity is validated by shim unit tests + real-Azure Track A, not the sim.
+
+**Reference.** `internal/registry/frontends/{aws_ecr,gcp_artifactregistry,azure_acr}/`; `services/registry/INTERSECTION.md`.
+
+---
+
+## N32 — Manifest media-type pass-through (digest-preserving)
+
+**Asymmetry.** Clients push either `application/vnd.oci.image.manifest.v1+json` or the legacy `application/vnd.docker.distribution.manifest.v2+json` (and index/list variants); clouds vary in which they canonicalize to.
+
+**Rule.** The shim stores and returns the manifest media type **verbatim** — it is part of the content the digest is computed over, so rewriting it would change the digest and break content-addressability. The `Content-Type` on `GET` matches what was `PUT`. The shim performs no manifest conversion (Docker schema2 → OCI); a backend that rejects an unfamiliar media type returns its own error.
+
+**Trade-off.** Manifest format conversion is out of intersection — a client must push a media type the destination backend accepts; the shim will not transcode it.
+
+**Reference.** `internal/registry/ocidistribution/router.go`; `services/registry/INTERSECTION.md`.
+
+---
+
+## N33 — Tag immutability is not enforced by the shim
+
+**Asymmetry.** ECR (`imageTagMutability`), ACR (`updateableAttributes`), and Artifact Registry (per-repo policy) each offer a configurable immutable-tag mode with different APIs; there is no common configuration surface.
+
+**Rule.** The registry intersection treats tags as **mutable** — re-pushing a tag moves it to the new manifest, per base OCI semantics. Setting an immutability mode is out of intersection and returns the source cloud's "not supported" error.
+
+**Trade-off.** Users relying on cloud-enforced tag immutability lose that guarantee through the shim; they enforce it at the destination cloud directly or in CI.
+
+**Reference.** `internal/registry/ocidistribution/router.go`; `services/registry/INTERSECTION.md`.
+
+---
+
+## N34 — Digest algorithm: sha256 canonical, sha512 opaque pass-through
+
+**Asymmetry.** OCI permits `sha256` and `sha512` digests; the three clouds and `distribution` universally support `sha256`, with inconsistent `sha512` support.
+
+**Rule.** The data-plane router verifies and round-trips `sha256` digests, computing the digest in-flight on upload to honor the OCI content-addressable contract. A `sha512`-prefixed digest is passed through to the backend untranslated, and the backend's own response governs (no shim-side `sha512` verification).
+
+**Trade-off.** `sha512` push/pull works only where the destination backend supports it; the shim does not normalize digest algorithms (that would change the content address).
+
+**Reference.** `internal/registry/ocidistribution/digest.go`; `services/registry/INTERSECTION.md`.
