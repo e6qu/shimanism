@@ -28,8 +28,10 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	awsapi "github.com/aws/aws-sdk-go-v2/aws"
+	awshttp "github.com/aws/aws-sdk-go-v2/aws/transport/http"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	awskmssdk "github.com/aws/aws-sdk-go-v2/service/kms"
@@ -59,6 +61,13 @@ func sockerlessAWSKMSBackend(t *testing.T) *awskmsbackend.Backend {
 	)
 	if err != nil {
 		t.Fatalf("aws config: %v", err)
+	}
+	// sockerless serves over a self-signed cert; trust it for the test
+	// backend leg (same switch the other AWS sockerless lanes use).
+	if os.Getenv("AWS_S3_CONFORMANCE_INSECURE_TLS") == "1" {
+		cfg.HTTPClient = awshttp.NewBuildableClient().WithTransportOptions(func(tr *http.Transport) {
+			tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true} //nolint:gosec
+		})
 	}
 	backendClient := awskmssdk.NewFromConfig(cfg, func(o *awskmssdk.Options) {
 		o.BaseEndpoint = awsapi.String(endpoint)
@@ -184,7 +193,12 @@ func TestSockerless_AWSKMS_Through_Shim_TerraformTaggedKey(t *testing.T) {
 	_ = os.MkdirAll(cacheDir, 0o755)
 
 	run := func(args ...string) ([]byte, []byte, error) {
-		cmd := exec.Command(tfBin, args...)
+		// Bound each invocation so a backend stall can't consume the
+		// whole package timeout and take the sibling KMS lanes down with
+		// it. A healthy apply finishes in seconds.
+		ctx, cancel := context.WithTimeout(context.Background(), 4*time.Minute)
+		defer cancel()
+		cmd := exec.CommandContext(ctx, tfBin, args...)
 		cmd.Dir = dir
 		cmd.Env = append(os.Environ(),
 			"TF_IN_AUTOMATION=1", "TF_INPUT=0", "CHECKPOINT_DISABLE=1",
