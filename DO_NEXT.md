@@ -32,7 +32,8 @@ Scoping: [docs/phase-18-scoping.md](docs/phase-18-scoping.md). Normalizations N3
 ### 18.B — OCI data plane behind the GCP Artifact Registry frontend
 
 - [x] **PR1 (this):** `internal/registry/frontends/gcp_artifactregistry` — Bearer-challenge (`WWW-Authenticate`, N31) + `gcpbearer` verify wrapping the shared `ocidistribution` router. Conformance via **go-containerregistry** (real OCI client, new dep, Apache-2.0): full image push/pull through the shim → inmem, by-tag + by-digest, tags list, layer-digest round-trip, plus unauthenticated-challenge case. `TestGCR_AR_ImagePushPull`.
-- [ ] **PR2:** AR control plane — `repositories.create/get/list/delete` (LROs) + `dockerImages.list/delete` via `google.golang.org/api/artifactregistry/v1` SDK; CLI (`gcloud artifacts`) + Terraform (`google_artifact_registry_repository`).
+- [x] **PR2:** AR control plane — `repositories.create/get/list/delete` (LROs, returned done) + `dockerImages.list` via `google.golang.org/api/artifactregistry/v1` SDK (`TestARSDK_RepositoryLifecycle`). Repos keyed by full AR resource name; control plane `gcpbearer`-gated, data plane keeps the OCI Bearer challenge.
+- [ ] **PR3:** AR control-plane CLI (`gcloud artifacts`) + Terraform (`google_artifact_registry_repository`) — SDK-first per sub-phase, same pattern as 19.B→19.D.
 
 ### 18.C–D (planned)
 - **18.C** — AWS ECR frontend (`GetAuthorizationToken` Basic) + Azure ACR frontend (`/oauth2/exchange`+`/oauth2/token`); full control-plane SDK/CLI/TF.
