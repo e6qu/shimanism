@@ -49,9 +49,13 @@ mirroring every cloud KMS's Decrypt semantics.
 |---|---|---|
 | inmem | full (real AES-256-GCM) | SDK/CLI/TF conformance (all three frontends) |
 | AWS KMS (`services/kms/backends/aws`) | full | sockerless lane (`TestSockerless_AWSKMS_Through_Shim`) + Track A |
-| GCP Cloud KMS (`services/kms/backends/gcp`) | full; ScheduleKeyDeletion/CancelKeyDeletion → NotSupported (Cloud KMS destroys versions, not keys) | Track A only — **sockerless has no Cloud KMS simulator** (filed upstream) |
+| GCP Cloud KMS (`services/kms/backends/gcp`) | full; ScheduleKeyDeletion/CancelKeyDeletion → NotSupported (Cloud KMS destroys versions, not keys) | Track A only — **sockerless has no Cloud KMS simulator** ([sockerless#419](https://github.com/e6qu/sockerless/issues/419)) |
 | Azure Key Vault keys (`services/kms/backends/azure`) | full | sockerless KV sim (lane wiring is a 19.D follow-on) + Track A |
 | K8s | out of intersection (no K8s key-crypto primitive) | n/a |
+
+### Cross-cloud matrix: GCP-KMS frontend × AWS/Azure backend (Phase 19.D)
+
+The GCP Cloud KMS frontend's **keyRing** operations are **out of intersection** against the AWS and Azure backends: neither has an honest place to store a keyRing (AWS KMS has no container; Azure's vault is control-plane, out of the data-plane scope), so `CreateKeyRing`/`GetKeyRing` return the source cloud's `NotSupported`. Consequently the *full* GCP KMS resource flow (which requires a keyRing) is **not claimed** end-to-end for the GCP-frontend × AWS/Azure-backend cells — `NotSupported` is the correct, documented conformance result there, not a gap to fix. GCP KMS is validated against the inmem backend (real keyRing tracking) and, once [sockerless#419](https://github.com/e6qu/sockerless/issues/419) lands, the native GCP backend. The flat key operations (Encrypt/Decrypt/CreateKey-by-id) remain backend-portable; only the keyRing container is GCP-local.
 
 ## K8s peer
 
