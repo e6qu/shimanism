@@ -3,9 +3,9 @@
 # shimanism
 
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
-[![Go](https://img.shields.io/badge/Go-62.3k_lines-00ADD8?logo=go&logoColor=white)](#code-architecture-and-how-the-build-works)
+[![Go](https://img.shields.io/badge/Go-62.5k_lines-00ADD8?logo=go&logoColor=white)](#code-architecture-and-how-the-build-works)
 [![Generated](https://img.shields.io/badge/Generated-76k_lines-blue)](docs/codegen.md)
-[![Tests](https://img.shields.io/badge/Tests-38.6k_lines-brightgreen)](docs/testing.md)
+[![Tests](https://img.shields.io/badge/Tests-38.8k_lines-brightgreen)](docs/testing.md)
 [![Modules](https://img.shields.io/badge/Go_Modules-2-informational)](#code-architecture-and-how-the-build-works)
 
 <!-- per-major-component (numbers auto-updated by scripts/update-readme-badges.sh) -->
@@ -17,7 +17,7 @@
 ![cache](https://img.shields.io/badge/cache-7.6k-00ADD8)
 ![functions](https://img.shields.io/badge/functions-5.5k-00ADD8)
 ![apigateway](https://img.shields.io/badge/apigateway-2.7k-00ADD8)
-![internal](https://img.shields.io/badge/internal-32.6k-5BC0DE)
+![internal](https://img.shields.io/badge/internal-32.8k-5BC0DE)
 ![cmd](https://img.shields.io/badge/cmd-3.3k-5BC0DE)
 ![peers](https://img.shields.io/badge/peers-109-A0D8EF)
 

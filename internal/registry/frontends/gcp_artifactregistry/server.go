@@ -32,6 +32,7 @@ func (arAdapter) RepoName(parsed string) string { return parsed }
 
 // Server is the Artifact Registry frontend.
 type Server struct {
+	reg      domain.Registry
 	verifier *gcpbearer.Verifier
 	oci      *ocidistribution.Router
 }
@@ -39,6 +40,7 @@ type Server struct {
 // New returns a frontend bound to the given backend.
 func New(reg domain.Registry) *Server {
 	return &Server{
+		reg: reg,
 		verifier: gcpbearer.New(gcpbearer.Options{
 			Audience: audience,
 			TestKey:  []byte("test-key-do-not-use-in-prod"),
@@ -51,19 +53,27 @@ func New(reg domain.Registry) *Server {
 func Handler(reg domain.Registry) http.Handler { return New(reg) }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if !strings.HasPrefix(r.URL.Path, "/v2/") && r.URL.Path != "/v2" {
+	switch {
+	case strings.HasPrefix(r.URL.Path, "/v2/") || r.URL.Path == "/v2":
+		// Data plane (OCI /v2/): OCI clients (go-containerregistry,
+		// docker) expect a Bearer challenge on /v2/ and then send
+		// Authorization: Bearer <token>. Verify the token; on failure
+		// emit the challenge so the client retries with credentials.
+		if err := s.verifier.Verify(r); err != nil {
+			s.challenge(w, r)
+			return
+		}
+		s.oci.ServeHTTP(w, r)
+	case strings.HasPrefix(r.URL.Path, "/v1/"):
+		// Control plane (artifactregistry/v1 REST): standard Bearer.
+		if err := s.verifier.Verify(r); err != nil {
+			writeARErr(w, http.StatusUnauthorized, "authentication required")
+			return
+		}
+		s.serveControl(w, r)
+	default:
 		http.NotFound(w, r)
-		return
 	}
-	// Data-plane auth: OCI clients (go-containerregistry, docker) expect a
-	// Bearer challenge on /v2/ and then send Authorization: Bearer <token>.
-	// Verify the token; on failure emit the challenge so the client
-	// retries with credentials.
-	if err := s.verifier.Verify(r); err != nil {
-		s.challenge(w, r)
-		return
-	}
-	s.oci.ServeHTTP(w, r)
 }
 
 // challenge emits the 401 Bearer auth challenge OCI clients use to
