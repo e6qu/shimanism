@@ -353,19 +353,41 @@ func TestSockerless_AzureKVKeys_Through_Shim(t *testing.T) {
 	}
 }
 
-// TestSockerless_AzureKVKeys_Crypto_Through_Shim would cover the RSA-OAEP
+// TestSockerless_AzureKVKeys_Crypto_Through_Shim covers the RSA-OAEP
 // encrypt/decrypt round-trip (azkeys SDK → shim Azure KV-keys frontend →
-// Azure backend → sockerless, ciphertext opaque to the shim). Gated on
-// e6qu/sockerless#423: the sim 405s version-less key crypto
-// (`POST /keys/{name}/encrypt`), which real Key Vault and the azkeys SDK
-// use to target a key's current version. The shim and SDK use the valid
-// no-version form, so this is a sockerless fidelity gap, not a shim bug —
-// un-skip (and restore the encrypt/decrypt body) once #423 lands.
+// Azure backend → sockerless, ciphertext opaque to the shim). The shim
+// and SDK address crypto without a version (current version); sockerless
+// routes that form to the current version as of e6qu/sockerless#425.
 func TestSockerless_AzureKVKeys_Crypto_Through_Shim(t *testing.T) {
-	if os.Getenv("SOCKERLESS_AZURE_KV_URL") == "" || os.Getenv("SOCKERLESS_AZURE_TLS_PORT") == "" {
-		t.Skip("SOCKERLESS_AZURE_KV_URL / SOCKERLESS_AZURE_TLS_PORT not set")
+	backend := sockerlessAzureKVKeysBackend(t)
+	shim := harness.StartKMSServerAzure(t, backend)
+	cli := newAzureKeysClient(t, shim.URL)
+	ctx := context.Background()
+
+	keyName := "shim-sockerless-kvcrypto-" + randomHex(4)
+	if _, err := cli.CreateKey(ctx, keyName, azkeys.CreateKeyParameters{
+		Kty: to.Ptr(azkeys.KeyTypeRSA),
+	}, nil); err != nil {
+		t.Fatalf("CreateKey: %v", err)
 	}
-	t.Skip("blocked on e6qu/sockerless#423: sim 405s version-less key crypto (POST /keys/{name}/encrypt); un-skip when it lands")
+	plaintext := []byte("sockerless-kvkeys-secret")
+	enc, err := cli.Encrypt(ctx, keyName, "", azkeys.KeyOperationParameters{
+		Algorithm: to.Ptr(azkeys.EncryptionAlgorithmRSAOAEP),
+		Value:     plaintext,
+	}, nil)
+	if err != nil {
+		t.Fatalf("Encrypt: %v", err)
+	}
+	dec, err := cli.Decrypt(ctx, keyName, "", azkeys.KeyOperationParameters{
+		Algorithm: to.Ptr(azkeys.EncryptionAlgorithmRSAOAEP),
+		Value:     enc.Result,
+	}, nil)
+	if err != nil {
+		t.Fatalf("Decrypt: %v", err)
+	}
+	if !bytes.Equal(dec.Result, plaintext) {
+		t.Errorf("Decrypt round-trip = %q, want %q", dec.Result, plaintext)
+	}
 }
 
 // sockerlessAzureKVKeysBackend wires the shim's Azure Key Vault keys
