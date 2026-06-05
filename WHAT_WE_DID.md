@@ -16,6 +16,8 @@ The second cleanup branch burns down the duplicate baseline to zero. Secrets Ter
 
 The closeout branch makes that zero duplicate baseline enforceable by enabling `dupl` in `.golangci.yml` and making `scripts/run-duplication-audit.sh` strict. Dead-code remains advisory, but the first real findings were removed: `services/secrets/backends/inmem.equalBytes` had no callers and only a blank identifier assignment keeping it alive, and `services/queue/backends/inmem.copyAttrs` was an uncalled value-copy helper. The same branch starts Phase 20 with an Event Streaming scoping doc and corrects the K8s peer plan from an in-tree shimakit queue-shaped peer to a connected Strimzi Kafka backend.
 
+CI on the closeout branch showed that sockerless#450 / BUG-64 is fixed on current sockerless main: AWS ECR `/v2/` now responds. The branch replaced the old AWS ECR gap probe with full through-shim image push/pull using the real AWS backend and OCI client, and moved BUG-64 out of the open bug set. GCP AR and Azure ACR simulator gaps remain tracked as BUG-65/66.
+
 ## Phase 18 — Container Registry: complete
 
 **Closed 2026-06-06 by PR #141.** The service now has the shared OCI Distribution `/v2/` data plane, GCP Artifact Registry / AWS ECR / Azure ACR frontends, connected backends for CNCF Distribution / AWS ECR / GCP Artifact Registry / Azure ACR / inmem, registry service docs, and sockerless lanes that fail loud on simulator gaps instead of masking them.
@@ -36,7 +38,7 @@ The current 18.D cloud-backend chunk starts with AWS ECR because ECR has the cle
 
 The final 18.D branch keeps the remaining closeout in one PR. GCP Artifact Registry now has a connected backend that uses the official REST SDK for repository lifecycle and `dockerImages.list`, while Docker push/pull goes to the configured Artifact Registry Docker host with OAuth2 Bearer auth. Azure ACR now has a connected backend that uses the real ACR `/oauth2/exchange`, `/oauth2/token`, `/acr/v1`, and OCI `/v2` surfaces; empty repository creation stays unsupported because ACR repositories are implicit. The registry package is also wired into the sockerless runner.
 
-That runner immediately proved why the "no fallback" rule matters: the AWS ECR simulator has no `/v2/` at all (BUG-64), GCP AR creates upload sessions but rejects OCI chunk `PATCH` with 405 (BUG-65), and Azure ACR returns 404 for upload start (BUG-66). The registry sockerless tests now attempt the real push path and skip only on those exact signatures. No shim code fakes a registry data plane.
+That runner immediately proved why the "no fallback" rule matters: at the time, the AWS ECR simulator had no `/v2/` at all (BUG-64), GCP AR created upload sessions but rejected OCI chunk `PATCH` with 405 (BUG-65), and Azure ACR returned 404 for upload start (BUG-66). The registry sockerless tests attempted the real push path and skipped only on those exact signatures. No shim code fakes a registry data plane.
 
 ## Phase 19 — Key Management: complete (PRs #128–#131)
 

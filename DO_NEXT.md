@@ -10,7 +10,7 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 
 **Phase 18 — Container Registry is complete.** OCI Distribution `/v2/` data plane (shared hand-written router) + ECR/AR/ACR control planes + connected backends. See [docs/phase-18-scoping.md](docs/phase-18-scoping.md), [services/registry/INTERSECTION.md](services/registry/INTERSECTION.md), and [services/registry/APPLY_INTERSECTION.md](services/registry/APPLY_INTERSECTION.md). 18.A–18.D landed across PRs #132–#141: GCP AR, AWS ECR, and Azure ACR frontends all have SDK/CLI/Terraform control-plane coverage plus go-containerregistry OCI data-plane coverage; connected backends now include CNCF Distribution, AWS ECR, GCP Artifact Registry, Azure ACR, and inmem.
 
-**Open bugs:** BUG-8 · BUG-15 · BUG-41 (Track A only — blocked on real GCP credentials) · BUG-64/65/66 (sockerless registry `/v2/` gaps filed upstream as sockerless#450/#451/#452).
+**Open bugs:** BUG-8 · BUG-15 · BUG-41 (Track A only — blocked on real GCP credentials) · BUG-65/66 (sockerless registry `/v2/` gaps filed upstream as sockerless#451/#452).
 
 **Current branch:** `code-health-closeout-and-phase20-scope` closes out duplicate-code detection by making `dupl` strict in lint/CI, deletes confirmed dead helpers from the dead-code audit, records PR #145 as merged, and drafts [docs/phase-20-scoping.md](docs/phase-20-scoping.md).
 
@@ -32,7 +32,7 @@ Suggested first chunk:
 
 ## Phase 18 — Container Registry ✅ COMPLETE
 
-Closed by PRs #132–#141. Registry sockerless tests are wired and fail loud on simulator gaps only: BUG-64 (AWS ECR no `/v2/`, [sockerless#450](https://github.com/e6qu/sockerless/issues/450)), BUG-65 (GCP AR chunk `PATCH` 405, [sockerless#451](https://github.com/e6qu/sockerless/issues/451)), and BUG-66 (Azure ACR upload start 404, [sockerless#452](https://github.com/e6qu/sockerless/issues/452)).
+Closed by PRs #132–#141. Registry sockerless tests are wired and fail loud on simulator gaps only: BUG-65 (GCP AR chunk `PATCH` 405, [sockerless#451](https://github.com/e6qu/sockerless/issues/451)) and BUG-66 (Azure ACR upload start 404, [sockerless#452](https://github.com/e6qu/sockerless/issues/452)). BUG-64 / sockerless#450 is closed on current sockerless main; PR #146 replaces the probe with full AWS ECR through-shim push/pull.
 
 ## Code Health Audit Baseline ◐
 

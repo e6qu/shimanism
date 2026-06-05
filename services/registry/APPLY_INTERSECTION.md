@@ -36,9 +36,9 @@ The shim does not maintain a name mapping from GCP full resource names to Docker
 
 ## Simulator Coverage
 
-Sockerless registry lanes are present and fail loud on simulator gaps:
+Sockerless registry lanes are present and fail loud on simulator gaps. AWS ECR
+now runs full through-shim push/pull against current sockerless main.
 
-- BUG-64: AWS ECR simulator has no Docker Registry `/v2/` data plane.
 - BUG-65: GCP Artifact Registry simulator creates upload sessions but returns 405 on OCI chunk `PATCH`.
 - BUG-66: Azure ACR simulator returns 404 for OCI upload start.
 
