@@ -222,4 +222,5 @@ go test -run '^TestSockerless_' -count=1 -v \
     ./services/functions/conformance/... \
     ./services/apigateway/conformance/... \
     ./services/dns/conformance/... \
-    ./services/nosql/conformance/...
+    ./services/nosql/conformance/... \
+    ./services/kms/conformance/...
