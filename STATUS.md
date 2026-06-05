@@ -8,9 +8,9 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 
 | | |
 |---|---|
-| Active branch | `code-health-audit-baseline` — advisory dead-code and duplicate-code audit tooling/docs. |
-| In-flight | Code-health baseline PR: `make duplication-audit`, `make deadcode-audit`, `make code-health`, and `docs/code-health.md`. Runtime shim work remains paused; next substantive phase is Phase 20 (Event Streaming). Registry sockerless `/v2/` gaps are filed upstream as #450/#451/#452. |
-| Last merged | PR #142 — post-merge continuity update marking Phase 18 complete. |
+| Active branch | `cleanup-cmd-shim-runners` — first duplicate-code cleanup from the advisory code-health baseline. |
+| In-flight | Refactor `cmd/shim` cache/rdbms command wiring so the shared runner/cloud setup is centralized and service files keep typed constructors. Runtime shim work remains paused; next substantive phase is Phase 20 (Event Streaming). Registry sockerless `/v2/` gaps are filed upstream as #450/#451/#452. |
+| Last merged | PR #143 — advisory code-health audit baseline (`make duplication-audit`, `make deadcode-audit`, `make code-health`, and docs). |
 | Upstream watch | All KMS sockerless gaps closed: #407 (PR #412), #413 (PR #415), #419 GCP Cloud KMS sim (PR #422), #423 Azure no-version crypto (PR #425). |
 | Phases 1–19 | 1–19 closed. See [PLAN.md § Closed phases](PLAN.md#closed-phases-pr-index). |
 | Phase 19 | ✅ complete — 19.A (#127) · 19.B (#128) · 19.C (#129) · 19.D (#130 CLI/TF, #131 sockerless). All 4 backends, full SDK/CLI/TF, all sockerless lanes green, zero skips. |

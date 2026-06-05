@@ -12,7 +12,7 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 
 **Open bugs:** BUG-8 · BUG-15 · BUG-41 (Track A only — blocked on real GCP credentials) · BUG-64/65/66 (sockerless registry `/v2/` gaps filed upstream as sockerless#450/#451/#452).
 
-**Current branch:** `code-health-audit-baseline` adds advisory dead-code and duplicate-code audit targets plus [docs/code-health.md](docs/code-health.md). This is a baseline/planning PR, not a cleanup PR.
+**Current branch:** `cleanup-cmd-shim-runners` removes the first advisory duplicate-code finding by refactoring `cmd/shim` cache/rdbms command wiring into shared managed-control helpers plus small service-specific constructor files. Baseline tooling landed in PR #143.
 
 ## Session-start checklist
 
@@ -40,7 +40,10 @@ Closed by PRs #132–#141. Registry sockerless tests are wired and fail loud on 
 - [x] File registry sockerless simulator issues after user approval.
 - [x] Add advisory `make duplication-audit`, `make deadcode-audit`, and `make code-health` targets.
 - [x] Publish [docs/code-health.md](docs/code-health.md) with triage rules and cleanup order.
-- [ ] Open the baseline PR; cleanup/refactor PRs come after this lands.
+- [x] Open and merge the baseline PR (#143).
+- [x] Refactor `cmd/shim/cache.go` / `cmd/shim/rdbms.go` runner duplication without hiding backend/frontend errors.
+- [ ] Open the `cmd/shim` cleanup PR.
+- [ ] Next cleanup candidate: repeated Terraform apply bodies in `services/secrets/conformance/sockerless_test.go`.
 
 ## Phase 19 — Key Management ✅ COMPLETE
 
