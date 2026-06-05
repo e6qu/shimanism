@@ -4,6 +4,12 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 
 > Reverse chronological. One section per phase. The *why*, the surprises, the root causes — not per-PR detail. For commit-level history, `git log`. For per-bug detail, [BUGS.md](BUGS.md). For pipeline + verifier architecture, [docs/codegen-pipelines.md](docs/codegen-pipelines.md) + [docs/verifiers.md](docs/verifiers.md).
 
+## Code health audit baseline: in progress
+
+After Phase 18 closed, the next maintenance thread is explicit dead-code and copy-paste detection. The repo already runs `staticcheck` + `unused` through `golangci-lint`, so the baseline adds advisory audits rather than a new hard gate: `dupl` through the existing `golangci-lint` binary for duplicate Go fragments, and the official `golang.org/x/tools/cmd/deadcode` command for call-graph reachability. The first duplicate scan found real cleanup candidates in `cmd/shim`, compute inmem/K8s helpers, and secrets Terraform conformance tests. The first deadcode scan was useful but noisy around generated code and library-style entry points, so it stays audit-only with generated-code filtering.
+
+The registry simulator gaps from BUG-64/65/66 were also filed upstream after explicit user approval: [sockerless#450](https://github.com/e6qu/sockerless/issues/450), [#451](https://github.com/e6qu/sockerless/issues/451), and [#452](https://github.com/e6qu/sockerless/issues/452). No shim fallback was added.
+
 ## Phase 18 — Container Registry: complete
 
 **Closed 2026-06-06 by PR #141.** The service now has the shared OCI Distribution `/v2/` data plane, GCP Artifact Registry / AWS ECR / Azure ACR frontends, connected backends for CNCF Distribution / AWS ECR / GCP Artifact Registry / Azure ACR / inmem, registry service docs, and sockerless lanes that fail loud on simulator gaps instead of masking them.

@@ -8,14 +8,14 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 
 | | |
 |---|---|
-| Active branch | `postmerge-phase-18-continuity` — post-merge continuity correction after PR #141. |
-| In-flight | No runtime shim work. Next substantive phase is Phase 20 (Event Streaming), starting with 20.A scoping/domain/Kafka data-plane design. Registry sockerless `/v2/` gaps remain BUG-64/65/66 pending upstream/user approval. |
-| Last merged | PR #141 — 18.D closeout: GCP Artifact Registry + Azure ACR connected backends, registry sockerless lanes, and registry service docs. |
+| Active branch | `code-health-audit-baseline` — advisory dead-code and duplicate-code audit tooling/docs. |
+| In-flight | Code-health baseline PR: `make duplication-audit`, `make deadcode-audit`, `make code-health`, and `docs/code-health.md`. Runtime shim work remains paused; next substantive phase is Phase 20 (Event Streaming). Registry sockerless `/v2/` gaps are filed upstream as #450/#451/#452. |
+| Last merged | PR #142 — post-merge continuity update marking Phase 18 complete. |
 | Upstream watch | All KMS sockerless gaps closed: #407 (PR #412), #413 (PR #415), #419 GCP Cloud KMS sim (PR #422), #423 Azure no-version crypto (PR #425). |
 | Phases 1–19 | 1–19 closed. See [PLAN.md § Closed phases](PLAN.md#closed-phases-pr-index). |
 | Phase 19 | ✅ complete — 19.A (#127) · 19.B (#128) · 19.C (#129) · 19.D (#130 CLI/TF, #131 sockerless). All 4 backends, full SDK/CLI/TF, all sockerless lanes green, zero skips. |
 | Phase 18 | ✅ complete — PRs #132–#141. OCI Distribution data plane + ECR/AR/ACR frontends + connected backends + registry docs. Simulator-only gaps remain tracked as BUG-64/65/66. |
-| Bugs | **63 filed · 56 fixed · 6 open · 1 false positive.** Open: **BUG-8** + **BUG-15** + **BUG-41** (Track A) + **BUG-64/65/66** (sockerless registry `/v2/`). |
+| Bugs | **63 filed · 56 fixed · 6 open · 1 false positive.** Open: **BUG-8** + **BUG-15** + **BUG-41** (Track A) + **BUG-64/65/66** (sockerless registry `/v2/`, upstream #450/#451/#452). |
 | CI | 20 required checks. Real-cloud lanes wait on Track A. |
 | Renovate | Config + custom manager for vendored-spec SHAs. **User must install the Renovate GitHub App.** |
 | Standing merge auth | **None.** User merges every PR. **One PR open at a time** — ask before opening if one's active. |
