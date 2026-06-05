@@ -56,7 +56,12 @@ func (s *Server) serveControl(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) createRepo(w http.ResponseWriter, r *http.Request, parent string) {
+	// gcloud sends repositoryId (camelCase); the hashicorp/google provider
+	// sends repository_id (snake_case). Accept either.
 	id := r.URL.Query().Get("repositoryId")
+	if id == "" {
+		id = r.URL.Query().Get("repository_id")
+	}
 	if id == "" {
 		writeARErr(w, http.StatusBadRequest, "repositoryId is required")
 		return
