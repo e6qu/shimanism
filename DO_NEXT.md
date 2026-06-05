@@ -21,12 +21,13 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 
 Scoping: [docs/phase-18-scoping.md](docs/phase-18-scoping.md). Normalizations N30–N34. Two planes in one service: OCI Distribution `/v2/` data plane (shared `internal/registry/ocidistribution/` router, hand-written) behind three codegen'd control-plane frontends (ECR awsJson1_1, AR Discovery, ACR ARM).
 
-### 18.A — scoping + domain + router + inmem (this PR: scoping/docs portion)
+### 18.A — scoping + domain + router + inmem
 
-- [x] `docs/phase-18-scoping.md` + N30–N34 + Phase 19 closeout.
-- [ ] `internal/registry/domain/domain.go` — `domain.Registry` (control plane + streaming OCI data plane, `io.Reader`-based).
-- [ ] `internal/registry/ocidistribution/` — hand-written `/v2/` router + digest verify + OCI error envelope + round-trip unit test.
-- [ ] `services/registry/backends/inmem/` — real digest-keyed content-addressable store (test backend-of-record).
+- [x] `docs/phase-18-scoping.md` + N30–N34 + Phase 19 closeout (PR #132).
+- [x] `internal/registry/domain/domain.go` — `domain.Registry` (control plane + streaming OCI data plane, `io.Reader`-based; sentinels incl. `ErrDigestMismatch`).
+- [x] `internal/registry/ocidistribution/` — hand-written `/v2/` router (base/blob-monolithic+chunked/manifest/tags) + `digest.go` (sha256 verify, N34) + OCI error envelope + round-trip unit tests (push/pull, chunked, digest-mismatch, manifest+tags).
+- [x] `services/registry/backends/inmem/` — real digest-keyed content-addressable store (test backend-of-record): verifies blob digests, holds chunked-upload sessions, auto-creates repo on push; repository-lifecycle + force-delete unit tests.
+- Next: 18.B wires the router behind the GCP Artifact Registry frontend.
 
 ### 18.B–D (planned)
 
