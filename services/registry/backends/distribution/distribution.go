@@ -29,10 +29,11 @@ const (
 
 // Options configures a connected Distribution backend.
 type Options struct {
-	BaseURL  string
-	Client   *http.Client
-	Username string
-	Password string
+	BaseURL       string
+	Client        *http.Client
+	Username      string
+	Password      string
+	RequestEditor func(context.Context, *http.Request) error
 }
 
 // Backend is a real HTTP client for a Distribution /v2/ registry.
@@ -41,6 +42,7 @@ type Backend struct {
 	client   *http.Client
 	username string
 	password string
+	editReq  func(context.Context, *http.Request) error
 }
 
 var _ domain.Registry = (*Backend)(nil)
@@ -64,7 +66,7 @@ func NewWithOptions(opt Options) (*Backend, error) {
 	if c == nil {
 		c = http.DefaultClient
 	}
-	return &Backend{base: u, client: c, username: opt.Username, password: opt.Password}, nil
+	return &Backend{base: u, client: c, username: opt.Username, password: opt.Password, editReq: opt.RequestEditor}, nil
 }
 
 // CreateRepository cannot be implemented honestly against Distribution:
@@ -355,6 +357,11 @@ func (b *Backend) newRequest(ctx context.Context, method, rawurl string, body io
 	}
 	if b.username != "" || b.password != "" {
 		req.SetBasicAuth(b.username, b.password)
+	}
+	if b.editReq != nil {
+		if err := b.editReq(ctx, req); err != nil {
+			return nil, err
+		}
 	}
 	return req, nil
 }

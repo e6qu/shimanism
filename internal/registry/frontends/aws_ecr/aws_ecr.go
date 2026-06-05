@@ -192,14 +192,40 @@ func (a *Adapter) BatchDeleteImage(ctx context.Context, in *gen.BatchDeleteImage
 			ref = *id.ImageTag
 		}
 		if ref == "" {
+			code := gen.ImageFailureCodeMissingDigestAndTag
+			reason := "imageDigest or imageTag is required"
+			img := id
+			out.Failures = append(out.Failures, gen.ImageFailure{
+				FailureCode:   &code,
+				FailureReason: &reason,
+				ImageId:       &img,
+			})
 			continue
 		}
 		if err := a.reg.DeleteImage(ctx, in.RepositoryName, ref); err != nil {
-			continue // best-effort; ECR reports per-image failures separately
+			out.Failures = append(out.Failures, ecrImageFailure(id, err))
+			continue
 		}
 		out.ImageIds = append(out.ImageIds, id)
 	}
 	return out, nil
+}
+
+func ecrImageFailure(id gen.ImageIdentifier, err error) gen.ImageFailure {
+	code := gen.ImageFailureCodeImageInaccessible
+	switch {
+	case domain.IsNotFound(err):
+		code = gen.ImageFailureCodeImageNotFound
+	case domain.IsInvalidInput(err):
+		if id.ImageDigest != nil {
+			code = gen.ImageFailureCodeInvalidImageDigest
+		} else {
+			code = gen.ImageFailureCodeInvalidImageTag
+		}
+	}
+	reason := err.Error()
+	img := id
+	return gen.ImageFailure{FailureCode: &code, FailureReason: &reason, ImageId: &img}
 }
 
 func (a *Adapter) GetAuthorizationToken(_ context.Context, _ *gen.GetAuthorizationTokenRequest) (*gen.GetAuthorizationTokenResponse, error) {
