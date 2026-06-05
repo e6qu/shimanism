@@ -20,6 +20,7 @@ The repository [README.md](../README.md) is intentionally light — what the pro
 - **[Development setup](development.md)** — required tools (Go, terraform, docker, optional kind for K8s peers), `make` targets, how to add a new shimmed operation end-to-end (recipe), how to add a new service (longer recipe).
 - **[Testing](testing.md)** — the conformance contract (SDK + CLI + Terraform per frontend per backend), how to run the test matrix locally, how to add a new conformance test, how the CI lanes are organized, the bug-first rule.
 - **[Codegen](codegen.md)** — spec-driven server generation: where the upstream specs live, how to regenerate, why hand-written code is restricted to `translate.go`.
+- **[Code health audits](code-health.md)** — dead-code and duplicate-code audit tools, current baseline, and cleanup policy.
 - **[Releasing](releasing.md)** — the release flow, semver semantics, the no-auto-merge rule, who can cut a release.
 
 ## For agents (LLM-driven contributors)

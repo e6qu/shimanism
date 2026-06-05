@@ -10,7 +10,9 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 
 **Phase 18 — Container Registry is complete.** OCI Distribution `/v2/` data plane (shared hand-written router) + ECR/AR/ACR control planes + connected backends. See [docs/phase-18-scoping.md](docs/phase-18-scoping.md), [services/registry/INTERSECTION.md](services/registry/INTERSECTION.md), and [services/registry/APPLY_INTERSECTION.md](services/registry/APPLY_INTERSECTION.md). 18.A–18.D landed across PRs #132–#141: GCP AR, AWS ECR, and Azure ACR frontends all have SDK/CLI/Terraform control-plane coverage plus go-containerregistry OCI data-plane coverage; connected backends now include CNCF Distribution, AWS ECR, GCP Artifact Registry, Azure ACR, and inmem.
 
-**Open bugs:** BUG-8 · BUG-15 · BUG-41 (Track A only — blocked on real GCP credentials) · BUG-64/65/66 (sockerless registry `/v2/` gaps; external issues pending user approval for those specific reports).
+**Open bugs:** BUG-8 · BUG-15 · BUG-41 (Track A only — blocked on real GCP credentials) · BUG-64/65/66 (sockerless registry `/v2/` gaps filed upstream as sockerless#450/#451/#452).
+
+**Current branch:** `code-health-audit-baseline` adds advisory dead-code and duplicate-code audit targets plus [docs/code-health.md](docs/code-health.md). This is a baseline/planning PR, not a cleanup PR.
 
 ## Session-start checklist
 
@@ -30,7 +32,15 @@ Suggested first chunk:
 
 ## Phase 18 — Container Registry ✅ COMPLETE
 
-Closed by PRs #132–#141. Registry sockerless tests are wired and fail loud on simulator gaps only: BUG-64 (AWS ECR no `/v2/`), BUG-65 (GCP AR chunk `PATCH` 405), and BUG-66 (Azure ACR upload start 404). Ask the user before filing those specific upstream issues at `github.com/e6qu/sockerless`.
+Closed by PRs #132–#141. Registry sockerless tests are wired and fail loud on simulator gaps only: BUG-64 (AWS ECR no `/v2/`, [sockerless#450](https://github.com/e6qu/sockerless/issues/450)), BUG-65 (GCP AR chunk `PATCH` 405, [sockerless#451](https://github.com/e6qu/sockerless/issues/451)), and BUG-66 (Azure ACR upload start 404, [sockerless#452](https://github.com/e6qu/sockerless/issues/452)).
+
+## Code Health Audit Baseline ◐
+
+- [x] Research current Go dead-code and duplicate-code tooling.
+- [x] File registry sockerless simulator issues after user approval.
+- [x] Add advisory `make duplication-audit`, `make deadcode-audit`, and `make code-health` targets.
+- [x] Publish [docs/code-health.md](docs/code-health.md) with triage rules and cleanup order.
+- [ ] Open the baseline PR; cleanup/refactor PRs come after this lands.
 
 ## Phase 19 — Key Management ✅ COMPLETE
 

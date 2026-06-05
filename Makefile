@@ -4,7 +4,7 @@
 # enough to run on every PR. Phase-specific targets (codegen, conformance)
 # get added as their sub-phases land.
 
-.PHONY: all build test vet lint typecheck fmt check clean fetch-specs license-check codegen codegen-check spec-freshness inject-provenance sockerless sockerless-storage help
+.PHONY: all build test vet lint typecheck fmt check clean fetch-specs license-check codegen codegen-check spec-freshness inject-provenance code-health duplication-audit deadcode-audit sockerless sockerless-storage help
 
 # Default: the full local pre-push lane.
 all: vet test build
@@ -20,6 +20,9 @@ help:
 	@echo "  vet                 go vet ./..."
 	@echo "  lint                golangci-lint run ./..."
 	@echo "  typecheck           go build + go vet (fast no-test check)"
+	@echo "  code-health         advisory dead-code + duplication audits"
+	@echo "  duplication-audit   advisory copy/paste detector (dupl)"
+	@echo "  deadcode-audit      advisory unreachable-function detector"
 	@echo "  fmt                 gofmt -w ."
 	@echo "  check               repo hygiene (rebased + symlinks)"
 	@echo "  clean               rm -rf bin/"
@@ -225,6 +228,14 @@ license-check:
 	@PATH="$$(go env GOPATH)/bin:$$PATH" \
 		go-licenses check --include_tests --allowed_licenses="$(LICENSE_ALLOWLIST)" ./...
 	@echo "OK: all dependencies carry allowlisted licenses."
+
+code-health: duplication-audit deadcode-audit
+
+duplication-audit:
+	@bash scripts/run-duplication-audit.sh
+
+deadcode-audit:
+	@bash scripts/run-deadcode-audit.sh
 
 # Sockerless validation lane. Opt-in; requires a local clone of
 # github.com/e6qu/sockerless (set SOCKERLESS_DIR to override the
