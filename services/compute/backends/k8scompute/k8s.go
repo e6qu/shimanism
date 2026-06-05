@@ -303,39 +303,21 @@ func npToDomain(np *networkingv1.NetworkPolicy) domain.SecurityGroup {
 }
 
 func npIngressToDomain(r networkingv1.NetworkPolicyIngressRule) domain.SecurityGroupRule {
-	rule := domain.SecurityGroupRule{Direction: domain.Inbound}
-	for _, peer := range r.From {
-		if peer.IPBlock != nil {
-			rule.CIDRs = append(rule.CIDRs, peer.IPBlock.CIDR)
-		}
-	}
-	for _, port := range r.Ports {
-		if port.Protocol != nil && *port.Protocol == corev1.ProtocolTCP {
-			rule.Protocol = "tcp"
-		} else if port.Protocol != nil && *port.Protocol == corev1.ProtocolUDP {
-			rule.Protocol = "udp"
-		} else {
-			rule.Protocol = "-1"
-		}
-		if port.Port != nil {
-			rule.PortFrom = port.Port.IntValue()
-			rule.PortTo = rule.PortFrom
-		}
-		if port.EndPort != nil {
-			rule.PortTo = int(*port.EndPort)
-		}
-	}
-	return rule
+	return npRuleToDomain(domain.Inbound, r.From, r.Ports)
 }
 
 func npEgressToDomain(r networkingv1.NetworkPolicyEgressRule) domain.SecurityGroupRule {
-	rule := domain.SecurityGroupRule{Direction: domain.Outbound}
-	for _, peer := range r.To {
+	return npRuleToDomain(domain.Outbound, r.To, r.Ports)
+}
+
+func npRuleToDomain(direction domain.RuleDirection, peers []networkingv1.NetworkPolicyPeer, ports []networkingv1.NetworkPolicyPort) domain.SecurityGroupRule {
+	rule := domain.SecurityGroupRule{Direction: direction}
+	for _, peer := range peers {
 		if peer.IPBlock != nil {
 			rule.CIDRs = append(rule.CIDRs, peer.IPBlock.CIDR)
 		}
 	}
-	for _, port := range r.Ports {
+	for _, port := range ports {
 		if port.Protocol != nil && *port.Protocol == corev1.ProtocolTCP {
 			rule.Protocol = "tcp"
 		} else if port.Protocol != nil && *port.Protocol == corev1.ProtocolUDP {

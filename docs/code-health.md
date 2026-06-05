@@ -65,11 +65,9 @@ Why this first:
 - no new Node or Java toolchain.
 - reports Go fragments with enough file/line detail to triage.
 
-Current baseline after the first cleanup:
+Current baseline after duplicate cleanup:
 
-- `services/compute/backends/inmem/inmem.go` has repeated list/describe filtering loops.
-- `services/compute/backends/k8scompute/k8s.go` has repeated NetworkPolicy ingress/egress conversion.
-- `services/secrets/conformance/sockerless_test.go` has repeated Terraform apply test bodies.
+- `make duplication-audit` reports `0 issues`.
 
 `jscpd` and PMD CPD remain valid future options if the repo grows non-Go code or needs HTML/JSON clone reports. They are not the first choice today because they add Node or Java dependency surface for a Go-only cleanup lane.
 
@@ -109,9 +107,7 @@ Sources:
 
 ## Cleanup Order
 
-1. Extract focused helpers for repeated Terraform apply bodies in conformance tests.
-2. Review compute inmem and K8s duplicate helpers; generic helpers are acceptable only when they preserve clear domain-specific behavior.
-3. Triage hand-written `deadcode` findings one package at a time. Prefer deleting a small, verified cluster over broad speculative removals.
-4. After duplicate findings reach zero or an intentional baseline, decide whether `dupl` becomes part of `make lint` / CI.
+1. Triage hand-written `deadcode` findings one package at a time. Prefer deleting a small, verified cluster over broad speculative removals.
+2. Decide whether `dupl` becomes part of `make lint` / CI now that the advisory baseline is zero.
 
 The desired end state is a strict duplicate gate and a periodic dead-code audit, not automatic deletion.

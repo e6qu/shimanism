@@ -12,6 +12,8 @@ The registry simulator gaps from BUG-64/65/66 were also filed upstream after exp
 
 The first cleanup branch removes the `cmd/shim/cache.go` vs `cmd/shim/rdbms.go` duplicate finding. The refactor keeps service-specific constructors and error messages typed, but moves the common flag parsing, backend selection, cloud credential/client setup, and K8s client setup into shared helpers. `make duplication-audit` now reports 10 advisory duplicate findings instead of 12: only the compute inmem/K8s helpers and secrets Terraform conformance bodies remain.
 
+The second cleanup branch burns down the duplicate baseline to zero. Secrets Terraform conformance now has one helper that writes HCL, runs `init`/`apply`, registers `destroy`, and verifies the real backend value. Compute inmem list/describe methods share small selector-based copy/filter/sort helpers, and the K8s compute backend maps NetworkPolicy ingress/egress through one peer/port conversion helper. No behavior fallback or fake path was added.
+
 ## Phase 18 — Container Registry: complete
 
 **Closed 2026-06-06 by PR #141.** The service now has the shared OCI Distribution `/v2/` data plane, GCP Artifact Registry / AWS ECR / Azure ACR frontends, connected backends for CNCF Distribution / AWS ECR / GCP Artifact Registry / Azure ACR / inmem, registry service docs, and sockerless lanes that fail loud on simulator gaps instead of masking them.
