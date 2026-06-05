@@ -19,6 +19,7 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/tls"
+	"encoding/base64"
 	"encoding/hex"
 	"fmt"
 	"net"
@@ -40,9 +41,14 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/to"
 	"github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/azkeys"
 
+	"golang.org/x/oauth2"
+	kmsraw "google.golang.org/api/cloudkms/v1"
+	"google.golang.org/api/option"
+
 	"github.com/e6qu/shimanism/internal/harness"
 	awskmsbackend "github.com/e6qu/shimanism/services/kms/backends/aws"
 	azurekmsbackend "github.com/e6qu/shimanism/services/kms/backends/azure"
+	gcpkmsbackend "github.com/e6qu/shimanism/services/kms/backends/gcp"
 )
 
 // sockerlessAWSKMSBackend wires the shim's AWS KMS backend to
@@ -231,12 +237,83 @@ func TestSockerless_AWSKMS_Through_Shim_TerraformTaggedKey(t *testing.T) {
 	}
 }
 
-// TestSockerless_GCPKMS_Through_Shim is gated on sockerless adding a
-// Cloud KMS simulator. Sockerless has no GCP Cloud KMS surface (probed
-// 2026-06-04, re-confirmed 2026-06-05); filed upstream as
-// e6qu/sockerless#419. Un-skip once it lands.
+// TestSockerless_GCPKMS_Through_Shim exercises the full through-shim path
+// against sockerless's GCP Cloud KMS simulator (added in
+// e6qu/sockerless#422):
+//
+//	cloudkms/v1 SDK → shim's GCP Cloud KMS frontend → shim's GCP Cloud KMS
+//	    backend → sockerless's Cloud KMS sim.
+//
+// sockerless does real per-version AES-256-GCM, so the encrypt/decrypt
+// round-trip is end-to-end real. The backend addresses keys within a
+// fixed keyRing (Config.KeyRing), so the test creates and uses that same
+// ring. Set SOCKERLESS_GCP_ENDPOINT (e.g. localhost:14567) to opt in.
 func TestSockerless_GCPKMS_Through_Shim(t *testing.T) {
-	t.Skip("sockerless has no GCP Cloud KMS simulator (e6qu/sockerless#419); un-skip when it lands")
+	endpoint := os.Getenv("SOCKERLESS_GCP_ENDPOINT")
+	if endpoint == "" {
+		t.Skip("SOCKERLESS_GCP_ENDPOINT not set")
+	}
+	ring := "shim-sk-ring-" + randomHex(4)
+
+	// Backend leg: shim's GCP Cloud KMS backend → sockerless GCP sim.
+	svc, err := kmsraw.NewService(context.Background(),
+		option.WithEndpoint("http://"+endpoint+"/"),
+		option.WithTokenSource(oauth2.StaticTokenSource(&oauth2.Token{AccessToken: "sockerless-test"})),
+	)
+	if err != nil {
+		t.Fatalf("cloudkms service: %v", err)
+	}
+	backend := gcpkmsbackend.New(svc, gcpkmsbackend.Config{
+		Project: gcpProject, Location: gcpLocation, KeyRing: ring,
+	})
+	shim := harness.StartKMSServerGCP(t, backend)
+
+	// Frontend leg: official cloudkms SDK → shim.
+	cli := newGCPKMSClient(t, shim.URL)
+	ctx := context.Background()
+	parent := "projects/" + gcpProject + "/locations/" + gcpLocation
+	ringPath := parent + "/keyRings/" + ring
+
+	// keyRings.create → backend.CreateKeyRing → sockerless.
+	if _, err := cli.Projects.Locations.KeyRings.Create(parent, &kmsraw.KeyRing{}).
+		KeyRingId(ring).Context(ctx).Do(); err != nil {
+		t.Fatalf("keyRings.create (through shim → sockerless): %v", err)
+	}
+
+	// cryptoKeys.create (symmetric ENCRYPT_DECRYPT).
+	if _, err := cli.Projects.Locations.KeyRings.CryptoKeys.Create(ringPath, &kmsraw.CryptoKey{
+		Purpose: "ENCRYPT_DECRYPT",
+	}).CryptoKeyId("shim-key").Context(ctx).Do(); err != nil {
+		t.Fatalf("cryptoKeys.create: %v", err)
+	}
+	keyPath := ringPath + "/cryptoKeys/shim-key"
+
+	// cryptoKeys.get.
+	if _, err := cli.Projects.Locations.KeyRings.CryptoKeys.Get(keyPath).Context(ctx).Do(); err != nil {
+		t.Fatalf("cryptoKeys.get: %v", err)
+	}
+
+	// Encrypt / Decrypt round-trip (sockerless does real AES-256-GCM).
+	plaintext := []byte("sockerless-gcp-kms-secret")
+	enc, err := cli.Projects.Locations.KeyRings.CryptoKeys.Encrypt(keyPath, &kmsraw.EncryptRequest{
+		Plaintext: base64.StdEncoding.EncodeToString(plaintext),
+	}).Context(ctx).Do()
+	if err != nil {
+		t.Fatalf("encrypt: %v", err)
+	}
+	dec, err := cli.Projects.Locations.KeyRings.CryptoKeys.Decrypt(keyPath, &kmsraw.DecryptRequest{
+		Ciphertext: enc.Ciphertext,
+	}).Context(ctx).Do()
+	if err != nil {
+		t.Fatalf("decrypt: %v", err)
+	}
+	got, err := base64.StdEncoding.DecodeString(dec.Plaintext)
+	if err != nil {
+		t.Fatalf("decode decrypt plaintext: %v", err)
+	}
+	if !bytes.Equal(got, plaintext) {
+		t.Errorf("decrypt round-trip = %q, want %q", got, plaintext)
+	}
 }
 
 // TestSockerless_AzureKVKeys_Through_Shim exercises the Key Vault keys
