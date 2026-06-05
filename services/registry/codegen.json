@@ -1,0 +1,14 @@
+{
+  "_comment": "Phase 18 Container Registry — AWS ECR control-plane intersection operations (awsJson1_1). The OCI /v2/ data plane is hand-written (internal/registry/ocidistribution). See docs/phase-18-scoping.md.",
+  "spec": "services/registry/spec/aws-ecr.smithy.json",
+  "package": "gen",
+  "out": "services/registry/gen/aws_ecr.gen.go",
+  "operations": [
+    "CreateRepository",
+    "DescribeRepositories",
+    "DeleteRepository",
+    "ListImages",
+    "BatchDeleteImage",
+    "GetAuthorizationToken"
+  ]
+}
