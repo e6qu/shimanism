@@ -103,9 +103,10 @@ func TestSockerless_AWSKMS_Through_Shim(t *testing.T) {
 
 // TestSockerless_GCPKMS_Through_Shim is gated on sockerless adding a
 // Cloud KMS simulator. Sockerless has no GCP Cloud KMS surface (probed
-// 2026-06-04); filed upstream. Un-skip once it lands.
+// 2026-06-04, re-confirmed 2026-06-05); filed upstream as
+// e6qu/sockerless#419. Un-skip once it lands.
 func TestSockerless_GCPKMS_Through_Shim(t *testing.T) {
-	t.Skip("sockerless has no GCP Cloud KMS simulator (filed upstream); un-skip when it lands")
+	t.Skip("sockerless has no GCP Cloud KMS simulator (e6qu/sockerless#419); un-skip when it lands")
 }
 
 // TestSockerless_AzureKVKeys_Through_Shim exercises the Azure Key Vault

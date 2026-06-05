@@ -8,12 +8,14 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"errors"
 	"strings"
 	"testing"
 	"time"
 
 	"golang.org/x/oauth2"
 	kmsraw "google.golang.org/api/cloudkms/v1"
+	"google.golang.org/api/googleapi"
 	"google.golang.org/api/option"
 
 	"github.com/e6qu/shimanism/internal/gcpbearer"
@@ -144,4 +146,48 @@ func TestGCPSDK_KMS_Rotation(t *testing.T) {
 	}).UpdateMask("rotationPeriod").Context(ctx).Do(); err != nil {
 		t.Fatalf("cryptoKeys.patch (enable rotation): %v", err)
 	}
+}
+
+// TestGCPSDK_KMS_KeyRingExistence verifies the frontend tracks keyRings
+// honestly against the backend-of-record: an unknown ring is genuinely
+// absent (404), not synthesized; a created ring reads back; and a key
+// cannot be created in a ring that does not exist.
+func TestGCPSDK_KMS_KeyRingExistence(t *testing.T) {
+	srv := harness.StartKMSServerGCP(t, inmem.New())
+	svc := newGCPKMSClient(t, srv.URL)
+	ctx := context.Background()
+
+	parent := "projects/" + gcpProject + "/locations/" + gcpLocation
+	missing := parent + "/keyRings/never-created"
+
+	// GET an unknown keyRing -> 404 (not a synthetic 200).
+	if _, err := svc.Projects.Locations.KeyRings.Get(missing).Context(ctx).Do(); !isGCPStatus(err, 404) {
+		t.Fatalf("get unknown keyRing: want 404, got %v", err)
+	}
+
+	// Creating a cryptoKey in a non-existent ring -> 404.
+	if _, err := svc.Projects.Locations.KeyRings.CryptoKeys.Create(missing, &kmsraw.CryptoKey{
+		Purpose: "ENCRYPT_DECRYPT",
+	}).CryptoKeyId("orphan").Context(ctx).Do(); !isGCPStatus(err, 404) {
+		t.Fatalf("create key in unknown ring: want 404, got %v", err)
+	}
+
+	// Create the ring, then it reads back.
+	if _, err := svc.Projects.Locations.KeyRings.Create(parent, &kmsraw.KeyRing{}).
+		KeyRingId(gcpKeyRing).Context(ctx).Do(); err != nil {
+		t.Fatalf("keyRings.create: %v", err)
+	}
+	if _, err := svc.Projects.Locations.KeyRings.Get(gcpRing()).Context(ctx).Do(); err != nil {
+		t.Fatalf("get existing keyRing: %v", err)
+	}
+	// Re-creating the same ring -> 409 ALREADY_EXISTS.
+	if _, err := svc.Projects.Locations.KeyRings.Create(parent, &kmsraw.KeyRing{}).
+		KeyRingId(gcpKeyRing).Context(ctx).Do(); !isGCPStatus(err, 409) {
+		t.Fatalf("re-create keyRing: want 409, got %v", err)
+	}
+}
+
+func isGCPStatus(err error, code int) bool {
+	var gerr *googleapi.Error
+	return errors.As(err, &gerr) && gerr.Code == code
 }

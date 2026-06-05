@@ -29,6 +29,18 @@ func New(c *kms.Client) *Backend { return &Backend{c: c} }
 
 var _ domain.KMS = (*Backend)(nil)
 
+// CreateKeyRing / GetKeyRing: AWS KMS has no keyRing container (its
+// keyspace is flat, with aliases the only grouping). The container is out
+// of intersection for the AWS backend, so these return the source cloud's
+// not-supported error rather than fabricating a ring.
+func (b *Backend) CreateKeyRing(_ context.Context, _ string) (domain.KeyRing, error) {
+	return domain.KeyRing{}, domain.ErrNotSupported
+}
+
+func (b *Backend) GetKeyRing(_ context.Context, _ string) (domain.KeyRing, error) {
+	return domain.KeyRing{}, domain.ErrNotSupported
+}
+
 func (b *Backend) CreateKey(ctx context.Context, opt domain.CreateKeyOptions) (domain.Key, error) {
 	in := &kms.CreateKeyInput{}
 	if opt.Description != "" {

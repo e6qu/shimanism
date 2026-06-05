@@ -14,7 +14,13 @@ package gcp
 import (
 	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
+	"net/http"
+	"strings"
+	"time"
+
+	"google.golang.org/api/googleapi"
 
 	kmsraw "google.golang.org/api/cloudkms/v1"
 
@@ -43,6 +49,68 @@ func New(svc *kmsraw.Service, cfg Config) *Backend {
 }
 
 var _ domain.KMS = (*Backend)(nil)
+
+// CreateKeyRing creates a real Cloud KMS keyRing. name is the full
+// resource name (projects/{p}/locations/{l}/keyRings/{r}).
+func (b *Backend) CreateKeyRing(ctx context.Context, name string) (domain.KeyRing, error) {
+	parent, ringID, ok := splitKeyRingName(name)
+	if !ok {
+		return domain.KeyRing{}, fmt.Errorf("malformed keyRing name %q: %w", name, domain.ErrInvalidInput)
+	}
+	out, err := b.svc.Projects.Locations.KeyRings.Create(parent, &kmsraw.KeyRing{}).
+		KeyRingId(ringID).Context(ctx).Do()
+	if err != nil {
+		return domain.KeyRing{}, mapGCPErr("keyRings.create", err)
+	}
+	return gcpKeyRingToDomain(out, name), nil
+}
+
+// GetKeyRing reads a real Cloud KMS keyRing, mapping a 404 to ErrNotFound.
+func (b *Backend) GetKeyRing(ctx context.Context, name string) (domain.KeyRing, error) {
+	out, err := b.svc.Projects.Locations.KeyRings.Get(name).Context(ctx).Do()
+	if err != nil {
+		return domain.KeyRing{}, mapGCPErr("keyRings.get", err)
+	}
+	return gcpKeyRingToDomain(out, name), nil
+}
+
+func gcpKeyRingToDomain(kr *kmsraw.KeyRing, name string) domain.KeyRing {
+	out := domain.KeyRing{Name: name}
+	if kr != nil {
+		if kr.Name != "" {
+			out.Name = kr.Name
+		}
+		if t, err := time.Parse(time.RFC3339, kr.CreateTime); err == nil {
+			out.CreatedAt = t
+		}
+	}
+	return out
+}
+
+// splitKeyRingName splits projects/{p}/locations/{l}/keyRings/{r} into the
+// parent (.../locations/{l}) and the ring ID {r}.
+func splitKeyRingName(name string) (parent, ringID string, ok bool) {
+	i := strings.LastIndex(name, "/keyRings/")
+	if i < 0 {
+		return "", "", false
+	}
+	return name[:i], name[i+len("/keyRings/"):], true
+}
+
+// mapGCPErr translates a googleapi error onto the domain sentinels so the
+// frontend can render the right Cloud KMS status code.
+func mapGCPErr(op string, err error) error {
+	var gerr *googleapi.Error
+	if errors.As(err, &gerr) {
+		switch gerr.Code {
+		case http.StatusNotFound:
+			return fmt.Errorf("%s: %w", op, domain.ErrNotFound)
+		case http.StatusConflict:
+			return fmt.Errorf("%s: %w", op, domain.ErrAlreadyExists)
+		}
+	}
+	return fmt.Errorf("%s: %w", op, err)
+}
 
 func (b *Backend) ringPath() string {
 	return fmt.Sprintf("projects/%s/locations/%s/keyRings/%s", b.cfg.Project, b.cfg.Location, b.cfg.KeyRing)
