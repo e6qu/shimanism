@@ -8,13 +8,13 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 
 | | |
 |---|---|
-| Active branch | `main` — Phase 19 (Key Management) ✅ complete; Phase 18 (Container Registry) starting at 18.A. |
-| In-flight | 18.A: scoping doc + N30–N34 + `domain.Registry` + `ocidistribution` router + inmem registry. |
+| Active branch | `phase-18c-azure-acr` — Phase 18.C (Container Registry: Azure ACR PR2). |
+| In-flight | 18.C Azure ACR: token exchange + OCI `/v2/` + ACR `/acr/v1/` + ARM registry-host SDK/CLI/TF coverage landed in the working tree. Next: final review, push PR2, then 18.D connected backends + distribution peer. |
 | Last merged | PR #131 — 19.D PR2: real KMS sockerless lanes (AWS/GCP/Azure) + wire kms into the runner. |
 | Upstream watch | All KMS sockerless gaps closed: #407 (PR #412), #413 (PR #415), #419 GCP Cloud KMS sim (PR #422), #423 Azure no-version crypto (PR #425). |
 | Phases 1–19 | 1–17 + 19 closed; 18 (Container Registry) starting. See [PLAN.md § Closed phases](PLAN.md#closed-phases-pr-index). |
 | Phase 19 | ✅ complete — 19.A (#127) · 19.B (#128) · 19.C (#129) · 19.D (#130 CLI/TF, #131 sockerless). All 4 backends, full SDK/CLI/TF, all sockerless lanes green, zero skips. |
-| Phase 18 | 18.A scoping ([docs/phase-18-scoping.md](docs/phase-18-scoping.md)) in flight; OCI Distribution data plane + ECR/AR/ACR control planes + CNCF `distribution` K8s peer. |
+| Phase 18 | 18.A complete; 18.B GCP Artifact Registry complete; 18.C AWS ECR complete and Azure ACR PR2 in progress. OCI Distribution data plane + ECR/AR/ACR frontends + CNCF `distribution` K8s peer. |
 | Bugs | **62 filed · 58 fixed · 3 open · 1 false positive.** Open: **BUG-8** + **BUG-15** + **BUG-41** (Track A). |
 | CI | 20 required checks. Real-cloud lanes wait on Track A. |
 | Renovate | Config + custom manager for vendored-spec SHAs. **User must install the Renovate GitHub App.** |
