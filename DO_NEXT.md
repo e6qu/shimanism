@@ -29,9 +29,12 @@ Scoping: [docs/phase-18-scoping.md](docs/phase-18-scoping.md). Normalizations N3
 - [x] `services/registry/backends/inmem/` — real digest-keyed content-addressable store (test backend-of-record): verifies blob digests, holds chunked-upload sessions, auto-creates repo on push; repository-lifecycle + force-delete unit tests.
 - Next: 18.B wires the router behind the GCP Artifact Registry frontend.
 
-### 18.B–D (planned)
+### 18.B — OCI data plane behind the GCP Artifact Registry frontend
 
-- **18.B** — OCI router behind GCP Artifact Registry frontend first (Bearer auth, sim has `/v2/`); ECR/AR/ACR codegen manifests; push/pull round-trip vs inmem.
+- [x] **PR1 (this):** `internal/registry/frontends/gcp_artifactregistry` — Bearer-challenge (`WWW-Authenticate`, N31) + `gcpbearer` verify wrapping the shared `ocidistribution` router. Conformance via **go-containerregistry** (real OCI client, new dep, Apache-2.0): full image push/pull through the shim → inmem, by-tag + by-digest, tags list, layer-digest round-trip, plus unauthenticated-challenge case. `TestGCR_AR_ImagePushPull`.
+- [ ] **PR2:** AR control plane — `repositories.create/get/list/delete` (LROs) + `dockerImages.list/delete` via `google.golang.org/api/artifactregistry/v1` SDK; CLI (`gcloud artifacts`) + Terraform (`google_artifact_registry_repository`).
+
+### 18.C–D (planned)
 - **18.C** — AWS ECR frontend (`GetAuthorizationToken` Basic) + Azure ACR frontend (`/oauth2/exchange`+`/oauth2/token`); full control-plane SDK/CLI/TF.
 - **18.D** — connected backends + CNCF `distribution` K8s peer + full 3×3×4 matrix + sockerless lanes (GCP AR + ACR green; **AWS-ECR data-plane skip-with-issue** — sockerless ECR has no `/v2/`, ask user before filing).
 
