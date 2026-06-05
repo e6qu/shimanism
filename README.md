@@ -3,9 +3,9 @@
 # shimanism
 
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
-[![Go](https://img.shields.io/badge/Go-64.2k_lines-00ADD8?logo=go&logoColor=white)](#code-architecture-and-how-the-build-works)
+[![Go](https://img.shields.io/badge/Go-65.1k_lines-00ADD8?logo=go&logoColor=white)](#code-architecture-and-how-the-build-works)
 [![Generated](https://img.shields.io/badge/Generated-76.5k_lines-blue)](docs/codegen.md)
-[![Tests](https://img.shields.io/badge/Tests-39.9k_lines-brightgreen)](docs/testing.md)
+[![Tests](https://img.shields.io/badge/Tests-40.2k_lines-brightgreen)](docs/testing.md)
 [![Modules](https://img.shields.io/badge/Go_Modules-2-informational)](#code-architecture-and-how-the-build-works)
 
 <!-- per-major-component (numbers auto-updated by scripts/update-readme-badges.sh) -->
@@ -104,6 +104,7 @@ See [docs/getting-started.md](docs/getting-started.md) for the five-minute walkt
 | Managed Redis *(control plane)* | ElastiCache | Memorystore | Azure Cache for Redis | Redis Operator | [docs/services/cache.md](docs/services/cache.md) |
 | Functions *(container image, control plane)* | Lambda | Cloud Run | Container Apps | Knative | [docs/services/functions.md](docs/services/functions.md) |
 | API gateway | API Gateway HTTP API v2 | API Gateway | API Management | Envoy Gateway | [docs/services/apigateway.md](docs/services/apigateway.md) |
+| Container registry | ECR | Artifact Registry | Container Registry | CNCF Distribution | [docs/services/registry.md](docs/services/registry.md) |
 
 Managed databases and managed Redis: only the **control plane** is shimmed (provisioning, scaling, snapshots, access bindings). The data plane is wire-protocol Postgres / MySQL / RESP — connect directly to the returned host.
 

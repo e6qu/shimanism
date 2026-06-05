@@ -372,7 +372,7 @@ NAT Gateways · Internet Gateways · Route Tables · VPC Peering · Auto Scaling
 
 > **Premise.** Standalone service family with a tight intersection: all three clouds speak the OCI Distribution Spec (v1) for image push/pull. The control-plane (create/delete repository, list images, delete tags) sits on top. No compute dependency.
 >
-> **Status: ◐ in progress — 18.A scoping.** **Authoritative design: [docs/phase-18-scoping.md](docs/phase-18-scoping.md)** (the sketch below is superseded by it where they differ — e.g. ECR control plane is awsJson1_1 not restJson1; the K8s peer is CNCF `distribution`, not "shim hosts registry"; the data plane targets the backend registry, not object storage).
+> **Status: ◐ in progress — 18.D closeout.** **Authoritative design: [docs/phase-18-scoping.md](docs/phase-18-scoping.md)** (the sketch below is superseded by it where they differ — e.g. ECR control plane is awsJson1_1 not restJson1; the K8s peer is CNCF `distribution`, not "shim hosts registry"; the data plane targets the backend registry, not object storage). Per-service contracts: [services/registry/INTERSECTION.md](services/registry/INTERSECTION.md) and [services/registry/APPLY_INTERSECTION.md](services/registry/APPLY_INTERSECTION.md).
 
 | Surface | AWS | GCP | Azure | K8s |
 |---|---|---|---|---|
@@ -382,11 +382,11 @@ NAT Gateways · Internet Gateways · Route Tables · VPC Peering · Auto Scaling
 
 **Wire protocols.** Control plane: awsJson1_1 (ECR) / REST Discovery (AR) / ARM (ACR). Data plane: all three speak OCI Distribution `/v2/` — **one shared hand-written `internal/registry/ocidistribution/` router** mounted behind each frontend's auth (N31). Blobs/manifests live in the **backend registry** (real cloud, CNCF `distribution`, or the inmem digest-keyed store); the shim is a verifying streaming proxy, never buffering layers (statelessness). N30–N34 published.
 
-**Sockerless support:** ACR + GCP AR sims implement OCI `/v2/` (push/pull lanes green); **AWS ECR sim is control-plane only (no `/v2/`)** — the ECR data-plane sockerless cell is blocked pending an upstream addition (ask user before filing).
+**Sockerless support:** registry lanes are wired, but current simulators have `/v2/` data-plane gaps: AWS ECR has no `/v2/` (BUG-64), GCP AR returns 405 on chunk upload `PATCH` (BUG-65), and Azure ACR returns 404 on upload start (BUG-66). No shim workarounds.
 
 **Out of intersection:** geo-replication, vulnerability scanning, image signing, lifecycle/cache policies, tag-immutability modes (N33), registry webhooks.
 
-**Sub-phases:** 18.A scoping + `domain.Registry` + `ocidistribution` router + inmem; 18.B OCI data plane behind GCP AR frontend; 18.C ECR + ACR frontends + control-plane conformance; 18.D `distribution` peer + full 3×3×4 matrix + sockerless. **~5–6 PRs.**
+**Sub-phases:** 18.A scoping + `domain.Registry` + `ocidistribution` router + inmem; 18.B OCI data plane behind GCP AR frontend; 18.C ECR + ACR frontends + control-plane conformance; 18.D connected backends + sockerless + docs closeout. Registry sockerless data-plane gaps are BUG-64/65/66 (simulator `/v2/` gaps; no shim fallback).
 
 ---
 
