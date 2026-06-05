@@ -494,13 +494,13 @@ Closed audit items:
 
 ---
 
-## N30 — Repository lifecycle: explicit on AWS/GCP, implicit on Azure ACR
+## N30 — Repository lifecycle: explicit on AWS/GCP, implicit on ACR/Distribution
 
 **Asymmetry.** ECR `CreateRepository` and Artifact Registry `repositories.create` are explicit lifecycle calls with their own API; on **Azure ACR a repository is implicit** — it materializes on first manifest push and is addressed only via data-plane catalog/manifest APIs. ACR's `registries.create` creates the *registry host*, one level up (the analog of "the registry endpoint", not "a repository"). The CNCF `distribution` peer is also implicit (repo exists once it has a tag).
 
-**Rule.** Domain `CreateRepository` is explicit. The ACR backend treats it as an idempotent metadata no-op that succeeds (the repo materializes on first push); `DescribeRepository`/`ListRepositories` derive from ACR's `/acr/v1/_catalog`. `DeleteRepository` on ACR enumerates and deletes all manifests.
+**Rule.** Domain `CreateRepository` is explicit. Backends with a real repository-create API call that API. The CNCF `distribution` backend returns the source frontend's not-supported error for `CreateRepository`, because Distribution has no API that creates an empty repository; `DescribeRepository`/`ListRepositories` derive from `/v2/_catalog` and `tags/list`, so a repository with no visible tags is absent. `DeleteRepository` enumerates visible manifests and deletes them by digest.
 
-**Trade-off.** An empty repository cannot truly exist on ACR — `CreateRepository` then `DescribeRepository` with no images returns an empty-but-present shape derived from the catalog; an observer querying ACR directly sees nothing until first push. Direct analog of N18 (NoSQL table implicit on Firestore).
+**Trade-off.** A portable registry repository cannot always exist independently of image content. The shim does not add a sidecar catalog or metadata table to paper over that: if the backend cannot expose an empty repository honestly, the operation fails loudly or the repository remains invisible until first push.
 
 **Reference.** `internal/registry/domain/domain.go`; `services/registry/INTERSECTION.md` § Phase 18.
 

@@ -393,20 +393,23 @@ func (s *Server) manifests(w http.ResponseWriter, r *http.Request, repo string) 
 	}
 	items := make([]map[string]any, 0, len(res.Images))
 	for _, img := range res.Images {
-		t := img.PushedAt.UTC().Format(time.RFC3339)
-		items = append(items, map[string]any{
-			"digest":         img.Digest,
-			"imageSize":      img.Size,
-			"createdTime":    t,
-			"lastUpdateTime": t,
-			"tags":           img.Tags,
+		item := map[string]any{
+			"digest":    img.Digest,
+			"imageSize": img.Size,
+			"tags":      img.Tags,
 			"changeableAttributes": map[string]bool{
 				"deleteEnabled": true,
 				"listEnabled":   true,
 				"readEnabled":   true,
 				"writeEnabled":  true,
 			},
-		})
+		}
+		if !img.PushedAt.IsZero() {
+			t := img.PushedAt.UTC().Format(time.RFC3339)
+			item["createdTime"] = t
+			item["lastUpdateTime"] = t
+		}
+		items = append(items, item)
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"registry":  r.Host,
