@@ -1,6 +1,6 @@
 # Known Bugs
 
-**63 filed · 57 fixed · 5 open · 1 false positive.** BUG-35 (Container Apps lane) closed by sockerless PR #245 which derived ACA image platforms from the resolved image manifest instead of hardcoding `linux/arm64`; `scripts/run-sockerless-storage.sh` re-defaults `SOCKERLESS_AZURE_CONTAINERAPPS_IMAGE` to `docker.io/library/nginx:alpine`. Track A (BUG-8 + BUG-15) remains blocked on real GCP credentials. BUG-24 reverse-direction through-shim coverage **now complete across every service family** — PR #46 landed cache/secrets/queue reverse cells; this PR finishes the set with storage/pubsub/rdbms/functions/apigateway reverse cells. `make sockerless` now reports **43 passing + 0 skipped**.
+**64 filed · 57 fixed · 6 open · 1 false positive.** BUG-35 (Container Apps lane) closed by sockerless PR #245 which derived ACA image platforms from the resolved image manifest instead of hardcoding `linux/arm64`; `scripts/run-sockerless-storage.sh` re-defaults `SOCKERLESS_AZURE_CONTAINERAPPS_IMAGE` to `docker.io/library/nginx:alpine`. Track A (BUG-8 + BUG-15) remains blocked on real GCP credentials. BUG-24 reverse-direction through-shim coverage **now complete across every service family** — PR #46 landed cache/secrets/queue reverse cells; this PR finishes the set with storage/pubsub/rdbms/functions/apigateway reverse cells.
 
 Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLAN.md](PLAN.md) · narrative [WHAT_WE_DID.md](WHAT_WE_DID.md) · rules [AGENTS.md](AGENTS.md).
 
@@ -22,6 +22,7 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 | BUG-41 | P2 | dns/gcp-tf-frontend | `hashicorp/google` `RemoveBasePathVersion` | Provider regex hardcodes `http[s]://` (literal `s`) when stripping the version path from `dns_custom_endpoint`. HTTP test endpoints fall through the regex no-op; the subsequent `strings.ReplaceAll("/dns/", "")` then mangles the URL into `http://localhost:PORTv1/` which `url.Parse` rejects → SDK panic at `googleapi.ResolveRelative`. Worked around by serving the GCP DNS Terraform conformance over TLS (`StartDNSServerGCPTLS`) with `SSL_CERT_FILE` threading the self-signed cert into the provider process. Linux-only (SSL_CERT_FILE platform limit); skips on macOS. Upstream fix would be `http[s]?://`. **Not filing upstream pending user direction; the local workaround is sufficient.** | **15.D** |
 | BUG-65 | P2 | registry/gcp-ar-sockerless | GCP Artifact Registry `/v2/` chunk upload | Sockerless GCP Artifact Registry creates upload sessions but returns 405 on OCI chunk `PATCH /v2/{repo}/blobs/uploads/{id}`; GCP AR through-shim push/pull must skip/fail loudly instead of faking chunk upload. Filed upstream as [sockerless#451](https://github.com/e6qu/sockerless/issues/451). | **18.D** |
 | BUG-66 | P2 | registry/azure-acr-sockerless | Azure ACR `/v2/` upload | Sockerless Azure ACR returns 404 for OCI `POST /v2/{repo}/blobs/uploads/`; Azure ACR through-shim push/pull must skip/fail loudly instead of faking upload support. Filed upstream as [sockerless#452](https://github.com/e6qu/sockerless/issues/452). | **18.D** |
+| BUG-67 | P2 | registry/aws-ecr-sockerless | AWS ECR `/v2/` manifest HEAD | Sockerless AWS ECR now has `/v2/`, but OCI push through the shim fails when `HEAD /v2/{repo}/manifests/{tag}` returns 400 for a missing tag instead of the Distribution/ECR missing-manifest shape. Filed upstream as [sockerless#465](https://github.com/e6qu/sockerless/issues/465). | **18.D** |
 
 ## Upstream-tracked (sockerless validation lane)
 
@@ -34,6 +35,7 @@ Sockerless fidelity gaps tracked on `github.com/e6qu/sockerless`. Each is filed 
 | [e6qu/sockerless#450](https://github.com/e6qu/sockerless/issues/450) — AWS ECR simulator is missing Docker Registry `/v2/` data plane | ✅ closed on current sockerless main; PR #146 replaces the local gap probe with full AWS ECR through-shim push/pull. |
 | [e6qu/sockerless#451](https://github.com/e6qu/sockerless/issues/451) — GCP Artifact Registry simulator rejects OCI chunk upload `PATCH` | Open; tracked locally as BUG-65. |
 | [e6qu/sockerless#452](https://github.com/e6qu/sockerless/issues/452) — Azure ACR simulator returns 404 on OCI blob upload start | Open; tracked locally as BUG-66. |
+| [e6qu/sockerless#465](https://github.com/e6qu/sockerless/issues/465) — AWS ECR simulator returns 400 on OCI manifest `HEAD` for a missing tag | Open; tracked locally as BUG-67. |
 
 ### Round 1 (Phase 13.D.1) — all closed via [sockerless PR #179](https://github.com/e6qu/sockerless/pull/179) on 2026-05-23
 

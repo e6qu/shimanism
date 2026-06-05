@@ -16,7 +16,7 @@ The second cleanup branch burns down the duplicate baseline to zero. Secrets Ter
 
 The closeout branch makes that zero duplicate baseline enforceable by enabling `dupl` in `.golangci.yml` and making `scripts/run-duplication-audit.sh` strict. Dead-code remains advisory, but the first real findings were removed: `services/secrets/backends/inmem.equalBytes` had no callers and only a blank identifier assignment keeping it alive, and `services/queue/backends/inmem.copyAttrs` was an uncalled value-copy helper. The same branch starts Phase 20 with an Event Streaming scoping doc and corrects the K8s peer plan from an in-tree shimakit queue-shaped peer to a connected Strimzi Kafka backend.
 
-CI on the closeout branch showed that sockerless#450 / BUG-64 is fixed on current sockerless main: AWS ECR `/v2/` now responds. The branch replaced the old AWS ECR gap probe with full through-shim image push/pull using the real AWS backend and OCI client, and moved BUG-64 out of the open bug set. GCP AR and Azure ACR simulator gaps remain tracked as BUG-65/66.
+CI on the closeout branch showed that sockerless#450 / BUG-64 is fixed on current sockerless main: AWS ECR `/v2/` now responds. The branch replaced the old AWS ECR gap probe with a full through-shim image push/pull attempt using the real AWS backend and OCI client, and moved BUG-64 out of the open bug set. That immediately surfaced BUG-67: sockerless AWS ECR returns 400 on the normal OCI manifest `HEAD` probe for a missing tag, filed upstream as [sockerless#465](https://github.com/e6qu/sockerless/issues/465). GCP AR and Azure ACR simulator gaps remain tracked as BUG-65/66.
 
 ## Phase 18 — Container Registry: complete
 

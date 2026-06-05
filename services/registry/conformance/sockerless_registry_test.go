@@ -174,7 +174,7 @@ func TestSockerless_AWSECR_ThroughShim_ImagePushPull(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse ref: %v", err)
 	}
-	assertPushPull(t, ref,
+	assertPushPullOrSkipKnownSockerlessGap(t, ref, "BUG-67", "/manifests/v1: unexpected status code 400 Bad Request",
 		remote.WithAuth(&authn.Basic{Username: user, Password: pass}),
 		remote.WithTransport(http.DefaultTransport),
 	)
@@ -231,13 +231,6 @@ func assertPushPullOrSkipKnownSockerlessGap(t *testing.T, ref name.Reference, bu
 		if strings.Contains(err.Error(), failureNeedle) {
 			t.Skipf("%s: sockerless registry simulator gap: %v", bugID, err)
 		}
-		t.Fatalf("push through registry shim: %v", err)
-	}, opts...)
-}
-
-func assertPushPull(t *testing.T, ref name.Reference, opts ...remote.Option) {
-	t.Helper()
-	pushPull(t, ref, func(err error) {
 		t.Fatalf("push through registry shim: %v", err)
 	}, opts...)
 }
