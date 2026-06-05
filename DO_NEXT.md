@@ -2,20 +2,39 @@
 
 Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BUGS.md) · narrative [WHAT_WE_DID.md](WHAT_WE_DID.md) · philosophy [PHILOSOPHY.md](PHILOSOPHY.md) · rules [AGENTS.md](AGENTS.md).
 
-> **Cold-start entry point.** Phases 1–17 complete; Phase 19 (Key Management) in progress — 19.A/B/C merged, 19.D next.
+> **Cold-start entry point.** Phases 1–17 + 19 complete; Phase 18 (Container Registry) starting at 18.A.
 
 ## Where we are
 
-**Phase 19.A/B/C all merged** (PRs #127/#128/#129). KMS across AWS/GCP/Azure: domain + inmem (real AES-256-GCM) + all three frontends + real backends + K8s NotImplemented + sockerless AWS KMS lane. **19.D is next** (CLI/TF conformance breadth + sockerless lanes — see below). Phase 17 (block storage) complete (#122–#125). Phase 18 (Container Registry) not started.
+**Phase 19 (Key Management) is complete** — PRs #127 (19.A) / #128 (19.B) / #129 (19.C) / #130 (19.D CLI/TF) / #131 (19.D sockerless), all merged. KMS across AWS/GCP/Azure + K8s: domain + inmem (real AES-256-GCM) + all three frontends + real backends + full SDK/CLI/TF conformance + all sockerless lanes green with **zero skips**. All four KMS sockerless gaps closed upstream (#407/#413/#419/#423).
+
+**Now starting Phase 18 — Container Registry.** OCI Distribution `/v2/` data plane (shared hand-written router) + ECR/AR/ACR control planes + CNCF `distribution` K8s peer. See [docs/phase-18-scoping.md](docs/phase-18-scoping.md). 18.A is in flight (scoping + N30–N34 + domain + ocidistribution router + inmem).
 
 **Open bugs:** BUG-8 · BUG-15 · BUG-41 (Track A only — blocked on real GCP credentials).
 
 ## Session-start checklist
 
 1. `git fetch origin && git checkout main && git pull --ff-only origin main` — sync `main`.
-2. Continue Phase 19.D (see below), or pick up Phase 18 / 20–23 from PLAN.md.
+2. Continue Phase 18 (see below), per [docs/phase-18-scoping.md](docs/phase-18-scoping.md).
 
-## Phase 19 — Key Management ◐
+## Phase 18 — Container Registry ◐
+
+Scoping: [docs/phase-18-scoping.md](docs/phase-18-scoping.md). Normalizations N30–N34. Two planes in one service: OCI Distribution `/v2/` data plane (shared `internal/registry/ocidistribution/` router, hand-written) behind three codegen'd control-plane frontends (ECR awsJson1_1, AR Discovery, ACR ARM).
+
+### 18.A — scoping + domain + router + inmem (this PR: scoping/docs portion)
+
+- [x] `docs/phase-18-scoping.md` + N30–N34 + Phase 19 closeout.
+- [ ] `internal/registry/domain/domain.go` — `domain.Registry` (control plane + streaming OCI data plane, `io.Reader`-based).
+- [ ] `internal/registry/ocidistribution/` — hand-written `/v2/` router + digest verify + OCI error envelope + round-trip unit test.
+- [ ] `services/registry/backends/inmem/` — real digest-keyed content-addressable store (test backend-of-record).
+
+### 18.B–D (planned)
+
+- **18.B** — OCI router behind GCP Artifact Registry frontend first (Bearer auth, sim has `/v2/`); ECR/AR/ACR codegen manifests; push/pull round-trip vs inmem.
+- **18.C** — AWS ECR frontend (`GetAuthorizationToken` Basic) + Azure ACR frontend (`/oauth2/exchange`+`/oauth2/token`); full control-plane SDK/CLI/TF.
+- **18.D** — connected backends + CNCF `distribution` K8s peer + full 3×3×4 matrix + sockerless lanes (GCP AR + ACR green; **AWS-ECR data-plane skip-with-issue** — sockerless ECR has no `/v2/`, ask user before filing).
+
+## Phase 19 — Key Management ✅ COMPLETE
 
 ### 19.A — domain + inmem + AWS KMS lane ✅ (PR #127)
 

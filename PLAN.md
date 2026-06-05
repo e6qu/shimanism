@@ -372,21 +372,21 @@ NAT Gateways · Internet Gateways · Route Tables · VPC Peering · Auto Scaling
 
 > **Premise.** Standalone service family with a tight intersection: all three clouds speak the OCI Distribution Spec (v1) for image push/pull. The control-plane (create/delete repository, list images, delete tags) sits on top. No compute dependency.
 >
-> **Status: planned.**
+> **Status: ◐ in progress — 18.A scoping.** **Authoritative design: [docs/phase-18-scoping.md](docs/phase-18-scoping.md)** (the sketch below is superseded by it where they differ — e.g. ECR control plane is awsJson1_1 not restJson1; the K8s peer is CNCF `distribution`, not "shim hosts registry"; the data plane targets the backend registry, not object storage).
 
 | Surface | AWS | GCP | Azure | K8s |
 |---|---|---|---|---|
-| Repository lifecycle | ECR `CreateRepository / DeleteRepository / DescribeRepositories` | Artifact Registry `repositories.create / delete / list` | ACR `registries.create / delete / list` | — (shim hosts registry; K8s pulls from it) |
-| Image list / delete | ECR `ListImages / BatchDeleteImage / DescribeImages` | Artifact Registry `dockerImages.list / delete` | ACR `repositories.list`, `manifests.delete` | — |
-| Push / pull | ECR login + OCI Distribution Spec | Artifact Registry OCI | ACR OCI | OCI Distribution Spec |
+| Repository lifecycle | ECR `CreateRepository / DeleteRepository / DescribeRepositories` | Artifact Registry `repositories.create / delete / list` | ACR — repository **implicit** on first push (N30); `registries.create` is the registry host | CNCF `distribution` — implicit on first push |
+| Image list / delete | ECR `ListImages / BatchDeleteImage / DescribeImages` | Artifact Registry `dockerImages.list / delete` | ACR `/acr/v1/_manifests`, `manifests.delete` | tags/list + manifest delete |
+| Push / pull | ECR login (Basic) + OCI `/v2/` | Artifact Registry Bearer + OCI `/v2/` | ACR token-exchange + OCI `/v2/` | OCI `/v2/` |
 
-**Wire protocols.** Control plane: restJson1 (AWS) / REST Discovery (GCP) / ARM (Azure). Data plane: all three use OCI Distribution Spec v1 — one shim data-plane handler covers all three frontends. The data plane routes image layers to the configured backend (MinIO for AWS-source tests, GCS for GCP, Azure Blob for Azure).
+**Wire protocols.** Control plane: awsJson1_1 (ECR) / REST Discovery (AR) / ARM (ACR). Data plane: all three speak OCI Distribution `/v2/` — **one shared hand-written `internal/registry/ocidistribution/` router** mounted behind each frontend's auth (N31). Blobs/manifests live in the **backend registry** (real cloud, CNCF `distribution`, or the inmem digest-keyed store); the shim is a verifying streaming proxy, never buffering layers (statelessness). N30–N34 published.
 
-**Sockerless support:** ACR routes exist in sockerless (PR #388). ECR + GCR gaps to be filed when work starts.
+**Sockerless support:** ACR + GCP AR sims implement OCI `/v2/` (push/pull lanes green); **AWS ECR sim is control-plane only (no `/v2/`)** — the ECR data-plane sockerless cell is blocked pending an upstream addition (ask user before filing).
 
-**Out of intersection:** geo-replication, vulnerability scanning, image signing, registry webhooks.
+**Out of intersection:** geo-replication, vulnerability scanning, image signing, lifecycle/cache policies, tag-immutability modes (N33), registry webhooks.
 
-**Sub-phases:** 18.A control-plane domain + codegen; 18.B OCI data-plane handler (shared); 18.C all three control frontends + conformance. **~4–5 PRs.**
+**Sub-phases:** 18.A scoping + `domain.Registry` + `ocidistribution` router + inmem; 18.B OCI data plane behind GCP AR frontend; 18.C ECR + ACR frontends + control-plane conformance; 18.D `distribution` peer + full 3×3×4 matrix + sockerless. **~5–6 PRs.**
 
 ---
 
@@ -394,7 +394,7 @@ NAT Gateways · Internet Gateways · Route Tables · VPC Peering · Auto Scaling
 
 > **Premise.** Extends Phase 2 (Secrets) to the key-management layer: cryptographic key lifecycle, encrypt/decrypt, and sign/verify. Distinct from secrets — keys are never exported, only used for crypto operations. Azure Key Vault keys share the same vault URL as KV secrets but use a different API surface.
 >
-> **Status: ◐ in progress — 19.A AWS KMS lane merged (#127).** Scope: symmetric ENCRYPT_DECRYPT (CreateKey/Describe/List, Encrypt/Decrypt, ScheduleKeyDeletion/Cancel, rotation enable/disable/status). Decrypt takes only the ciphertext (key ref embedded). Sign/Verify (asymmetric) deferred — noted follow-on. N29 published.
+> **Status: ✅ complete — #127/#128/#129/#130/#131.** Scope: symmetric ENCRYPT_DECRYPT (CreateKey/Describe/List, Encrypt/Decrypt, ScheduleKeyDeletion/Cancel, rotation enable/disable/status). Decrypt takes only the ciphertext (key ref embedded). Sign/Verify (asymmetric) deferred — noted follow-on. N29 published. All 4 backends (AWS/GCP/Azure real + inmem; K8s NotImplemented) + full SDK/CLI/TF conformance + all sockerless lanes green (gaps #407/#413/#419/#423 all closed upstream). keyRing promoted to a first-class honest domain capability (BUG-58); AWS-backend tag round-trip fixed (BUG-60).
 >
 > **Sub-phases:** 19.A domain + inmem (real AES-256-GCM) + AWS KMS (SDK/CLI/TF) ✅ #127; 19.B GCP Cloud KMS + Azure Key Vault keys + backends; 19.C K8s NotImplemented + sockerless lane.
 
