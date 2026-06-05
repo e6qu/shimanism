@@ -126,14 +126,17 @@ func (s *Server) listDockerImages(w http.ResponseWriter, r *http.Request, name s
 	}
 	out := &arraw.ListDockerImagesResponse{}
 	for _, img := range res.Images {
-		out.DockerImages = append(out.DockerImages, &arraw.DockerImage{
+		di := &arraw.DockerImage{
 			Name:           name + "/dockerImages/" + img.Digest,
 			Uri:            name + "@" + img.Digest,
 			Tags:           img.Tags,
 			MediaType:      img.MediaType,
 			ImageSizeBytes: img.Size,
-			UploadTime:     img.PushedAt.UTC().Format(time.RFC3339),
-		})
+		}
+		if !img.PushedAt.IsZero() {
+			di.UploadTime = img.PushedAt.UTC().Format(time.RFC3339)
+		}
+		out.DockerImages = append(out.DockerImages, di)
 	}
 	writeJSON(w, http.StatusOK, out)
 }

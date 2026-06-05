@@ -106,13 +106,16 @@ func epoch(t time.Time) *awsjson.EpochTime {
 func strp(s string) *string { return &s }
 
 func ecrRepository(r domain.Repository) *gen.Repository {
-	return &gen.Repository{
+	out := &gen.Repository{
 		RegistryId:     strp(registryID),
 		RepositoryName: strp(r.Name),
 		RepositoryArn:  strp("arn:aws:ecr:" + region + ":" + registryID + ":repository/" + r.Name),
 		RepositoryUri:  strp(registry + "/" + r.Name),
-		CreatedAt:      epoch(r.CreatedAt),
 	}
+	if !r.CreatedAt.IsZero() {
+		out.CreatedAt = epoch(r.CreatedAt)
+	}
+	return out
 }
 
 func (a *Adapter) CreateRepository(ctx context.Context, in *gen.CreateRepositoryRequest) (*gen.CreateRepositoryResponse, error) {
@@ -219,6 +222,8 @@ func mapErr(err error) error {
 	case domain.IsAlreadyExists(err):
 		return &awsjson.BackendError{HTTPStatus: http.StatusBadRequest, Type: "RepositoryAlreadyExistsException", Message: err.Error()}
 	case domain.IsInvalidInput(err):
+		return &awsjson.BackendError{HTTPStatus: http.StatusBadRequest, Type: "InvalidParameterException", Message: err.Error()}
+	case domain.IsNotSupported(err):
 		return &awsjson.BackendError{HTTPStatus: http.StatusBadRequest, Type: "InvalidParameterException", Message: err.Error()}
 	default:
 		return &awsjson.BackendError{HTTPStatus: http.StatusInternalServerError, Type: "ServerException", Message: err.Error()}

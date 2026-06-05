@@ -66,7 +66,7 @@ exposed — out of the data plane; repository listing is served via the control 
 
 | Domain op | AWS ECR | GCP Artifact Registry | Azure ACR | K8s (distribution) |
 |---|---|---|---|---|
-| CreateRepository | `CreateRepository` | `repositories.create` (LRO) | **implicit** (auto on first push) | implicit on first push |
+| CreateRepository | `CreateRepository` | `repositories.create` (LRO) | **implicit** (auto on first push) | NotSupported (no empty-repo API) |
 | DeleteRepository | `DeleteRepository` | `repositories.delete` (LRO) | data-plane delete-all | delete all tags |
 | DescribeRepository | `DescribeRepositories` | `repositories.get` | `/acr/v1/{repo}` | derive from tags |
 | ListRepositories | `DescribeRepositories` | `repositories.list` | `/acr/v1/_catalog` | `/v2/_catalog` |
@@ -74,11 +74,13 @@ exposed — out of the data plane; repository listing is served via the control 
 | DeleteImage / tag | `BatchDeleteImage` | `dockerImages.delete` | `manifests.delete` | OCI manifest delete |
 
 **Key asymmetry (→ N30):** a "repository" is a first-class lifecycle resource on
-ECR and AR (explicit create/delete), but on **Azure ACR it is implicit** — it
+ECR and AR (explicit create/delete), but on **Azure ACR and CNCF Distribution it is implicit** — it
 materializes on first push and is addressed only via data-plane catalog/manifest
 APIs. ACR's `registries.create` creates the *registry host* (one level up — the
-analog of "the registry endpoint", not "a repository"). Direct parallel to N18
-(NoSQL table implicit on Firestore).
+analog of "the registry endpoint", not "a repository"). Distribution has no
+empty-repository create call, so the connected backend returns the source
+frontend's not-supported error for `CreateRepository` instead of keeping a
+sidecar catalog.
 
 ### Out of intersection
 

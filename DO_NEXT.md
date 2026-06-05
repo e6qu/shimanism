@@ -2,15 +2,15 @@
 
 Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BUGS.md) · narrative [WHAT_WE_DID.md](WHAT_WE_DID.md) · philosophy [PHILOSOPHY.md](PHILOSOPHY.md) · rules [AGENTS.md](AGENTS.md).
 
-> **Cold-start entry point.** Phases 1–17 + 19 complete; Phase 18 (Container Registry) is in 18.C.
+> **Cold-start entry point.** Phases 1–17 + 19 complete; Phase 18 (Container Registry) is starting 18.D.
 
 ## Where we are
 
 **Phase 19 (Key Management) is complete** — PRs #127 (19.A) / #128 (19.B) / #129 (19.C) / #130 (19.D CLI/TF) / #131 (19.D sockerless), all merged. KMS across AWS/GCP/Azure + K8s: domain + inmem (real AES-256-GCM) + all three frontends + real backends + full SDK/CLI/TF conformance + all sockerless lanes green with **zero skips**. All four KMS sockerless gaps closed upstream (#407/#413/#419/#423).
 
-**Phase 18 — Container Registry is in 18.C.** OCI Distribution `/v2/` data plane (shared hand-written router) + ECR/AR/ACR control planes + CNCF `distribution` K8s peer. See [docs/phase-18-scoping.md](docs/phase-18-scoping.md). 18.A and 18.B are complete; AWS ECR is complete; Azure ACR PR2 has token-exchange auth + OCI `/v2/` + `/acr/v1/` catalog/manifests + ARM registry-host SDK/CLI/TF coverage in the working tree.
+**Phase 18 — Container Registry is in 18.D.** OCI Distribution `/v2/` data plane (shared hand-written router) + ECR/AR/ACR control planes + CNCF `distribution` K8s peer. See [docs/phase-18-scoping.md](docs/phase-18-scoping.md). 18.A, 18.B, and 18.C are complete: GCP AR, AWS ECR, and Azure ACR frontends all have SDK/CLI/Terraform control-plane coverage plus go-containerregistry OCI data-plane coverage. 18.D PR1 is implemented locally: `services/registry/backends/distribution` calls a real Distribution registry and does not keep a sidecar catalog.
 
-**Open bugs:** BUG-8 · BUG-15 · BUG-41 (Track A only — blocked on real GCP credentials).
+**Open bugs:** BUG-8 · BUG-15 · BUG-41 (Track A only — blocked on real GCP credentials) · BUG-61 (ECR `BatchDeleteImage` must report per-image failures).
 
 ## Session-start checklist
 
@@ -38,10 +38,13 @@ Scoping: [docs/phase-18-scoping.md](docs/phase-18-scoping.md). Normalizations N3
 ### 18.C — AWS ECR + Azure ACR frontends
 
 - [x] **PR1 — AWS ECR.** Codegen'd awsJson1_1 control plane (`services/registry/{spec,codegen.json,gen}`, 6 ops) + SigV4; OCI `/v2/` data plane gated by HTTP **Basic** auth minted by `GetAuthorizationToken` (N31; HMAC token, stateless verify). ECR repo names are flat, so control + data planes **unify** on the repo name. Conformance: `aws-sdk-go-v2/service/ecr` SDK (repo lifecycle) + go-containerregistry push/pull via the real docker-login flow (`GetAuthorizationToken`→Basic) + ListImages-after-push + unauthenticated-challenge. New dep `aws-sdk-go-v2/service/ecr`.
-- [ ] **PR2 — Azure ACR (in progress).** Landed in working tree: `internal/registry/frontends/azure_acr` with stateless `/oauth2/exchange` → `/oauth2/token`, Bearer-gated OCI `/v2/`, ACR `/acr/v1/_catalog` + `/{repo}/_manifests`, minimal ARM registry-host envelope, configurable passthrough + `/metadata/endpoints` for Azure drivers. Conformance added: token-exchange + go-containerregistry push/pull, ACR catalog/manifests after push, unauthenticated challenge, raw ARM host shape, official `armcontainerregistry` SDK create/get/delete, sockerless-gated `az acr`, and sockerless-gated `azurerm_container_registry`. Remaining: final review, push PR2, then continue 18.D.
+- [x] **PR2 — Azure ACR.** `internal/registry/frontends/azure_acr` with stateless `/oauth2/exchange` → `/oauth2/token`, Bearer-gated OCI `/v2/`, ACR `/acr/v1/_catalog` + `/{repo}/_manifests`, minimal ARM registry-host envelope, configurable passthrough + `/metadata/endpoints` for Azure drivers. Conformance: token-exchange + go-containerregistry push/pull, ACR catalog/manifests after push, unauthenticated challenge, raw ARM host shape, official `armcontainerregistry` SDK create/get/delete, sockerless-gated `az acr`, and sockerless-gated `azurerm_container_registry`. Merged PR #138.
 
-### 18.D (planned)
-- connected backends (aws/gcp/azure real) + CNCF `distribution` K8s peer + full 3×3×4 matrix + sockerless lanes (GCP AR + ACR green; **AWS-ECR data-plane skip-with-issue** — sockerless ECR has no `/v2/`, ask user before filing).
+### 18.D
+- [x] **PR1 — CNCF `distribution` connected backend.** Added `services/registry/backends/distribution` as a real connected backend to the reference OCI registry. It implements `domain.Registry` by calling `/v2/`, `/v2/_catalog`, tags, manifests, blobs, and upload sessions; it stores no sidecar catalog and returns `ErrNotSupported` for empty repository creation because Distribution has no honest API for it. Conformance: `TestDistributionBackend_GCPAR_ImagePushPull` pushes/pulls through the GCP AR-shaped frontend into a live registry when `SHIMANISM_DISTRIBUTION_URL` is set; package tests skip only when that live registry is unavailable. Also fixed BUG-62 by omitting optional source-cloud time fields when a backend exposes no real timestamp.
+- [ ] **PR2 — real cloud backends.** AWS ECR, GCP Artifact Registry, Azure ACR connected backends using official SDKs/data-plane HTTP. No synthetic repository/image state; derive from backend APIs only.
+- [ ] **PR3 — sockerless lanes.** GCP AR + Azure ACR push/pull through-shim green. AWS ECR data-plane lane must fail loudly/document skip on the known simulator gap (sockerless ECR has no `/v2/`); if confirmed, ask user before filing at `github.com/e6qu/sockerless`.
+- [ ] Full matrix/docs closeout: `services/registry/INTERSECTION.md`, Apply/cross-cloud cell, PLAN/STATUS/WHAT_WE_DID updates.
 
 ## Phase 19 — Key Management ✅ COMPLETE
 
