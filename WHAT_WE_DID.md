@@ -4,7 +4,9 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 
 > Reverse chronological. One section per phase. The *why*, the surprises, the root causes — not per-PR detail. For commit-level history, `git log`. For per-bug detail, [BUGS.md](BUGS.md). For pipeline + verifier architecture, [docs/codegen-pipelines.md](docs/codegen-pipelines.md) + [docs/verifiers.md](docs/verifiers.md).
 
-## Phase 18 — Container Registry: in progress
+## Phase 18 — Container Registry: complete
+
+**Closed 2026-06-06 by PR #141.** The service now has the shared OCI Distribution `/v2/` data plane, GCP Artifact Registry / AWS ECR / Azure ACR frontends, connected backends for CNCF Distribution / AWS ECR / GCP Artifact Registry / Azure ACR / inmem, registry service docs, and sockerless lanes that fail loud on simulator gaps instead of masking them.
 
 18.A established the split architecture: a neutral `domain.Registry`, the shared hand-written OCI Distribution `/v2/` router, and the inmem content-addressable backend. 18.B mounted that router behind GCP Artifact Registry and filled the AR control-plane SDK/CLI/Terraform rows. 18.C first added AWS ECR: awsJson1_1 control plane, SigV4, `GetAuthorizationToken`, and ECR Basic-auth OCI push/pull.
 
