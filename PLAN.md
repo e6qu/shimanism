@@ -430,7 +430,7 @@ NAT Gateways · Internet Gateways · Route Tables · VPC Peering · Auto Scaling
 | Consume records | Kafka `FetchRequest` / consumer groups | Kafka `FetchRequest` | Kafka `FetchRequest` |
 | Delete topic | `DeleteTopics` | `topics.delete` | `eventhubs.delete` |
 
-**Wire protocol.** Control plane: restJson1 / REST / ARM. **Data plane: Kafka wire protocol (binary TCP, port 9092/9093).** One shim data-plane handler speaks Kafka; all three cloud control-planes configure topics on it. K8s peer: `shimaqueue` backed by `shimakit` extended for Kafka protocol.
+**Wire protocol.** Control plane: restJson1 / REST / ARM. **Data plane: Kafka wire protocol (binary TCP, port 9092/9093).** One shim data-plane handler speaks Kafka; all three cloud control-planes configure topics on it. K8s peer: Strimzi Kafka as a connected backend; see [docs/phase-20-scoping.md](docs/phase-20-scoping.md).
 
 **Intersection notes.** Partition count, replication factor, retention are in-intersection. Schema Registry, Kafka Connect, Stream Processing are out.
 

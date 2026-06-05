@@ -14,6 +14,8 @@ The first cleanup branch removes the `cmd/shim/cache.go` vs `cmd/shim/rdbms.go` 
 
 The second cleanup branch burns down the duplicate baseline to zero. Secrets Terraform conformance now has one helper that writes HCL, runs `init`/`apply`, registers `destroy`, and verifies the real backend value. Compute inmem list/describe methods share small selector-based copy/filter/sort helpers, and the K8s compute backend maps NetworkPolicy ingress/egress through one peer/port conversion helper. No behavior fallback or fake path was added.
 
+The closeout branch makes that zero duplicate baseline enforceable by enabling `dupl` in `.golangci.yml` and making `scripts/run-duplication-audit.sh` strict. Dead-code remains advisory, but the first real findings were removed: `services/secrets/backends/inmem.equalBytes` had no callers and only a blank identifier assignment keeping it alive, and `services/queue/backends/inmem.copyAttrs` was an uncalled value-copy helper. The same branch starts Phase 20 with an Event Streaming scoping doc and corrects the K8s peer plan from an in-tree shimakit queue-shaped peer to a connected Strimzi Kafka backend.
+
 ## Phase 18 — Container Registry: complete
 
 **Closed 2026-06-06 by PR #141.** The service now has the shared OCI Distribution `/v2/` data plane, GCP Artifact Registry / AWS ECR / Azure ACR frontends, connected backends for CNCF Distribution / AWS ECR / GCP Artifact Registry / Azure ACR / inmem, registry service docs, and sockerless lanes that fail loud on simulator gaps instead of masking them.

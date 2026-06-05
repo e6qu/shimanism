@@ -240,7 +240,7 @@ For these use cases users either go to the destination-cloud's native API direct
 | Redis / ElastiCache / Memorystore | RESP | several Go libraries (e.g. `tidwall/redcon`) |
 | PostgreSQL / RDS / Cloud SQL | PG wire | `github.com/jackc/pgx/v5/pgproto3` (server-side framing) |
 | MySQL / RDS / Cloud SQL | MySQL wire | `github.com/go-mysql-org/go-mysql/server` |
-| Kafka / MSK | Kafka wire | `github.com/twmb/franz-go` server primitives |
+| Kafka / MSK | Kafka wire | generated Kafka protocol types such as `github.com/twmb/franz-go/pkg/kmsg` |
 
 Today the shim handles the **control plane** (admin / lifecycle / CreateInstance / CreateNamespace) for all of these, but **not the data plane**. The user's app connects directly to the destination cloud's data-plane endpoint (e.g. Redis IP:port, AMQP host:port) — the shim is bypassed for actual messages / queries / cache operations.
 
@@ -254,7 +254,7 @@ What's blocking each protocol:
 - **AMQP 1.0** — `go-amqp` supports server mode; sockerless already runs it. Effort comparable to adding an HTTP frontend.
 - **RESP** — simplest of the bunch; text-based; multiple Go libs.
 - **PG / MySQL wire** — protocols documented; server-side libs exist but auth flows (SCRAM, TLS, password-based) need careful matching to per-cloud expectations.
-- **Kafka** — substantial state machine, but franz-go primitives carry most of it.
+- **Kafka** — substantial state machine, but generated protocol types can carry the binary encoding/decoding.
 
 The shim doesn't have these frontends because the admin-plane scope has been the priority. Building any of them is a Phase 15.E (or 16) candidate, weighed against demand vs. effort.
 

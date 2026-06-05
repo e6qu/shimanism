@@ -12,7 +12,7 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 
 **Open bugs:** BUG-8 · BUG-15 · BUG-41 (Track A only — blocked on real GCP credentials) · BUG-64/65/66 (sockerless registry `/v2/` gaps filed upstream as sockerless#450/#451/#452).
 
-**Current branch:** `cleanup-duplicate-code-followups` removes the remaining advisory duplicate-code findings: secrets Terraform apply conformance bodies, compute inmem list/describe helpers, and K8s NetworkPolicy ingress/egress conversion. Baseline tooling landed in PR #143; `cmd/shim` cleanup landed in PR #144.
+**Current branch:** `code-health-closeout-and-phase20-scope` closes out duplicate-code detection by making `dupl` strict in lint/CI, deletes confirmed dead helpers from the dead-code audit, records PR #145 as merged, and drafts [docs/phase-20-scoping.md](docs/phase-20-scoping.md).
 
 ## Session-start checklist
 
@@ -45,8 +45,11 @@ Closed by PRs #132–#141. Registry sockerless tests are wired and fail loud on 
 - [x] Open and merge the `cmd/shim` cleanup PR (#144).
 - [x] Extract focused helpers for repeated Terraform apply bodies in `services/secrets/conformance/sockerless_test.go`.
 - [x] Review and deduplicate compute inmem and K8s duplicate helpers while preserving domain-specific behavior.
-- [ ] Open the remaining duplicate-code cleanup PR.
-- [ ] Next code-health candidate: triage hand-written `deadcode` findings one package at a time.
+- [x] Open and merge the remaining duplicate-code cleanup PR (#145).
+- [x] Make duplicate-code detection strict in `make lint` / CI.
+- [x] Triage small dead-code findings and delete confirmed unused helpers.
+- [ ] Open the code-health closeout + Phase 20 scoping PR.
+- [ ] Next code-health candidate: continue hand-written `deadcode` triage one package at a time.
 
 ## Phase 19 — Key Management ✅ COMPLETE
 

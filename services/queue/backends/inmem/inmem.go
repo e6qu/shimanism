@@ -55,10 +55,6 @@ func New() *Backend {
 
 var _ domain.Queues = (*Backend)(nil)
 
-func copyAttrs(a domain.QueueAttributes) domain.QueueAttributes {
-	return a // value type — already a copy
-}
-
 func copyStrMap(in map[string]string) map[string]string {
 	if in == nil {
 		return nil
@@ -386,7 +382,3 @@ func (b *Backend) ChangeVisibility(ctx context.Context, queueName string, receip
 	m.visibleAt = now.Add(time.Duration(visibilityTimeout) * time.Second)
 	return nil
 }
-
-// ensure copyAttrs is referenced (used by future extensions); silence
-// unused-function lint.
-var _ = copyAttrs

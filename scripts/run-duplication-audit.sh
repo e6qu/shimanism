@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Audit copy-pasted Go code using golangci-lint's dupl linter.
 #
-# This is intentionally not wired into CI yet. The repo has known
-# duplicate blocks that need triage before duplication becomes a gate.
+# This is a strict audit. The duplicate baseline is zero, and dupl is also
+# enabled in the normal golangci-lint gate.
 
 set -euo pipefail
 
@@ -31,9 +31,7 @@ case "$status" in
     ;;
   1)
     echo "duplication audit: duplicate fragments reported"
-    if [[ ${DUPLICATION_AUDIT_STRICT:-0} == "1" ]]; then
-      exit 1
-    fi
+    exit 1
     ;;
   *)
     exit "$status"

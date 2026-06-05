@@ -11,7 +11,7 @@ This page defines the heavier audit lane for two recurring maintenance risks: un
 
 ## Policy
 
-These audits are advisory until their baselines are burned down.
+The duplicate-code baseline is burned down and strict. Dead-code remains advisory until each finding is triaged.
 
 ```sh
 make code-health
@@ -19,10 +19,9 @@ make duplication-audit
 make deadcode-audit
 ```
 
-By default, the audit targets print findings but exit zero. This keeps them useful during cleanup without making every unrelated PR red. To make either audit strict:
+`make duplication-audit` exits nonzero on any duplicate fragment, and `dupl` is also enabled in the normal `make lint` / CI lane. `make deadcode-audit` prints findings but exits zero by default. To make dead-code strict for local experiments:
 
 ```sh
-DUPLICATION_AUDIT_STRICT=1 make duplication-audit
 DEADCODE_AUDIT_STRICT=1 make deadcode-audit
 ```
 
@@ -68,6 +67,7 @@ Why this first:
 Current baseline after duplicate cleanup:
 
 - `make duplication-audit` reports `0 issues`.
+- `dupl` is enabled in `.golangci.yml`, so `make lint` and CI fail on new duplicate fragments.
 
 `jscpd` and PMD CPD remain valid future options if the repo grows non-Go code or needs HTML/JSON clone reports. They are not the first choice today because they add Node or Java dependency surface for a Go-only cleanup lane.
 
@@ -97,7 +97,7 @@ Why audit-only:
 - shimanism has many library-style backend/frontend packages that are used by CLI configuration, conformance harnesses, or future phase contracts rather than a single obvious `main`.
 - generated server stubs intentionally contain more API surface than one test run may call.
 
-Current hand-written findings need triage before deletion. Examples include unused domain error constructors, passthrough harness helpers, and backend packages that the call graph does not currently reach from selected roots.
+Current hand-written findings need triage before deletion. Examples include unused domain error constructors, passthrough harness helpers, and backend packages that the call graph does not currently reach from selected roots. The first confirmed deletions were tiny uncalled helpers: `services/secrets/backends/inmem.equalBytes` and `services/queue/backends/inmem.copyAttrs`.
 
 Sources:
 
@@ -108,6 +108,5 @@ Sources:
 ## Cleanup Order
 
 1. Triage hand-written `deadcode` findings one package at a time. Prefer deleting a small, verified cluster over broad speculative removals.
-2. Decide whether `dupl` becomes part of `make lint` / CI now that the advisory baseline is zero.
 
 The desired end state is a strict duplicate gate and a periodic dead-code audit, not automatic deletion.

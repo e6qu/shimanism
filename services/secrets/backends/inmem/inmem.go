@@ -9,7 +9,6 @@
 package inmem
 
 import (
-	"bytes"
 	"context"
 	"sort"
 	"strings"
@@ -273,9 +272,3 @@ func (b *Backend) ListVersions(ctx context.Context, name string) ([]domain.Versi
 	}
 	return out, nil
 }
-
-// equalBytes is used by sibling tests that import this package; kept
-// here to avoid pulling in a tiny helper file just for tests.
-func equalBytes(a, b []byte) bool { return bytes.Equal(a, b) }
-
-var _ = equalBytes
