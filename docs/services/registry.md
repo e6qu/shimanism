@@ -33,9 +33,9 @@ Per-frontend conformance lives under `services/registry/conformance/`:
 - SDK control-plane tests for ECR, Artifact Registry, and ACR ARM.
 - CLI/Terraform control-plane tests where official tools expose endpoint overrides.
 - go-containerregistry push/pull tests for the OCI data plane.
-- Sockerless through-shim lanes for all three registry frontends. They currently skip loudly on simulator gaps: BUG-64 (AWS ECR no `/v2/`), BUG-65 (GCP AR upload `PATCH` 405), and BUG-66 (Azure ACR upload start 404).
+- Sockerless through-shim lanes for all three registry frontends. AWS ECR now reaches `/v2/` and attempts full push/pull; the remaining loud simulator skips are BUG-65 (GCP AR upload `PATCH` 405), BUG-66 (Azure ACR upload start 404), and BUG-67 (AWS ECR manifest `HEAD` 400).
 
 ## Known Gaps
 
 - Empty repository creation is out of intersection for Azure ACR and CNCF Distribution.
-- Registry sockerless data-plane coverage is blocked on simulator `/v2/` gaps (BUG-64/65/66), not on shim fallback logic.
+- Registry sockerless data-plane coverage is blocked on simulator `/v2/` gaps (BUG-65/66/67), not on shim fallback logic.

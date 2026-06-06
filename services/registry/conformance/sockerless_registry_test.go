@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -17,6 +18,10 @@ import (
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
+	awsapi "github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/service/ecr"
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/random"
@@ -25,8 +30,10 @@ import (
 	arraw "google.golang.org/api/artifactregistry/v1"
 	"google.golang.org/api/option"
 
+	frontendaws "github.com/e6qu/shimanism/internal/registry/frontends/aws_ecr"
 	frontendazure "github.com/e6qu/shimanism/internal/registry/frontends/azure_acr"
 	frontendgcp "github.com/e6qu/shimanism/internal/registry/frontends/gcp_artifactregistry"
+	awsbackend "github.com/e6qu/shimanism/services/registry/backends/aws_ecr"
 	azurebackend "github.com/e6qu/shimanism/services/registry/backends/azure_acr"
 	gcpbackend "github.com/e6qu/shimanism/services/registry/backends/gcp_artifactregistry"
 )
@@ -113,26 +120,64 @@ func TestSockerless_AzureACR_ThroughShim_ImagePushPull(t *testing.T) {
 	)
 }
 
-func TestSockerless_AWSECR_DataPlaneGap(t *testing.T) {
+func TestSockerless_AWSECR_ThroughShim_ImagePushPull(t *testing.T) {
 	endpoint := os.Getenv("SOCKERLESS_AWS_ENDPOINT")
 	if endpoint == "" {
 		t.Skip("SOCKERLESS_AWS_ENDPOINT not set")
 	}
-	client := http.DefaultClient
+	tr := http.DefaultTransport.(*http.Transport).Clone()
 	if os.Getenv("AWS_S3_CONFORMANCE_INSECURE_TLS") == "1" {
-		client = &http.Client{Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec
-		}}
+		tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true} //nolint:gosec
 	}
-	resp, err := client.Get(strings.TrimRight(endpoint, "/") + "/v2/")
+	client := &http.Client{Transport: tr}
+	cfg, err := config.LoadDefaultConfig(context.Background(),
+		config.WithRegion("us-east-1"),
+		config.WithCredentialsProvider(credentials.StaticCredentialsProvider{
+			Value: awsapi.Credentials{AccessKeyID: "test", SecretAccessKey: "test"},
+		}),
+		config.WithHTTPClient(client),
+	)
 	if err != nil {
-		t.Fatalf("probe sockerless AWS ECR /v2/: %v", err)
+		t.Fatalf("aws config: %v", err)
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusNotFound {
-		t.Fatalf("sockerless AWS ECR /v2/ returned %d; BUG-64 may be fixed, replace this probe with a real push/pull lane", resp.StatusCode)
+	ecrClient := ecr.NewFromConfig(cfg, func(o *ecr.Options) {
+		o.BaseEndpoint = awsapi.String(endpoint)
+	})
+	backend, err := awsbackend.New(ecrClient, awsbackend.Config{HTTPClient: client})
+	if err != nil {
+		t.Fatalf("aws backend: %v", err)
 	}
-	t.Skip("BUG-64: sockerless AWS ECR has no /v2/ data plane; no shim fallback allowed")
+	srv := httptest.NewServer(frontendaws.New(backend))
+	defer srv.Close()
+
+	shimClient := newECRClient(t, srv.URL)
+	const repo = "shim/registry"
+	if _, err := shimClient.CreateRepository(context.Background(), &ecr.CreateRepositoryInput{
+		RepositoryName: awsapi.String(repo),
+	}); err != nil {
+		t.Fatalf("CreateRepository through shim: %v", err)
+	}
+	auth, err := shimClient.GetAuthorizationToken(context.Background(), &ecr.GetAuthorizationTokenInput{})
+	if err != nil {
+		t.Fatalf("GetAuthorizationToken through shim: %v", err)
+	}
+	if len(auth.AuthorizationData) == 0 {
+		t.Fatal("GetAuthorizationToken returned no authorization data")
+	}
+	user, pass, err := decodeECRBasicAuth(awsapi.ToString(auth.AuthorizationData[0].AuthorizationToken))
+	if err != nil {
+		t.Fatalf("decode authorization token: %v", err)
+	}
+
+	host := srv.Listener.Addr().String()
+	ref, err := name.ParseReference(host+"/"+repo+":v1", name.Insecure)
+	if err != nil {
+		t.Fatalf("parse ref: %v", err)
+	}
+	assertPushPullOrSkipKnownSockerlessGap(t, ref, "BUG-67", "/manifests/v1: unexpected status code 400 Bad Request",
+		remote.WithAuth(&authn.Basic{Username: user, Password: pass}),
+		remote.WithTransport(http.DefaultTransport),
+	)
 }
 
 type sockerlessACRCredential struct {
@@ -182,6 +227,16 @@ func (s sockerlessACRCredential) GetToken(ctx context.Context, _ policy.TokenReq
 
 func assertPushPullOrSkipKnownSockerlessGap(t *testing.T, ref name.Reference, bugID, failureNeedle string, opts ...remote.Option) {
 	t.Helper()
+	pushPull(t, ref, func(err error) {
+		if strings.Contains(err.Error(), failureNeedle) {
+			t.Skipf("%s: sockerless registry simulator gap: %v", bugID, err)
+		}
+		t.Fatalf("push through registry shim: %v", err)
+	}, opts...)
+}
+
+func pushPull(t *testing.T, ref name.Reference, onPushError func(error), opts ...remote.Option) {
+	t.Helper()
 	img, err := random.Image(2048, 2)
 	if err != nil {
 		t.Fatalf("random.Image: %v", err)
@@ -191,10 +246,8 @@ func assertPushPullOrSkipKnownSockerlessGap(t *testing.T, ref name.Reference, bu
 		t.Fatalf("img.Digest: %v", err)
 	}
 	if err := remote.Write(ref, img, opts...); err != nil {
-		if strings.Contains(err.Error(), failureNeedle) {
-			t.Skipf("%s: sockerless registry simulator gap: %v", bugID, err)
-		}
-		t.Fatalf("push through registry shim: %v", err)
+		onPushError(err)
+		return
 	}
 	pulled, err := remote.Image(ref, opts...)
 	if err != nil {
@@ -207,4 +260,16 @@ func assertPushPullOrSkipKnownSockerlessGap(t *testing.T, ref name.Reference, bu
 	if pulledDigest != pushedDigest {
 		t.Fatalf("pulled digest = %s, want %s", pulledDigest, pushedDigest)
 	}
+}
+
+func decodeECRBasicAuth(token string) (string, string, error) {
+	raw, err := base64.StdEncoding.DecodeString(token)
+	if err != nil {
+		return "", "", err
+	}
+	user, pass, ok := strings.Cut(string(raw), ":")
+	if !ok {
+		return "", "", fmt.Errorf("authorization token is not user:pass")
+	}
+	return user, pass, nil
 }

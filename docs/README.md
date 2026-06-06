@@ -21,6 +21,7 @@ The repository [README.md](../README.md) is intentionally light — what the pro
 - **[Testing](testing.md)** — the conformance contract (SDK + CLI + Terraform per frontend per backend), how to run the test matrix locally, how to add a new conformance test, how the CI lanes are organized, the bug-first rule.
 - **[Codegen](codegen.md)** — spec-driven server generation: where the upstream specs live, how to regenerate, why hand-written code is restricted to `translate.go`.
 - **[Code health audits](code-health.md)** — dead-code and duplicate-code audit tools, current baseline, and cleanup policy.
+- **[Phase 20 Event Streaming scoping](phase-20-scoping.md)** — Kafka-shaped intersection, K8s peer choice, and first implementation plan.
 - **[Releasing](releasing.md)** — the release flow, semver semantics, the no-auto-merge rule, who can cut a release.
 
 ## For agents (LLM-driven contributors)
