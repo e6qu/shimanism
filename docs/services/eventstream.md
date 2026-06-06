@@ -5,8 +5,8 @@ records, offset reads, and consumer-group committed offsets. It is not a
 replacement for Phase 4 pub/sub fan-out.
 
 Phase 20 is in progress. The current implementation has the neutral domain
-contract and the real inmem append-only log backend. No cloud frontend or Kafka
-wire listener is registered yet.
+contract, the real inmem append-only log backend, and the shared Kafka TCP frame
+codec. No cloud frontend or Kafka request dispatcher is registered yet.
 
 ## Frontends
 
@@ -39,7 +39,9 @@ SDK/CLI/Terraform surfaces for control-plane tests.
 
 ## Known Gaps
 
-- Kafka wire protocol runtime is not implemented yet.
+- Kafka request dispatch is not implemented yet. The frame codec can decode real
+  Kafka request headers/bodies and frame responses, but no successful Kafka
+  operation is registered.
 - Cloud control-plane frontends and real connected backends are not implemented
   yet.
 - Consumer-group protocol behavior beyond committed offset storage still needs

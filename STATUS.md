@@ -8,9 +8,9 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 
 | | |
 |---|---|
-| Active branch | `phase-20-eventstream-20a` — Phase 20.A event-streaming foundation. |
-| In-flight | Define the event-stream domain, add a real inmem append-only partition log backend with tests, and publish service/intersection docs. No frontend or fake Kafka wire listener is registered in this slice. |
-| Last merged | PR #146 — code-health closeout + Phase 20 scoping; `dupl` is strict, first dead-code helpers deleted, BUG-64 fixed, BUG-67 filed upstream. |
+| Active branch | `phase-20-kafka-runtime-selection` — Phase 20.A Kafka runtime dependency + frame codec follow-up. |
+| In-flight | Add the shared Kafka TCP frame codec on top of generated `franz-go/pkg/kmsg` protocol bodies. This slice decodes real request frames and frames real responses only; no Kafka dispatcher, fake broker, or successful operation path is registered. |
+| Last merged | PR #147 — Phase 20.A event-streaming foundation: domain contract, real inmem append-only log backend, and service/intersection docs. |
 | Upstream watch | Registry sockerless `/v2/` gaps: BUG-65/#451, BUG-66/#452, BUG-67/#465. |
 | Phases 1–19 | 1–19 closed. See [PLAN.md § Closed phases](PLAN.md#closed-phases-pr-index). |
 | Phase 19 | ✅ complete — 19.A (#127) · 19.B (#128) · 19.C (#129) · 19.D (#130 CLI/TF, #131 sockerless). All 4 backends, full SDK/CLI/TF, all sockerless lanes green, zero skips. |

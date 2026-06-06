@@ -49,6 +49,7 @@ require (
 	github.com/oapi-codegen/oapi-codegen/v2 v2.7.0
 	github.com/oapi-codegen/runtime v1.4.1
 	github.com/redis/go-redis/v9 v9.19.0
+	github.com/twmb/franz-go/pkg/kmsg v1.13.1
 	go.etcd.io/etcd/client/v3 v3.6.11
 	golang.org/x/oauth2 v0.36.0
 	google.golang.org/api v0.283.0

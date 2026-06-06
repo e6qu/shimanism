@@ -12,7 +12,7 @@ parse real Kafka wire requests or return real source/Kafka errors; there is no
 test-only TCP server that hands back canned Produce/Fetch success.
 
 The first implementation slice therefore builds only the pieces that can be made
-real now without a new protocol dependency: `internal/eventstream/domain` defines
+real before the Kafka protocol runtime lands: `internal/eventstream/domain` defines
 topics, partitions, records, offset bounds, and committed consumer offsets, while
 `services/eventstream/backends/inmem` stores an actual append-only partition log.
 Offsets are monotonic, fetches return stored records, retention prunes backend
@@ -24,6 +24,20 @@ partition count and retention are portable, but replication factor is not a
 portable user-controlled setting because Azure Event Hubs owns replication inside
 the managed service. The K8s peer remains Strimzi Kafka, not an in-tree
 `shima<service>` object-store adaptation.
+
+The follow-up runtime slice chooses `github.com/twmb/franz-go/pkg/kmsg` as a
+protocol-type dependency, not a fake broker dependency. The package is pure Go,
+BSD-3-Clause, older than the 48-hour minimum-release-age window, and provides
+generated Kafka request/response bodies with `ReadFrom` / `AppendTo`. The shim
+still owns the TCP frame boundary, request header parsing, operation dispatch,
+auth, backend calls, and source/Kafka error mapping.
+
+`internal/eventstream/kafkawire` now reads Kafka size-prefixed frames, decodes
+request headers and flexible tagged headers, hands request bodies to `kmsg`, and
+frames generated responses back onto the wire. Unsupported API keys, unsupported
+versions, malformed frames, and oversized frames fail loudly. There is still no
+Kafka dispatcher and no successful Produce/Fetch/Metadata path; that comes only
+when the handler can perform real backend work or return honest Kafka errors.
 
 ## Code health audit baseline: in progress
 
