@@ -12,14 +12,13 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 
 **Open bugs:** BUG-8 · BUG-15 · BUG-41 (Track A only — blocked on real GCP credentials) · BUG-67 (sockerless AWS ECR manifest `HEAD`, filed upstream as sockerless#465) · BUG-68/69 (local sockerless-runner/KMS-lane findings).
 
-**Current branch:** `phase-20-aws-msk-frontend` follows merged PR #152. This slice starts Phase 20.C by adding the AWS MSK Smithy spec/codegen, an AWS MSK restJson1 control-plane frontend, cluster-scoped eventstream domain/backend state, and official AWS SDK + real Kafka client conformance.
-
-**Current blocker:** focused Go verification now requires an escalated run because the sandbox cannot write the default Go build cache. The escalation request was rejected by the environment usage limit; rerun verification once escalation is available.
+**PR #153 merged.** Phase 20.C complete: AWS MSK restJson1 control-plane frontend, cluster-scoped `domain.Streams`, BUG-73/74/75 fixed, AWS SDK + kgo produce/fetch conformance all green. Next: Phase 20.D Azure Event Hubs frontend on a new branch.
 
 ## Session-start checklist
 
-1. Stay on `phase-20-aws-msk-frontend` until the AWS MSK frontend PR is merged.
-2. Continue Phase 20.C from [PLAN.md § Phase 20](PLAN.md#phase-20--event-streaming) and [docs/phase-20-scoping.md](docs/phase-20-scoping.md): finish verification, open one PR, monitor CI, and let the user merge.
+1. Create branch `phase-20-azure-eventhubs-frontend` from `main`.
+2. Work Phase 20.D from [docs/phase-20-scoping.md](docs/phase-20-scoping.md): Azure Event Hubs ARM spec + codegen, Azure frontend over `domain.Streams`, Azure SDK + CLI + Terraform conformance, real Kafka client via Event Hubs Kafka endpoint.
+3. Open one PR and monitor CI until green. Do not merge.
 
 ## Phase 20 — Event Streaming ◐
 
@@ -60,18 +59,28 @@ Current Phase 20.B data-plane checklist:
 - [x] Run full local verification (`make test`, `make lint`, `make license-check`).
 - [x] Open and merge the Phase 20.B GCP/Kafka client PR (#152).
 
-Current Phase 20.C AWS MSK checklist:
+Phase 20.C AWS MSK checklist: ✅ COMPLETE (PR #153)
 
 - [x] Vendor AWS MSK Smithy spec from `aws/aws-sdk-go-v2` and add deterministic `codegen.json`.
 - [x] Add generated AWS MSK restJson1 routes for cluster lifecycle, bootstrap discovery, node/topic list, and topic lifecycle.
-- [x] File and fix BUG-73 by adding explicit cluster scope to the eventstream domain, inmem backend, GCP frontend calls, and Kafka data-plane server.
+- [x] File and fix BUG-73: explicit cluster scope in domain, inmem backend, GCP frontend, Kafka data-plane server.
 - [x] Add AWS MSK frontend over `domain.Streams` with SigV4 and source-shaped errors; reject out-of-intersection replication/config options loudly.
-- [x] File and fix BUG-74 by preserving escaped ARN path labels for SigV4 canonicalization and generated REST route/handler matching.
+- [x] File and fix BUG-74: escaped ARN path labels preserved through SigV4 canonicalization and generated REST routing.
 - [x] Add official AWS MSK SDK conformance plus real `kgo` produce/fetch against `GetBootstrapBrokers`.
-- [x] File and fix BUG-75 by deriving AWS MSK `TopicArn` as `arn:aws:kafka:{region}:{account}:topic/{cluster-name}/{cluster-uuid}/{topic-name}` and pinning SDK assertions.
-- [ ] Rerun focused verification: `go test ./internal/restxml ./internal/sigv4verifier ./internal/eventstream/... ./services/eventstream/...`.
-- [ ] Run full local verification (`make test`, `make lint`, `make license-check`, `make codegen-check`) when escalation is available.
-- [ ] Open one Phase 20.C AWS MSK PR and monitor CI until green. Do not merge it.
+- [x] File and fix BUG-75: `TopicArn` as `arn:aws:kafka:{region}:{account}:topic/{cluster-name}/{cluster-uuid}/{topic-name}`.
+- [x] Run full local verification (`make test`, `make lint`, `make license-check`, `make codegen-check`) — all green.
+- [x] Open PR #153 and merge after CI green.
+
+## Phase 20.D — Azure Event Hubs frontend ◐
+
+- [ ] Create branch `phase-20-azure-eventhubs-frontend`.
+- [ ] Vendor Azure Event Hubs ARM spec (`Microsoft.EventHub`) from `Azure/azure-rest-api-specs` and add deterministic codegen inputs; regenerate `services/eventstream/gen/` Azure routes via `cmd/azure-codegen`.
+- [ ] Add Azure Event Hubs frontend (`internal/eventstream/frontends/azure_eventhubs/`) over `domain.Streams` with Azure Bearer auth and ARM-shaped errors; map namespace → cluster, event hub → topic.
+- [ ] Wire the frontend into `internal/harness/server.go`.
+- [ ] Add official Azure SDK conformance (`armeventhub`) for namespace + event hub lifecycle, and real `kgo` produce/fetch against the Event Hubs Kafka endpoint.
+- [ ] Reject out-of-intersection options (replication factor, capture/archive, dedicated throughput) with ARM `OperationNotSupported`.
+- [ ] Run full local verification (`make test`, `make lint`, `make license-check`, `make codegen-check`).
+- [ ] Open one Phase 20.D PR and monitor CI until green. Do not merge.
 
 ## Phase 18 — Container Registry ✅ COMPLETE
 
