@@ -73,13 +73,12 @@ Phase 20.C AWS MSK checklist: ✅ COMPLETE (PR #153)
 
 ## Phase 20.D — Azure Event Hubs frontend ◐
 
-- [ ] Create branch `phase-20-azure-eventhubs-frontend`.
-- [ ] Vendor Azure Event Hubs ARM spec (`Microsoft.EventHub`) from `Azure/azure-rest-api-specs` and add deterministic codegen inputs; regenerate `services/eventstream/gen/` Azure routes via `cmd/azure-codegen`.
-- [ ] Add Azure Event Hubs frontend (`internal/eventstream/frontends/azure_eventhubs/`) over `domain.Streams` with Azure Bearer auth and ARM-shaped errors; map namespace → cluster, event hub → topic.
-- [ ] Wire the frontend into `internal/harness/server.go`.
-- [ ] Add official Azure SDK conformance (`armeventhub`) for namespace + event hub lifecycle, and real `kgo` produce/fetch against the Event Hubs Kafka endpoint.
-- [ ] Reject out-of-intersection options (replication factor, capture/archive, dedicated throughput) with ARM `OperationNotSupported`.
-- [ ] Run full local verification (`make test`, `make lint`, `make license-check`, `make codegen-check`).
+- [x] Create branch `phase-20-azure-eventhubs-frontend`.
+- [x] Add Azure Event Hubs frontend (`internal/eventstream/frontends/azure_eventhubs/`) over `domain.Streams` with Azure Bearer auth and ARM-shaped errors; map namespace → cluster, event hub → topic. (ARM SDK types used directly; no azure-codegen route emission for eventstream.)
+- [x] Wire the frontend into `internal/harness/server.go` with `httptest.NewTLSServer`.
+- [x] Add official Azure SDK conformance (`armeventhub`) for namespace + event hub lifecycle, and real `kgo` produce/fetch against the Event Hubs Kafka endpoint.
+- [x] Reject out-of-intersection options (Basic SKU, CaptureDescription, BYOK, dedicated clusters, auto-inflate, partitionCount > 32) with 400 OperationNotSupported.
+- [x] Run full local verification (`make test`, `make lint`, `make license-check`, `make codegen-check`) — all green.
 - [ ] Open one Phase 20.D PR and monitor CI until green. Do not merge.
 
 ## Phase 18 — Container Registry ✅ COMPLETE

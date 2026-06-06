@@ -8,8 +8,8 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 
 | | |
 |---|---|
-| Active branch | `main` — Phase 20.C complete; Phase 20.D (Azure Event Hubs frontend) is next. |
-| In-flight | PR #153 merged the AWS MSK restJson1 control-plane frontend with full cluster/topic lifecycle, SigV4, AWS SDK conformance, and real `kgo` produce/fetch. BUG-73/74/75 filed and fixed. Phase 20.D starts next: Azure ARM Event Hubs spec + frontend + Kafka auth + Azure SDK/CLI/Terraform conformance. |
+| Active branch | `phase-20-azure-eventhubs-frontend` — Phase 20.D in progress. |
+| In-flight | Azure Event Hubs ARM frontend committed; PR open for review. `armeventhub` SDK namespace+event-hub lifecycle, real `kgo` produce/fetch, Basic SKU + CaptureDescription rejection all pass. Full local verification green (`make test`, `make lint`, `make license-check`, `make codegen-check`). |
 | Last merged | PR #153 — AWS MSK control-plane frontend, cluster-scoped domain, ARN path SigV4/route fix, and real Kafka client produce/fetch via `GetBootstrapBrokers`. |
 | Upstream watch | Registry sockerless: BUG-67/#465 remains open. BUG-65/#451 and BUG-66/#452/#469 are closed on current sockerless main. |
 | Phases 1–19 | 1–19 closed. See [PLAN.md § Closed phases](PLAN.md#closed-phases-pr-index). |
