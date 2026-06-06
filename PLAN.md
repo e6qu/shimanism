@@ -382,11 +382,11 @@ NAT Gateways · Internet Gateways · Route Tables · VPC Peering · Auto Scaling
 
 **Wire protocols.** Control plane: awsJson1_1 (ECR) / REST Discovery (AR) / ARM (ACR). Data plane: all three speak OCI Distribution `/v2/` — **one shared hand-written `internal/registry/ocidistribution/` router** mounted behind each frontend's auth (N31). Blobs/manifests live in the **backend registry** (real cloud, CNCF `distribution`, or the inmem digest-keyed store); the shim is a verifying streaming proxy, never buffering layers (statelessness). N30–N34 published.
 
-**Sockerless support:** registry lanes are wired, but current simulators have `/v2/` data-plane gaps: AWS ECR has no `/v2/` (BUG-64), GCP AR returns 405 on chunk upload `PATCH` (BUG-65), and Azure ACR returns 404 on upload start (BUG-66). No shim workarounds.
+**Sockerless support:** registry lanes are wired. BUG-64/#450, BUG-65/#451, and BUG-66/#452/#469 are closed on current sockerless main; GCP AR and Azure ACR through-shim push/pull now pass. BUG-67/#465 remains: AWS ECR reaches `/v2/`, but the simulator returns 400 for the normal missing-tag manifest `HEAD` probe. No shim workarounds.
 
 **Out of intersection:** geo-replication, vulnerability scanning, image signing, lifecycle/cache policies, tag-immutability modes (N33), registry webhooks.
 
-**Sub-phases:** 18.A scoping + `domain.Registry` + `ocidistribution` router + inmem; 18.B OCI data plane behind GCP AR frontend; 18.C ECR + ACR frontends + control-plane conformance; 18.D connected backends + sockerless + docs closeout. Registry sockerless data-plane gaps remain open BUG-64/65/66 (simulator `/v2/` gaps; no shim fallback).
+**Sub-phases:** 18.A scoping + `domain.Registry` + `ocidistribution` router + inmem; 18.B OCI data plane behind GCP AR frontend; 18.C ECR + ACR frontends + control-plane conformance; 18.D connected backends + sockerless + docs closeout. Registry sockerless data-plane gap remains open BUG-67 (AWS ECR manifest `HEAD`; no shim fallback).
 
 ---
 

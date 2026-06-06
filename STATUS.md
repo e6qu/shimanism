@@ -8,14 +8,14 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 
 | | |
 |---|---|
-| Active branch | `phase-20-kafka-runtime-selection` — Phase 20.A Kafka runtime dependency + frame codec follow-up. |
-| In-flight | Add the shared Kafka TCP frame codec on top of generated `franz-go/pkg/kmsg` protocol bodies. This slice decodes real request frames and frames real responses only; no Kafka dispatcher, fake broker, or successful operation path is registered. |
-| Last merged | PR #147 — Phase 20.A event-streaming foundation: domain contract, real inmem append-only log backend, and service/intersection docs. |
-| Upstream watch | Registry sockerless `/v2/` gaps: BUG-65/#451, BUG-66/#452, BUG-67/#465. |
+| Active branch | `phase-20-kafka-data-plane-20b` — Phase 20.B Kafka data-plane handler slice, with registry sockerless closeout after upstream PR #475. |
+| In-flight | Close stale registry BUG-65/66 skip gates after sockerless #475, then continue the minimal Kafka data-plane handler. Kafka work must perform real backend produce/fetch/metadata behavior or return honest Kafka errors; no fake broker path. |
+| Last merged | PR #148 — Phase 20.A Kafka runtime/frame codec using `franz-go/pkg/kmsg`. |
+| Upstream watch | Registry sockerless: BUG-67/#465 remains open. BUG-65/#451 and BUG-66/#452/#469 are closed on current sockerless main. |
 | Phases 1–19 | 1–19 closed. See [PLAN.md § Closed phases](PLAN.md#closed-phases-pr-index). |
 | Phase 19 | ✅ complete — 19.A (#127) · 19.B (#128) · 19.C (#129) · 19.D (#130 CLI/TF, #131 sockerless). All 4 backends, full SDK/CLI/TF, all sockerless lanes green, zero skips. |
-| Phase 18 | ✅ complete — PRs #132–#141. OCI Distribution data plane + ECR/AR/ACR frontends + connected backends + registry docs. Simulator-only gaps remain tracked as BUG-65/66/67; BUG-64 / sockerless#450 is closed on current sockerless main. |
-| Bugs | **65 filed · 58 fixed · 6 open · 1 false positive.** Open: **BUG-8** + **BUG-15** + **BUG-41** (Track A) + **BUG-65/66/67** (sockerless registry `/v2/`, upstream #451/#452/#465). |
+| Phase 18 | ✅ complete — PRs #132–#141. OCI Distribution data plane + ECR/AR/ACR frontends + connected backends + registry docs. Simulator-only gap BUG-67 remains; BUG-64/#450, BUG-65/#451, and BUG-66/#452/#469 are closed on current sockerless main. |
+| Bugs | **67 filed · 60 fixed · 6 open · 1 false positive.** Open: **BUG-8** + **BUG-15** + **BUG-41** (Track A) + **BUG-67** (sockerless AWS ECR) + **BUG-68/69** (local sockerless-runner/KMS-lane findings). |
 | CI | 20 required checks. Real-cloud lanes wait on Track A. |
 | Renovate | Config + custom manager for vendored-spec SHAs. **User must install the Renovate GitHub App.** |
 | Standing merge auth | **None.** User merges every PR. PR #146 was a one-time user-authorized exception and has already been merged. **One PR open at a time** — ask before opening if one's active. |

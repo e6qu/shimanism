@@ -40,6 +40,7 @@ The same property makes sockerless the right vehicle for two things Phase 14 car
 | Azure Service Bus topic Publish/Receive (`services/pubsub/backends/azure`) | Data-plane round-trip — CreateTopic + CreateSubscription → Publish → Receive | Same raw AMQP/TLS integration as the queue Send/Receive row. |
 | Azure Blob multipart (`services/storage/backends/azureblob`) | Multipart round-trip | `TestSockerless_Azure_Blob_Multipart` exercises the shim's `StageBlock` / `CommitBlockList` / `GetBlockList` code path against sockerless's block-blob staging support ([sockerless PR #229](https://github.com/e6qu/sockerless/pull/229)). |
 | Azure Blob copy (`services/storage/backends/azureblob`) | Copy round-trip — PutObject → CopyObject → GetObject (asserts dest body) | `TestSockerless_Azure_Blob_Copy` drives the shim's `StartCopyFromURL` against sockerless's Copy Blob handler ([sockerless PR #235](https://github.com/e6qu/sockerless/pull/235)). Source URL is host-style (`<account>.blob.localhost:<port>/<container>/<blob>`); sockerless also supports path-style. |
+| Container registry (`services/registry/conformance`) | Through-shim OCI push/pull | GCP Artifact Registry and Azure ACR push/pull pass against current sockerless main after [#451](https://github.com/e6qu/sockerless/issues/451)/#456 and [#469](https://github.com/e6qu/sockerless/issues/469)/#475. AWS ECR reaches `/v2/` but remains skipped on [#465](https://github.com/e6qu/sockerless/issues/465), the simulator returning 400 for a missing manifest `HEAD`. |
 | AWS SNS and API Gateway v2 source frontends | Through-shim AWS source SDK cells now cover pubsub and apigateway against sockerless GCP backends | See the table below. |
 | GCP Cloud Run + Cloud Functions, Azure Container Apps + Functions Sites | Sims work; through-shim functions lane currently uses AWS destination for the source-shape reason above | No silent source-field dropping. |
 
@@ -87,7 +88,7 @@ The script:
 1. Builds the AWS + GCP + Azure simulator binaries with `-tags noui` (no UI dist required).
 2. Generates a self-signed RSA-2048 cert in `/tmp/sockerless-tls/`. The aws-sdk-go-v2 SDK refuses to send streaming-signed payloads over plain HTTP, so the AWS sim runs under TLS.
 3. Starts the sims on test-only ports (`:14566` AWS, `:14567` GCP, `:14569` Azure).
-4. Runs `go test -run '^TestSockerless_'` in the storage, secrets, queue, pubsub, rdbms, cache, functions, and apigateway conformance packages with the right env vars to point the shim's backends at the sims.
+4. Runs `go test -run '^TestSockerless_'` in the storage, secrets, queue, pubsub, rdbms, cache, functions, apigateway, kms, and registry conformance packages with the right env vars to point the shim's backends at the sims.
 5. Tears the sims down on exit.
 
 ## Sockerless issues filed upstream
@@ -119,6 +120,10 @@ The script:
 | [#203-210](https://github.com/e6qu/sockerless/issues/203) | ✅ closed by PR #211 plus PR #216 follow-ups after reopens — KV versions, APIGW routing, Azure Functions config, AWS/GCP/Azure deeper Terraform-provider surfaces. |
 | [#213-215](https://github.com/e6qu/sockerless/issues/213) | ✅ closed by PR #216 — Azure Tags API, Service Bus authorizationRules, AWS IAM/API Gateway v1 gaps. |
 | [#218](https://github.com/e6qu/sockerless/issues/218) | ✅ closed by PR #219 — GCP Secret Manager ListSecretVersions, UpdateSecret, and DeleteSecret handlers. |
+| [#450](https://github.com/e6qu/sockerless/issues/450) | ✅ closed — AWS ECR simulator now exposes Docker Registry `/v2/`; local BUG-64 was un-gated. |
+| [#451](https://github.com/e6qu/sockerless/issues/451) | ✅ closed by PR #456 — GCP Artifact Registry OCI chunk upload now passes through the shim; local BUG-65 was un-gated after #475 validation. |
+| [#452](https://github.com/e6qu/sockerless/issues/452) / [#469](https://github.com/e6qu/sockerless/issues/469) | ✅ closed by PRs #456 and #475 — Azure ACR upload routing plus `/oauth2/exchange` and `/oauth2/token`; local BUG-66 was un-gated. |
+| [#465](https://github.com/e6qu/sockerless/issues/465) | Open — AWS ECR returns 400 on OCI manifest `HEAD` for a missing tag; local BUG-67 remains a loud skip. |
 
 As of the `phase-183-sockerless-all-services` verification run, `make sockerless` passed all current shim lanes, including the full GCP Secret Manager lifecycle/versioning lane that had been blocked by [#218](https://github.com/e6qu/sockerless/issues/218), the three storage through-shim cross-cloud E2E cells, and the new all-service-family through-shim cells tracked by [shimanism#24](https://github.com/e6qu/shimanism/issues/24).
 

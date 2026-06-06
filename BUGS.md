@@ -1,6 +1,6 @@
 # Known Bugs
 
-**65 filed · 58 fixed · 6 open · 1 false positive.** BUG-35 (Container Apps lane) closed by sockerless PR #245 which derived ACA image platforms from the resolved image manifest instead of hardcoding `linux/arm64`; `scripts/run-sockerless-storage.sh` re-defaults `SOCKERLESS_AZURE_CONTAINERAPPS_IMAGE` to `docker.io/library/nginx:alpine`. Track A (BUG-8 + BUG-15) remains blocked on real GCP credentials. BUG-24 reverse-direction through-shim coverage **now complete across every service family** — PR #46 landed cache/secrets/queue reverse cells; this PR finishes the set with storage/pubsub/rdbms/functions/apigateway reverse cells.
+**67 filed · 60 fixed · 6 open · 1 false positive.** BUG-65 and BUG-66 are closed after sockerless PR #475 added the ACR OAuth2 token service and the registry GCP/Azure through-shim push/pull lanes passed against rebuilt sockerless main. Track A (BUG-8 + BUG-15) remains blocked on real GCP credentials. Registry's remaining simulator skip is BUG-67.
 
 Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLAN.md](PLAN.md) · narrative [WHAT_WE_DID.md](WHAT_WE_DID.md) · rules [AGENTS.md](AGENTS.md).
 
@@ -10,7 +10,7 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 
 ## Open
 
-> Currently-open bugs. Track A items need real-cloud credentials; registry items are simulator gaps and must not be hidden by shim fallbacks.
+> Currently-open bugs. Track A items need real-cloud credentials; the registry item is a simulator gap and must not be hidden by shim fallbacks.
 
 - BUG-8: `TestSockerless_GCP_APIGateway_CRUD` clears the shim backend ↔ GCP API Gateway SDK-shaped leg. The remaining bug is specifically the hashicorp/google Terraform endpoint/OAuth leg.
 - BUG-15: `TestSockerless_GCP_Queue_RetentionRoundTrip` clears the shim backend retention PATCH/read leg. The remaining bug is specifically the hashicorp/google Terraform state-drift question for `message_retention_duration`.
@@ -20,9 +20,9 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 | BUG-8 | P3 | apigateway/gcp-tf-frontend | `hashicorp/google` | API Gateway endpoint-override attribute name changed across provider major versions and the current provider's API Gateway resource lifecycle requires real OAuth-signed requests the mock httptest server can't sign. `services/apigateway/conformance/gcp_terraform_test.go` is smoke-skipped pending Track A real-cloud TF coverage. The sockerless GCP APIGW backend lane passes; this is now only the Terraform-provider leg. | **14.D** |
 | BUG-15 | P3 | queue/gcp-frontend | GCP Pub/Sub `subscriptions.get` | `message_retention_duration = "604800s"` declared in HCL and the shim responding "604800s" at every call, hashicorp/google records `"345600s"` in state. Plan after apply diffs `"345600s" -> "604800s"`. Shim's backend retention PATCH/read path now passes against sockerless; the open question is whether the provider shows the same state drift against real GCP or the shim frontend still misses a provider-needed field. | **14.D** |
 | BUG-41 | P2 | dns/gcp-tf-frontend | `hashicorp/google` `RemoveBasePathVersion` | Provider regex hardcodes `http[s]://` (literal `s`) when stripping the version path from `dns_custom_endpoint`. HTTP test endpoints fall through the regex no-op; the subsequent `strings.ReplaceAll("/dns/", "")` then mangles the URL into `http://localhost:PORTv1/` which `url.Parse` rejects → SDK panic at `googleapi.ResolveRelative`. Worked around by serving the GCP DNS Terraform conformance over TLS (`StartDNSServerGCPTLS`) with `SSL_CERT_FILE` threading the self-signed cert into the provider process. Linux-only (SSL_CERT_FILE platform limit); skips on macOS. Upstream fix would be `http[s]?://`. **Not filing upstream pending user direction; the local workaround is sufficient.** | **15.D** |
-| BUG-65 | P2 | registry/gcp-ar-sockerless | GCP Artifact Registry `/v2/` chunk upload | Sockerless GCP Artifact Registry creates upload sessions but returns 405 on OCI chunk `PATCH /v2/{repo}/blobs/uploads/{id}`; GCP AR through-shim push/pull must skip/fail loudly instead of faking chunk upload. Filed upstream as [sockerless#451](https://github.com/e6qu/sockerless/issues/451). | **18.D** |
-| BUG-66 | P2 | registry/azure-acr-sockerless | Azure ACR `/v2/` upload | Sockerless Azure ACR returns 404 for OCI `POST /v2/{repo}/blobs/uploads/`; Azure ACR through-shim push/pull must skip/fail loudly instead of faking upload support. Filed upstream as [sockerless#452](https://github.com/e6qu/sockerless/issues/452). | **18.D** |
 | BUG-67 | P2 | registry/aws-ecr-sockerless | AWS ECR `/v2/` manifest HEAD | Sockerless AWS ECR now has `/v2/`, but OCI push through the shim fails when `HEAD /v2/{repo}/manifests/{tag}` returns 400 for a missing tag instead of the Distribution/ECR missing-manifest shape. Filed upstream as [sockerless#465](https://github.com/e6qu/sockerless/issues/465). | **18.D** |
+| BUG-68 | P2 | sockerless-runner/certs | `scripts/run-sockerless-storage.sh` | `ensure_cert` reuses `/tmp/sockerless-tls/sim.crt` when SANs match but does not check expiry, so an expired cached cert makes Azure TLS lanes fail with `x509: certificate has expired or is not yet valid`. | **20.B** |
+| BUG-69 | P2 | kms/sockerless-lane | `hashicorp/aws` Terraform | Fresh full sockerless validation surfaced `TestSockerless_AWSKMS_Through_Shim_TerraformTaggedKey` exiting with Terraform detailed-exitcode 2 while the test only printed stderr, hiding the plan diff needed to classify shim vs simulator vs provider behavior. | **20.B** |
 
 ## Upstream-tracked (sockerless validation lane)
 
@@ -33,9 +33,10 @@ Sockerless fidelity gaps tracked on `github.com/e6qu/sockerless`. Each is filed 
 | Upstream | Status |
 |---|---|
 | [e6qu/sockerless#450](https://github.com/e6qu/sockerless/issues/450) — AWS ECR simulator is missing Docker Registry `/v2/` data plane | ✅ closed on current sockerless main; PR #146 replaces the local gap probe with full AWS ECR through-shim push/pull. |
-| [e6qu/sockerless#451](https://github.com/e6qu/sockerless/issues/451) — GCP Artifact Registry simulator rejects OCI chunk upload `PATCH` | Open; tracked locally as BUG-65. |
-| [e6qu/sockerless#452](https://github.com/e6qu/sockerless/issues/452) — Azure ACR simulator returns 404 on OCI blob upload start | Open; tracked locally as BUG-66. |
+| [e6qu/sockerless#451](https://github.com/e6qu/sockerless/issues/451) — GCP Artifact Registry simulator rejects OCI chunk upload `PATCH` | ✅ closed by sockerless PR #456; tracked locally as BUG-65 and un-gated after #475 validation. |
+| [e6qu/sockerless#452](https://github.com/e6qu/sockerless/issues/452) — Azure ACR simulator returns 404 on OCI blob upload start | ✅ upload routing closed by sockerless PR #456; through-shim auth gap followed as #469 and closed by #475. Tracked locally as BUG-66. |
 | [e6qu/sockerless#465](https://github.com/e6qu/sockerless/issues/465) — AWS ECR simulator returns 400 on OCI manifest `HEAD` for a missing tag | Open; tracked locally as BUG-67. |
+| [e6qu/sockerless#469](https://github.com/e6qu/sockerless/issues/469) — Azure ACR simulator lacks `/oauth2/exchange` and `/oauth2/token` auth endpoints | ✅ closed by sockerless PR #475; local BUG-66 un-gated. |
 
 ### Round 1 (Phase 13.D.1) — all closed via [sockerless PR #179](https://github.com/e6qu/sockerless/pull/179) on 2026-05-23
 
@@ -170,6 +171,8 @@ When a new bug fits one of these, tag it with the rule.
 
 | ID | Sev | Area | Closed in | One-liner |
 |---|---|---|---|---|
+| 66 | P2 | registry/azure-acr-sockerless | sockerless #452/#469 + local closeout | Azure ACR through-shim push/pull was skipped on simulator upload/auth gaps. Sockerless #452/#456 fixed raw OCI upload routing; #469/#475 added the ACR OAuth2 exchange/token service. Removed the BUG skip; Azure ACR push/pull now passes against rebuilt sockerless `3d457dd`. |
+| 65 | P2 | registry/gcp-ar-sockerless | sockerless #451 + local closeout | GCP Artifact Registry chunked OCI upload was skipped on simulator `PATCH` 405. Sockerless #451/#456 fixed the data-plane upload path; removed the BUG skip; GCP AR push/pull now passes against rebuilt sockerless `3d457dd`. |
 | 63 | P2 | registry/sockerless-runner | 18.D closeout | Registry conformance was absent from `scripts/run-sockerless-storage.sh`, so Phase 18 sockerless lanes would never execute in CI. Fixed by adding `./services/registry/conformance/...` to the runner. |
 | 61 | P2 | registry/aws-ecr-frontend | 18.D PR2 | ECR `BatchDeleteImage` dropped backend delete errors and returned only successful image IDs. Fixed by populating ECR's per-image `failures[]` with source-shaped failure codes for missing IDs, not-found images, invalid refs, and inaccessible/unsupported deletes. |
 | 62 | P2 | registry/frontends | 18.D PR1 | Registry frontends formatted zero backend timestamps as year 0001; connected backends such as CNCF Distribution do not expose those times. Fixed by omitting optional ECR `createdAt`, AR `uploadTime`, and ACR manifest time fields when the backend timestamp is zero; unsupported registry operations now map to a source-shaped client error instead of ECR `ServerException`. |
