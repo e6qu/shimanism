@@ -359,3 +359,37 @@ func endpointAddressSet(ep *corev1.Endpoints) map[string]bool {
 	}
 	return m
 }
+
+// ─── Rule lifecycle (Phase 21.C — K8s Ingress; not yet implemented) ──
+
+func (b *Backend) CreateRule(_ context.Context, _ domain.CreateRuleOptions) (domain.Rule, error) {
+	return domain.Rule{}, fmt.Errorf("K8s Ingress rule management: %w", domain.ErrNotSupported)
+}
+
+func (b *Backend) GetRule(_ context.Context, _ string) (domain.Rule, error) {
+	return domain.Rule{}, fmt.Errorf("K8s Ingress rule management: %w", domain.ErrNotSupported)
+}
+
+func (b *Backend) ListRules(_ context.Context, _ domain.ListRulesOptions) (domain.ListRulesResult, error) {
+	return domain.ListRulesResult{}, fmt.Errorf("K8s Ingress rule management: %w", domain.ErrNotSupported)
+}
+
+func (b *Backend) DeleteRule(_ context.Context, _ string) error {
+	return fmt.Errorf("K8s Ingress rule management: %w", domain.ErrNotSupported)
+}
+
+func (b *Backend) UpdateTargetGroup(_ context.Context, _ string, _ domain.UpdateTargetGroupOptions) (domain.TargetGroup, error) {
+	return domain.TargetGroup{}, fmt.Errorf("K8s Ingress target group update: %w", domain.ErrNotSupported)
+}
+
+func (b *Backend) UpdateListener(_ context.Context, _ string, _ domain.UpdateListenerOptions) (domain.Listener, error) {
+	return domain.Listener{}, fmt.Errorf("K8s Ingress listener update: %w", domain.ErrNotSupported)
+}
+
+func (b *Backend) UpdateRule(_ context.Context, _ string, _ domain.UpdateRuleOptions) (domain.Rule, error) {
+	return domain.Rule{}, fmt.Errorf("K8s Ingress rule update: %w", domain.ErrNotSupported)
+}
+
+func (b *Backend) SetRulePriorities(_ context.Context, _ []domain.RulePriorityPair) ([]domain.Rule, error) {
+	return nil, fmt.Errorf("K8s Ingress set rule priorities: %w", domain.ErrNotSupported)
+}

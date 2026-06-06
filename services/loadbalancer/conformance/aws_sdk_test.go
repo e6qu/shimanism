@@ -5,6 +5,9 @@
 // Phase 16.D covers create/describe/delete for LBs, target groups, and
 // listeners. RegisterTargets lane is covered here but is an in-memory
 // operation (no Firecracker dep).
+//
+// Phase 21.A extends to ALB (type=application), HTTPS listeners with
+// certificates, HTTP target groups with health checks, and L7 routing rules.
 package conformance_test
 
 import (
@@ -228,6 +231,174 @@ func TestAWSSDK_ELBv2_ListenerLifecycle(t *testing.T) {
 	}
 
 	// Cleanup
+	cli.DeleteTargetGroup(ctx, &elbv2.DeleteTargetGroupInput{TargetGroupArn: aws.String(tgARN)})
+	cli.DeleteLoadBalancer(ctx, &elbv2.DeleteLoadBalancerInput{LoadBalancerArn: aws.String(lbARN)})
+}
+
+// TestAWSSDK_ELBv2_ALB_RuleLifecycle covers Phase 21.A: Application LB
+// with HTTPS listener, HTTP target group (with health check), and L7 routing rules.
+func TestAWSSDK_ELBv2_ALB_RuleLifecycle(t *testing.T) {
+	srv := harness.StartLoadBalancerServerAWS(t, inmem.New())
+	cli := newELBv2Client(t, srv.URL)
+	ctx := context.Background()
+
+	// ── CreateLoadBalancer (type=application) ─────────────────────────
+	lbOut, err := cli.CreateLoadBalancer(ctx, &elbv2.CreateLoadBalancerInput{
+		Name: aws.String("my-alb"),
+		Type: elbv2types.LoadBalancerTypeEnumApplication,
+	})
+	if err != nil {
+		t.Fatalf("CreateLoadBalancer(application): %v", err)
+	}
+	if len(lbOut.LoadBalancers) != 1 {
+		t.Fatalf("CreateLoadBalancer count = %d, want 1", len(lbOut.LoadBalancers))
+	}
+	lbARN := aws.ToString(lbOut.LoadBalancers[0].LoadBalancerArn)
+	if lbARN == "" {
+		t.Fatal("empty ALB ARN")
+	}
+	if got := string(lbOut.LoadBalancers[0].Type); got != "application" {
+		t.Errorf("LB type = %q, want application", got)
+	}
+
+	// ── CreateTargetGroup (HTTP with health check) ────────────────────
+	tgOut, err := cli.CreateTargetGroup(ctx, &elbv2.CreateTargetGroupInput{
+		Name:                aws.String("my-http-tg"),
+		Protocol:            elbv2types.ProtocolEnumHttp,
+		Port:                aws.Int32(8080),
+		HealthCheckPath:     aws.String("/health"),
+		HealthCheckProtocol: elbv2types.ProtocolEnumHttp,
+		Matcher:             &elbv2types.Matcher{HttpCode: aws.String("200")},
+	})
+	if err != nil {
+		t.Fatalf("CreateTargetGroup(HTTP): %v", err)
+	}
+	if len(tgOut.TargetGroups) != 1 {
+		t.Fatalf("CreateTargetGroup count = %d, want 1", len(tgOut.TargetGroups))
+	}
+	tgARN := aws.ToString(tgOut.TargetGroups[0].TargetGroupArn)
+	if got := aws.ToString(tgOut.TargetGroups[0].HealthCheckPath); got != "/health" {
+		t.Errorf("HealthCheckPath = %q, want /health", got)
+	}
+
+	// ── CreateListener (HTTPS with certificate) ───────────────────────
+	const certARN = "arn:aws:acm:us-east-1:000000000000:certificate/test-cert-id"
+	listenerOut, err := cli.CreateListener(ctx, &elbv2.CreateListenerInput{
+		LoadBalancerArn: aws.String(lbARN),
+		Protocol:        elbv2types.ProtocolEnumHttps,
+		Port:            aws.Int32(443),
+		Certificates: []elbv2types.Certificate{
+			{CertificateArn: aws.String(certARN)},
+		},
+		DefaultActions: []elbv2types.Action{{
+			Type:           elbv2types.ActionTypeEnumForward,
+			TargetGroupArn: aws.String(tgARN),
+		}},
+	})
+	if err != nil {
+		t.Fatalf("CreateListener(HTTPS): %v", err)
+	}
+	if len(listenerOut.Listeners) != 1 {
+		t.Fatalf("CreateListener count = %d, want 1", len(listenerOut.Listeners))
+	}
+	listenerARN := aws.ToString(listenerOut.Listeners[0].ListenerArn)
+	if got := string(listenerOut.Listeners[0].Protocol); got != "HTTPS" {
+		t.Errorf("listener protocol = %q, want HTTPS", got)
+	}
+	if len(listenerOut.Listeners[0].Certificates) == 0 {
+		t.Error("listener has no certificates")
+	} else if got := aws.ToString(listenerOut.Listeners[0].Certificates[0].CertificateArn); got != certARN {
+		t.Errorf("certificate ARN = %q, want %q", got, certARN)
+	}
+
+	// ── CreateRule (path-pattern → forward) ──────────────────────────
+	ruleOut, err := cli.CreateRule(ctx, &elbv2.CreateRuleInput{
+		ListenerArn: aws.String(listenerARN),
+		Priority:    aws.Int32(10),
+		Conditions: []elbv2types.RuleCondition{{
+			Field:  aws.String("path-pattern"),
+			Values: []string{"/api/*"},
+		}},
+		Actions: []elbv2types.Action{{
+			Type:           elbv2types.ActionTypeEnumForward,
+			TargetGroupArn: aws.String(tgARN),
+		}},
+	})
+	if err != nil {
+		t.Fatalf("CreateRule: %v", err)
+	}
+	if len(ruleOut.Rules) != 1 {
+		t.Fatalf("CreateRule count = %d, want 1", len(ruleOut.Rules))
+	}
+	ruleARN := aws.ToString(ruleOut.Rules[0].RuleArn)
+	if ruleARN == "" {
+		t.Fatal("empty rule ARN")
+	}
+	if got := aws.ToString(ruleOut.Rules[0].Priority); got != "10" {
+		t.Errorf("rule priority = %q, want 10", got)
+	}
+
+	// ── DescribeRules by listener ─────────────────────────────────────
+	descRules, err := cli.DescribeRules(ctx, &elbv2.DescribeRulesInput{
+		ListenerArn: aws.String(listenerARN),
+	})
+	if err != nil {
+		t.Fatalf("DescribeRules: %v", err)
+	}
+	if len(descRules.Rules) != 1 {
+		t.Errorf("DescribeRules count = %d, want 1", len(descRules.Rules))
+	}
+
+	// ── DescribeRules by ARN ──────────────────────────────────────────
+	descByARN, err := cli.DescribeRules(ctx, &elbv2.DescribeRulesInput{
+		RuleArns: []string{ruleARN},
+	})
+	if err != nil {
+		t.Fatalf("DescribeRules by ARN: %v", err)
+	}
+	if len(descByARN.Rules) != 1 {
+		t.Errorf("DescribeRules by ARN count = %d, want 1", len(descByARN.Rules))
+	}
+
+	// ── ModifyRule ────────────────────────────────────────────────────
+	modRule, err := cli.ModifyRule(ctx, &elbv2.ModifyRuleInput{
+		RuleArn: aws.String(ruleARN),
+		Conditions: []elbv2types.RuleCondition{{
+			Field:  aws.String("host-header"),
+			Values: []string{"api.example.com"},
+		}},
+		Actions: []elbv2types.Action{{
+			Type:           elbv2types.ActionTypeEnumForward,
+			TargetGroupArn: aws.String(tgARN),
+		}},
+	})
+	if err != nil {
+		t.Fatalf("ModifyRule: %v", err)
+	}
+	if len(modRule.Rules) != 1 {
+		t.Errorf("ModifyRule count = %d, want 1", len(modRule.Rules))
+	}
+
+	// ── DeleteRule ────────────────────────────────────────────────────
+	if _, err := cli.DeleteRule(ctx, &elbv2.DeleteRuleInput{
+		RuleArn: aws.String(ruleARN),
+	}); err != nil {
+		t.Fatalf("DeleteRule: %v", err)
+	}
+
+	// Rule gone from DescribeRules
+	afterDelete, err := cli.DescribeRules(ctx, &elbv2.DescribeRulesInput{
+		ListenerArn: aws.String(listenerARN),
+	})
+	if err != nil {
+		t.Fatalf("DescribeRules after delete: %v", err)
+	}
+	if len(afterDelete.Rules) != 0 {
+		t.Errorf("rule still present after DeleteRule")
+	}
+
+	// ── Cleanup ───────────────────────────────────────────────────────
+	cli.DeleteListener(ctx, &elbv2.DeleteListenerInput{ListenerArn: aws.String(listenerARN)})
 	cli.DeleteTargetGroup(ctx, &elbv2.DeleteTargetGroupInput{TargetGroupArn: aws.String(tgARN)})
 	cli.DeleteLoadBalancer(ctx, &elbv2.DeleteLoadBalancerInput{LoadBalancerArn: aws.String(lbARN)})
 }

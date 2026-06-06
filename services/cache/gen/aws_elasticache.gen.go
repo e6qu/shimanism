@@ -664,6 +664,10 @@ func CreateCacheClusterHandler(b CreateCacheClusterBackend) http.Handler {
 		// form fields. AWS awsQuery serialises these as flat
 		// name=value pairs with `.entry.N.{key,value}` (maps) and
 		// `.member.N` (lists) conventions.
+		if v := r.Form.Get("AZMode"); v != "" {
+			e := AZMode(v)
+			in.AZMode = &e
+		}
 		if v := r.Form.Get("AuthToken"); v != "" {
 			s := v
 			in.AuthToken = &s
@@ -703,6 +707,14 @@ func CreateCacheClusterHandler(b CreateCacheClusterBackend) http.Handler {
 			s := v
 			in.EngineVersion = &s
 		}
+		if v := r.Form.Get("IpDiscovery"); v != "" {
+			e := IpDiscovery(v)
+			in.IpDiscovery = &e
+		}
+		if v := r.Form.Get("NetworkType"); v != "" {
+			e := NetworkType(v)
+			in.NetworkType = &e
+		}
 		if v := r.Form.Get("NotificationTopicArn"); v != "" {
 			s := v
 			in.NotificationTopicArn = &s
@@ -712,6 +724,10 @@ func CreateCacheClusterHandler(b CreateCacheClusterBackend) http.Handler {
 				x := int32(n)
 				in.NumCacheNodes = &x
 			}
+		}
+		if v := r.Form.Get("OutpostMode"); v != "" {
+			e := OutpostMode(v)
+			in.OutpostMode = &e
 		}
 		if v := r.Form.Get("Port"); v != "" {
 			if n, err := strconv.Atoi(v); err == nil {
@@ -909,6 +925,10 @@ func ModifyCacheClusterHandler(b ModifyCacheClusterBackend) http.Handler {
 		// form fields. AWS awsQuery serialises these as flat
 		// name=value pairs with `.entry.N.{key,value}` (maps) and
 		// `.member.N` (lists) conventions.
+		if v := r.Form.Get("AZMode"); v != "" {
+			e := AZMode(v)
+			in.AZMode = &e
+		}
 		if v := r.Form.Get("ApplyImmediately"); v != "" {
 			if x, err := strconv.ParseBool(v); err == nil {
 				in.ApplyImmediately = &x
@@ -917,6 +937,10 @@ func ModifyCacheClusterHandler(b ModifyCacheClusterBackend) http.Handler {
 		if v := r.Form.Get("AuthToken"); v != "" {
 			s := v
 			in.AuthToken = &s
+		}
+		if v := r.Form.Get("AuthTokenUpdateStrategy"); v != "" {
+			e := AuthTokenUpdateStrategyType(v)
+			in.AuthTokenUpdateStrategy = &e
 		}
 		if v := r.Form.Get("AutoMinorVersionUpgrade"); v != "" {
 			if x, err := strconv.ParseBool(v); err == nil {
@@ -957,6 +981,10 @@ func ModifyCacheClusterHandler(b ModifyCacheClusterBackend) http.Handler {
 		if v := r.Form.Get("EngineVersion"); v != "" {
 			s := v
 			in.EngineVersion = &s
+		}
+		if v := r.Form.Get("IpDiscovery"); v != "" {
+			e := IpDiscovery(v)
+			in.IpDiscovery = &e
 		}
 		// list<string> via `NewAvailabilityZones.member.N`. The generated
 		// list type is a struct with Member []string for XML.

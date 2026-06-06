@@ -2,7 +2,7 @@
 
 Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BUGS.md) · narrative [WHAT_WE_DID.md](WHAT_WE_DID.md) · philosophy [PHILOSOPHY.md](PHILOSOPHY.md) · rules [AGENTS.md](AGENTS.md).
 
-> **Cold-start entry point.** Phases 1–19 complete. Next substantive work is Phase 20 (Event Streaming).
+> **Cold-start entry point.** Phases 1–20 complete. Active work is Phase 21 (L7 Load Balancers).
 
 ## Where we are
 
@@ -81,24 +81,49 @@ Phase 20.C AWS MSK checklist: ✅ COMPLETE (PR #153)
 - [x] Run full local verification (`make test`, `make lint`, `make license-check`, `make codegen-check`) — all green.
 - [x] Open Phase 20.D PR (on `phase-20-azure-eventhubs-frontend`). Awaiting CI + user merge.
 
-## Phase 20.E — Strimzi backend + full CLI/TF conformance matrix ◐
+## Phase 20.E — Strimzi backend + full CLI/TF conformance matrix ✅ COMPLETE (PR #155)
 
-- [x] File BUG-76: `DeleteCluster` missing from MSK codegen/adapter.
-- [x] File BUG-77: GCP Managed Kafka cluster CRUD not implemented.
-- [x] Fix BUG-76: add `DeleteCluster` + `DescribeClusterV2` to `codegen.json`, regenerate, implement in MSK adapter. Store kafka-version and instance-type in domain Tags for `DescribeClusterV2` / `clusterToAWS`.
-- [x] Fix BUG-77: add cluster create/get/list/delete to GCP Managed Kafka frontend with LRO `done=true` pattern using `googleapi.RawMessage`.
-- [x] Add `services/eventstream/backends/strimzi/strimzi.go`: Strimzi K8s backend for `domain.Streams` using dynamic client for `Kafka` + `KafkaTopic` CRDs. Data-plane ops return `ErrDataPlane` (clients connect directly to real Strimzi bootstrap).
-- [x] Add `services/eventstream/conformance/aws_cli_test.go`: AWS CLI cluster lifecycle + bootstrap-brokers + list-nodes (no topic CRUD — aws kafka CLI doesn't support it).
-- [x] Add `services/eventstream/conformance/gcp_cli_test.go`: GCP CLI cluster + topic lifecycle with `CLOUDSDK_API_ENDPOINT_OVERRIDES_MANAGEDKAFKA`.
-- [x] Add `services/eventstream/conformance/aws_terraform_test.go`: `aws_msk_cluster` resource with `endpoints { kafka = "..." }`, real Kafka server for bootstrap brokers.
-- [x] Add `services/eventstream/conformance/gcp_terraform_test.go`: `google_managed_kafka_cluster` + `google_managed_kafka_topic` resources.
-- [x] Add `services/eventstream/conformance/azure_cli_test.go`: placeholder (Azure Event Hubs CLI requires sockerless TLS).
-- [x] Add `services/eventstream/conformance/azure_terraform_test.go`: placeholder (Azure Event Hubs TF requires sockerless TLS).
-- [x] Add `TestGCPSDK_ManagedKafkaClusterLifecycle` to `gcp_sdk_test.go`.
-- [x] Run full local verification (`go test ./services/eventstream/... ./internal/eventstream/...`, `make lint`, `make license-check`) — all green.
+- [x] File BUG-76/77, fix both, add Strimzi backend, full CLI/TF conformance matrix, GCP SDK cluster lifecycle test.
+- [x] All local verification green; PR #155 merged.
+
+## Phase 21 — L7 Load Balancers ◐
+
+Phase 21 extends Phase 16.D's layer-4 TCP NLB to layer-7 Application LB. The intersection (N35) covers: HTTPS termination, host/path routing rules, HTTP target groups with health checks, and opaque certificate pass-through. SSL cert management is out-of-intersection (callers supply pre-provisioned cert IDs). See [docs/phase-21-scoping.md](docs/phase-21-scoping.md) and N35 in [docs/normalizations.md](docs/normalizations.md).
+
+### Phase 21.A — Domain + inmem + AWS ELBv2 adapter ◐
+
+Active branch: `phase-21-l7-loadbalancers`.
+
+- [x] Write `docs/phase-21-scoping.md`.
+- [x] Add N35 to `docs/normalizations.md`; update N27 to reference N35.
+- [x] Extend `internal/loadbalancer/domain/domain.go`: `Rule`, `HealthCheck`, `ProtocolHTTP/HTTPS`, `CertificateIDs`, update/modify op types, extend `LoadBalancers` interface.
+- [x] Extend `services/loadbalancer/backends/inmem/inmem.go`: Rule CRUD + UpdateTargetGroup/UpdateListener/UpdateRule/SetRulePriorities.
+- [x] Add `ErrNotSupported` stubs for new interface methods in `backends/aws/aws.go` and `backends/k8slb/k8s.go`.
+- [x] Update `services/loadbalancer/codegen.json`: add CreateRule/DeleteRule/DescribeRules/ModifyRule/ModifyListener/ModifyTargetGroup/SetRulePriorities.
+- [x] Run `make codegen` to regenerate `services/loadbalancer/gen/aws_elbv2.gen.go`.
+- [x] File BUG-78: awsQuery codegen doesn't decode `*ProtocolEnum` / `*LoadBalancerTypeEnum` pointer-to-enum fields.
+- [x] Fix BUG-78: add `IsPointerEnum` flag to `fieldView` in `emit.go`, add `hasPrefix`/`trimPrefix` to FuncMap, update `template_awsquery.tmpl` to emit pointer-to-enum form decode.
+- [x] Run `make codegen` again to pick up the template fix.
+- [x] Extend `internal/loadbalancer/frontends/aws_elbv2/adapter.go`: accept ALB type, HTTP/HTTPS protocols, HTTPS+cert listener, HTTP TG health check, CreateRule/DeleteRule/DescribeRules/ModifyRule/ModifyListener/ModifyTargetGroup/SetRulePriorities.
+- [x] Add `TestAWSSDK_ELBv2_ALB_RuleLifecycle` to `services/loadbalancer/conformance/aws_sdk_test.go`.
+- [x] Run full local verification (`go test ./...`, `make lint`, `make license-check`) — all green.
 - [ ] Run `make codegen inject-provenance` and commit.
-- [ ] Check `gh pr list --state open` and ask user if a PR is already open before creating new one.
-- [ ] Open one Phase 20.E PR.
+- [ ] Check `gh pr list --state open` and ask user before opening PR.
+- [ ] Open Phase 21.A PR.
+
+### Phase 21.B — GCP HTTP(S) LB extension
+
+- [ ] Create branch (or continue on `phase-21-l7-loadbalancers`).
+- [ ] Extend `internal/loadbalancer/frontends/gcp_lb/server.go`: global backendServices + urlMaps + targetHttpsProxies + globalForwardingRules + sslCertificates.
+- [ ] Add GCP SDK conformance for full L7 lifecycle.
+- [ ] Run full verification and open PR.
+
+### Phase 21.C — Azure Application Gateway + K8s Ingress + full CLI/TF matrix
+
+- [ ] Extend `azure_lb/server.go` or new `azure_appgateway` sub-package for compound ARM `applicationGateways` resource.
+- [ ] Extend `k8slb` backend and frontend for K8s Ingress.
+- [ ] Add CLI (aws, gcloud, az) + Terraform conformance for all three frontends.
+- [ ] Full 3 × 3 driver-type matrix green.
 
 ## Phase 18 — Container Registry ✅ COMPLETE
 

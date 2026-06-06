@@ -1278,6 +1278,10 @@ func CreateDBInstanceHandler(b CreateDBInstanceBackend) http.Handler {
 			s := v
 			in.DBSystemId = &s
 		}
+		if v := r.Form.Get("DatabaseInsightsMode"); v != "" {
+			e := DatabaseInsightsMode(v)
+			in.DatabaseInsightsMode = &e
+		}
 		if v := r.Form.Get("DedicatedLogVolume"); v != "" {
 			if x, err := strconv.ParseBool(v); err == nil {
 				in.DedicatedLogVolume = &x
@@ -1368,6 +1372,10 @@ func CreateDBInstanceHandler(b CreateDBInstanceBackend) http.Handler {
 			if x, err := strconv.ParseBool(v); err == nil {
 				in.ManageMasterUserPassword = &x
 			}
+		}
+		if v := r.Form.Get("MasterUserAuthenticationType"); v != "" {
+			e := MasterUserAuthenticationType(v)
+			in.MasterUserAuthenticationType = &e
 		}
 		if v := r.Form.Get("MasterUserPassword"); v != "" {
 			s := v
@@ -1630,6 +1638,10 @@ func ModifyDBInstanceHandler(b ModifyDBInstanceBackend) http.Handler {
 				in.AutoMinorVersionUpgrade = &x
 			}
 		}
+		if v := r.Form.Get("AutomationMode"); v != "" {
+			e := AutomationMode(v)
+			in.AutomationMode = &e
+		}
 		if v := r.Form.Get("AwsBackupRecoveryPointArn"); v != "" {
 			s := v
 			in.AwsBackupRecoveryPointArn = &s
@@ -1681,6 +1693,10 @@ func ModifyDBInstanceHandler(b ModifyDBInstanceBackend) http.Handler {
 		if v := r.Form.Get("DBSubnetGroupName"); v != "" {
 			s := v
 			in.DBSubnetGroupName = &s
+		}
+		if v := r.Form.Get("DatabaseInsightsMode"); v != "" {
+			e := DatabaseInsightsMode(v)
+			in.DatabaseInsightsMode = &e
 		}
 		if v := r.Form.Get("DedicatedLogVolume"); v != "" {
 			if x, err := strconv.ParseBool(v); err == nil {
@@ -1764,6 +1780,10 @@ func ModifyDBInstanceHandler(b ModifyDBInstanceBackend) http.Handler {
 				in.ManageMasterUserPassword = &x
 			}
 		}
+		if v := r.Form.Get("MasterUserAuthenticationType"); v != "" {
+			e := MasterUserAuthenticationType(v)
+			in.MasterUserAuthenticationType = &e
+		}
 		if v := r.Form.Get("MasterUserPassword"); v != "" {
 			s := v
 			in.MasterUserPassword = &s
@@ -1838,6 +1858,10 @@ func ModifyDBInstanceHandler(b ModifyDBInstanceBackend) http.Handler {
 			if x, err := strconv.ParseBool(v); err == nil {
 				in.PubliclyAccessible = &x
 			}
+		}
+		if v := r.Form.Get("ReplicaMode"); v != "" {
+			e := ReplicaMode(v)
+			in.ReplicaMode = &e
 		}
 		if v := r.Form.Get("ResumeFullAutomationModeMinutes"); v != "" {
 			if n, err := strconv.Atoi(v); err == nil {

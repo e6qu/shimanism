@@ -12,6 +12,8 @@ linters:
     - unused
     - ineffassign
   settings:
+    dupl:
+      threshold: 200
     errcheck:
       exclude-functions:
         # HTTP response writing — errors indicate client disconnected

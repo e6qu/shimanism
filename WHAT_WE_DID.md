@@ -4,7 +4,37 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 
 > Reverse chronological. One section per phase. The *why*, the surprises, the root causes — not per-PR detail. For commit-level history, `git log`. For per-bug detail, [BUGS.md](BUGS.md). For pipeline + verifier architecture, [docs/codegen-pipelines.md](docs/codegen-pipelines.md) + [docs/verifiers.md](docs/verifiers.md).
 
-## Phase 20 — Event Streaming: in progress
+## Phase 21 — L7 Load Balancers: 21.A in progress
+
+Phase 21 promotes Application Load Balancers into the intersection. Phase 16.D
+had established the load balancer domain and NLB lifecycle; the question for
+Phase 21 was what L7 surface is actually portable across all four targets.
+
+The answer (N35): HTTPS termination + host/path routing rules + HTTP target
+groups with health checks + certificate pass-through. SSL certificate lifecycle
+is *not* portable (AWS ACM, GCP Certificate Manager, and Azure Key Vault certs
+have incompatible management APIs), so callers supply opaque pre-provisioned
+cert resource IDs. Redirect rules, weighted forwarding, stickiness, WAF, and
+gRPC are all out-of-intersection.
+
+**Phase 21.A** extended the domain, inmem backend, and AWS ELBv2 adapter to
+cover the full ALB lifecycle: `CreateLoadBalancer(type=application)`,
+`CreateTargetGroup(HTTP, healthCheck)`, `CreateListener(HTTPS, certs, defaultAction)`,
+`CreateRule(conditions, forward)`, `DescribeRules`, `ModifyRule`, `DeleteRule`.
+The domain gained four update methods (UpdateTargetGroup, UpdateListener,
+UpdateRule, SetRulePriorities) so Modify* adapter operations could delegate
+properly to the backend rather than silently succeed or fail.
+
+The codegen template fix (BUG-78) was the unexpected part. The awsQuery
+`template_awsquery.tmpl` had no handling for `*ProtocolEnum` / `*LoadBalancerTypeEnum`
+pointer-to-enum fields — they were silently skipped, so `in.Type` and
+`in.Protocol` were always nil. The fix added an `IsPointerEnum` flag to the
+`fieldView` struct, set it in `emit.go` for shapes with Smithy `type=enum/intEnum`,
+and emitted `e := FooEnum(v); in.Field = &e` in the template. This fix affects
+all awsQuery services with optional enum fields — it regenerated ELBv2, RDS,
+ElastiCache, and others.
+
+## Phase 20 — Event Streaming: ✅ complete
 
 Phase 20 starts with the Kafka-shaped intersection, not with a second pub/sub
 service. The key early decision is honesty on the data plane: a frontend must

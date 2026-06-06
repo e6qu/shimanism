@@ -359,3 +359,37 @@ func contains(s string, substrs ...string) bool {
 	}
 	return false
 }
+
+// ─── Rule lifecycle (Phase 21 — not yet implemented) ─────────────────
+
+func (b *Backend) CreateRule(_ context.Context, _ domain.CreateRuleOptions) (domain.Rule, error) {
+	return domain.Rule{}, fmt.Errorf("L7 rule management: %w", domain.ErrNotSupported)
+}
+
+func (b *Backend) GetRule(_ context.Context, _ string) (domain.Rule, error) {
+	return domain.Rule{}, fmt.Errorf("L7 rule management: %w", domain.ErrNotSupported)
+}
+
+func (b *Backend) ListRules(_ context.Context, _ domain.ListRulesOptions) (domain.ListRulesResult, error) {
+	return domain.ListRulesResult{}, fmt.Errorf("L7 rule management: %w", domain.ErrNotSupported)
+}
+
+func (b *Backend) DeleteRule(_ context.Context, _ string) error {
+	return fmt.Errorf("L7 rule management: %w", domain.ErrNotSupported)
+}
+
+func (b *Backend) UpdateTargetGroup(_ context.Context, _ string, _ domain.UpdateTargetGroupOptions) (domain.TargetGroup, error) {
+	return domain.TargetGroup{}, fmt.Errorf("L7 target group update: %w", domain.ErrNotSupported)
+}
+
+func (b *Backend) UpdateListener(_ context.Context, _ string, _ domain.UpdateListenerOptions) (domain.Listener, error) {
+	return domain.Listener{}, fmt.Errorf("L7 listener update: %w", domain.ErrNotSupported)
+}
+
+func (b *Backend) UpdateRule(_ context.Context, _ string, _ domain.UpdateRuleOptions) (domain.Rule, error) {
+	return domain.Rule{}, fmt.Errorf("L7 rule update: %w", domain.ErrNotSupported)
+}
+
+func (b *Backend) SetRulePriorities(_ context.Context, _ []domain.RulePriorityPair) ([]domain.Rule, error) {
+	return nil, fmt.Errorf("L7 set rule priorities: %w", domain.ErrNotSupported)
+}

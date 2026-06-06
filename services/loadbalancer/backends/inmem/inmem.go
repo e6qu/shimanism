@@ -14,21 +14,24 @@ import (
 type Backend struct {
 	mu sync.RWMutex
 
-	lbs  map[string]*domain.LoadBalancer
-	tgs  map[string]*domain.TargetGroup
-	lsns map[string]*domain.Listener
+	lbs   map[string]*domain.LoadBalancer
+	tgs   map[string]*domain.TargetGroup
+	lsns  map[string]*domain.Listener
+	rules map[string]*domain.Rule
 
-	lbSeq  int
-	tgSeq  int
-	lsnSeq int
+	lbSeq   int
+	tgSeq   int
+	lsnSeq  int
+	ruleSeq int
 }
 
 // New returns an empty in-memory load balancer backend.
 func New() *Backend {
 	return &Backend{
-		lbs:  map[string]*domain.LoadBalancer{},
-		tgs:  map[string]*domain.TargetGroup{},
-		lsns: map[string]*domain.Listener{},
+		lbs:   map[string]*domain.LoadBalancer{},
+		tgs:   map[string]*domain.TargetGroup{},
+		lsns:  map[string]*domain.Listener{},
+		rules: map[string]*domain.Rule{},
 	}
 }
 
@@ -137,12 +140,13 @@ func (b *Backend) CreateTargetGroup(_ context.Context, name string, opt domain.C
 		proto = domain.ProtocolTCP
 	}
 	tg := &domain.TargetGroup{
-		ID:       b.nextID("tg", &b.tgSeq),
-		Name:     name,
-		Protocol: proto,
-		Port:     opt.Port,
-		VpcID:    opt.VpcID,
-		Tags:     copyTags(opt.Tags),
+		ID:          b.nextID("tg", &b.tgSeq),
+		Name:        name,
+		Protocol:    proto,
+		Port:        opt.Port,
+		VpcID:       opt.VpcID,
+		HealthCheck: opt.HealthCheck,
+		Tags:        copyTags(opt.Tags),
 	}
 	b.tgs[tg.ID] = tg
 	return *tg, nil
@@ -247,6 +251,7 @@ func (b *Backend) CreateListener(_ context.Context, opt domain.CreateListenerOpt
 		Protocol:       proto,
 		Port:           opt.Port,
 		TargetGroupID:  opt.TargetGroupID,
+		CertificateIDs: append([]string(nil), opt.CertificateIDs...),
 		Tags:           copyTags(opt.Tags),
 	}
 	b.lsns[l.ID] = l
@@ -292,4 +297,151 @@ func (b *Backend) DeleteListener(_ context.Context, id string) error {
 	}
 	delete(b.lsns, id)
 	return nil
+}
+
+// ─── Rule lifecycle (L7) ─────────────────────────────────────────────
+
+func copyConditions(in []domain.RuleCondition) []domain.RuleCondition {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make([]domain.RuleCondition, len(in))
+	for i, c := range in {
+		vals := make([]string, len(c.Values))
+		copy(vals, c.Values)
+		out[i] = domain.RuleCondition{Type: c.Type, Values: vals}
+	}
+	return out
+}
+
+func (b *Backend) CreateRule(_ context.Context, opt domain.CreateRuleOptions) (domain.Rule, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if _, ok := b.lsns[opt.ListenerID]; !ok {
+		return domain.Rule{}, fmt.Errorf("listener %q: %w", opt.ListenerID, domain.ErrNotFound)
+	}
+	for _, r := range b.rules {
+		if r.ListenerID == opt.ListenerID && r.Priority == opt.Priority {
+			return domain.Rule{}, fmt.Errorf("rule priority %d on listener %q: %w", opt.Priority, opt.ListenerID, domain.ErrAlreadyExists)
+		}
+	}
+	rule := &domain.Rule{
+		ID:         b.nextID("rule", &b.ruleSeq),
+		ListenerID: opt.ListenerID,
+		Priority:   opt.Priority,
+		Conditions: copyConditions(opt.Conditions),
+		Action:     opt.Action,
+		Tags:       copyTags(opt.Tags),
+	}
+	b.rules[rule.ID] = rule
+	return *rule, nil
+}
+
+func (b *Backend) GetRule(_ context.Context, id string) (domain.Rule, error) {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	r, ok := b.rules[id]
+	if !ok {
+		return domain.Rule{}, fmt.Errorf("rule %q: %w", id, domain.ErrNotFound)
+	}
+	return *r, nil
+}
+
+func (b *Backend) ListRules(_ context.Context, opt domain.ListRulesOptions) (domain.ListRulesResult, error) {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	idSet := make(map[string]bool, len(opt.IDs))
+	for _, id := range opt.IDs {
+		idSet[id] = true
+	}
+	var out []domain.Rule
+	for _, r := range b.rules {
+		if opt.ListenerID != "" && r.ListenerID != opt.ListenerID {
+			continue
+		}
+		if len(idSet) > 0 && !idSet[r.ID] {
+			continue
+		}
+		out = append(out, *r)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Priority < out[j].Priority })
+	return domain.ListRulesResult{Rules: out}, nil
+}
+
+func (b *Backend) DeleteRule(_ context.Context, id string) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if _, ok := b.rules[id]; !ok {
+		return fmt.Errorf("rule %q: %w", id, domain.ErrNotFound)
+	}
+	delete(b.rules, id)
+	return nil
+}
+
+// ─── Modify operations (L7) ──────────────────────────────────────────
+
+func (b *Backend) UpdateTargetGroup(_ context.Context, id string, opt domain.UpdateTargetGroupOptions) (domain.TargetGroup, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	tg, ok := b.tgs[id]
+	if !ok {
+		return domain.TargetGroup{}, fmt.Errorf("target group %q: %w", id, domain.ErrNotFound)
+	}
+	tg.HealthCheck = opt.HealthCheck
+	return *tg, nil
+}
+
+func (b *Backend) UpdateListener(_ context.Context, id string, opt domain.UpdateListenerOptions) (domain.Listener, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	l, ok := b.lsns[id]
+	if !ok {
+		return domain.Listener{}, fmt.Errorf("listener %q: %w", id, domain.ErrNotFound)
+	}
+	if opt.Protocol != "" {
+		l.Protocol = opt.Protocol
+	}
+	if opt.Port != 0 {
+		l.Port = opt.Port
+	}
+	if opt.TargetGroupID != "" {
+		l.TargetGroupID = opt.TargetGroupID
+	}
+	if opt.CertificateIDs != nil {
+		l.CertificateIDs = append([]string(nil), opt.CertificateIDs...)
+	}
+	return *l, nil
+}
+
+func (b *Backend) UpdateRule(_ context.Context, id string, opt domain.UpdateRuleOptions) (domain.Rule, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	r, ok := b.rules[id]
+	if !ok {
+		return domain.Rule{}, fmt.Errorf("rule %q: %w", id, domain.ErrNotFound)
+	}
+	if opt.Conditions != nil {
+		r.Conditions = copyConditions(opt.Conditions)
+	}
+	if opt.Action.TargetGroupID != "" {
+		r.Action = opt.Action
+	}
+	return *r, nil
+}
+
+func (b *Backend) SetRulePriorities(_ context.Context, pairs []domain.RulePriorityPair) ([]domain.Rule, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	for _, p := range pairs {
+		r, ok := b.rules[p.ID]
+		if !ok {
+			return nil, fmt.Errorf("rule %q: %w", p.ID, domain.ErrNotFound)
+		}
+		r.Priority = p.Priority
+	}
+	var out []domain.Rule
+	for _, p := range pairs {
+		out = append(out, *b.rules[p.ID])
+	}
+	return out, nil
 }

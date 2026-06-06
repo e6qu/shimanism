@@ -458,15 +458,17 @@ Closed audit items:
 
 **Reference.** `internal/compute/domain/networking.go::CreateSubnetOptions`; per-backend zone handling in `services/compute/backends/{gcp,azure}/`.
 
-### N27 — Load balancer layer restriction (layer-4 TCP only)
+### N27 — Load balancer layer restriction (layer-4 TCP only; Phase 16.D)
 
 **Asymmetry.** AWS ELBv2 creates both Network Load Balancers (L4 TCP/UDP/TLS) and Application Load Balancers (L7 HTTP/HTTPS with host/path routing). GCP Cloud Load Balancing has separate External/Internal TCP Proxy, HTTP(S), and Regional TCP/UDP load balancers. Azure has both a Load Balancer (L4) and an Application Gateway (L7 WAF + TLS). The semantics, resource models, and feature sets diverge significantly at L7.
 
-**Rule.** The shim intersection is layer-4 TCP forwarding only: create a TCP load balancer with one or more listeners (protocol + port), a backend pool (set of instance IDs + port), and a TCP health check (path / interval / threshold). L7 features are out of intersection: HTTP host/path routing rules, TLS certificates, WAF policies, HTTPS redirect, sticky sessions with cookie injection, gRPC routing. Attempting to configure L7 features returns the source cloud's `InvalidConfigurationRequest` (or equivalent) error.
+**Rule (Phase 16.D).** The shim intersection is layer-4 TCP forwarding only: create a TCP load balancer with one or more listeners (protocol + port), a backend pool (set of instance IDs + port), and a TCP health check. L7 features are out of intersection at this rule. Attempting to configure L7 features returns the source cloud's `InvalidConfigurationRequest` (or equivalent) error.
 
-**Trade-off.** ALB workloads cannot be migrated through the shim without redesigning the routing layer. This is acceptable for the intersection — ALB is meaningfully richer than any single L4 abstraction, and shimming it would require fabricating L7 behaviour that doesn't exist on all backends.
+**Phase 21 extension.** N27 is superseded for L7 Application LBs by **N35** (below). The L4 TCP intersection defined here remains unchanged.
 
-**Reference.** `internal/loadbalancer/domain/`; `services/loadbalancer/INTERSECTION.md` documents the L7 exclusions. Exercised by `TestLB_Layer7OptionsRejected_*` conformance tests.
+**Trade-off.** L4 NLB workloads and ALB workloads use distinct domain sub-types. A caller that creates an NLB cannot add L7 rules to it; a caller that creates an ALB cannot add TCP-only listeners. This matches all three cloud APIs.
+
+**Reference.** `internal/loadbalancer/domain/`; `services/loadbalancer/INTERSECTION.md`. Exercised by `TestLB_Layer7OptionsRejected_*` conformance tests.
 
 ---
 
@@ -551,3 +553,29 @@ Closed audit items:
 **Trade-off.** `sha512` push/pull works only where the destination backend supports it; the shim does not normalize digest algorithms (that would change the content address).
 
 **Reference.** `internal/registry/ocidistribution/digest.go`; `services/registry/INTERSECTION.md`.
+
+---
+
+## N35 — L7 load balancer routing intersection (Phase 21)
+
+**Asymmetry.** AWS ALB decomposes routing into a `Listener` (port + protocol + default action) plus `Rule`s (priority + conditions + forward action). GCP HTTP(S) LB uses a `UrlMap` (path matchers + default backend) wired to a `TargetHttpsProxy` wired to a `GlobalForwardingRule`. Azure Application Gateway packs the whole thing — backend pools, HTTP settings, listeners, routing rules, probes — into a single compound ARM resource. K8s uses `Ingress` with inline `spec.rules` and `spec.tls`. The number of round-trips and the resource-boundary placement differ across all four.
+
+**Rule.** The shim domain models L7 routing as:
+- `LoadBalancer(type=application)` — the LB resource.
+- `TargetGroup(protocol=HTTP, healthCheck={path, httpCodes})` — the backend pool + HTTP health check config.
+- `Listener(protocol=HTTPS, certificateIDs, defaultTargetGroupID)` — the frontend port + TLS termination.
+- `Rule(priority, conditions, action)` — a routing rule scoped to a `Listener`.
+
+`RuleCondition.Type` is either `host-header` or `path-pattern`; `values` is a list of strings. `RuleAction` is always `forward` to a `TargetGroupID` in the intersection. Priority is an integer (1 = highest precedence; AWS, Azure, and GCP all support numeric priority or ordering).
+
+Frontend adapters translate between this decomposed model and their cloud's resource shape:
+- **AWS ALB**: 1:1 mapping.
+- **GCP**: `TargetGroup` ↔ global `BackendService`; `Rule` ↔ `UrlMap` path-matcher entry; `Listener` ↔ `TargetHttpsProxy` + `GlobalForwardingRule` pair.
+- **Azure App Gateway**: the entire compound ARM object is assembled/disassembled at create/read time.
+- **K8s Ingress**: `Ingress.spec.rules` → `Rule`s; `Ingress.spec.tls` → `Listener.CertificateIDs`.
+
+**Out of intersection (Phase 21):** HTTP→HTTPS redirect, weighted forwarding, session stickiness, WAF, WebSockets, gRPC routing, Lambda/Cloud Run targets, mTLS, URL rewrite, and per-rule header manipulation.
+
+**Trade-off.** Azure App Gateway's compound resource model means that every create/update operation re-serializes all sub-resources from domain state. The result is idempotent and stateless, but creates more backend I/O per call compared to AWS's decomposed model.
+
+**Reference.** `internal/loadbalancer/domain/domain.go` (Rule, RuleCondition, RuleAction, HealthCheck); `services/loadbalancer/INTERSECTION.md`. Exercised by `TestLB_L7_*` conformance tests.
