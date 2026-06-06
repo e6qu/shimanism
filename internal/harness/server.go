@@ -40,6 +40,7 @@ import (
 	gcpdnsfront "github.com/e6qu/shimanism/internal/dns/frontends/gcp_clouddns"
 	eventstreamdomain "github.com/e6qu/shimanism/internal/eventstream/domain"
 	awsmskfront "github.com/e6qu/shimanism/internal/eventstream/frontends/aws_msk"
+	azureeventhubsfront "github.com/e6qu/shimanism/internal/eventstream/frontends/azure_eventhubs"
 	gcpmanagedkafkafront "github.com/e6qu/shimanism/internal/eventstream/frontends/gcp_managedkafka"
 	"github.com/e6qu/shimanism/internal/eventstream/kafkaserver"
 	functionsdomain "github.com/e6qu/shimanism/internal/functions/domain"
@@ -784,6 +785,16 @@ func StartEventStreamServerAWS(t *testing.T, backend eventstreamdomain.Streams, 
 	t.Helper()
 	srv := awsmskfront.New(backend, awsmskfront.Options{BootstrapBrokers: bootstrapBrokers})
 	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
+	t.Cleanup(ts.Close)
+	return &EventStreamServer{URL: ts.URL, Close: ts.Close}
+}
+
+// StartEventStreamServerAzure starts a shim instance with the Azure Event Hubs
+// ARM control-plane frontend.
+func StartEventStreamServerAzure(t *testing.T, backend eventstreamdomain.Streams, bootstrapBrokers []string) *EventStreamServer {
+	t.Helper()
+	srv := azureeventhubsfront.Handler(backend, azureeventhubsfront.Options{BootstrapBrokers: bootstrapBrokers})
+	ts := httptest.NewTLSServer(&logRoundTrip{t: t, mux: srv})
 	t.Cleanup(ts.Close)
 	return &EventStreamServer{URL: ts.URL, Close: ts.Close}
 }
