@@ -99,6 +99,32 @@ The adapter now derives that ARN from the cluster ARN resource segments, and the
 AWS SDK conformance test asserts the ARN on CreateTopic, DescribeTopic,
 ListTopics, and DeleteTopic. No auth bypass or route fallback was added.
 
+Phase 20.D adds the Azure Event Hubs ARM control-plane frontend. Unlike AWS MSK
+(Smithy spec → codegen routes) and GCP Managed Kafka (Discovery doc → hand-router),
+the Event Hubs ARM shape is handled by a hand-written `ServeHTTP` dispatcher
+using `armeventhub` ARM SDK types directly — same pattern as `azure_network` and
+`azure_compute`. The ARM path hierarchy maps
+`.../Microsoft.EventHub/namespaces[/{ns}[/eventhubs[/{eh}]]]` to namespace
+create/get/list/delete and event-hub create/get/list/delete. Namespace ↔ cluster
+and event-hub ↔ topic; the namespace name is the cluster ID.
+
+`BeginCreateOrUpdate` for namespaces returns 201 with the final resource body and
+no async LRO headers — this is the ARM terminal-success pattern the `armeventhub`
+SDK poller accepts as a complete result. Event-hub create returns 200 (sync, not
+LRO). Out-of-intersection: Basic SKU (no Kafka endpoint), CaptureDescription
+(archive), RetentionDescription (complex retention), BYOK encryption, dedicated
+clusters, auto-inflate, and partitionCount > 32 all return 400 OperationNotSupported.
+
+One structural catch: the SKU validation must run before the `Properties == nil`
+early return, because the Azure SDK passes `SKU` as a top-level field while
+leaving `Properties` nil in a Basic SKU create request. Moving the SKU check
+before the properties nil guard fixed `TestAzureSDK_EventHubsRejectsOutOfIntersection`.
+
+The harness `StartEventStreamServerAzure` uses `httptest.NewTLSServer` because
+the Azure ARM SDK refuses to send Bearer tokens over plain HTTP. The test client
+transport uses `InsecureSkipVerify: true` for the self-signed cert — same pattern
+as all other Azure harness servers.
+
 ## Code health audit baseline: in progress
 
 After Phase 18 closed, the next maintenance thread is explicit dead-code and copy-paste detection. The repo already runs `staticcheck` + `unused` through `golangci-lint`, so the baseline adds advisory audits rather than a new hard gate: `dupl` through the existing `golangci-lint` binary for duplicate Go fragments, and the official `golang.org/x/tools/cmd/deadcode` command for call-graph reachability. The first duplicate scan found real cleanup candidates in `cmd/shim`, compute inmem/K8s helpers, and secrets Terraform conformance tests. The first deadcode scan was useful but noisy around generated code and library-style entry points, so it stays audit-only with generated-code filtering.

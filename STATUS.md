@@ -8,9 +8,9 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 
 | | |
 |---|---|
-| Active branch | `phase-20-aws-msk-frontend` — Phase 20.C AWS MSK control-plane frontend and cluster-scoped eventstream backend state. |
-| In-flight | PR #152 merged the GCP/Kafka client closeout. Current branch vendors the AWS MSK Smithy model, adds generated MSK restJson1 routes, adds an AWS MSK frontend over `domain.Streams`, scopes topics/logs/offsets by cluster, and proves AWS SDK cluster/topic lifecycle plus real Kafka client produce/fetch against the returned bootstrap broker. BUG-73, BUG-74, and BUG-75 were filed and fixed for cluster scoping, ARN path SigV4/route handling, and AWS MSK topic ARN shape. Focused Go verification is currently blocked by sandboxed Go cache permissions plus the escalated-command usage limit until the environment allows rerun. |
-| Last merged | PR #152 — real `franz-go/pkg/kgo` conformance proving a GCP REST-created Managed Kafka topic backs Kafka TCP produce/fetch through the same backend. |
+| Active branch | `phase-20-azure-eventhubs-frontend` — Phase 20.D in progress. |
+| In-flight | Azure Event Hubs ARM frontend committed; PR open for review. `armeventhub` SDK namespace+event-hub lifecycle, real `kgo` produce/fetch, Basic SKU + CaptureDescription rejection all pass. Full local verification green (`make test`, `make lint`, `make license-check`, `make codegen-check`). |
+| Last merged | PR #153 — AWS MSK control-plane frontend, cluster-scoped domain, ARN path SigV4/route fix, and real Kafka client produce/fetch via `GetBootstrapBrokers`. |
 | Upstream watch | Registry sockerless: BUG-67/#465 remains open. BUG-65/#451 and BUG-66/#452/#469 are closed on current sockerless main. |
 | Phases 1–19 | 1–19 closed. See [PLAN.md § Closed phases](PLAN.md#closed-phases-pr-index). |
 | Phase 19 | ✅ complete — 19.A (#127) · 19.B (#128) · 19.C (#129) · 19.D (#130 CLI/TF, #131 sockerless). All 4 backends, full SDK/CLI/TF, all sockerless lanes green, zero skips. |
