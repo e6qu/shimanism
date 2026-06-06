@@ -99,6 +99,53 @@ The adapter now derives that ARN from the cluster ARN resource segments, and the
 AWS SDK conformance test asserts the ARN on CreateTopic, DescribeTopic,
 ListTopics, and DeleteTopic. No auth bypass or route fallback was added.
 
+Phase 20.E closes the conformance matrix across all three event-streaming
+frontends. BUG-76 and BUG-77 surfaced that the AWS MSK frontend was missing
+`DeleteCluster` and `DescribeClusterV2`, and the GCP Managed Kafka frontend
+had cluster CRUD unimplemented (returning 501 for all cluster endpoints). Both
+were fixed before any conformance tests were written, per BUGS.md standing rule.
+
+`DeleteCluster` and `DescribeClusterV2` were added to `services/eventstream/
+codegen.json` and regenerated. The URI for `DescribeClusterV2` is
+`/api/v2/clusters/{ClusterArn}` (from the Smithy spec), not the `/v1/clusters-v2/`
+path the old V1 DescribeCluster uses. The `hashicorp/aws` Terraform provider
+calls `DescribeClusterV2` after every `CreateCluster` and dereferences
+`CurrentBrokerSoftwareInfo.KafkaVersion` and `BrokerNodeGroupInfo.InstanceType`
+unconditionally — nil on either causes a provider crash. The adapter now stores
+kafka-version and instance-type in the domain `Tags` map during `CreateCluster`
+so both `DescribeCluster` (V1) and `DescribeClusterV2` can return them. The TF
+provider also sends `enhanced_monitoring = "DEFAULT"` by default; the
+out-of-intersection check was tightened to only reject non-DEFAULT values.
+
+GCP Managed Kafka cluster CRUD now returns `done=true` `Operation` responses
+immediately, matching what the GCP Managed Kafka API does for fast-path creates
+and deletes. The `terminalOperation` and `emptyOperation` helpers use
+`googleapi.RawMessage` (not `json.RawMessage`) to satisfy the SDK's type system.
+The `clusterToGCP` helper synthesizes a minimal `CapacityConfig` and `GcpConfig`
+response shape from domain state so the SDK deserializes cleanly.
+
+The Strimzi K8s backend (`services/eventstream/backends/strimzi/`) uses the
+dynamic Kubernetes client for the `kafka.strimzi.io/v1beta2` `Kafka` and
+`KafkaTopic` CRDs. Bootstrap broker address is read from the Strimzi Kafka
+status field or synthesized as `{cluster}-kafka-bootstrap:9092`. The Kafka
+data-plane (Produce/Fetch/ListOffsets/OffsetCommit/FetchCommittedOffset) returns
+`ErrDataPlane` — clients connect directly to the real Strimzi bootstrap address,
+not through the shim.
+
+CLI conformance: the AWS CLI `kafka` subcommand has no topic CRUD (no
+`create-topic`, `list-topics`, etc.), so `aws_cli_test.go` covers cluster
+lifecycle + `get-bootstrap-brokers` + `list-nodes` only. GCP CLI tests cover
+the full cluster + topic lifecycle; the `gcloud managed-kafka topics list` command
+takes the cluster ID as a positional argument rather than `--cluster=` flag.
+
+Terraform conformance: the AWS TF test uses a real Kafka server for bootstrap
+brokers (required by `GetBootstrapBrokers`) and includes `security_groups` in
+`broker_node_group_info` (required by `hashicorp/aws` provider). The GCP TF
+test uses `google_managed_kafka_cluster` + `google_managed_kafka_topic` with
+`replication_factor = 1` (the shim now accepts 1 as the intersection value).
+Azure CLI/TF tests are placeholders that skip without the sockerless TLS port —
+the real coverage is in the Azure SDK conformance test (Phase 20.D).
+
 Phase 20.D adds the Azure Event Hubs ARM control-plane frontend. Unlike AWS MSK
 (Smithy spec → codegen routes) and GCP Managed Kafka (Discovery doc → hand-router),
 the Event Hubs ARM shape is handled by a hand-written `ServeHTTP` dispatcher

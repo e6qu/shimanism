@@ -110,6 +110,14 @@ const (
 	CustomerActionStatusNONE                     CustomerActionStatus = "NONE"
 )
 
+// ClusterType is a generated Smithy enum.
+type ClusterType string
+
+const (
+	ClusterTypePROVISIONED ClusterType = "PROVISIONED"
+	ClusterTypeSERVERLESS  ClusterType = "SERVERLESS"
+)
+
 // NodeType is a generated Smithy enum.
 type NodeType string
 
@@ -119,6 +127,9 @@ const (
 
 // __listOf__string is a generated Smithy list.
 type __listOf__string []string
+
+// __listOfVpcConfig is a generated Smithy list.
+type __listOfVpcConfig []VpcConfig
 
 // __listOfClusterInfo is a generated Smithy list.
 type __listOfClusterInfo []ClusterInfo
@@ -454,6 +465,24 @@ type UnknownTopicOrPartitionException struct {
 	Message          *string `json:"message,omitempty"`
 }
 
+// DeleteClusterRequest is a generated Smithy structure.
+type DeleteClusterRequest struct {
+	ClusterArn     string  // bound to label=ClusterArn
+	CurrentVersion *string // bound to query=currentVersion
+}
+
+// DeleteClusterResponse is a generated Smithy structure.
+type DeleteClusterResponse struct {
+	ClusterArn *string       `json:"clusterArn,omitempty"`
+	State      *ClusterState `json:"state,omitempty"`
+}
+
+// NotFoundException is a generated Smithy structure. It is an error response (HTTP 404).
+type NotFoundException struct {
+	InvalidParameter *string `json:"invalidParameter,omitempty"`
+	Message          *string `json:"message,omitempty"`
+}
+
 // DeleteTopicRequest is a generated Smithy structure.
 type DeleteTopicRequest struct {
 	ClusterArn string // bound to label=ClusterArn
@@ -465,12 +494,6 @@ type DeleteTopicResponse struct {
 	Status    *TopicState `json:"status,omitempty"`
 	TopicArn  *string     `json:"topicArn,omitempty"`
 	TopicName *string     `json:"topicName,omitempty"`
-}
-
-// NotFoundException is a generated Smithy structure. It is an error response (HTTP 404).
-type NotFoundException struct {
-	InvalidParameter *string `json:"invalidParameter,omitempty"`
-	Message          *string `json:"message,omitempty"`
 }
 
 // DescribeClusterRequest is a generated Smithy structure.
@@ -540,6 +563,76 @@ type ClusterInfo struct {
 // DescribeClusterResponse is a generated Smithy structure.
 type DescribeClusterResponse struct {
 	ClusterInfo *ClusterInfo `json:"clusterInfo,omitempty"`
+}
+
+// DescribeClusterV2Request is a generated Smithy structure.
+type DescribeClusterV2Request struct {
+	ClusterArn string // bound to label=ClusterArn
+}
+
+// Provisioned is a generated Smithy structure.
+type Provisioned struct {
+	BrokerNodeGroupInfo       *BrokerNodeGroupInfo  `json:"brokerNodeGroupInfo,omitempty"`
+	ClientAuthentication      *ClientAuthentication `json:"clientAuthentication,omitempty"`
+	CurrentBrokerSoftwareInfo *BrokerSoftwareInfo   `json:"currentBrokerSoftwareInfo,omitempty"`
+	CustomerActionStatus      *CustomerActionStatus `json:"customerActionStatus,omitempty"`
+	EncryptionInfo            *EncryptionInfo       `json:"encryptionInfo,omitempty"`
+	EnhancedMonitoring        *EnhancedMonitoring   `json:"enhancedMonitoring,omitempty"`
+	LoggingInfo               *LoggingInfo          `json:"loggingInfo,omitempty"`
+	NumberOfBrokerNodes       int32                 `json:"numberOfBrokerNodes,omitempty"`
+	OpenMonitoring            *OpenMonitoringInfo   `json:"openMonitoring,omitempty"`
+	Rebalancing               *Rebalancing          `json:"rebalancing,omitempty"`
+	StorageMode               *StorageMode          `json:"storageMode,omitempty"`
+	ZookeeperConnectString    *string               `json:"zookeeperConnectString,omitempty"`
+	ZookeeperConnectStringTls *string               `json:"zookeeperConnectStringTls,omitempty"`
+}
+
+// ServerlessSasl is a generated Smithy structure.
+type ServerlessSasl struct {
+	Iam *Iam `json:"iam,omitempty"`
+}
+
+// ServerlessClientAuthentication is a generated Smithy structure.
+type ServerlessClientAuthentication struct {
+	Sasl *ServerlessSasl `json:"sasl,omitempty"`
+}
+
+// ServerlessConnectivityInfo is a generated Smithy structure.
+type ServerlessConnectivityInfo struct {
+	NetworkType *NetworkType `json:"networkType,omitempty"`
+}
+
+// VpcConfig is a generated Smithy structure.
+type VpcConfig struct {
+	SecurityGroupIds __listOf__string `json:"securityGroupIds,omitempty"`
+	SubnetIds        __listOf__string `json:"subnetIds,omitempty"`
+}
+
+// Serverless is a generated Smithy structure.
+type Serverless struct {
+	ClientAuthentication *ServerlessClientAuthentication `json:"clientAuthentication,omitempty"`
+	ConnectivityInfo     *ServerlessConnectivityInfo     `json:"connectivityInfo,omitempty"`
+	VpcConfigs           __listOfVpcConfig               `json:"vpcConfigs,omitempty"`
+}
+
+// Cluster is a generated Smithy structure.
+type Cluster struct {
+	ActiveOperationArn *string         `json:"activeOperationArn,omitempty"`
+	ClusterArn         *string         `json:"clusterArn,omitempty"`
+	ClusterName        *string         `json:"clusterName,omitempty"`
+	ClusterType        *ClusterType    `json:"clusterType,omitempty"`
+	CreationTime       *time.Time      `json:"creationTime,omitempty"`
+	CurrentVersion     *string         `json:"currentVersion,omitempty"`
+	Provisioned        *Provisioned    `json:"provisioned,omitempty"`
+	Serverless         *Serverless     `json:"serverless,omitempty"`
+	State              *ClusterState   `json:"state,omitempty"`
+	StateInfo          *StateInfo      `json:"stateInfo,omitempty"`
+	Tags               __mapOf__string `json:"tags,omitempty"`
+}
+
+// DescribeClusterV2Response is a generated Smithy structure.
+type DescribeClusterV2Response struct {
+	ClusterInfo *Cluster `json:"clusterInfo,omitempty"`
 }
 
 // DescribeTopicRequest is a generated Smithy structure.
@@ -670,8 +763,10 @@ type ListTopicsResponse struct {
 type KafkaBackend interface {
 	CreateClusterBackend
 	CreateTopicBackend
+	DeleteClusterBackend
 	DeleteTopicBackend
 	DescribeClusterBackend
+	DescribeClusterV2Backend
 	DescribeTopicBackend
 	GetBootstrapBrokersBackend
 	ListClustersBackend
@@ -698,6 +793,13 @@ func RegisterKafkaRoutes(router *restxml.Router, b KafkaBackend) {
 			ForbiddenQueries: []string{},
 		},
 	)
+	router.Register(DeleteClusterMethod, DeleteClusterURITemplate, "DeleteCluster", DeleteClusterHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{},
+			ForbiddenQueries: []string{},
+		},
+	)
 	router.Register(DeleteTopicMethod, DeleteTopicURITemplate, "DeleteTopic", DeleteTopicHandler(b),
 		restxml.RouteOptions{
 			RequiredHeaders:  []string{},
@@ -706,6 +808,13 @@ func RegisterKafkaRoutes(router *restxml.Router, b KafkaBackend) {
 		},
 	)
 	router.Register(DescribeClusterMethod, DescribeClusterURITemplate, "DescribeCluster", DescribeClusterHandler(b),
+		restxml.RouteOptions{
+			RequiredHeaders:  []string{},
+			RequiredQueries:  []string{},
+			ForbiddenQueries: []string{},
+		},
+	)
+	router.Register(DescribeClusterV2Method, DescribeClusterV2URITemplate, "DescribeClusterV2", DescribeClusterV2Handler(b),
 		restxml.RouteOptions{
 			RequiredHeaders:  []string{},
 			RequiredQueries:  []string{},
@@ -838,6 +947,56 @@ func CreateTopicHandler(b CreateTopicBackend) http.Handler {
 	})
 }
 
+// DeleteClusterBackend serves the DeleteCluster operation.
+type DeleteClusterBackend interface {
+	DeleteCluster(ctx context.Context, in *DeleteClusterRequest) (*DeleteClusterResponse, error)
+}
+
+// DeleteClusterURITemplate is the Smithy URI template for the operation.
+const DeleteClusterURITemplate = "/v1/clusters/{ClusterArn}"
+
+// DeleteClusterMethod is the HTTP method for the operation.
+const DeleteClusterMethod = "DELETE"
+
+// DeleteClusterHandler decodes a DeleteCluster request, dispatches to
+// the backend, and encodes the response per restJson1 semantics.
+func DeleteClusterHandler(b DeleteClusterBackend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		in := &DeleteClusterRequest{}
+		labels, ok := restxml.MatchURI(restxml.MatchPath(r), DeleteClusterURITemplate)
+		if !ok {
+			awsjson.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
+			return
+		}
+		_ = labels
+		q := r.URL.Query()
+		_ = q
+		if v, ok := labels["ClusterArn"]; ok {
+			in.ClusterArn = v
+		}
+		if v := q.Get("currentVersion"); v != "" {
+			s := v
+			in.CurrentVersion = &s
+		}
+
+		// Body fields decode as JSON when present.
+		if r.ContentLength != 0 {
+			_ = awsjson.DecodeJSON(w, r, in)
+		}
+		out, err := b.DeleteCluster(ctx, in)
+		if err != nil {
+			awsjson.WriteBackendError(w, err)
+			return
+		}
+		if out == nil {
+			awsjson.WriteJSON(w, 200, struct{}{})
+			return
+		}
+		awsjson.WriteJSON(w, 200, out)
+	})
+}
+
 // DeleteTopicBackend serves the DeleteTopic operation.
 type DeleteTopicBackend interface {
 	DeleteTopic(ctx context.Context, in *DeleteTopicRequest) (*DeleteTopicResponse, error)
@@ -921,6 +1080,52 @@ func DescribeClusterHandler(b DescribeClusterBackend) http.Handler {
 			_ = awsjson.DecodeJSON(w, r, in)
 		}
 		out, err := b.DescribeCluster(ctx, in)
+		if err != nil {
+			awsjson.WriteBackendError(w, err)
+			return
+		}
+		if out == nil {
+			awsjson.WriteJSON(w, 200, struct{}{})
+			return
+		}
+		awsjson.WriteJSON(w, 200, out)
+	})
+}
+
+// DescribeClusterV2Backend serves the DescribeClusterV2 operation.
+type DescribeClusterV2Backend interface {
+	DescribeClusterV2(ctx context.Context, in *DescribeClusterV2Request) (*DescribeClusterV2Response, error)
+}
+
+// DescribeClusterV2URITemplate is the Smithy URI template for the operation.
+const DescribeClusterV2URITemplate = "/api/v2/clusters/{ClusterArn}"
+
+// DescribeClusterV2Method is the HTTP method for the operation.
+const DescribeClusterV2Method = "GET"
+
+// DescribeClusterV2Handler decodes a DescribeClusterV2 request, dispatches to
+// the backend, and encodes the response per restJson1 semantics.
+func DescribeClusterV2Handler(b DescribeClusterV2Backend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		in := &DescribeClusterV2Request{}
+		labels, ok := restxml.MatchURI(restxml.MatchPath(r), DescribeClusterV2URITemplate)
+		if !ok {
+			awsjson.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
+			return
+		}
+		_ = labels
+		q := r.URL.Query()
+		_ = q
+		if v, ok := labels["ClusterArn"]; ok {
+			in.ClusterArn = v
+		}
+
+		// Body fields decode as JSON when present.
+		if r.ContentLength != 0 {
+			_ = awsjson.DecodeJSON(w, r, in)
+		}
+		out, err := b.DescribeClusterV2(ctx, in)
 		if err != nil {
 			awsjson.WriteBackendError(w, err)
 			return

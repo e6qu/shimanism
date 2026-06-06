@@ -183,6 +183,83 @@ func (l kgoTestLogger) Log(level kgo.LogLevel, msg string, keyvals ...any) {
 	l.t.Logf("kgo %s: %s %v", level, msg, keyvals)
 }
 
+func TestGCPSDK_ManagedKafkaClusterLifecycle(t *testing.T) {
+	srv := harness.StartEventStreamServerGCP(t, inmem.New())
+	svc := newManagedKafkaService(t, srv.URL)
+	ctx := context.Background()
+	parent := "projects/shim-conformance/locations/us-central1"
+	const clusterID = "sdk-test-cluster"
+	clusterName := parent + "/clusters/" + clusterID
+
+	// clusters.create → done=true Operation
+	createOp, err := svc.Projects.Locations.Clusters.Create(parent, &managedkafkaraw.Cluster{
+		CapacityConfig: &managedkafkaraw.CapacityConfig{
+			VcpuCount:       3,
+			MemoryBytes:     3 * 1024 * 1024 * 1024,
+			ForceSendFields: []string{"VcpuCount", "MemoryBytes"},
+		},
+		GcpConfig: &managedkafkaraw.GcpConfig{
+			AccessConfig: &managedkafkaraw.AccessConfig{
+				NetworkConfigs: []*managedkafkaraw.NetworkConfig{
+					{Subnet: "projects/shim-conformance/regions/us-central1/subnetworks/default"},
+				},
+			},
+		},
+	}).ClusterId(clusterID).Context(ctx).Do()
+	if err != nil {
+		t.Fatalf("clusters.create: %v", err)
+	}
+	if !createOp.Done {
+		t.Fatal("clusters.create: operation not immediately done")
+	}
+
+	// clusters.get
+	cluster, err := svc.Projects.Locations.Clusters.Get(clusterName).Context(ctx).Do()
+	if err != nil {
+		t.Fatalf("clusters.get: %v", err)
+	}
+	if cluster.Name != clusterName {
+		t.Errorf("clusters.get Name = %q, want %q", cluster.Name, clusterName)
+	}
+	if cluster.State != "ACTIVE" {
+		t.Errorf("clusters.get State = %q, want ACTIVE", cluster.State)
+	}
+
+	// clusters.list
+	list, err := svc.Projects.Locations.Clusters.List(parent).Context(ctx).Do()
+	if err != nil {
+		t.Fatalf("clusters.list: %v", err)
+	}
+	var found bool
+	for _, c := range list.Clusters {
+		if c.Name == clusterName {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("clusters.list: %q not found", clusterName)
+	}
+
+	// clusters.delete → done=true Operation
+	deleteOp, err := svc.Projects.Locations.Clusters.Delete(clusterName).Context(ctx).Do()
+	if err != nil {
+		t.Fatalf("clusters.delete: %v", err)
+	}
+	if !deleteOp.Done {
+		t.Fatal("clusters.delete: operation not immediately done")
+	}
+
+	// clusters.get after delete → 404
+	if _, err := svc.Projects.Locations.Clusters.Get(clusterName).Context(ctx).Do(); err == nil {
+		t.Fatal("clusters.get after delete: got nil, want 404")
+	} else {
+		var gerr *googleapi.Error
+		if !errors.As(err, &gerr) || gerr.Code != 404 {
+			t.Fatalf("clusters.get after delete error = %v, want googleapi 404", err)
+		}
+	}
+}
+
 func TestGCPSDK_ManagedKafkaRejectsOutOfIntersectionReplication(t *testing.T) {
 	srv := harness.StartEventStreamServerGCP(t, inmem.New())
 	svc := newManagedKafkaService(t, srv.URL)

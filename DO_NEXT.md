@@ -71,7 +71,7 @@ Phase 20.C AWS MSK checklist: ✅ COMPLETE (PR #153)
 - [x] Run full local verification (`make test`, `make lint`, `make license-check`, `make codegen-check`) — all green.
 - [x] Open PR #153 and merge after CI green.
 
-## Phase 20.D — Azure Event Hubs frontend ◐
+## Phase 20.D — Azure Event Hubs frontend ✅ COMPLETE
 
 - [x] Create branch `phase-20-azure-eventhubs-frontend`.
 - [x] Add Azure Event Hubs frontend (`internal/eventstream/frontends/azure_eventhubs/`) over `domain.Streams` with Azure Bearer auth and ARM-shaped errors; map namespace → cluster, event hub → topic. (ARM SDK types used directly; no azure-codegen route emission for eventstream.)
@@ -79,7 +79,26 @@ Phase 20.C AWS MSK checklist: ✅ COMPLETE (PR #153)
 - [x] Add official Azure SDK conformance (`armeventhub`) for namespace + event hub lifecycle, and real `kgo` produce/fetch against the Event Hubs Kafka endpoint.
 - [x] Reject out-of-intersection options (Basic SKU, CaptureDescription, BYOK, dedicated clusters, auto-inflate, partitionCount > 32) with 400 OperationNotSupported.
 - [x] Run full local verification (`make test`, `make lint`, `make license-check`, `make codegen-check`) — all green.
-- [ ] Open one Phase 20.D PR and monitor CI until green. Do not merge.
+- [x] Open Phase 20.D PR (on `phase-20-azure-eventhubs-frontend`). Awaiting CI + user merge.
+
+## Phase 20.E — Strimzi backend + full CLI/TF conformance matrix ◐
+
+- [x] File BUG-76: `DeleteCluster` missing from MSK codegen/adapter.
+- [x] File BUG-77: GCP Managed Kafka cluster CRUD not implemented.
+- [x] Fix BUG-76: add `DeleteCluster` + `DescribeClusterV2` to `codegen.json`, regenerate, implement in MSK adapter. Store kafka-version and instance-type in domain Tags for `DescribeClusterV2` / `clusterToAWS`.
+- [x] Fix BUG-77: add cluster create/get/list/delete to GCP Managed Kafka frontend with LRO `done=true` pattern using `googleapi.RawMessage`.
+- [x] Add `services/eventstream/backends/strimzi/strimzi.go`: Strimzi K8s backend for `domain.Streams` using dynamic client for `Kafka` + `KafkaTopic` CRDs. Data-plane ops return `ErrDataPlane` (clients connect directly to real Strimzi bootstrap).
+- [x] Add `services/eventstream/conformance/aws_cli_test.go`: AWS CLI cluster lifecycle + bootstrap-brokers + list-nodes (no topic CRUD — aws kafka CLI doesn't support it).
+- [x] Add `services/eventstream/conformance/gcp_cli_test.go`: GCP CLI cluster + topic lifecycle with `CLOUDSDK_API_ENDPOINT_OVERRIDES_MANAGEDKAFKA`.
+- [x] Add `services/eventstream/conformance/aws_terraform_test.go`: `aws_msk_cluster` resource with `endpoints { kafka = "..." }`, real Kafka server for bootstrap brokers.
+- [x] Add `services/eventstream/conformance/gcp_terraform_test.go`: `google_managed_kafka_cluster` + `google_managed_kafka_topic` resources.
+- [x] Add `services/eventstream/conformance/azure_cli_test.go`: placeholder (Azure Event Hubs CLI requires sockerless TLS).
+- [x] Add `services/eventstream/conformance/azure_terraform_test.go`: placeholder (Azure Event Hubs TF requires sockerless TLS).
+- [x] Add `TestGCPSDK_ManagedKafkaClusterLifecycle` to `gcp_sdk_test.go`.
+- [x] Run full local verification (`go test ./services/eventstream/... ./internal/eventstream/...`, `make lint`, `make license-check`) — all green.
+- [ ] Run `make codegen inject-provenance` and commit.
+- [ ] Check `gh pr list --state open` and ask user if a PR is already open before creating new one.
+- [ ] Open one Phase 20.E PR.
 
 ## Phase 18 — Container Registry ✅ COMPLETE
 
