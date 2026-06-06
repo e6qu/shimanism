@@ -36,6 +36,8 @@ import (
 	awsr53front "github.com/e6qu/shimanism/internal/dns/frontends/aws_route53"
 	azuredfront "github.com/e6qu/shimanism/internal/dns/frontends/azure_dns"
 	gcpdnsfront "github.com/e6qu/shimanism/internal/dns/frontends/gcp_clouddns"
+	eventstreamdomain "github.com/e6qu/shimanism/internal/eventstream/domain"
+	gcpmanagedkafkafront "github.com/e6qu/shimanism/internal/eventstream/frontends/gcp_managedkafka"
 	functionsdomain "github.com/e6qu/shimanism/internal/functions/domain"
 	awslambdafront "github.com/e6qu/shimanism/internal/functions/frontends/aws_lambda"
 	azurecafront "github.com/e6qu/shimanism/internal/functions/frontends/azure_containerapps"
@@ -746,6 +748,24 @@ func StartAPIGatewayServerAzure(t *testing.T, backend apigatewaydomain.APIGatewa
 	ts := httptest.NewServer(&logRoundTrip{t: t, mux: mw(srv)})
 	t.Cleanup(ts.Close)
 	return &APIGatewayServer{URL: ts.URL, Close: ts.Close}
+}
+
+// EventStreamServer is a started eventstream-shim instance.
+type EventStreamServer struct {
+	URL   string
+	Close func()
+}
+
+// StartEventStreamServerGCP starts a shim instance with the GCP
+// Managed Service for Apache Kafka REST frontend.
+func StartEventStreamServerGCP(t *testing.T, backend eventstreamdomain.Streams) *EventStreamServer {
+	t.Helper()
+	srv := gcpmanagedkafkafront.New(backend)
+	verifier := gcpbearer.New(gcpbearer.Options{Audience: "https://managedkafka.googleapis.com/", TestKey: []byte("test-key-do-not-use-in-prod")})
+	mw := gcpbearer.Middleware(verifier)
+	ts := httptest.NewServer(&logRoundTrip{t: t, mux: mw(srv)})
+	t.Cleanup(ts.Close)
+	return &EventStreamServer{URL: ts.URL, Close: ts.Close}
 }
 
 // logRoundTrip logs each request through the harness. Lightweight —

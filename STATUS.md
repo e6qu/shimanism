@@ -8,9 +8,9 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 
 | | |
 |---|---|
-| Active branch | `phase-20-kafka-handler` — Phase 20.B Kafka data-plane handler slice. |
-| In-flight | Minimal Kafka TCP handler/dispatcher is implemented locally and under focused test; finish broader verification, open the Phase 20.B PR, and monitor CI until green. Kafka work must perform real backend produce/fetch/metadata behavior or return honest Kafka errors; no fake broker path. |
-| Last merged | PR #149 — registry sockerless closeout after sockerless #475, removing stale BUG-65/66 skip gates. |
+| Active branch | `phase-20-gcp-managedkafka` — Phase 20.B GCP Managed Kafka first-frontend slice. |
+| In-flight | GCP Managed Kafka topic lifecycle over the real `domain.Streams` backend is implemented and verified locally with the official `google.golang.org/api/managedkafka/v1` SDK. Next: open the Phase 20.B GCP frontend PR and monitor CI. Replication factor and unsupported topic configs fail loudly rather than being ignored. |
+| Last merged | PR #150 — Kafka data-plane handler/dispatcher for real metadata, topic lifecycle, produce/fetch, offsets, and honest Kafka errors. |
 | Upstream watch | Registry sockerless: BUG-67/#465 remains open. BUG-65/#451 and BUG-66/#452/#469 are closed on current sockerless main. |
 | Phases 1–19 | 1–19 closed. See [PLAN.md § Closed phases](PLAN.md#closed-phases-pr-index). |
 | Phase 19 | ✅ complete — 19.A (#127) · 19.B (#128) · 19.C (#129) · 19.D (#130 CLI/TF, #131 sockerless). All 4 backends, full SDK/CLI/TF, all sockerless lanes green, zero skips. |

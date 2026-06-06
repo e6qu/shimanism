@@ -12,16 +12,16 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 
 **Open bugs:** BUG-8 · BUG-15 · BUG-41 (Track A only — blocked on real GCP credentials) · BUG-67 (sockerless AWS ECR manifest `HEAD`, filed upstream as sockerless#465) · BUG-68/69 (local sockerless-runner/KMS-lane findings).
 
-**Current branch:** `phase-20-kafka-handler` follows merged PR #149. This slice continues Phase 20.B's minimal Kafka data-plane handler. It must not register a fake Kafka broker or synthetic success path.
+**Current branch:** `phase-20-gcp-managedkafka` follows merged PR #150. This slice continues Phase 20.B by adding the first cloud-shaped eventstream frontend: GCP Managed Kafka topic lifecycle over `domain.Streams`, with official REST SDK conformance. It must reject out-of-intersection `replicationFactor` and unsupported topic configs instead of silently ignoring them.
 
 ## Session-start checklist
 
-1. Stay on `phase-20-kafka-handler` unless this PR has already merged; if it has, sync `main` before starting the next branch.
-2. Continue the Phase 20.B Kafka handler slice from [PLAN.md § Phase 20](PLAN.md#phase-20--event-streaming) and [docs/phase-20-scoping.md](docs/phase-20-scoping.md) after the registry sockerless closeout is merged.
+1. Stay on `phase-20-gcp-managedkafka` unless this PR has already merged; if it has, sync `main` before starting the next branch.
+2. Continue the Phase 20.B first-frontend slice from [PLAN.md § Phase 20](PLAN.md#phase-20--event-streaming) and [docs/phase-20-scoping.md](docs/phase-20-scoping.md).
 
 ## Phase 20 — Event Streaming ◐
 
-Phase 20 is planned around ordered, partitioned event streams with a Kafka-compatible data plane. PR #147 merged the first 20.A foundation slice: scoping is done, the domain is defined, Strimzi is the honest K8s peer choice, and the inmem backend is a real append-only partition log. PR #148 added the real Kafka frame/runtime boundary without faking a broker.
+Phase 20 is planned around ordered, partitioned event streams with a Kafka-compatible data plane. PR #147 merged the first 20.A foundation slice: scoping is done, the domain is defined, Strimzi is the honest K8s peer choice, and the inmem backend is a real append-only partition log. PR #148 added the real Kafka frame/runtime boundary without faking a broker. PR #150 added the first real Kafka dispatcher.
 
 Merged 20.A foundation checklist:
 
@@ -48,7 +48,11 @@ Current Phase 20.B data-plane checklist:
 - [x] Implement the minimal Kafka TCP handler/dispatcher for honest metadata/produce/fetch behavior.
 - [x] Add SDK/client conformance around the Kafka handler and inmem backend.
 - [x] Run local verification (`make test`, `make lint`, `make license-check`).
-- [ ] Open one Phase 20.B PR and monitor CI until green. Do not merge it.
+- [x] Open and merge the Kafka handler PR (#150).
+- [x] Add GCP Managed Kafka topic lifecycle frontend over `domain.Streams`.
+- [x] Add official GCP Managed Kafka SDK conformance for topic create/get/list/delete and out-of-intersection rejection.
+- [x] Run local verification (`make test`, `make lint`, `make license-check`).
+- [ ] Open one Phase 20.B GCP frontend PR and monitor CI until green. Do not merge it.
 
 ## Phase 18 — Container Registry ✅ COMPLETE
 

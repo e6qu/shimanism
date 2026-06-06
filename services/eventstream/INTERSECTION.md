@@ -52,6 +52,8 @@ The first implementation slice defines:
 - `services/eventstream/backends/inmem`: a real in-process append-only partition
   log for tests and local development.
 
-No event-streaming frontend is registered yet. There is no fake Kafka server in
-this slice. The next slice must choose a license-compatible Kafka protocol/client
-package and implement the data plane against real Kafka wire requests.
+The first Kafka data-plane dispatcher is registered as an internal runtime, and
+the first cloud-shaped control-plane frontend is GCP Managed Kafka topic
+lifecycle. There is no fake Kafka server: every successful Kafka or REST topic
+response must come from `domain.Streams`, and out-of-intersection features must
+return Kafka/source-cloud errors.
