@@ -55,6 +55,14 @@ generated Kafka request/response structs through the handler and the real inmem
 backend for create, metadata, produce, fetch, list offsets, commit, and offset
 fetch.
 
+The next Phase 20.B slice starts the first cloud-shaped frontend with GCP
+Managed Kafka topic lifecycle. The frontend maps the official REST topic
+create/get/list/delete surface onto `domain.Streams` and keeps Kafka produce/fetch
+on the real Kafka dispatcher. `replicationFactor` remains a deliberate
+out-of-intersection input: GCP exposes it, but Azure Event Hubs does not expose
+Kafka replication as a user-controlled setting, so the shim rejects non-zero
+values instead of accepting and ignoring them.
+
 ## Code health audit baseline: in progress
 
 After Phase 18 closed, the next maintenance thread is explicit dead-code and copy-paste detection. The repo already runs `staticcheck` + `unused` through `golangci-lint`, so the baseline adds advisory audits rather than a new hard gate: `dupl` through the existing `golangci-lint` binary for duplicate Go fragments, and the official `golang.org/x/tools/cmd/deadcode` command for call-graph reachability. The first duplicate scan found real cleanup candidates in `cmd/shim`, compute inmem/K8s helpers, and secrets Terraform conformance tests. The first deadcode scan was useful but noisy around generated code and library-style entry points, so it stays audit-only with generated-code filtering.

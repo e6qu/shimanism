@@ -5,15 +5,16 @@ records, offset reads, and consumer-group committed offsets. It is not a
 replacement for Phase 4 pub/sub fan-out.
 
 Phase 20 is in progress. The current implementation has the neutral domain
-contract, the real inmem append-only log backend, and the shared Kafka TCP frame
-codec. No cloud frontend or Kafka request dispatcher is registered yet.
+contract, the real inmem append-only log backend, the shared Kafka TCP frame
+codec, and the first Kafka request dispatcher for real metadata, topic
+lifecycle, produce/fetch, and offsets.
 
 ## Frontends
 
 | Frontend | Wire protocol | Status |
 |---|---|---|
 | AWS MSK | MSK restJson1 control plane + Kafka data plane | Planned. |
-| GCP Managed Kafka | Discovery REST control plane + Kafka data plane | Planned. |
+| GCP Managed Kafka | Discovery REST control plane + Kafka data plane | In progress: topic lifecycle frontend over `domain.Streams`. |
 | Azure Event Hubs | ARM control plane + Event Hubs Kafka endpoint | Planned. |
 
 ## Backends
@@ -33,16 +34,16 @@ codec. No cloud frontend or Kafka request dispatcher is registered yet.
 
 ## Conformance
 
-Conformance is not active until the first frontend is registered. The next slice
-must use real Kafka/client surfaces for data-plane tests and the official cloud
-SDK/CLI/Terraform surfaces for control-plane tests.
+Conformance is active for the first slices: Kafka handler tests drive real Kafka
+frames through the dispatcher, and the GCP Managed Kafka topic-control plane is
+driven by the official REST SDK. Later slices must add CLI/Terraform and the
+remaining cloud frontends/backends.
 
 ## Known Gaps
 
-- Kafka request dispatch is not implemented yet. The frame codec can decode real
-  Kafka request headers/bodies and frame responses, but no successful Kafka
-  operation is registered.
-- Cloud control-plane frontends and real connected backends are not implemented
-  yet.
+- Kafka request dispatch exists for the first data-plane slice. Unsupported
+  Kafka features return explicit Kafka errors rather than synthetic success.
+- AWS/Azure control-plane frontends and real connected backends are not
+  implemented yet.
 - Consumer-group protocol behavior beyond committed offset storage still needs
   a real Kafka implementation plan.
