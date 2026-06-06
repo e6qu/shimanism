@@ -74,12 +74,22 @@ func activeTopicState() *gen.TopicState {
 }
 
 func clusterToAWS(c domain.Cluster) *gen.ClusterInfo {
+	kafkaVersion := c.Tags["shimanism.io/kafka-version"]
+	if kafkaVersion == "" {
+		kafkaVersion = "2.8.0"
+	}
+	instanceType := c.Tags["shimanism.io/instance-type"]
+	if instanceType == "" {
+		instanceType = "kafka.m5.large"
+	}
 	return &gen.ClusterInfo{
-		ClusterArn:          strp(c.ID),
-		ClusterName:         strp(c.Name),
-		CreationTime:        &c.CreatedAt,
-		NumberOfBrokerNodes: i32p(int32(c.BrokerCount)),
-		State:               activeClusterState(),
+		ClusterArn:                strp(c.ID),
+		ClusterName:               strp(c.Name),
+		CreationTime:              &c.CreatedAt,
+		NumberOfBrokerNodes:       i32p(int32(c.BrokerCount)),
+		State:                     activeClusterState(),
+		CurrentBrokerSoftwareInfo: &gen.BrokerSoftwareInfo{KafkaVersion: strp(kafkaVersion)},
+		BrokerNodeGroupInfo:       &gen.BrokerNodeGroupInfo{InstanceType: instanceType},
 	}
 }
 
@@ -113,10 +123,18 @@ func (a *Adapter) CreateCluster(ctx context.Context, in *gen.CreateClusterReques
 		return nil, err
 	}
 	arn := clusterARN(in.ClusterName)
+	tags := map[string]string(in.Tags)
+	if tags == nil {
+		tags = make(map[string]string)
+	}
+	tags["shimanism.io/kafka-version"] = in.KafkaVersion
+	if in.BrokerNodeGroupInfo != nil && in.BrokerNodeGroupInfo.InstanceType != "" {
+		tags["shimanism.io/instance-type"] = in.BrokerNodeGroupInfo.InstanceType
+	}
 	cluster, err := a.s.CreateCluster(ctx, arn, in.ClusterName, domain.CreateClusterOptions{
 		BrokerCount:      int(in.NumberOfBrokerNodes),
 		BootstrapBrokers: a.bootstrapBrokers,
-		Tags:             map[string]string(in.Tags),
+		Tags:             tags,
 	})
 	if err != nil {
 		return nil, mapErr(err)
@@ -125,6 +143,47 @@ func (a *Adapter) CreateCluster(ctx context.Context, in *gen.CreateClusterReques
 		ClusterArn:  strp(cluster.ID),
 		ClusterName: strp(cluster.Name),
 		State:       activeClusterState(),
+	}, nil
+}
+
+func (a *Adapter) DeleteCluster(ctx context.Context, in *gen.DeleteClusterRequest) (*gen.DeleteClusterResponse, error) {
+	if err := a.s.DeleteCluster(ctx, in.ClusterArn); err != nil {
+		return nil, mapErr(err)
+	}
+	deletingState := gen.ClusterStateDELETING
+	return &gen.DeleteClusterResponse{
+		ClusterArn: strp(in.ClusterArn),
+		State:      &deletingState,
+	}, nil
+}
+
+func (a *Adapter) DescribeClusterV2(ctx context.Context, in *gen.DescribeClusterV2Request) (*gen.DescribeClusterV2Response, error) {
+	cluster, err := a.s.DescribeCluster(ctx, in.ClusterArn)
+	if err != nil {
+		return nil, mapErr(err)
+	}
+	provisionedType := gen.ClusterTypePROVISIONED
+	kafkaVersion := cluster.Tags["shimanism.io/kafka-version"]
+	if kafkaVersion == "" {
+		kafkaVersion = "2.8.0"
+	}
+	instanceType := cluster.Tags["shimanism.io/instance-type"]
+	if instanceType == "" {
+		instanceType = "kafka.m5.large"
+	}
+	return &gen.DescribeClusterV2Response{
+		ClusterInfo: &gen.Cluster{
+			ClusterArn:   strp(cluster.ID),
+			ClusterName:  strp(cluster.Name),
+			ClusterType:  &provisionedType,
+			CreationTime: &cluster.CreatedAt,
+			State:        activeClusterState(),
+			Provisioned: &gen.Provisioned{
+				NumberOfBrokerNodes:       int32(cluster.BrokerCount),
+				CurrentBrokerSoftwareInfo: &gen.BrokerSoftwareInfo{KafkaVersion: strp(kafkaVersion)},
+				BrokerNodeGroupInfo:       &gen.BrokerNodeGroupInfo{InstanceType: instanceType},
+			},
+		},
 	}, nil
 }
 
@@ -281,8 +340,8 @@ func rejectOutOfIntersectionClusterOptions(in *gen.CreateClusterRequest) error {
 	if in.EncryptionInfo != nil {
 		return badRequest("encryptionInfo is out of the eventstream intersection")
 	}
-	if in.EnhancedMonitoring != nil {
-		return badRequest("enhancedMonitoring is out of the eventstream intersection")
+	if in.EnhancedMonitoring != nil && *in.EnhancedMonitoring != gen.EnhancedMonitoringDEFAULT {
+		return badRequest("enhancedMonitoring must be DEFAULT in the eventstream intersection")
 	}
 	if in.LoggingInfo != nil {
 		return badRequest("loggingInfo is out of the eventstream intersection")

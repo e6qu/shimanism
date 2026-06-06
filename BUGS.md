@@ -1,6 +1,6 @@
 # Known Bugs
 
-**73 filed · 66 fixed · 6 open · 1 false positive.** BUG-65 and BUG-66 are closed after sockerless PR #475 added the ACR OAuth2 token service and the registry GCP/Azure through-shim push/pull lanes passed against rebuilt sockerless main. Track A (BUG-8 + BUG-15) remains blocked on real GCP credentials. Registry's remaining simulator skip is BUG-67.
+**77 filed · 68 fixed · 8 open · 1 false positive.** BUG-65 and BUG-66 are closed after sockerless PR #475 added the ACR OAuth2 token service and the registry GCP/Azure through-shim push/pull lanes passed against rebuilt sockerless main. Track A (BUG-8 + BUG-15) remains blocked on real GCP credentials. Registry's remaining simulator skip is BUG-67. BUG-76 and BUG-77 filed and fixed in Phase 20.E.
 
 Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLAN.md](PLAN.md) · narrative [WHAT_WE_DID.md](WHAT_WE_DID.md) · rules [AGENTS.md](AGENTS.md).
 
@@ -23,6 +23,8 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 | BUG-67 | P2 | registry/aws-ecr-sockerless | AWS ECR `/v2/` manifest HEAD | Sockerless AWS ECR now has `/v2/`, but OCI push through the shim fails when `HEAD /v2/{repo}/manifests/{tag}` returns 400 for a missing tag instead of the Distribution/ECR missing-manifest shape. Filed upstream as [sockerless#465](https://github.com/e6qu/sockerless/issues/465). | **18.D** |
 | BUG-68 | P2 | sockerless-runner/certs | `scripts/run-sockerless-storage.sh` | `ensure_cert` reuses `/tmp/sockerless-tls/sim.crt` when SANs match but does not check expiry, so an expired cached cert makes Azure TLS lanes fail with `x509: certificate has expired or is not yet valid`. | **20.B** |
 | BUG-69 | P2 | kms/sockerless-lane | `hashicorp/aws` Terraform | Fresh full sockerless validation surfaced `TestSockerless_AWSKMS_Through_Shim_TerraformTaggedKey` exiting with Terraform detailed-exitcode 2 while the test only printed stderr, hiding the plan diff needed to classify shim vs simulator vs provider behavior. | **20.B** |
+| BUG-76 | P2 | eventstream/aws-msk | AWS MSK `DeleteCluster` | ✅ Fixed in Phase 20.E: `DeleteCluster` and `DescribeClusterV2` added to `codegen.json`, regenerated, and implemented in the MSK adapter. | **20.E** |
+| BUG-77 | P2 | eventstream/gcp-managedkafka | GCP Managed Kafka cluster CRUD | ✅ Fixed in Phase 20.E: cluster create/get/list/delete with LRO `done=true` added to `gcp_managedkafka/server.go`. | **20.E** |
 
 ## Upstream-tracked (sockerless validation lane)
 

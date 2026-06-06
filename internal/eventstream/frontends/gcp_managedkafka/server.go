@@ -13,6 +13,7 @@ import (
 
 	"github.com/e6qu/shimanism/internal/eventstream/domain"
 
+	"google.golang.org/api/googleapi"
 	managedkafkaraw "google.golang.org/api/managedkafka/v1"
 )
 
@@ -32,30 +33,80 @@ func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	segs := strings.Split(rest, "/")
-	// /v1/projects/{project}/locations/{location}/clusters/{cluster}/topics[/{topic}]
-	if len(segs) < 6 || segs[0] != "projects" || segs[2] != "locations" || segs[4] != "clusters" {
+	// Minimum: projects/{project}/locations/{location}/{resource}
+	if len(segs) < 5 || segs[0] != "projects" || segs[2] != "locations" {
 		writeError(w, http.StatusNotFound, "NOT_FOUND", "no GCP Managed Kafka route matches "+r.Method+" "+path)
 		return
 	}
-	if len(segs) < 7 || segs[6] != "topics" {
-		writeError(w, http.StatusNotImplemented, "UNIMPLEMENTED", "only topic lifecycle routes are implemented in this Phase 20 slice")
-		return
+	project, location := segs[1], segs[3]
+
+	switch segs[4] {
+	case "operations":
+		// GET /v1/projects/{project}/locations/{location}/operations/{opId}
+		if r.Method == http.MethodGet && len(segs) == 6 {
+			srv.getOperation(w, r, project, location, segs[5])
+		} else {
+			writeError(w, http.StatusNotFound, "NOT_FOUND", "no GCP Managed Kafka route matches "+r.Method+" "+path)
+		}
+	case "clusters":
+		srv.routeCluster(w, r, path, project, location, segs[5:])
+	default:
+		writeError(w, http.StatusNotFound, "NOT_FOUND", "no GCP Managed Kafka route matches "+r.Method+" "+path)
 	}
-	project, location, cluster := segs[1], segs[3], segs[5]
-	parent := fmt.Sprintf("projects/%s/locations/%s/clusters/%s", project, location, cluster)
-	if len(segs) == 7 || (len(segs) == 8 && segs[7] == "") {
+}
+
+func (srv *Server) routeCluster(w http.ResponseWriter, r *http.Request, path, project, location string, rest []string) {
+	// rest = segs[5:], i.e. everything after "clusters"
+	// len(rest)==0 → /clusters  (list or create)
+	// len(rest)==1 → /clusters/{cluster}  (get or delete)
+	// len(rest)==2 → /clusters/{cluster}/topics  (list or create topic)
+	// len(rest)==3 → /clusters/{cluster}/topics/{topic}  (get or delete topic)
+	parentBase := fmt.Sprintf("projects/%s/locations/%s", project, location)
+	switch len(rest) {
+	case 0, 1:
+		if len(rest) == 0 || rest[0] == "" {
+			// /v1/projects/{project}/locations/{location}/clusters
+			switch r.Method {
+			case http.MethodGet:
+				srv.listClusters(w, r, project, location)
+			case http.MethodPost:
+				srv.createCluster(w, r, project, location, parentBase)
+			default:
+				writeError(w, http.StatusMethodNotAllowed, "FAILED_PRECONDITION", r.Method+" not allowed on clusters")
+			}
+			return
+		}
+		// /v1/projects/{project}/locations/{location}/clusters/{cluster}
+		cluster := rest[0]
 		switch r.Method {
 		case http.MethodGet:
-			srv.listTopics(w, r, parent, cluster)
-		case http.MethodPost:
-			srv.createTopic(w, r, parent, cluster)
+			srv.getCluster(w, r, project, location, cluster)
+		case http.MethodDelete:
+			srv.deleteCluster(w, r, project, location, cluster)
 		default:
-			writeError(w, http.StatusMethodNotAllowed, "FAILED_PRECONDITION", r.Method+" not allowed on topics")
+			writeError(w, http.StatusMethodNotAllowed, "FAILED_PRECONDITION", r.Method+" not allowed on cluster")
 		}
-		return
-	}
-	if len(segs) == 8 {
-		topic := segs[7]
+	case 2, 3:
+		if len(rest) < 2 || rest[1] != "topics" {
+			writeError(w, http.StatusNotFound, "NOT_FOUND", "no GCP Managed Kafka route matches "+r.Method+" "+path)
+			return
+		}
+		cluster := rest[0]
+		parent := parentBase + "/clusters/" + cluster
+		if len(rest) == 2 || (len(rest) == 3 && rest[2] == "") {
+			// /clusters/{cluster}/topics
+			switch r.Method {
+			case http.MethodGet:
+				srv.listTopics(w, r, parent, cluster)
+			case http.MethodPost:
+				srv.createTopic(w, r, parent, cluster)
+			default:
+				writeError(w, http.StatusMethodNotAllowed, "FAILED_PRECONDITION", r.Method+" not allowed on topics")
+			}
+			return
+		}
+		// /clusters/{cluster}/topics/{topic}
+		topic := rest[2]
 		fullName := parent + "/topics/" + topic
 		switch r.Method {
 		case http.MethodGet:
@@ -63,13 +114,92 @@ func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		case http.MethodDelete:
 			srv.deleteTopic(w, r, cluster, topic)
 		case http.MethodPatch:
-			writeError(w, http.StatusNotImplemented, "UNIMPLEMENTED", "topic patch is out of the first eventstream frontend slice")
+			writeError(w, http.StatusNotImplemented, "UNIMPLEMENTED", "topic patch is out of the eventstream intersection")
 		default:
 			writeError(w, http.StatusMethodNotAllowed, "FAILED_PRECONDITION", r.Method+" not allowed on topic")
 		}
+	default:
+		writeError(w, http.StatusNotFound, "NOT_FOUND", "no GCP Managed Kafka route matches "+r.Method+" "+path)
+	}
+}
+
+func (srv *Server) createCluster(w http.ResponseWriter, r *http.Request, project, location, parentBase string) {
+	clusterID := r.URL.Query().Get("clusterId")
+	if clusterID == "" {
+		writeError(w, http.StatusBadRequest, "INVALID_ARGUMENT", "clusterId is required")
 		return
 	}
-	writeError(w, http.StatusNotFound, "NOT_FOUND", "no GCP Managed Kafka route matches "+r.Method+" "+path)
+	var body managedkafkaraw.Cluster
+	if !decodeJSON(w, r, &body) {
+		return
+	}
+	brokerCount := 1
+	if body.CapacityConfig != nil && body.CapacityConfig.VcpuCount > 0 {
+		brokerCount = int(body.CapacityConfig.VcpuCount / 3)
+		if brokerCount < 1 {
+			brokerCount = 1
+		}
+	}
+	// Use clusterID (short name) as the domain key — same convention as topic ops.
+	cluster, err := srv.s.CreateCluster(r.Context(), clusterID, clusterID, domain.CreateClusterOptions{
+		BrokerCount: brokerCount,
+	})
+	if err != nil {
+		mapDomainError(w, err)
+		return
+	}
+	op := terminalOperation(
+		fmt.Sprintf("%s/operations/create-%s", parentBase, clusterID),
+		clusterToGCP(project, location, clusterID, cluster),
+	)
+	writeJSON(w, http.StatusOK, op)
+}
+
+func (srv *Server) getCluster(w http.ResponseWriter, r *http.Request, project, location, clusterID string) {
+	cluster, err := srv.s.DescribeCluster(r.Context(), clusterID)
+	if err != nil {
+		mapDomainError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, clusterToGCP(project, location, clusterID, cluster))
+}
+
+func (srv *Server) listClusters(w http.ResponseWriter, r *http.Request, project, location string) {
+	pageSize, ok := parsePageSize(w, r.URL.Query().Get("pageSize"))
+	if !ok {
+		return
+	}
+	res, err := srv.s.ListClusters(r.Context(), domain.ListClustersOptions{
+		MaxResults: pageSize,
+		NextToken:  r.URL.Query().Get("pageToken"),
+	})
+	if err != nil {
+		mapDomainError(w, err)
+		return
+	}
+	resp := managedkafkaraw.ListClustersResponse{NextPageToken: res.NextToken}
+	for _, c := range res.Clusters {
+		clust := c
+		// Cluster.Name holds the short ID set at creation time.
+		resp.Clusters = append(resp.Clusters, clusterToGCP(project, location, clust.Name, clust))
+	}
+	writeJSON(w, http.StatusOK, &resp)
+}
+
+func (srv *Server) deleteCluster(w http.ResponseWriter, r *http.Request, project, location, clusterID string) {
+	if err := srv.s.DeleteCluster(r.Context(), clusterID); err != nil {
+		mapDomainError(w, err)
+		return
+	}
+	parentBase := fmt.Sprintf("projects/%s/locations/%s", project, location)
+	op := emptyOperation(fmt.Sprintf("%s/operations/delete-%s", parentBase, clusterID))
+	writeJSON(w, http.StatusOK, op)
+}
+
+func (srv *Server) getOperation(w http.ResponseWriter, r *http.Request, project, location, opID string) {
+	parentBase := fmt.Sprintf("projects/%s/locations/%s", project, location)
+	op := emptyOperation(fmt.Sprintf("%s/operations/%s", parentBase, opID))
+	writeJSON(w, http.StatusOK, op)
 }
 
 func (srv *Server) createTopic(w http.ResponseWriter, r *http.Request, parent, cluster string) {
@@ -133,13 +263,58 @@ func (srv *Server) deleteTopic(w http.ResponseWriter, r *http.Request, cluster, 
 	writeJSON(w, http.StatusOK, &managedkafkaraw.Empty{})
 }
 
+func clusterToGCP(project, location, clusterID string, c domain.Cluster) *managedkafkaraw.Cluster {
+	vcpu := int64(c.BrokerCount * 3)
+	if vcpu < 3 {
+		vcpu = 3
+	}
+	memBytes := vcpu * 1024 * 1024 * 1024
+	return &managedkafkaraw.Cluster{
+		Name:  fmt.Sprintf("projects/%s/locations/%s/clusters/%s", project, location, clusterID),
+		State: "ACTIVE",
+		CapacityConfig: &managedkafkaraw.CapacityConfig{
+			VcpuCount:       vcpu,
+			MemoryBytes:     memBytes,
+			ForceSendFields: []string{"VcpuCount", "MemoryBytes"},
+		},
+		GcpConfig: &managedkafkaraw.GcpConfig{
+			AccessConfig: &managedkafkaraw.AccessConfig{
+				NetworkConfigs: []*managedkafkaraw.NetworkConfig{
+					{Subnet: "projects/" + project + "/regions/" + location + "/subnetworks/default"},
+				},
+			},
+		},
+	}
+}
+
+// terminalOperation wraps a resource as a done=true GCP LRO response.
+func terminalOperation(name string, resource any) *managedkafkaraw.Operation {
+	raw, _ := json.Marshal(resource)
+	return &managedkafkaraw.Operation{
+		Name:            name,
+		Done:            true,
+		Response:        googleapi.RawMessage(raw),
+		ForceSendFields: []string{"Done"},
+	}
+}
+
+// emptyOperation returns a done=true GCP LRO with an empty response payload.
+func emptyOperation(name string) *managedkafkaraw.Operation {
+	return &managedkafkaraw.Operation{
+		Name:            name,
+		Done:            true,
+		Response:        googleapi.RawMessage(`{}`),
+		ForceSendFields: []string{"Done"},
+	}
+}
+
 func createOptionsFromGCP(w http.ResponseWriter, topic *managedkafkaraw.Topic) (domain.CreateTopicOptions, bool) {
 	if topic.PartitionCount <= 0 {
 		writeError(w, http.StatusBadRequest, "INVALID_ARGUMENT", "partitionCount must be positive")
 		return domain.CreateTopicOptions{}, false
 	}
-	if topic.ReplicationFactor != 0 {
-		writeError(w, http.StatusBadRequest, "INVALID_ARGUMENT", "replicationFactor is not portable in the eventstream intersection")
+	if topic.ReplicationFactor != 0 && topic.ReplicationFactor != 1 {
+		writeError(w, http.StatusBadRequest, "INVALID_ARGUMENT", "replicationFactor must be 1 (the only portable value in the eventstream intersection)")
 		return domain.CreateTopicOptions{}, false
 	}
 	retention, ok := retentionFromConfigs(w, topic.Configs)

@@ -6,8 +6,10 @@
   "operations": [
     "CreateCluster",
     "CreateTopic",
+    "DeleteCluster",
     "DeleteTopic",
     "DescribeCluster",
+    "DescribeClusterV2",
     "DescribeTopic",
     "GetBootstrapBrokers",
     "ListClusters",
