@@ -35,9 +35,25 @@ auth, backend calls, and source/Kafka error mapping.
 `internal/eventstream/kafkawire` now reads Kafka size-prefixed frames, decodes
 request headers and flexible tagged headers, hands request bodies to `kmsg`, and
 frames generated responses back onto the wire. Unsupported API keys, unsupported
-versions, malformed frames, and oversized frames fail loudly. There is still no
-Kafka dispatcher and no successful Produce/Fetch/Metadata path; that comes only
-when the handler can perform real backend work or return honest Kafka errors.
+versions, malformed frames, and oversized frames fail loudly. At that point
+there was intentionally no Kafka dispatcher and no successful
+Produce/Fetch/Metadata path; the handler could only land once it performed real
+backend work or returned honest Kafka errors.
+
+The Phase 20.B handler slice adds that first dispatcher without introducing a
+fake broker. `internal/eventstream/kafkaserver` maps Kafka `ApiVersions`,
+`Metadata`, `CreateTopics`, `DeleteTopics`, `Produce`, `Fetch`, `ListOffsets`,
+`FindCoordinator`, `OffsetCommit`, and `OffsetFetch` requests onto
+`domain.Streams`. It parses and validates real Kafka record batches, rejects
+compression / transactions / topic IDs / timestamp offset lookup with Kafka
+error codes rather than pretending support, and encodes fetched backend records
+back into CRC32C-valid Kafka record batches. Stateless consumer-group membership
+(`JoinGroup` / `SyncGroup` / `Heartbeat` / `LeaveGroup`) remains out of
+intersection and returns explicit Kafka group errors; committed offset storage is
+real backend state through the domain interface. Focused wire-level tests drive
+generated Kafka request/response structs through the handler and the real inmem
+backend for create, metadata, produce, fetch, list offsets, commit, and offset
+fetch.
 
 ## Code health audit baseline: in progress
 
