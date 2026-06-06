@@ -3,6 +3,7 @@ package sigv4verifier_test
 import (
 	"context"
 	"net/http"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -57,6 +58,30 @@ func TestVerifier_AcceptsValidSignature(t *testing.T) {
 
 	if err := v.Verify(req); err != nil {
 		t.Errorf("Verify on valid signature returned error: %v", err)
+	}
+}
+
+func TestVerifier_AcceptsEscapedARNPathLabel(t *testing.T) {
+	store := testStore{key: "AKIAIOSFODNN7EXAMPLE", secret: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"}
+	v := sigv4verifier.New(store, sigv4verifier.Options{
+		Service: "kafka",
+		Region:  "us-east-1",
+	})
+	creds := aws.Credentials{AccessKeyID: store.key, SecretAccessKey: store.secret}
+	arn := "arn:aws:kafka:us-east-1:000000000000:cluster/cluster-a/uuid-1"
+	req, err := http.NewRequest(http.MethodGet, "http://example/v1/clusters/"+arn, nil)
+	if err != nil {
+		t.Fatalf("NewRequest: %v", err)
+	}
+	req.URL.RawPath = "/v1/clusters/" + url.PathEscape(arn)
+	req.Header.Set("Content-Type", "application/x-amz-json-1.1")
+	signer := v4.NewSigner()
+	if err := signer.SignHTTP(context.Background(), creds, req, sha256Hex(""), "kafka", "us-east-1", time.Now().UTC()); err != nil {
+		t.Fatalf("SignHTTP: %v", err)
+	}
+
+	if err := v.Verify(req); err != nil {
+		t.Errorf("Verify on escaped ARN path label returned error: %v", err)
 	}
 }
 

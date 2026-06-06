@@ -13,8 +13,39 @@ import (
 	"time"
 )
 
+// Cluster describes a managed Kafka cluster or namespace.
+type Cluster struct {
+	ID               string
+	Name             string
+	BrokerCount      int
+	BootstrapBrokers []string
+	Tags             map[string]string
+	CreatedAt        time.Time
+}
+
+// CreateClusterOptions controls CreateCluster.
+type CreateClusterOptions struct {
+	BrokerCount      int
+	BootstrapBrokers []string
+	Tags             map[string]string
+}
+
+// ListClustersOptions controls ListClusters.
+type ListClustersOptions struct {
+	NameFilter string
+	MaxResults int
+	NextToken  string
+}
+
+// ListClustersResult is the ListClusters response.
+type ListClustersResult struct {
+	Clusters  []Cluster
+	NextToken string
+}
+
 // Topic describes a partitioned event-stream topic.
 type Topic struct {
+	ClusterID      string
 	Name           string
 	PartitionCount int
 	Retention      time.Duration
@@ -31,6 +62,7 @@ type CreateTopicOptions struct {
 
 // ListTopicsOptions controls ListTopics.
 type ListTopicsOptions struct {
+	ClusterID  string
 	Prefix     string
 	MaxResults int
 	NextToken  string
@@ -86,15 +118,20 @@ type OffsetBounds struct {
 // Streams is the interface every event-stream backend implements.
 // Implementations must be safe for concurrent use across goroutines.
 type Streams interface {
-	CreateTopic(ctx context.Context, name string, opt CreateTopicOptions) (Topic, error)
-	DeleteTopic(ctx context.Context, name string) error
-	DescribeTopic(ctx context.Context, name string) (Topic, error)
+	CreateCluster(ctx context.Context, id, name string, opt CreateClusterOptions) (Cluster, error)
+	DeleteCluster(ctx context.Context, id string) error
+	DescribeCluster(ctx context.Context, id string) (Cluster, error)
+	ListClusters(ctx context.Context, opt ListClustersOptions) (ListClustersResult, error)
+
+	CreateTopic(ctx context.Context, clusterID, name string, opt CreateTopicOptions) (Topic, error)
+	DeleteTopic(ctx context.Context, clusterID, name string) error
+	DescribeTopic(ctx context.Context, clusterID, name string) (Topic, error)
 	ListTopics(ctx context.Context, opt ListTopicsOptions) (ListTopicsResult, error)
 
-	Produce(ctx context.Context, topic string, partition int, records []ProducerRecord) ([]RecordMetadata, error)
-	Fetch(ctx context.Context, topic string, partition int, offset int64, maxRecords int) ([]Record, error)
-	ListOffsets(ctx context.Context, topic string, partition int) (OffsetBounds, error)
+	Produce(ctx context.Context, clusterID, topic string, partition int, records []ProducerRecord) ([]RecordMetadata, error)
+	Fetch(ctx context.Context, clusterID, topic string, partition int, offset int64, maxRecords int) ([]Record, error)
+	ListOffsets(ctx context.Context, clusterID, topic string, partition int) (OffsetBounds, error)
 
-	CommitOffset(ctx context.Context, group, topic string, partition int, offset int64) error
-	FetchCommittedOffset(ctx context.Context, group, topic string, partition int) (int64, error)
+	CommitOffset(ctx context.Context, clusterID, group, topic string, partition int, offset int64) error
+	FetchCommittedOffset(ctx context.Context, clusterID, group, topic string, partition int) (int64, error)
 }

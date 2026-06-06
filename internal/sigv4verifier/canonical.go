@@ -48,7 +48,7 @@ func computeSigV4Signature(r *http.Request, body []byte, signedHeaders, payloadH
 // UNSIGNED-PAYLOAD for presigned URLs).
 func computePresignedSigV4Signature(r *http.Request, signedHeaders, payloadHash, secret, service, region, signedTimeYYYYMMDD, signedTimeFull string) string {
 	method := r.Method
-	canonURI := canonicalURI(r.URL.Path)
+	canonURI := canonicalURIForURL(r.URL)
 	q := r.URL.Query()
 	q.Del("X-Amz-Signature")
 	canonQuery := canonicalQueryString(q)
@@ -77,7 +77,7 @@ func computePresignedSigV4Signature(r *http.Request, signedHeaders, payloadHash,
 // pre-computed payload hash.
 func buildCanonicalRequest(r *http.Request, body []byte, signedHeaders, payloadHash string) string {
 	method := r.Method
-	canonURI := canonicalURI(r.URL.Path)
+	canonURI := canonicalURIForURL(r.URL)
 	canonQuery := canonicalQueryString(r.URL.Query())
 	canonHeaders, signedHeadersList := canonicalHeaders(r, signedHeaders)
 	return method + "\n" +
@@ -86,6 +86,10 @@ func buildCanonicalRequest(r *http.Request, body []byte, signedHeaders, payloadH
 		canonHeaders + "\n" +
 		signedHeadersList + "\n" +
 		payloadHash
+}
+
+func canonicalURIForURL(u *url.URL) string {
+	return canonicalURI(u.EscapedPath())
 }
 
 // canonicalURI URI-encodes each path segment per RFC 3986. The "/"

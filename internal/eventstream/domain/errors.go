@@ -21,6 +21,14 @@ func TopicAlreadyExists(name string) error {
 	return fmt.Errorf("topic %q: %w", name, ErrAlreadyExists)
 }
 
+func ClusterNotFound(id string) error {
+	return fmt.Errorf("cluster %q: %w", id, ErrNotFound)
+}
+
+func ClusterAlreadyExists(id string) error {
+	return fmt.Errorf("cluster %q: %w", id, ErrAlreadyExists)
+}
+
 func InvalidArgument(format string, args ...any) error {
 	return fmt.Errorf(format+": %w", append(args, ErrInvalidInput)...)
 }

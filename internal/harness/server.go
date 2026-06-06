@@ -39,6 +39,7 @@ import (
 	azuredfront "github.com/e6qu/shimanism/internal/dns/frontends/azure_dns"
 	gcpdnsfront "github.com/e6qu/shimanism/internal/dns/frontends/gcp_clouddns"
 	eventstreamdomain "github.com/e6qu/shimanism/internal/eventstream/domain"
+	awsmskfront "github.com/e6qu/shimanism/internal/eventstream/frontends/aws_msk"
 	gcpmanagedkafkafront "github.com/e6qu/shimanism/internal/eventstream/frontends/gcp_managedkafka"
 	"github.com/e6qu/shimanism/internal/eventstream/kafkaserver"
 	functionsdomain "github.com/e6qu/shimanism/internal/functions/domain"
@@ -777,9 +778,26 @@ func StartEventStreamServerGCP(t *testing.T, backend eventstreamdomain.Streams) 
 	return &EventStreamServer{URL: ts.URL, Close: ts.Close}
 }
 
+// StartEventStreamServerAWS starts a shim instance with the AWS MSK
+// restJson1 control-plane frontend.
+func StartEventStreamServerAWS(t *testing.T, backend eventstreamdomain.Streams, bootstrapBrokers []string) *EventStreamServer {
+	t.Helper()
+	srv := awsmskfront.New(backend, awsmskfront.Options{BootstrapBrokers: bootstrapBrokers})
+	ts := httptest.NewServer(&logRoundTrip{t: t, mux: srv})
+	t.Cleanup(ts.Close)
+	return &EventStreamServer{URL: ts.URL, Close: ts.Close}
+}
+
 // StartEventStreamKafkaServer starts the Kafka TCP data-plane frontend backed
 // by the given event-stream implementation.
 func StartEventStreamKafkaServer(t *testing.T, backend eventstreamdomain.Streams) *EventStreamKafkaServer {
+	t.Helper()
+	return StartEventStreamKafkaServerCluster(t, backend, "cluster-a")
+}
+
+// StartEventStreamKafkaServerCluster starts the Kafka TCP data-plane frontend
+// for a specific backend cluster identifier.
+func StartEventStreamKafkaServerCluster(t *testing.T, backend eventstreamdomain.Streams, clusterID string) *EventStreamKafkaServer {
 	t.Helper()
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -798,8 +816,9 @@ func StartEventStreamKafkaServer(t *testing.T, backend eventstreamdomain.Streams
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	srv := kafkaserver.New(backend, kafkaserver.Config{
-		Host: "127.0.0.1",
-		Port: int32(portNum),
+		Host:      "127.0.0.1",
+		Port:      int32(portNum),
+		ClusterID: clusterID,
 	})
 	go func() {
 		for {

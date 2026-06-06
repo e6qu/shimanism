@@ -12,16 +12,18 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 
 **Open bugs:** BUG-8 · BUG-15 · BUG-41 (Track A only — blocked on real GCP credentials) · BUG-67 (sockerless AWS ECR manifest `HEAD`, filed upstream as sockerless#465) · BUG-68/69 (local sockerless-runner/KMS-lane findings).
 
-**Current branch:** `phase-20-gcp-kafka-client` follows merged PR #151. This slice closes the first GCP-shaped Phase 20.B surface by proving that a topic created through the official GCP Managed Kafka REST SDK backs real Kafka client produce/fetch through the TCP data plane. BUG-70 and BUG-71 were filed and fixed for live Kafka frame-size defaults and the ApiVersions response-header exception.
+**Current branch:** `phase-20-aws-msk-frontend` follows merged PR #152. This slice starts Phase 20.C by adding the AWS MSK Smithy spec/codegen, an AWS MSK restJson1 control-plane frontend, cluster-scoped eventstream domain/backend state, and official AWS SDK + real Kafka client conformance.
+
+**Current blocker:** focused Go verification now requires an escalated run because the sandbox cannot write the default Go build cache. The escalation request was rejected by the environment usage limit; rerun verification once escalation is available.
 
 ## Session-start checklist
 
-1. Stay on `phase-20-gcp-kafka-client` unless this PR has already merged; if it has, sync `main` before starting the next branch.
-2. Continue the Phase 20.B GCP/Kafka client-conformance closeout from [PLAN.md § Phase 20](PLAN.md#phase-20--event-streaming) and [docs/phase-20-scoping.md](docs/phase-20-scoping.md).
+1. Stay on `phase-20-aws-msk-frontend` until the AWS MSK frontend PR is merged.
+2. Continue Phase 20.C from [PLAN.md § Phase 20](PLAN.md#phase-20--event-streaming) and [docs/phase-20-scoping.md](docs/phase-20-scoping.md): finish verification, open one PR, monitor CI, and let the user merge.
 
 ## Phase 20 — Event Streaming ◐
 
-Phase 20 is planned around ordered, partitioned event streams with a Kafka-compatible data plane. PR #147 merged the first 20.A foundation slice: scoping is done, the domain is defined, Strimzi is the honest K8s peer choice, and the inmem backend is a real append-only partition log. PR #148 added the real Kafka frame/runtime boundary without faking a broker. PR #150 added the first real Kafka dispatcher. PR #151 added the first cloud-shaped control-plane frontend: GCP Managed Kafka topic lifecycle over `domain.Streams`.
+Phase 20 is planned around ordered, partitioned event streams with a Kafka-compatible data plane. PR #147 merged the first 20.A foundation slice: scoping is done, the domain is defined, Strimzi is the honest K8s peer choice, and the inmem backend is a real append-only partition log. PR #148 added the real Kafka frame/runtime boundary without faking a broker. PR #150 added the first real Kafka dispatcher. PR #151 added the first cloud-shaped control-plane frontend: GCP Managed Kafka topic lifecycle over `domain.Streams`. PR #152 closed the first GCP/Kafka surface with real `kgo` produce/fetch conformance after GCP REST topic creation.
 
 Merged 20.A foundation checklist:
 
@@ -56,7 +58,20 @@ Current Phase 20.B data-plane checklist:
 - [x] Add real Kafka client conformance with `franz-go/pkg/kgo` over the TCP data plane after GCP REST topic creation.
 - [x] Fix BUG-70/71 surfaced by live Kafka client negotiation.
 - [x] Run full local verification (`make test`, `make lint`, `make license-check`).
-- [ ] Open one Phase 20.B GCP/Kafka client PR and monitor CI until green. Do not merge it.
+- [x] Open and merge the Phase 20.B GCP/Kafka client PR (#152).
+
+Current Phase 20.C AWS MSK checklist:
+
+- [x] Vendor AWS MSK Smithy spec from `aws/aws-sdk-go-v2` and add deterministic `codegen.json`.
+- [x] Add generated AWS MSK restJson1 routes for cluster lifecycle, bootstrap discovery, node/topic list, and topic lifecycle.
+- [x] File and fix BUG-73 by adding explicit cluster scope to the eventstream domain, inmem backend, GCP frontend calls, and Kafka data-plane server.
+- [x] Add AWS MSK frontend over `domain.Streams` with SigV4 and source-shaped errors; reject out-of-intersection replication/config options loudly.
+- [x] File and fix BUG-74 by preserving escaped ARN path labels for SigV4 canonicalization and generated REST route/handler matching.
+- [x] Add official AWS MSK SDK conformance plus real `kgo` produce/fetch against `GetBootstrapBrokers`.
+- [x] File and fix BUG-75 by deriving AWS MSK `TopicArn` as `arn:aws:kafka:{region}:{account}:topic/{cluster-name}/{cluster-uuid}/{topic-name}` and pinning SDK assertions.
+- [ ] Rerun focused verification: `go test ./internal/restxml ./internal/sigv4verifier ./internal/eventstream/... ./services/eventstream/...`.
+- [ ] Run full local verification (`make test`, `make lint`, `make license-check`, `make codegen-check`) when escalation is available.
+- [ ] Open one Phase 20.C AWS MSK PR and monitor CI until green. Do not merge it.
 
 ## Phase 18 — Container Registry ✅ COMPLETE
 

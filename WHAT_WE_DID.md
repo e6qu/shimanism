@@ -73,6 +73,32 @@ fallbacks: the server now defaults to the shared frame limit, and ApiVersions
 keeps its non-flexible response header while preserving the flexible response
 body.
 
+After PR #152 merged the GCP/Kafka client closeout, the next slice started the
+AWS MSK frontend. The branch vendors the canonical AWS MSK Smithy model
+(`kafka.json`) from `aws/aws-sdk-go-v2`, emits deterministic restJson1 routes,
+and adds `internal/eventstream/frontends/aws_msk`. The control plane is driven by
+the official `aws-sdk-go-v2/service/kafka` client: CreateCluster,
+DescribeCluster, ListClusters, GetBootstrapBrokers, CreateTopic, DescribeTopic,
+ListTopics, and DeleteTopic all map to real `domain.Streams` backend state.
+`GetBootstrapBrokers` returns the configured real Kafka TCP listener, and the
+same test then uses `franz-go/pkg/kgo` to produce/fetch records through that
+data plane.
+
+Three bugs surfaced before fixes. BUG-73: topic/log/offset state was globally
+keyed by topic name, but AWS/GCP/Azure all scope topics under a
+cluster/namespace. The fix makes cluster scope explicit in the eventstream
+domain and inmem backend, and the GCP frontend plus Kafka server now pass that
+cluster ID into backend calls. BUG-74: official AWS SDK MSK requests put an ARN
+inside a path label, so escaped slashes must remain part of one label. The SigV4
+verifier now canonicalizes from `URL.EscapedPath()`, and generated REST routes
+and handlers match via `restxml.MatchPath` so `URL.RawPath` is preserved when
+net/http provides it. BUG-75: AWS MSK topic responses initially derived
+`TopicArn` by appending `/topic/{name}` to the cluster ARN, but AWS topic
+resources use `arn:aws:kafka:{region}:{account}:topic/{cluster-name}/{cluster-uuid}/{topic-name}`.
+The adapter now derives that ARN from the cluster ARN resource segments, and the
+AWS SDK conformance test asserts the ARN on CreateTopic, DescribeTopic,
+ListTopics, and DeleteTopic. No auth bypass or route fallback was added.
+
 ## Code health audit baseline: in progress
 
 After Phase 18 closed, the next maintenance thread is explicit dead-code and copy-paste detection. The repo already runs `staticcheck` + `unused` through `golangci-lint`, so the baseline adds advisory audits rather than a new hard gate: `dupl` through the existing `golangci-lint` binary for duplicate Go fragments, and the official `golang.org/x/tools/cmd/deadcode` command for call-graph reachability. The first duplicate scan found real cleanup candidates in `cmd/shim`, compute inmem/K8s helpers, and secrets Terraform conformance tests. The first deadcode scan was useful but noisy around generated code and library-style entry points, so it stays audit-only with generated-code filtering.

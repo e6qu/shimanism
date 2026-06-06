@@ -998,7 +998,7 @@ func CreateFunctionHandler(b CreateFunctionBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		in := &CreateFunctionRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, CreateFunctionURITemplate)
+		labels, ok := restxml.MatchURI(restxml.MatchPath(r), CreateFunctionURITemplate)
 		if !ok {
 			awsjson.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -1041,7 +1041,7 @@ func DeleteFunctionHandler(b DeleteFunctionBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		in := &DeleteFunctionRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, DeleteFunctionURITemplate)
+		labels, ok := restxml.MatchURI(restxml.MatchPath(r), DeleteFunctionURITemplate)
 		if !ok {
 			awsjson.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -1091,7 +1091,7 @@ func GetFunctionHandler(b GetFunctionBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		in := &GetFunctionRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, GetFunctionURITemplate)
+		labels, ok := restxml.MatchURI(restxml.MatchPath(r), GetFunctionURITemplate)
 		if !ok {
 			awsjson.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -1141,7 +1141,7 @@ func GetFunctionConfigurationHandler(b GetFunctionConfigurationBackend) http.Han
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		in := &GetFunctionConfigurationRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, GetFunctionConfigurationURITemplate)
+		labels, ok := restxml.MatchURI(restxml.MatchPath(r), GetFunctionConfigurationURITemplate)
 		if !ok {
 			awsjson.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -1191,7 +1191,7 @@ func ListFunctionsHandler(b ListFunctionsBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		in := &ListFunctionsRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, ListFunctionsURITemplate)
+		labels, ok := restxml.MatchURI(restxml.MatchPath(r), ListFunctionsURITemplate)
 		if !ok {
 			awsjson.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -1251,7 +1251,7 @@ func UpdateFunctionCodeHandler(b UpdateFunctionCodeBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		in := &UpdateFunctionCodeRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, UpdateFunctionCodeURITemplate)
+		labels, ok := restxml.MatchURI(restxml.MatchPath(r), UpdateFunctionCodeURITemplate)
 		if !ok {
 			awsjson.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -1297,7 +1297,7 @@ func UpdateFunctionConfigurationHandler(b UpdateFunctionConfigurationBackend) ht
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		in := &UpdateFunctionConfigurationRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, UpdateFunctionConfigurationURITemplate)
+		labels, ok := restxml.MatchURI(restxml.MatchPath(r), UpdateFunctionConfigurationURITemplate)
 		if !ok {
 			awsjson.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -1343,7 +1343,7 @@ func ListVersionsByFunctionHandler(b ListVersionsByFunctionBackend) http.Handler
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		in := &ListVersionsByFunctionRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, ListVersionsByFunctionURITemplate)
+		labels, ok := restxml.MatchURI(restxml.MatchPath(r), ListVersionsByFunctionURITemplate)
 		if !ok {
 			awsjson.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -1398,7 +1398,7 @@ func GetFunctionUrlConfigHandler(b GetFunctionUrlConfigBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		in := &GetFunctionUrlConfigRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, GetFunctionUrlConfigURITemplate)
+		labels, ok := restxml.MatchURI(restxml.MatchPath(r), GetFunctionUrlConfigURITemplate)
 		if !ok {
 			awsjson.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -1448,7 +1448,7 @@ func ListTagsHandler(b ListTagsBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		in := &ListTagsRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, ListTagsURITemplate)
+		labels, ok := restxml.MatchURI(restxml.MatchPath(r), ListTagsURITemplate)
 		if !ok {
 			awsjson.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -1494,7 +1494,7 @@ func GetPolicyHandler(b GetPolicyBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		in := &GetPolicyRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, GetPolicyURITemplate)
+		labels, ok := restxml.MatchURI(restxml.MatchPath(r), GetPolicyURITemplate)
 		if !ok {
 			awsjson.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -1544,7 +1544,7 @@ func GetFunctionConcurrencyHandler(b GetFunctionConcurrencyBackend) http.Handler
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		in := &GetFunctionConcurrencyRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, GetFunctionConcurrencyURITemplate)
+		labels, ok := restxml.MatchURI(restxml.MatchPath(r), GetFunctionConcurrencyURITemplate)
 		if !ok {
 			awsjson.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -1590,7 +1590,7 @@ func GetFunctionEventInvokeConfigHandler(b GetFunctionEventInvokeConfigBackend) 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		in := &GetFunctionEventInvokeConfigRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, GetFunctionEventInvokeConfigURITemplate)
+		labels, ok := restxml.MatchURI(restxml.MatchPath(r), GetFunctionEventInvokeConfigURITemplate)
 		if !ok {
 			awsjson.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -1640,7 +1640,7 @@ func GetFunctionCodeSigningConfigHandler(b GetFunctionCodeSigningConfigBackend) 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		in := &GetFunctionCodeSigningConfigRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, GetFunctionCodeSigningConfigURITemplate)
+		labels, ok := restxml.MatchURI(restxml.MatchPath(r), GetFunctionCodeSigningConfigURITemplate)
 		if !ok {
 			awsjson.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
