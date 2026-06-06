@@ -46,9 +46,9 @@ func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if len(segs) == 7 || (len(segs) == 8 && segs[7] == "") {
 		switch r.Method {
 		case http.MethodGet:
-			srv.listTopics(w, r, parent)
+			srv.listTopics(w, r, parent, cluster)
 		case http.MethodPost:
-			srv.createTopic(w, r, parent)
+			srv.createTopic(w, r, parent, cluster)
 		default:
 			writeError(w, http.StatusMethodNotAllowed, "FAILED_PRECONDITION", r.Method+" not allowed on topics")
 		}
@@ -59,9 +59,9 @@ func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		fullName := parent + "/topics/" + topic
 		switch r.Method {
 		case http.MethodGet:
-			srv.getTopic(w, r, fullName, topic)
+			srv.getTopic(w, r, fullName, cluster, topic)
 		case http.MethodDelete:
-			srv.deleteTopic(w, r, topic)
+			srv.deleteTopic(w, r, cluster, topic)
 		case http.MethodPatch:
 			writeError(w, http.StatusNotImplemented, "UNIMPLEMENTED", "topic patch is out of the first eventstream frontend slice")
 		default:
@@ -72,7 +72,7 @@ func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	writeError(w, http.StatusNotFound, "NOT_FOUND", "no GCP Managed Kafka route matches "+r.Method+" "+path)
 }
 
-func (srv *Server) createTopic(w http.ResponseWriter, r *http.Request, parent string) {
+func (srv *Server) createTopic(w http.ResponseWriter, r *http.Request, parent, cluster string) {
 	topicID := r.URL.Query().Get("topicId")
 	if topicID == "" {
 		writeError(w, http.StatusBadRequest, "INVALID_ARGUMENT", "topicId is required")
@@ -86,7 +86,7 @@ func (srv *Server) createTopic(w http.ResponseWriter, r *http.Request, parent st
 	if !ok {
 		return
 	}
-	topic, err := srv.s.CreateTopic(r.Context(), topicID, opt)
+	topic, err := srv.s.CreateTopic(r.Context(), cluster, topicID, opt)
 	if err != nil {
 		mapDomainError(w, err)
 		return
@@ -94,8 +94,8 @@ func (srv *Server) createTopic(w http.ResponseWriter, r *http.Request, parent st
 	writeJSON(w, http.StatusOK, topicToGCP(parent, topic))
 }
 
-func (srv *Server) getTopic(w http.ResponseWriter, r *http.Request, fullName, topicID string) {
-	topic, err := srv.s.DescribeTopic(r.Context(), topicID)
+func (srv *Server) getTopic(w http.ResponseWriter, r *http.Request, fullName, cluster, topicID string) {
+	topic, err := srv.s.DescribeTopic(r.Context(), cluster, topicID)
 	if err != nil {
 		mapDomainError(w, err)
 		return
@@ -103,12 +103,13 @@ func (srv *Server) getTopic(w http.ResponseWriter, r *http.Request, fullName, to
 	writeJSON(w, http.StatusOK, topicToGCP(parentFromTopicName(fullName), topic))
 }
 
-func (srv *Server) listTopics(w http.ResponseWriter, r *http.Request, parent string) {
+func (srv *Server) listTopics(w http.ResponseWriter, r *http.Request, parent, cluster string) {
 	pageSize, ok := parsePageSize(w, r.URL.Query().Get("pageSize"))
 	if !ok {
 		return
 	}
 	res, err := srv.s.ListTopics(r.Context(), domain.ListTopicsOptions{
+		ClusterID:  cluster,
 		MaxResults: pageSize,
 		NextToken:  r.URL.Query().Get("pageToken"),
 	})
@@ -124,8 +125,8 @@ func (srv *Server) listTopics(w http.ResponseWriter, r *http.Request, parent str
 	writeJSON(w, http.StatusOK, &resp)
 }
 
-func (srv *Server) deleteTopic(w http.ResponseWriter, r *http.Request, topicID string) {
-	if err := srv.s.DeleteTopic(r.Context(), topicID); err != nil {
+func (srv *Server) deleteTopic(w http.ResponseWriter, r *http.Request, cluster, topicID string) {
+	if err := srv.s.DeleteTopic(r.Context(), cluster, topicID); err != nil {
 		mapDomainError(w, err)
 		return
 	}

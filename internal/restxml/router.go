@@ -106,11 +106,12 @@ func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		r.dirty = false
 	}
 	q := req.URL.Query()
+	path := MatchPath(req)
 	for _, rt := range r.routes {
 		if rt.Method != req.Method {
 			continue
 		}
-		if _, ok := MatchURI(req.URL.Path, rt.Path); !ok {
+		if _, ok := MatchURI(path, rt.Path); !ok {
 			continue
 		}
 		if !queryMatches(q, rt.Query) {
@@ -130,6 +131,17 @@ func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}
 	WriteError(w, http.StatusNotFound, "InvalidRequest",
 		"no shimmed operation matches "+req.Method+" "+req.URL.Path)
+}
+
+// MatchPath returns the path representation Smithy URI-template matching
+// should use. net/http decodes URL.Path, which splits escaped slashes inside
+// labels such as AWS ARN path labels. RawPath preserves that wire shape when
+// present.
+func MatchPath(req *http.Request) string {
+	if req.URL.RawPath != "" {
+		return req.URL.RawPath
+	}
+	return req.URL.Path
 }
 
 func splitTemplate(template string) (string, map[string]string) {

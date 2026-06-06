@@ -2463,7 +2463,7 @@ func ListBucketsHandler(b ListBucketsBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		in := &ListBucketsRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, ListBucketsURITemplate)
+		labels, ok := restxml.MatchURI(restxml.MatchPath(r), ListBucketsURITemplate)
 		if !ok {
 			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -2520,7 +2520,7 @@ func CreateBucketHandler(b CreateBucketBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		in := &CreateBucketRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, CreateBucketURITemplate)
+		labels, ok := restxml.MatchURI(restxml.MatchPath(r), CreateBucketURITemplate)
 		if !ok {
 			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -2612,7 +2612,7 @@ func DeleteBucketHandler(b DeleteBucketBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		in := &DeleteBucketRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, DeleteBucketURITemplate)
+		labels, ok := restxml.MatchURI(restxml.MatchPath(r), DeleteBucketURITemplate)
 		if !ok {
 			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -2655,7 +2655,7 @@ func HeadBucketHandler(b HeadBucketBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		in := &HeadBucketRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, HeadBucketURITemplate)
+		labels, ok := restxml.MatchURI(restxml.MatchPath(r), HeadBucketURITemplate)
 		if !ok {
 			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -2719,7 +2719,7 @@ func ListObjectsV2Handler(b ListObjectsV2Backend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		in := &ListObjectsV2Request{}
-		labels, ok := restxml.MatchURI(r.URL.Path, ListObjectsV2URITemplate)
+		labels, ok := restxml.MatchURI(restxml.MatchPath(r), ListObjectsV2URITemplate)
 		if !ok {
 			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -2808,7 +2808,7 @@ func GetObjectHandler(b GetObjectBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		in := &GetObjectRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, GetObjectURITemplate)
+		labels, ok := restxml.MatchURI(restxml.MatchPath(r), GetObjectURITemplate)
 		if !ok {
 			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -3111,7 +3111,7 @@ func PutObjectHandler(b PutObjectBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		in := &PutObjectRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, PutObjectURITemplate)
+		labels, ok := restxml.MatchURI(restxml.MatchPath(r), PutObjectURITemplate)
 		if !ok {
 			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -3428,7 +3428,7 @@ func DeleteObjectHandler(b DeleteObjectBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		in := &DeleteObjectRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, DeleteObjectURITemplate)
+		labels, ok := restxml.MatchURI(restxml.MatchPath(r), DeleteObjectURITemplate)
 		if !ok {
 			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -3518,7 +3518,7 @@ func HeadObjectHandler(b HeadObjectBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		in := &HeadObjectRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, HeadObjectURITemplate)
+		labels, ok := restxml.MatchURI(restxml.MatchPath(r), HeadObjectURITemplate)
 		if !ok {
 			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -3820,7 +3820,7 @@ func CopyObjectHandler(b CopyObjectBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		in := &CopyObjectRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, CopyObjectURITemplate)
+		labels, ok := restxml.MatchURI(restxml.MatchPath(r), CopyObjectURITemplate)
 		if !ok {
 			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -4080,7 +4080,7 @@ func CreateMultipartUploadHandler(b CreateMultipartUploadBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		in := &CreateMultipartUploadRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, CreateMultipartUploadURITemplate)
+		labels, ok := restxml.MatchURI(restxml.MatchPath(r), CreateMultipartUploadURITemplate)
 		if !ok {
 			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -4295,7 +4295,7 @@ func UploadPartHandler(b UploadPartBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		in := &UploadPartRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, UploadPartURITemplate)
+		labels, ok := restxml.MatchURI(restxml.MatchPath(r), UploadPartURITemplate)
 		if !ok {
 			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -4492,7 +4492,7 @@ func CompleteMultipartUploadHandler(b CompleteMultipartUploadBackend) http.Handl
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		in := &CompleteMultipartUploadRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, CompleteMultipartUploadURITemplate)
+		labels, ok := restxml.MatchURI(restxml.MatchPath(r), CompleteMultipartUploadURITemplate)
 		if !ok {
 			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -4651,7 +4651,7 @@ func AbortMultipartUploadHandler(b AbortMultipartUploadBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		in := &AbortMultipartUploadRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, AbortMultipartUploadURITemplate)
+		labels, ok := restxml.MatchURI(restxml.MatchPath(r), AbortMultipartUploadURITemplate)
 		if !ok {
 			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -4714,7 +4714,7 @@ func ListMultipartUploadsHandler(b ListMultipartUploadsBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		in := &ListMultipartUploadsRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, ListMultipartUploadsURITemplate)
+		labels, ok := restxml.MatchURI(restxml.MatchPath(r), ListMultipartUploadsURITemplate)
 		if !ok {
 			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -4794,7 +4794,7 @@ func ListPartsHandler(b ListPartsBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		in := &ListPartsRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, ListPartsURITemplate)
+		labels, ok := restxml.MatchURI(restxml.MatchPath(r), ListPartsURITemplate)
 		if !ok {
 			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -4884,7 +4884,7 @@ func GetBucketLocationHandler(b GetBucketLocationBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		in := &GetBucketLocationRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, GetBucketLocationURITemplate)
+		labels, ok := restxml.MatchURI(restxml.MatchPath(r), GetBucketLocationURITemplate)
 		if !ok {
 			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -4931,7 +4931,7 @@ func GetBucketPolicyHandler(b GetBucketPolicyBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		in := &GetBucketPolicyRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, GetBucketPolicyURITemplate)
+		labels, ok := restxml.MatchURI(restxml.MatchPath(r), GetBucketPolicyURITemplate)
 		if !ok {
 			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -4981,7 +4981,7 @@ func GetBucketAclHandler(b GetBucketAclBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		in := &GetBucketAclRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, GetBucketAclURITemplate)
+		labels, ok := restxml.MatchURI(restxml.MatchPath(r), GetBucketAclURITemplate)
 		if !ok {
 			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -5028,7 +5028,7 @@ func GetBucketVersioningHandler(b GetBucketVersioningBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		in := &GetBucketVersioningRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, GetBucketVersioningURITemplate)
+		labels, ok := restxml.MatchURI(restxml.MatchPath(r), GetBucketVersioningURITemplate)
 		if !ok {
 			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -5075,7 +5075,7 @@ func GetBucketLoggingHandler(b GetBucketLoggingBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		in := &GetBucketLoggingRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, GetBucketLoggingURITemplate)
+		labels, ok := restxml.MatchURI(restxml.MatchPath(r), GetBucketLoggingURITemplate)
 		if !ok {
 			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -5122,7 +5122,7 @@ func GetBucketCorsHandler(b GetBucketCorsBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		in := &GetBucketCorsRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, GetBucketCorsURITemplate)
+		labels, ok := restxml.MatchURI(restxml.MatchPath(r), GetBucketCorsURITemplate)
 		if !ok {
 			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -5169,7 +5169,7 @@ func GetBucketLifecycleConfigurationHandler(b GetBucketLifecycleConfigurationBac
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		in := &GetBucketLifecycleConfigurationRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, GetBucketLifecycleConfigurationURITemplate)
+		labels, ok := restxml.MatchURI(restxml.MatchPath(r), GetBucketLifecycleConfigurationURITemplate)
 		if !ok {
 			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -5220,7 +5220,7 @@ func GetBucketReplicationHandler(b GetBucketReplicationBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		in := &GetBucketReplicationRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, GetBucketReplicationURITemplate)
+		labels, ok := restxml.MatchURI(restxml.MatchPath(r), GetBucketReplicationURITemplate)
 		if !ok {
 			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -5269,7 +5269,7 @@ func GetBucketRequestPaymentHandler(b GetBucketRequestPaymentBackend) http.Handl
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		in := &GetBucketRequestPaymentRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, GetBucketRequestPaymentURITemplate)
+		labels, ok := restxml.MatchURI(restxml.MatchPath(r), GetBucketRequestPaymentURITemplate)
 		if !ok {
 			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -5316,7 +5316,7 @@ func GetBucketTaggingHandler(b GetBucketTaggingBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		in := &GetBucketTaggingRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, GetBucketTaggingURITemplate)
+		labels, ok := restxml.MatchURI(restxml.MatchPath(r), GetBucketTaggingURITemplate)
 		if !ok {
 			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -5363,7 +5363,7 @@ func GetBucketWebsiteHandler(b GetBucketWebsiteBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		in := &GetBucketWebsiteRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, GetBucketWebsiteURITemplate)
+		labels, ok := restxml.MatchURI(restxml.MatchPath(r), GetBucketWebsiteURITemplate)
 		if !ok {
 			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -5410,7 +5410,7 @@ func GetBucketEncryptionHandler(b GetBucketEncryptionBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		in := &GetBucketEncryptionRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, GetBucketEncryptionURITemplate)
+		labels, ok := restxml.MatchURI(restxml.MatchPath(r), GetBucketEncryptionURITemplate)
 		if !ok {
 			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -5459,7 +5459,7 @@ func GetBucketAccelerateConfigurationHandler(b GetBucketAccelerateConfigurationB
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		in := &GetBucketAccelerateConfigurationRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, GetBucketAccelerateConfigurationURITemplate)
+		labels, ok := restxml.MatchURI(restxml.MatchPath(r), GetBucketAccelerateConfigurationURITemplate)
 		if !ok {
 			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -5514,7 +5514,7 @@ func GetObjectLockConfigurationHandler(b GetObjectLockConfigurationBackend) http
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		in := &GetObjectLockConfigurationRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, GetObjectLockConfigurationURITemplate)
+		labels, ok := restxml.MatchURI(restxml.MatchPath(r), GetObjectLockConfigurationURITemplate)
 		if !ok {
 			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -5563,7 +5563,7 @@ func GetBucketNotificationConfigurationHandler(b GetBucketNotificationConfigurat
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		in := &GetBucketNotificationConfigurationRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, GetBucketNotificationConfigurationURITemplate)
+		labels, ok := restxml.MatchURI(restxml.MatchPath(r), GetBucketNotificationConfigurationURITemplate)
 		if !ok {
 			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -5610,7 +5610,7 @@ func GetBucketOwnershipControlsHandler(b GetBucketOwnershipControlsBackend) http
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		in := &GetBucketOwnershipControlsRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, GetBucketOwnershipControlsURITemplate)
+		labels, ok := restxml.MatchURI(restxml.MatchPath(r), GetBucketOwnershipControlsURITemplate)
 		if !ok {
 			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -5659,7 +5659,7 @@ func GetBucketPolicyStatusHandler(b GetBucketPolicyStatusBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		in := &GetBucketPolicyStatusRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, GetBucketPolicyStatusURITemplate)
+		labels, ok := restxml.MatchURI(restxml.MatchPath(r), GetBucketPolicyStatusURITemplate)
 		if !ok {
 			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -5708,7 +5708,7 @@ func GetPublicAccessBlockHandler(b GetPublicAccessBlockBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		in := &GetPublicAccessBlockRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, GetPublicAccessBlockURITemplate)
+		labels, ok := restxml.MatchURI(restxml.MatchPath(r), GetPublicAccessBlockURITemplate)
 		if !ok {
 			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -5757,7 +5757,7 @@ func GetObjectTaggingHandler(b GetObjectTaggingBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		in := &GetObjectTaggingRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, GetObjectTaggingURITemplate)
+		labels, ok := restxml.MatchURI(restxml.MatchPath(r), GetObjectTaggingURITemplate)
 		if !ok {
 			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -5818,7 +5818,7 @@ func GetObjectAclHandler(b GetObjectAclBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		in := &GetObjectAclRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, GetObjectAclURITemplate)
+		labels, ok := restxml.MatchURI(restxml.MatchPath(r), GetObjectAclURITemplate)
 		if !ok {
 			restxml.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return

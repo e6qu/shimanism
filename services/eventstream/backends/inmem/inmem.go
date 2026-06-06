@@ -19,10 +19,11 @@ const defaultRetention = 7 * 24 * time.Hour
 
 // Backend implements domain.Streams entirely in memory.
 type Backend struct {
-	mu      sync.Mutex
-	now     func() time.Time
-	topics  map[string]*topicState
-	offsets map[offsetKey]int64
+	mu       sync.Mutex
+	now      func() time.Time
+	clusters map[string]domain.Cluster
+	topics   map[string]*topicState
+	offsets  map[offsetKey]int64
 }
 
 type topicState struct {
@@ -36,6 +37,7 @@ type partitionState struct {
 }
 
 type offsetKey struct {
+	cluster   string
 	group     string
 	topic     string
 	partition int
@@ -44,15 +46,119 @@ type offsetKey struct {
 // New constructs an empty backend.
 func New() *Backend {
 	return &Backend{
-		now:     func() time.Time { return time.Now().UTC() },
-		topics:  map[string]*topicState{},
-		offsets: map[offsetKey]int64{},
+		now:      func() time.Time { return time.Now().UTC() },
+		clusters: map[string]domain.Cluster{},
+		topics:   map[string]*topicState{},
+		offsets:  map[offsetKey]int64{},
 	}
 }
 
 var _ domain.Streams = (*Backend)(nil)
 
-func (b *Backend) CreateTopic(ctx context.Context, name string, opt domain.CreateTopicOptions) (domain.Topic, error) {
+func (b *Backend) CreateCluster(ctx context.Context, id, name string, opt domain.CreateClusterOptions) (domain.Cluster, error) {
+	if err := validateClusterID(id); err != nil {
+		return domain.Cluster{}, err
+	}
+	if name == "" {
+		return domain.Cluster{}, domain.InvalidArgument("cluster name is required")
+	}
+	if strings.ContainsAny(name, " \t\r\n") {
+		return domain.Cluster{}, domain.InvalidArgument("cluster name %q contains whitespace", name)
+	}
+	if opt.BrokerCount <= 0 {
+		return domain.Cluster{}, domain.InvalidArgument("broker count must be positive")
+	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if _, ok := b.clusters[id]; ok {
+		return domain.Cluster{}, domain.ClusterAlreadyExists(id)
+	}
+	cluster := domain.Cluster{
+		ID:               id,
+		Name:             name,
+		BrokerCount:      opt.BrokerCount,
+		BootstrapBrokers: append([]string(nil), opt.BootstrapBrokers...),
+		Tags:             copyStrMap(opt.Tags),
+		CreatedAt:        b.now(),
+	}
+	b.clusters[id] = cluster
+	return copyCluster(cluster), nil
+}
+
+func (b *Backend) DeleteCluster(ctx context.Context, id string) error {
+	if err := validateClusterID(id); err != nil {
+		return err
+	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if _, ok := b.clusters[id]; !ok {
+		return domain.ClusterNotFound(id)
+	}
+	delete(b.clusters, id)
+	for key, st := range b.topics {
+		if st.topic.ClusterID == id {
+			delete(b.topics, key)
+		}
+	}
+	for k := range b.offsets {
+		if k.cluster == id {
+			delete(b.offsets, k)
+		}
+	}
+	return nil
+}
+
+func (b *Backend) DescribeCluster(ctx context.Context, id string) (domain.Cluster, error) {
+	if err := validateClusterID(id); err != nil {
+		return domain.Cluster{}, err
+	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	cluster, ok := b.clusters[id]
+	if !ok {
+		return domain.Cluster{}, domain.ClusterNotFound(id)
+	}
+	return copyCluster(cluster), nil
+}
+
+func (b *Backend) ListClusters(ctx context.Context, opt domain.ListClustersOptions) (domain.ListClustersResult, error) {
+	start := 0
+	if opt.NextToken != "" {
+		n, err := strconv.Atoi(opt.NextToken)
+		if err != nil || n < 0 {
+			return domain.ListClustersResult{}, domain.InvalidArgument("invalid next token %q", opt.NextToken)
+		}
+		start = n
+	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	ids := make([]string, 0, len(b.clusters))
+	for id, cluster := range b.clusters {
+		if opt.NameFilter == "" || strings.Contains(cluster.Name, opt.NameFilter) {
+			ids = append(ids, id)
+		}
+	}
+	sort.Strings(ids)
+	if start > len(ids) {
+		return domain.ListClustersResult{}, domain.InvalidArgument("next token %q is out of range", opt.NextToken)
+	}
+	limit := len(ids)
+	next := ""
+	if opt.MaxResults > 0 && start+opt.MaxResults < limit {
+		limit = start + opt.MaxResults
+		next = strconv.Itoa(limit)
+	}
+	out := domain.ListClustersResult{Clusters: make([]domain.Cluster, 0, limit-start), NextToken: next}
+	for _, id := range ids[start:limit] {
+		out.Clusters = append(out.Clusters, copyCluster(b.clusters[id]))
+	}
+	return out, nil
+}
+
+func (b *Backend) CreateTopic(ctx context.Context, clusterID, name string, opt domain.CreateTopicOptions) (domain.Topic, error) {
+	if err := validateClusterID(clusterID); err != nil {
+		return domain.Topic{}, err
+	}
 	if err := validateTopicName(name); err != nil {
 		return domain.Topic{}, err
 	}
@@ -69,10 +175,12 @@ func (b *Backend) CreateTopic(ctx context.Context, name string, opt domain.Creat
 
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	if _, ok := b.topics[name]; ok {
+	key := topicKey(clusterID, name)
+	if _, ok := b.topics[key]; ok {
 		return domain.Topic{}, domain.TopicAlreadyExists(name)
 	}
 	topic := domain.Topic{
+		ClusterID:      clusterID,
 		Name:           name,
 		PartitionCount: opt.PartitionCount,
 		Retention:      retention,
@@ -83,29 +191,36 @@ func (b *Backend) CreateTopic(ctx context.Context, name string, opt domain.Creat
 		topic:      topic,
 		partitions: make([]partitionState, opt.PartitionCount),
 	}
-	b.topics[name] = st
+	b.topics[key] = st
 	return copyTopic(topic), nil
 }
 
-func (b *Backend) DeleteTopic(ctx context.Context, name string) error {
+func (b *Backend) DeleteTopic(ctx context.Context, clusterID, name string) error {
+	if err := validateClusterID(clusterID); err != nil {
+		return err
+	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	if _, ok := b.topics[name]; !ok {
+	key := topicKey(clusterID, name)
+	if _, ok := b.topics[key]; !ok {
 		return domain.TopicNotFound(name)
 	}
-	delete(b.topics, name)
+	delete(b.topics, key)
 	for k := range b.offsets {
-		if k.topic == name {
+		if k.cluster == clusterID && k.topic == name {
 			delete(b.offsets, k)
 		}
 	}
 	return nil
 }
 
-func (b *Backend) DescribeTopic(ctx context.Context, name string) (domain.Topic, error) {
+func (b *Backend) DescribeTopic(ctx context.Context, clusterID, name string) (domain.Topic, error) {
+	if err := validateClusterID(clusterID); err != nil {
+		return domain.Topic{}, err
+	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	st, ok := b.topics[name]
+	st, ok := b.topics[topicKey(clusterID, name)]
 	if !ok {
 		return domain.Topic{}, domain.TopicNotFound(name)
 	}
@@ -113,6 +228,9 @@ func (b *Backend) DescribeTopic(ctx context.Context, name string) (domain.Topic,
 }
 
 func (b *Backend) ListTopics(ctx context.Context, opt domain.ListTopicsOptions) (domain.ListTopicsResult, error) {
+	if err := validateClusterID(opt.ClusterID); err != nil {
+		return domain.ListTopicsResult{}, err
+	}
 	start := 0
 	if opt.NextToken != "" {
 		n, err := strconv.Atoi(opt.NextToken)
@@ -125,7 +243,11 @@ func (b *Backend) ListTopics(ctx context.Context, opt domain.ListTopicsOptions) 
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	names := make([]string, 0, len(b.topics))
-	for name := range b.topics {
+	for _, st := range b.topics {
+		if st.topic.ClusterID != opt.ClusterID {
+			continue
+		}
+		name := st.topic.Name
 		if opt.Prefix == "" || strings.HasPrefix(name, opt.Prefix) {
 			names = append(names, name)
 		}
@@ -142,18 +264,18 @@ func (b *Backend) ListTopics(ctx context.Context, opt domain.ListTopicsOptions) 
 	}
 	out := domain.ListTopicsResult{Topics: make([]domain.Topic, 0, limit-start), NextToken: next}
 	for _, name := range names[start:limit] {
-		out.Topics = append(out.Topics, copyTopic(b.topics[name].topic))
+		out.Topics = append(out.Topics, copyTopic(b.topics[topicKey(opt.ClusterID, name)].topic))
 	}
 	return out, nil
 }
 
-func (b *Backend) Produce(ctx context.Context, topic string, partition int, records []domain.ProducerRecord) ([]domain.RecordMetadata, error) {
+func (b *Backend) Produce(ctx context.Context, clusterID, topic string, partition int, records []domain.ProducerRecord) ([]domain.RecordMetadata, error) {
 	if len(records) == 0 {
 		return nil, nil
 	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	st, part, err := b.partition(topic, partition)
+	st, part, err := b.partition(clusterID, topic, partition)
 	if err != nil {
 		return nil, err
 	}
@@ -186,7 +308,7 @@ func (b *Backend) Produce(ctx context.Context, topic string, partition int, reco
 	return out, nil
 }
 
-func (b *Backend) Fetch(ctx context.Context, topic string, partition int, offset int64, maxRecords int) ([]domain.Record, error) {
+func (b *Backend) Fetch(ctx context.Context, clusterID, topic string, partition int, offset int64, maxRecords int) ([]domain.Record, error) {
 	if offset < 0 {
 		return nil, domain.InvalidArgument("offset must be non-negative")
 	}
@@ -195,7 +317,7 @@ func (b *Backend) Fetch(ctx context.Context, topic string, partition int, offset
 	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	st, part, err := b.partition(topic, partition)
+	st, part, err := b.partition(clusterID, topic, partition)
 	if err != nil {
 		return nil, err
 	}
@@ -219,10 +341,10 @@ func (b *Backend) Fetch(ctx context.Context, topic string, partition int, offset
 	return out, nil
 }
 
-func (b *Backend) ListOffsets(ctx context.Context, topic string, partition int) (domain.OffsetBounds, error) {
+func (b *Backend) ListOffsets(ctx context.Context, clusterID, topic string, partition int) (domain.OffsetBounds, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	st, part, err := b.partition(topic, partition)
+	st, part, err := b.partition(clusterID, topic, partition)
 	if err != nil {
 		return domain.OffsetBounds{}, err
 	}
@@ -234,7 +356,10 @@ func (b *Backend) ListOffsets(ctx context.Context, topic string, partition int) 
 	return domain.OffsetBounds{Earliest: earliest, Latest: part.nextOffset}, nil
 }
 
-func (b *Backend) CommitOffset(ctx context.Context, group, topic string, partition int, offset int64) error {
+func (b *Backend) CommitOffset(ctx context.Context, clusterID, group, topic string, partition int, offset int64) error {
+	if err := validateClusterID(clusterID); err != nil {
+		return err
+	}
 	if group == "" {
 		return domain.InvalidArgument("consumer group is required")
 	}
@@ -243,35 +368,41 @@ func (b *Backend) CommitOffset(ctx context.Context, group, topic string, partiti
 	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	_, part, err := b.partition(topic, partition)
+	_, part, err := b.partition(clusterID, topic, partition)
 	if err != nil {
 		return err
 	}
 	if offset > part.nextOffset {
 		return domain.InvalidArgument("offset %d is after latest offset %d", offset, part.nextOffset)
 	}
-	b.offsets[offsetKey{group: group, topic: topic, partition: partition}] = offset
+	b.offsets[offsetKey{cluster: clusterID, group: group, topic: topic, partition: partition}] = offset
 	return nil
 }
 
-func (b *Backend) FetchCommittedOffset(ctx context.Context, group, topic string, partition int) (int64, error) {
+func (b *Backend) FetchCommittedOffset(ctx context.Context, clusterID, group, topic string, partition int) (int64, error) {
+	if err := validateClusterID(clusterID); err != nil {
+		return 0, err
+	}
 	if group == "" {
 		return 0, domain.InvalidArgument("consumer group is required")
 	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	if _, _, err := b.partition(topic, partition); err != nil {
+	if _, _, err := b.partition(clusterID, topic, partition); err != nil {
 		return 0, err
 	}
-	offset, ok := b.offsets[offsetKey{group: group, topic: topic, partition: partition}]
+	offset, ok := b.offsets[offsetKey{cluster: clusterID, group: group, topic: topic, partition: partition}]
 	if !ok {
 		return 0, domain.InvalidArgument("consumer group %q has no committed offset for %s partition %d", group, topic, partition)
 	}
 	return offset, nil
 }
 
-func (b *Backend) partition(topic string, partition int) (*topicState, *partitionState, error) {
-	st, ok := b.topics[topic]
+func (b *Backend) partition(clusterID, topic string, partition int) (*topicState, *partitionState, error) {
+	if err := validateClusterID(clusterID); err != nil {
+		return nil, nil, err
+	}
+	st, ok := b.topics[topicKey(clusterID, topic)]
 	if !ok {
 		return nil, nil, domain.TopicNotFound(topic)
 	}
@@ -279,6 +410,20 @@ func (b *Backend) partition(topic string, partition int) (*topicState, *partitio
 		return nil, nil, domain.InvalidArgument("partition %d out of range for topic %q", partition, topic)
 	}
 	return st, &st.partitions[partition], nil
+}
+
+func topicKey(clusterID, topic string) string {
+	return clusterID + "\x00" + topic
+}
+
+func validateClusterID(clusterID string) error {
+	if clusterID == "" {
+		return domain.InvalidArgument("cluster ID is required")
+	}
+	if strings.ContainsAny(clusterID, " \t\r\n") {
+		return domain.InvalidArgument("cluster ID %q contains whitespace", clusterID)
+	}
+	return nil
 }
 
 func validateTopicName(name string) error {
@@ -306,6 +451,12 @@ func prunePartition(part *partitionState, retention time.Duration, now time.Time
 }
 
 func copyTopic(in domain.Topic) domain.Topic {
+	in.Tags = copyStrMap(in.Tags)
+	return in
+}
+
+func copyCluster(in domain.Cluster) domain.Cluster {
+	in.BootstrapBrokers = append([]string(nil), in.BootstrapBrokers...)
 	in.Tags = copyStrMap(in.Tags)
 	return in
 }

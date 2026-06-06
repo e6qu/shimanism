@@ -1,6 +1,6 @@
 # Known Bugs
 
-**70 filed · 63 fixed · 6 open · 1 false positive.** BUG-65 and BUG-66 are closed after sockerless PR #475 added the ACR OAuth2 token service and the registry GCP/Azure through-shim push/pull lanes passed against rebuilt sockerless main. Track A (BUG-8 + BUG-15) remains blocked on real GCP credentials. Registry's remaining simulator skip is BUG-67.
+**73 filed · 66 fixed · 6 open · 1 false positive.** BUG-65 and BUG-66 are closed after sockerless PR #475 added the ACR OAuth2 token service and the registry GCP/Azure through-shim push/pull lanes passed against rebuilt sockerless main. Track A (BUG-8 + BUG-15) remains blocked on real GCP credentials. Registry's remaining simulator skip is BUG-67.
 
 Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLAN.md](PLAN.md) · narrative [WHAT_WE_DID.md](WHAT_WE_DID.md) · rules [AGENTS.md](AGENTS.md).
 
@@ -171,6 +171,9 @@ When a new bug fits one of these, tag it with the rule.
 
 | ID | Sev | Area | Closed in | One-liner |
 |---|---|---|---|---|
+| 75 | P2 | eventstream/aws-msk-frontend | 20.C AWS MSK frontend | AWS MSK topic responses built `TopicArn` as `clusterArn + "/topic/" + topic`, but AWS topic resources are `arn:aws:kafka:{region}:{account}:topic/{cluster-name}/{cluster-uuid}/{topic-name}`. Fixed by deriving the topic ARN from the cluster ARN resource segments and pinning Create/Describe/List/Delete topic SDK assertions. |
+| 74 | P2 | aws-rest-routing/sigv4 | 20.C AWS MSK frontend | Official AWS SDK MSK requests carry ARN labels whose escaped slashes must stay inside one Smithy path label. SigV4 and generated REST routing were using decoded `URL.Path`; fixed by canonicalizing from `URL.EscapedPath()` for signatures and matching generated routes/handlers against `restxml.MatchPath`. |
+| 73 | P2 | eventstream/domain | 20.C AWS MSK frontend | Phase 20 topic/log state was keyed only by topic name. Fixed by adding explicit cluster scope to the eventstream domain and inmem backend, so same-named topics and committed offsets are isolated per cluster. |
 | 72 | P3 | harness/eventstream | 20.B kgo conformance | The new Kafka TCP harness left two setup-failure `ln.Close()` calls unchecked, which `errcheck` rejected in `make lint`. Fixed by explicitly discarding the close error in those cleanup paths. |
 | 71 | P2 | eventstream/kafka-wire | 20.B kgo conformance | `kafkawire.AppendResponse` emitted a flexible v1 response header for `ApiVersions` v3+, but Kafka requires the non-flexible v0 response header for ApiVersions even when the response body is flexible; `franz-go/pkg/kgo` decoded the shim response as zero API keys. Fixed by suppressing response-header tags for ApiVersions while preserving the flexible response body. |
 | 70 | P2 | eventstream/kafka-data-plane | 20.B kgo conformance | `kafkaserver.New` left `MaxFrameSize` at zero when callers passed a partial config, so live TCP serving rejected every non-empty Kafka frame. Fixed by defaulting to `kafkawire.DefaultMaxFrameSize`. |

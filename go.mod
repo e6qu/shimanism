@@ -30,6 +30,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/ecr v1.58.3
 	github.com/aws/aws-sdk-go-v2/service/elasticache v1.52.2
 	github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2 v1.55.0
+	github.com/aws/aws-sdk-go-v2/service/kafka v1.52.5
 	github.com/aws/aws-sdk-go-v2/service/kms v1.53.2
 	github.com/aws/aws-sdk-go-v2/service/lambda v1.90.1
 	github.com/aws/aws-sdk-go-v2/service/rds v1.118.2

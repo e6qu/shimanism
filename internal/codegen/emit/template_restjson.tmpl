@@ -108,7 +108,7 @@ func {{ .GoName }}Handler(b {{ .GoName }}Backend) http.Handler {
 		ctx := r.Context()
 {{- if .InputType }}
 		in := &{{ .InputType }}{}
-		labels, ok := restxml.MatchURI(r.URL.Path, {{ .GoName }}URITemplate)
+		labels, ok := restxml.MatchURI(restxml.MatchPath(r), {{ .GoName }}URITemplate)
 		if !ok {
 			awsjson.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return

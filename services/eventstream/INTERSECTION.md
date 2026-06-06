@@ -52,8 +52,10 @@ The first implementation slice defines:
 - `services/eventstream/backends/inmem`: a real in-process append-only partition
   log for tests and local development.
 
-The first Kafka data-plane dispatcher is registered as an internal runtime, and
-the first cloud-shaped control-plane frontend is GCP Managed Kafka topic
-lifecycle. There is no fake Kafka server: every successful Kafka or REST topic
-response must come from `domain.Streams`, and out-of-intersection features must
-return Kafka/source-cloud errors.
+The first Kafka data-plane dispatcher is registered as an internal runtime, GCP
+Managed Kafka topic lifecycle is implemented, and the current AWS MSK slice adds
+cluster lifecycle/bootstrap discovery plus topic lifecycle. Topic/log/offset
+state is explicitly cluster-scoped in `domain.Streams`. There is no fake Kafka
+server: every successful Kafka or REST topic response must come from
+`domain.Streams`, and out-of-intersection features must return
+Kafka/source-cloud errors.

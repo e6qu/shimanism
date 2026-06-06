@@ -198,7 +198,7 @@ func (s *Server) metadata(ctx context.Context, req *kmsg.MetadataRequest) *kmsg.
 	allTopics := req.Version >= 1 && req.Topics == nil
 	var topics []domain.Topic
 	if allTopics || req.Version == 0 && len(req.Topics) == 0 {
-		list, err := s.streams.ListTopics(ctx, domain.ListTopicsOptions{})
+		list, err := s.streams.ListTopics(ctx, domain.ListTopicsOptions{ClusterID: s.cfg.ClusterID})
 		if err != nil {
 			resp.ErrorCode = errInvalidRequest
 			return &resp
@@ -220,7 +220,7 @@ func (s *Server) metadata(ctx context.Context, req *kmsg.MetadataRequest) *kmsg.
 			continue
 		}
 		name := topicName(requested.Topic)
-		topic, err := s.streams.DescribeTopic(ctx, name)
+		topic, err := s.streams.DescribeTopic(ctx, s.cfg.ClusterID, name)
 		if err != nil {
 			code := domainErrCode(err)
 			resp.Topics = append(resp.Topics, metadataUnknownTopic(name, code))
@@ -275,7 +275,7 @@ func (s *Server) createTopics(ctx context.Context, req *kmsg.CreateTopicsRequest
 			resp.Topics = append(resp.Topics, out)
 			continue
 		}
-		topic, err := s.streams.CreateTopic(ctx, in.Topic, domain.CreateTopicOptions{
+		topic, err := s.streams.CreateTopic(ctx, s.cfg.ClusterID, in.Topic, domain.CreateTopicOptions{
 			PartitionCount: partitions,
 			Retention:      retention,
 		})
@@ -354,7 +354,7 @@ func (s *Server) deleteTopics(ctx context.Context, req *kmsg.DeleteTopicsRequest
 func (s *Server) deleteTopic(ctx context.Context, name string) kmsg.DeleteTopicsResponseTopic {
 	out := kmsg.NewDeleteTopicsResponseTopic()
 	out.Topic = &name
-	if err := s.streams.DeleteTopic(ctx, name); err != nil {
+	if err := s.streams.DeleteTopic(ctx, s.cfg.ClusterID, name); err != nil {
 		out.ErrorCode = domainErrCode(err)
 		out.ErrorMessage = stringPtr(err.Error())
 	}
@@ -402,7 +402,7 @@ func (s *Server) produce(ctx context.Context, req *kmsg.ProduceRequest) *kmsg.Pr
 				out.Partitions = append(out.Partitions, pout)
 				continue
 			}
-			meta, err := s.streams.Produce(ctx, name, int(part.Partition), records)
+			meta, err := s.streams.Produce(ctx, s.cfg.ClusterID, name, int(part.Partition), records)
 			if err != nil {
 				pout.ErrorCode = domainErrCode(err)
 				pout.ErrorMessage = stringPtr(err.Error())
@@ -435,7 +435,7 @@ func (s *Server) fetch(ctx context.Context, req *kmsg.FetchRequest) *kmsg.FetchR
 				out.Partitions = append(out.Partitions, pout)
 				continue
 			}
-			bounds, err := s.streams.ListOffsets(ctx, topic.Topic, int(part.Partition))
+			bounds, err := s.streams.ListOffsets(ctx, s.cfg.ClusterID, topic.Topic, int(part.Partition))
 			if err != nil {
 				pout.ErrorCode = domainErrCode(err)
 				out.Partitions = append(out.Partitions, pout)
@@ -444,7 +444,7 @@ func (s *Server) fetch(ctx context.Context, req *kmsg.FetchRequest) *kmsg.FetchR
 			pout.HighWatermark = bounds.Latest
 			pout.LastStableOffset = bounds.Latest
 			pout.LogStartOffset = bounds.Earliest
-			records, err := s.streams.Fetch(ctx, topic.Topic, int(part.Partition), part.FetchOffset, defaultMaxRecordsPerFetch)
+			records, err := s.streams.Fetch(ctx, s.cfg.ClusterID, topic.Topic, int(part.Partition), part.FetchOffset, defaultMaxRecordsPerFetch)
 			if err != nil {
 				pout.ErrorCode = fetchErrCode(err)
 				out.Partitions = append(out.Partitions, pout)
@@ -469,7 +469,7 @@ func (s *Server) listOffsets(ctx context.Context, req *kmsg.ListOffsetsRequest) 
 		for _, part := range topic.Partitions {
 			pout := kmsg.NewListOffsetsResponseTopicPartition()
 			pout.Partition = part.Partition
-			bounds, err := s.streams.ListOffsets(ctx, topic.Topic, int(part.Partition))
+			bounds, err := s.streams.ListOffsets(ctx, s.cfg.ClusterID, topic.Topic, int(part.Partition))
 			if err != nil {
 				pout.ErrorCode = domainErrCode(err)
 				out.Partitions = append(out.Partitions, pout)
@@ -538,7 +538,7 @@ func (s *Server) offsetCommit(ctx context.Context, req *kmsg.OffsetCommitRequest
 				pout.ErrorCode = errUnknownTopicID
 			} else if groupErr != 0 {
 				pout.ErrorCode = groupErr
-			} else if err := s.streams.CommitOffset(ctx, req.Group, topic.Topic, int(part.Partition), part.Offset); err != nil {
+			} else if err := s.streams.CommitOffset(ctx, s.cfg.ClusterID, req.Group, topic.Topic, int(part.Partition), part.Offset); err != nil {
 				pout.ErrorCode = commitErrCode(err)
 			}
 			out.Partitions = append(out.Partitions, pout)
@@ -568,7 +568,7 @@ func (s *Server) offsetFetch(ctx context.Context, req *kmsg.OffsetFetchRequest) 
 			for _, partition := range topic.Partitions {
 				pout := kmsg.NewOffsetFetchResponseTopicPartition()
 				pout.Partition = partition
-				offset, err := s.streams.FetchCommittedOffset(ctx, req.Group, topic.Topic, int(partition))
+				offset, err := s.streams.FetchCommittedOffset(ctx, s.cfg.ClusterID, req.Group, topic.Topic, int(partition))
 				if err != nil {
 					pout.ErrorCode = fetchOffsetErrCode(err)
 					pout.Offset = -1
@@ -608,7 +608,7 @@ func (s *Server) offsetFetch(ctx context.Context, req *kmsg.OffsetFetchRequest) 
 					pout.ErrorCode = errUnknownTopicID
 					pout.Offset = -1
 				} else {
-					offset, err := s.streams.FetchCommittedOffset(ctx, group.Group, topic.Topic, int(partition))
+					offset, err := s.streams.FetchCommittedOffset(ctx, s.cfg.ClusterID, group.Group, topic.Topic, int(partition))
 					if err != nil {
 						pout.ErrorCode = fetchOffsetErrCode(err)
 						pout.Offset = -1

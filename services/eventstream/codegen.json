@@ -1,0 +1,17 @@
+{
+  "_comment": "Phase 20 Event Streaming — AWS MSK control-plane intersection operations (restJson1). The Kafka data plane is shared under internal/eventstream/kafkaserver.",
+  "spec": "services/eventstream/spec/aws-kafka.smithy.json",
+  "package": "gen",
+  "out": "services/eventstream/gen/aws_kafka.gen.go",
+  "operations": [
+    "CreateCluster",
+    "CreateTopic",
+    "DeleteTopic",
+    "DescribeCluster",
+    "DescribeTopic",
+    "GetBootstrapBrokers",
+    "ListClusters",
+    "ListNodes",
+    "ListTopics"
+  ]
+}

@@ -702,7 +702,7 @@ func CreateHostedZoneHandler(b CreateHostedZoneBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		in := &CreateHostedZoneRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, CreateHostedZoneURITemplate)
+		labels, ok := restxml.MatchURI(restxml.MatchPath(r), CreateHostedZoneURITemplate)
 		if !ok {
 			restxml.WriteErrorWrapped(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -748,7 +748,7 @@ func DeleteHostedZoneHandler(b DeleteHostedZoneBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		in := &DeleteHostedZoneRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, DeleteHostedZoneURITemplate)
+		labels, ok := restxml.MatchURI(restxml.MatchPath(r), DeleteHostedZoneURITemplate)
 		if !ok {
 			restxml.WriteErrorWrapped(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -791,7 +791,7 @@ func GetHostedZoneHandler(b GetHostedZoneBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		in := &GetHostedZoneRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, GetHostedZoneURITemplate)
+		labels, ok := restxml.MatchURI(restxml.MatchPath(r), GetHostedZoneURITemplate)
 		if !ok {
 			restxml.WriteErrorWrapped(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -834,7 +834,7 @@ func ListHostedZonesHandler(b ListHostedZonesBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		in := &ListHostedZonesRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, ListHostedZonesURITemplate)
+		labels, ok := restxml.MatchURI(restxml.MatchPath(r), ListHostedZonesURITemplate)
 		if !ok {
 			restxml.WriteErrorWrapped(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -891,7 +891,7 @@ func ChangeResourceRecordSetsHandler(b ChangeResourceRecordSetsBackend) http.Han
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		in := &ChangeResourceRecordSetsRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, ChangeResourceRecordSetsURITemplate)
+		labels, ok := restxml.MatchURI(restxml.MatchPath(r), ChangeResourceRecordSetsURITemplate)
 		if !ok {
 			restxml.WriteErrorWrapped(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -937,7 +937,7 @@ func ListResourceRecordSetsHandler(b ListResourceRecordSetsBackend) http.Handler
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		in := &ListResourceRecordSetsRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, ListResourceRecordSetsURITemplate)
+		labels, ok := restxml.MatchURI(restxml.MatchPath(r), ListResourceRecordSetsURITemplate)
 		if !ok {
 			restxml.WriteErrorWrapped(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -997,7 +997,7 @@ func ChangeTagsForResourceHandler(b ChangeTagsForResourceBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		in := &ChangeTagsForResourceRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, ChangeTagsForResourceURITemplate)
+		labels, ok := restxml.MatchURI(restxml.MatchPath(r), ChangeTagsForResourceURITemplate)
 		if !ok {
 			restxml.WriteErrorWrapped(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -1044,7 +1044,7 @@ func ListTagsForResourceHandler(b ListTagsForResourceBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		in := &ListTagsForResourceRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, ListTagsForResourceURITemplate)
+		labels, ok := restxml.MatchURI(restxml.MatchPath(r), ListTagsForResourceURITemplate)
 		if !ok {
 			restxml.WriteErrorWrapped(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -1091,7 +1091,7 @@ func GetChangeHandler(b GetChangeBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		in := &GetChangeRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, GetChangeURITemplate)
+		labels, ok := restxml.MatchURI(restxml.MatchPath(r), GetChangeURITemplate)
 		if !ok {
 			restxml.WriteErrorWrapped(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return

@@ -628,7 +628,7 @@ func CreateApiHandler(b CreateApiBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		in := &CreateApiRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, CreateApiURITemplate)
+		labels, ok := restxml.MatchURI(restxml.MatchPath(r), CreateApiURITemplate)
 		if !ok {
 			awsjson.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -671,7 +671,7 @@ func DeleteApiHandler(b DeleteApiBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		in := &DeleteApiRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, DeleteApiURITemplate)
+		labels, ok := restxml.MatchURI(restxml.MatchPath(r), DeleteApiURITemplate)
 		if !ok {
 			awsjson.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -712,7 +712,7 @@ func GetApiHandler(b GetApiBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		in := &GetApiRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, GetApiURITemplate)
+		labels, ok := restxml.MatchURI(restxml.MatchPath(r), GetApiURITemplate)
 		if !ok {
 			awsjson.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -758,7 +758,7 @@ func GetApisHandler(b GetApisBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		in := &GetApisRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, GetApisURITemplate)
+		labels, ok := restxml.MatchURI(restxml.MatchPath(r), GetApisURITemplate)
 		if !ok {
 			awsjson.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -809,7 +809,7 @@ func UpdateApiHandler(b UpdateApiBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		in := &UpdateApiRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, UpdateApiURITemplate)
+		labels, ok := restxml.MatchURI(restxml.MatchPath(r), UpdateApiURITemplate)
 		if !ok {
 			awsjson.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -855,7 +855,7 @@ func CreateRouteHandler(b CreateRouteBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		in := &CreateRouteRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, CreateRouteURITemplate)
+		labels, ok := restxml.MatchURI(restxml.MatchPath(r), CreateRouteURITemplate)
 		if !ok {
 			awsjson.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -901,7 +901,7 @@ func DeleteRouteHandler(b DeleteRouteBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		in := &DeleteRouteRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, DeleteRouteURITemplate)
+		labels, ok := restxml.MatchURI(restxml.MatchPath(r), DeleteRouteURITemplate)
 		if !ok {
 			awsjson.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -945,7 +945,7 @@ func GetRoutesHandler(b GetRoutesBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		in := &GetRoutesRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, GetRoutesURITemplate)
+		labels, ok := restxml.MatchURI(restxml.MatchPath(r), GetRoutesURITemplate)
 		if !ok {
 			awsjson.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -999,7 +999,7 @@ func CreateIntegrationHandler(b CreateIntegrationBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		in := &CreateIntegrationRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, CreateIntegrationURITemplate)
+		labels, ok := restxml.MatchURI(restxml.MatchPath(r), CreateIntegrationURITemplate)
 		if !ok {
 			awsjson.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -1045,7 +1045,7 @@ func DeleteIntegrationHandler(b DeleteIntegrationBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		in := &DeleteIntegrationRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, DeleteIntegrationURITemplate)
+		labels, ok := restxml.MatchURI(restxml.MatchPath(r), DeleteIntegrationURITemplate)
 		if !ok {
 			awsjson.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -1089,7 +1089,7 @@ func GetIntegrationsHandler(b GetIntegrationsBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		in := &GetIntegrationsRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, GetIntegrationsURITemplate)
+		labels, ok := restxml.MatchURI(restxml.MatchPath(r), GetIntegrationsURITemplate)
 		if !ok {
 			awsjson.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return
@@ -1143,7 +1143,7 @@ func CreateDeploymentHandler(b CreateDeploymentBackend) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		in := &CreateDeploymentRequest{}
-		labels, ok := restxml.MatchURI(r.URL.Path, CreateDeploymentURITemplate)
+		labels, ok := restxml.MatchURI(restxml.MatchPath(r), CreateDeploymentURITemplate)
 		if !ok {
 			awsjson.WriteError(w, http.StatusBadRequest, "InvalidURI", "path does not match operation template")
 			return

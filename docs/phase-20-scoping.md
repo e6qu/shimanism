@@ -50,7 +50,7 @@ services/eventstream/
 
 | Cloud | Control plane | Topic resource | Data plane |
 |---|---|---|---|
-| AWS | Amazon MSK API: clusters at `/v1/clusters`; create/get/list/delete cluster APIs | Kafka protocol `CreateTopics` / `DeleteTopics`; MSK does not provide topic CRUD as an MSK REST resource | Kafka protocol on broker endpoints |
+| AWS | Amazon MSK API: clusters at `/v1/clusters`; create/get/list/delete cluster APIs | MSK topic REST APIs in current Smithy (`CreateTopic`, `DescribeTopic`, `ListTopics`, `DeleteTopic`) or Kafka protocol admin APIs | Kafka protocol on broker endpoints |
 | GCP | Managed Service for Apache Kafka REST API (`managedkafka.googleapis.com`) | `v1.projects.locations.clusters.topics` create/get/list/patch/delete | Kafka protocol on cluster bootstrap endpoints |
 | Azure | ARM `Microsoft.EventHub/namespaces` | ARM `namespaces/{namespace}/eventhubs/{eventHub}` | Event Hubs Kafka endpoint |
 | K8s | Strimzi `Kafka` custom resources | Strimzi `KafkaTopic` custom resources | Kafka protocol on Strimzi bootstrap service |
@@ -84,10 +84,10 @@ filter. No shim-side cluster catalog is allowed.
 
 | Domain op | AWS MSK | GCP Managed Kafka | Azure Event Hubs | K8s Strimzi |
 |---|---|---|---|---|
-| CreateTopic | Kafka `CreateTopics` | `topics.create` or Kafka `CreateTopics` | `eventhubs.createOrUpdate` | create `KafkaTopic` CR |
-| DescribeTopic | Kafka `Metadata` / configs | `topics.get` | `eventhubs.get` | read `KafkaTopic` CR/status |
-| ListTopics | Kafka `Metadata` | `topics.list` | `eventhubs.listByNamespace` | list `KafkaTopic` CRs |
-| DeleteTopic | Kafka `DeleteTopics` | `topics.delete` or Kafka `DeleteTopics` | `eventhubs.delete` | delete `KafkaTopic` CR |
+| CreateTopic | MSK `CreateTopic` or Kafka `CreateTopics` | `topics.create` or Kafka `CreateTopics` | `eventhubs.createOrUpdate` | create `KafkaTopic` CR |
+| DescribeTopic | MSK `DescribeTopic` / Kafka `Metadata` | `topics.get` | `eventhubs.get` | read `KafkaTopic` CR/status |
+| ListTopics | MSK `ListTopics` / Kafka `Metadata` | `topics.list` | `eventhubs.listByNamespace` | list `KafkaTopic` CRs |
+| DeleteTopic | MSK `DeleteTopic` or Kafka `DeleteTopics` | `topics.delete` or Kafka `DeleteTopics` | `eventhubs.delete` | delete `KafkaTopic` CR |
 
 Topic options in intersection:
 
@@ -210,7 +210,7 @@ only.
 |---|---|---|
 | 20.A | Scoping (this doc), `INTERSECTION.md`, domain interfaces, inmem append-only log, Kafka wire runtime skeleton | Go Kafka client can produce/fetch against inmem through the shim for one topic/partition |
 | 20.B | Topic lifecycle and minimal data plane behind first frontend, likely GCP because its REST topic API is explicit | SDK + Kafka client conformance for create topic, produce, fetch, delete |
-| 20.C | AWS MSK frontend/control plane and Kafka admin mapping for topic lifecycle | AWS SDK/CLI/Terraform control-plane rows plus Kafka data-plane row |
+| 20.C | AWS MSK frontend/control plane and Kafka admin/data-plane mapping for topic lifecycle | AWS SDK/CLI/Terraform control-plane rows plus Kafka data-plane row |
 | 20.D | Azure Event Hubs frontend/control plane and Kafka endpoint auth mapping | Azure SDK/CLI/Terraform control-plane rows plus Kafka data-plane row |
 | 20.E | Strimzi connected backend and full matrix closeout | K8s peer uses real Kafka; no shim-owned log state outside the backend |
 
