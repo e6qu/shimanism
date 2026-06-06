@@ -8,9 +8,9 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 
 | | |
 |---|---|
-| Active branch | `phase-21-l7-loadbalancers` — Phase 21.A in progress. |
-| In-flight | Phase 21.A: L7 load balancer scoping (N35), domain extension (Rule/HealthCheck/CertificateIDs), inmem backend extension (Rule CRUD + Modify ops), codegen fix (BUG-78: pointer-to-enum fields now decoded from form), AWS ELBv2 adapter extended (ALB + HTTPS listeners + HTTP TGs + routing rules), AWS SDK conformance test `TestAWSSDK_ELBv2_ALB_RuleLifecycle` green. All tests/lint/licenses green. PR not yet opened. |
-| Last merged | Phase 20.E Strimzi backend + full CLI/TF conformance matrix — PR #155. |
+| Active branch | `phase-21-l7-loadbalancers` — Phase 21.B complete; 21.C next. |
+| In-flight | Phase 21.B: GCP HTTP(S) LB global resources (BackendServices, SslCertificates, UrlMaps, TargetHttpsProxies, GlobalForwardingRules) + lazy assembly of Listener+Rules at ForwardingRule creation. BlobEntry/blob-store added to domain + all backends. `TestGCPSDK_LB_L7Lifecycle` green. PR not yet opened. |
+| Last merged | Phase 21.A L7 ALB frontend (rules/HTTPS/health checks) — PR #156. |
 | Upstream watch | Registry sockerless: BUG-67/#465 remains open. BUG-65/#451 and BUG-66/#452/#469 are closed on current sockerless main. |
 | Phases 1–19 | 1–19 closed. See [PLAN.md § Closed phases](PLAN.md#closed-phases-pr-index). |
 | Phase 19 | ✅ complete — 19.A (#127) · 19.B (#128) · 19.C (#129) · 19.D (#130 CLI/TF, #131 sockerless). All 4 backends, full SDK/CLI/TF, all sockerless lanes green, zero skips. |

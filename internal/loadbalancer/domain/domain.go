@@ -292,6 +292,19 @@ type LoadBalancers interface {
 	UpdateListener(ctx context.Context, id string, opt UpdateListenerOptions) (Listener, error)
 	UpdateRule(ctx context.Context, id string, opt UpdateRuleOptions) (Rule, error)
 	SetRulePriorities(ctx context.Context, pairs []RulePriorityPair) ([]Rule, error)
+
+	// Blob storage for protocol-specific intermediate resources (GCP only).
+	// Backends that don't support blob storage return ErrNotSupported.
+	PutBlob(ctx context.Context, kind, name string, data []byte) error
+	GetBlob(ctx context.Context, kind, name string) ([]byte, error)
+	ListBlobs(ctx context.Context, kind string) ([]BlobEntry, error)
+	DeleteBlob(ctx context.Context, kind, name string) error
+}
+
+// BlobEntry is a named opaque resource stored by the blob store.
+type BlobEntry struct {
+	Name string
+	Data []byte
 }
 
 // ──────────────────────────────────────────────

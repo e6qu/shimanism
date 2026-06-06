@@ -393,3 +393,19 @@ func (b *Backend) UpdateRule(_ context.Context, _ string, _ domain.UpdateRuleOpt
 func (b *Backend) SetRulePriorities(_ context.Context, _ []domain.RulePriorityPair) ([]domain.Rule, error) {
 	return nil, fmt.Errorf("L7 set rule priorities: %w", domain.ErrNotSupported)
 }
+
+func (b *Backend) PutBlob(_ context.Context, _, _ string, _ []byte) error {
+	return fmt.Errorf("blob storage not available on AWS backend: %w", domain.ErrNotSupported)
+}
+
+func (b *Backend) GetBlob(_ context.Context, _, _ string) ([]byte, error) {
+	return nil, fmt.Errorf("blob storage not available on AWS backend: %w", domain.ErrNotSupported)
+}
+
+func (b *Backend) ListBlobs(_ context.Context, _ string) ([]domain.BlobEntry, error) {
+	return nil, fmt.Errorf("blob storage not available on AWS backend: %w", domain.ErrNotSupported)
+}
+
+func (b *Backend) DeleteBlob(_ context.Context, _, _ string) error {
+	return fmt.Errorf("blob storage not available on AWS backend: %w", domain.ErrNotSupported)
+}

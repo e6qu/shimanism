@@ -140,3 +140,175 @@ func TestGCPSDK_LB_BackendServiceLifecycle(t *testing.T) {
 		t.Fatalf("RegionBackendServices.Delete: %v", err)
 	}
 }
+
+func TestGCPSDK_LB_L7Lifecycle(t *testing.T) {
+	srv := harness.StartLoadBalancerServerGCP(t, inmem.New())
+	svc := newGCPComputeLBClient(t, srv.URL)
+	ctx := context.Background()
+
+	// 1. Insert SslCertificate (opaque cert pass-through)
+	certOp, err := svc.SslCertificates.Insert(gcpLBProject, &computeraw.SslCertificate{
+		Name: "my-cert",
+		Type: "SELF_MANAGED",
+	}).Context(ctx).Do()
+	if err != nil {
+		t.Fatalf("SslCertificates.Insert: %v", err)
+	}
+	if certOp.Status != "DONE" {
+		t.Errorf("SslCertificates.Insert operation status = %q, want DONE", certOp.Status)
+	}
+
+	// GET the cert back
+	cert, err := svc.SslCertificates.Get(gcpLBProject, "my-cert").Context(ctx).Do()
+	if err != nil {
+		t.Fatalf("SslCertificates.Get: %v", err)
+	}
+	if cert.Name != "my-cert" {
+		t.Errorf("SslCertificates.Get name = %q, want my-cert", cert.Name)
+	}
+
+	// 2. Insert global BackendService (HTTP target group)
+	beOp, err := svc.BackendServices.Insert(gcpLBProject, &computeraw.BackendService{
+		Name:     "my-backend",
+		Protocol: "HTTP",
+	}).Context(ctx).Do()
+	if err != nil {
+		t.Fatalf("BackendServices.Insert: %v", err)
+	}
+	if beOp.Status != "DONE" {
+		t.Errorf("BackendServices.Insert operation status = %q, want DONE", beOp.Status)
+	}
+
+	// GET the backend service
+	bs, err := svc.BackendServices.Get(gcpLBProject, "my-backend").Context(ctx).Do()
+	if err != nil {
+		t.Fatalf("BackendServices.Get: %v", err)
+	}
+	if bs.Name != "my-backend" {
+		t.Errorf("BackendServices.Get name = %q, want my-backend", bs.Name)
+	}
+	if bs.Protocol != "HTTP" {
+		t.Errorf("BackendServices.Get protocol = %q, want HTTP", bs.Protocol)
+	}
+
+	// 3. Insert UrlMap referencing the backend service
+	beSelfLink := "https://www.googleapis.com/compute/v1/projects/" + gcpLBProject + "/global/backendServices/my-backend"
+	umOp, err := svc.UrlMaps.Insert(gcpLBProject, &computeraw.UrlMap{
+		Name:           "my-urlmap",
+		DefaultService: beSelfLink,
+		PathMatchers: []*computeraw.PathMatcher{
+			{
+				Name:           "pm1",
+				DefaultService: beSelfLink,
+				PathRules: []*computeraw.PathRule{
+					{Paths: []string{"/api/*"}, Service: beSelfLink},
+				},
+			},
+		},
+	}).Context(ctx).Do()
+	if err != nil {
+		t.Fatalf("UrlMaps.Insert: %v", err)
+	}
+	if umOp.Status != "DONE" {
+		t.Errorf("UrlMaps.Insert operation status = %q, want DONE", umOp.Status)
+	}
+
+	// GET the url map
+	um, err := svc.UrlMaps.Get(gcpLBProject, "my-urlmap").Context(ctx).Do()
+	if err != nil {
+		t.Fatalf("UrlMaps.Get: %v", err)
+	}
+	if um.Name != "my-urlmap" {
+		t.Errorf("UrlMaps.Get name = %q, want my-urlmap", um.Name)
+	}
+	if len(um.PathMatchers) == 0 {
+		t.Errorf("UrlMaps.Get: expected at least one path matcher")
+	}
+
+	// 4. Insert TargetHttpsProxy referencing urlMap + cert
+	certSelfLink := "https://www.googleapis.com/compute/v1/projects/" + gcpLBProject + "/global/sslCertificates/my-cert"
+	umSelfLink := "https://www.googleapis.com/compute/v1/projects/" + gcpLBProject + "/global/urlMaps/my-urlmap"
+	proxyOp, err := svc.TargetHttpsProxies.Insert(gcpLBProject, &computeraw.TargetHttpsProxy{
+		Name:            "my-proxy",
+		UrlMap:          umSelfLink,
+		SslCertificates: []string{certSelfLink},
+	}).Context(ctx).Do()
+	if err != nil {
+		t.Fatalf("TargetHttpsProxies.Insert: %v", err)
+	}
+	if proxyOp.Status != "DONE" {
+		t.Errorf("TargetHttpsProxies.Insert operation status = %q, want DONE", proxyOp.Status)
+	}
+
+	// GET the proxy
+	proxy, err := svc.TargetHttpsProxies.Get(gcpLBProject, "my-proxy").Context(ctx).Do()
+	if err != nil {
+		t.Fatalf("TargetHttpsProxies.Get: %v", err)
+	}
+	if proxy.Name != "my-proxy" {
+		t.Errorf("TargetHttpsProxies.Get name = %q, want my-proxy", proxy.Name)
+	}
+	if len(proxy.SslCertificates) == 0 {
+		t.Errorf("TargetHttpsProxies.Get: expected sslCertificates to be populated")
+	}
+
+	// 5. Insert GlobalForwardingRule (final assembly → LB + Listener + Rules)
+	proxySelfLink := "https://www.googleapis.com/compute/v1/projects/" + gcpLBProject + "/global/targetHttpsProxies/my-proxy"
+	frOp, err := svc.GlobalForwardingRules.Insert(gcpLBProject, &computeraw.ForwardingRule{
+		Name:       "my-l7-lb",
+		Target:     proxySelfLink,
+		PortRange:  "443",
+		IPProtocol: "TCP",
+	}).Context(ctx).Do()
+	if err != nil {
+		t.Fatalf("GlobalForwardingRules.Insert: %v", err)
+	}
+	if frOp.Status != "DONE" {
+		t.Errorf("GlobalForwardingRules.Insert operation status = %q, want DONE", frOp.Status)
+	}
+
+	// GET the forwarding rule
+	fr, err := svc.GlobalForwardingRules.Get(gcpLBProject, "my-l7-lb").Context(ctx).Do()
+	if err != nil {
+		t.Fatalf("GlobalForwardingRules.Get: %v", err)
+	}
+	if fr.Name != "my-l7-lb" {
+		t.Errorf("GlobalForwardingRules.Get name = %q, want my-l7-lb", fr.Name)
+	}
+	if fr.PortRange != "443" {
+		t.Errorf("GlobalForwardingRules.Get portRange = %q, want 443", fr.PortRange)
+	}
+
+	// List global forwarding rules
+	frList, err := svc.GlobalForwardingRules.List(gcpLBProject).Context(ctx).Do()
+	if err != nil {
+		t.Fatalf("GlobalForwardingRules.List: %v", err)
+	}
+	found := false
+	for _, item := range frList.Items {
+		if item.Name == "my-l7-lb" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("GlobalForwardingRules.List: my-l7-lb not found")
+	}
+
+	// 6. Cleanup in reverse order.
+	if _, err := svc.GlobalForwardingRules.Delete(gcpLBProject, "my-l7-lb").Context(ctx).Do(); err != nil {
+		t.Fatalf("GlobalForwardingRules.Delete: %v", err)
+	}
+	if _, err := svc.TargetHttpsProxies.Delete(gcpLBProject, "my-proxy").Context(ctx).Do(); err != nil {
+		t.Fatalf("TargetHttpsProxies.Delete: %v", err)
+	}
+	if _, err := svc.UrlMaps.Delete(gcpLBProject, "my-urlmap").Context(ctx).Do(); err != nil {
+		t.Fatalf("UrlMaps.Delete: %v", err)
+	}
+	if _, err := svc.BackendServices.Delete(gcpLBProject, "my-backend").Context(ctx).Do(); err != nil {
+		t.Fatalf("BackendServices.Delete: %v", err)
+	}
+	if _, err := svc.SslCertificates.Delete(gcpLBProject, "my-cert").Context(ctx).Do(); err != nil {
+		t.Fatalf("SslCertificates.Delete: %v", err)
+	}
+}

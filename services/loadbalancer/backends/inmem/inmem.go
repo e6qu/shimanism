@@ -19,6 +19,9 @@ type Backend struct {
 	lsns  map[string]*domain.Listener
 	rules map[string]*domain.Rule
 
+	// blobs: kind → name → data (for GCP intermediate resources)
+	blobs map[string]map[string][]byte
+
 	lbSeq   int
 	tgSeq   int
 	lsnSeq  int
@@ -32,6 +35,7 @@ func New() *Backend {
 		tgs:   map[string]*domain.TargetGroup{},
 		lsns:  map[string]*domain.Listener{},
 		rules: map[string]*domain.Rule{},
+		blobs: map[string]map[string][]byte{},
 	}
 }
 
@@ -444,4 +448,57 @@ func (b *Backend) SetRulePriorities(_ context.Context, pairs []domain.RulePriori
 		out = append(out, *b.rules[p.ID])
 	}
 	return out, nil
+}
+
+// ─── Blob store ───────────────────────────────────────────────────────
+
+func (b *Backend) PutBlob(_ context.Context, kind, name string, data []byte) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.blobs[kind] == nil {
+		b.blobs[kind] = make(map[string][]byte)
+	}
+	cp := make([]byte, len(data))
+	copy(cp, data)
+	b.blobs[kind][name] = cp
+	return nil
+}
+
+func (b *Backend) GetBlob(_ context.Context, kind, name string) ([]byte, error) {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	data, ok := b.blobs[kind][name]
+	if !ok {
+		return nil, fmt.Errorf("%s %q: %w", kind, name, domain.ErrNotFound)
+	}
+	cp := make([]byte, len(data))
+	copy(cp, data)
+	return cp, nil
+}
+
+func (b *Backend) ListBlobs(_ context.Context, kind string) ([]domain.BlobEntry, error) {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	ns := b.blobs[kind]
+	out := make([]domain.BlobEntry, 0, len(ns))
+	for name, data := range ns {
+		cp := make([]byte, len(data))
+		copy(cp, data)
+		out = append(out, domain.BlobEntry{Name: name, Data: cp})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+	return out, nil
+}
+
+func (b *Backend) DeleteBlob(_ context.Context, kind, name string) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.blobs[kind] == nil {
+		return fmt.Errorf("%s %q: %w", kind, name, domain.ErrNotFound)
+	}
+	if _, ok := b.blobs[kind][name]; !ok {
+		return fmt.Errorf("%s %q: %w", kind, name, domain.ErrNotFound)
+	}
+	delete(b.blobs[kind], name)
+	return nil
 }
