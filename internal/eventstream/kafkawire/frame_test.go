@@ -63,7 +63,7 @@ func TestDecodeRequest_MetadataWithHeaderTags(t *testing.T) {
 	}
 }
 
-func TestAppendResponse_ApiVersionsFlexible(t *testing.T) {
+func TestAppendResponse_ApiVersionsFlexibleBodyUsesNonFlexibleHeader(t *testing.T) {
 	resp := kmsg.NewApiVersionsResponse()
 	resp.SetVersion(3)
 	resp.ApiKeys = []kmsg.ApiVersionsResponseApiKey{
@@ -80,13 +80,9 @@ func TestAppendResponse_ApiVersionsFlexible(t *testing.T) {
 	if got := int32(binary.BigEndian.Uint32(payload[:4])); got != 99 {
 		t.Fatalf("correlation ID = %d, want 99", got)
 	}
-	if payload[4] != 0 {
-		t.Fatalf("flexible response header tags byte = %d, want 0", payload[4])
-	}
-
 	var decoded kmsg.ApiVersionsResponse
 	decoded.SetVersion(3)
-	if err := decoded.ReadFrom(payload[5:]); err != nil {
+	if err := decoded.ReadFrom(payload[4:]); err != nil {
 		t.Fatalf("ApiVersionsResponse.ReadFrom: %v", err)
 	}
 	if len(decoded.ApiKeys) != 2 || decoded.ApiKeys[0].ApiKey != 18 || decoded.ApiKeys[1].ApiKey != 3 {

@@ -63,6 +63,16 @@ out-of-intersection input: GCP exposes it, but Azure Event Hubs does not expose
 Kafka replication as a user-controlled setting, so the shim rejects non-zero
 values instead of accepting and ignoring them.
 
+After PR #151 merged that GCP frontend, the first real Kafka client conformance
+slice connected `franz-go/pkg/kgo` to the TCP data plane after creating the
+topic through the official GCP REST SDK. That surfaced two concrete wire bugs
+before the fix: live TCP serving with a partial `kafkaserver.Config` left
+`MaxFrameSize` at zero (BUG-70), and ApiVersions v3+ used the wrong flexible
+response-header rule (BUG-71). Both were fixed without adding client-specific
+fallbacks: the server now defaults to the shared frame limit, and ApiVersions
+keeps its non-flexible response header while preserving the flexible response
+body.
+
 ## Code health audit baseline: in progress
 
 After Phase 18 closed, the next maintenance thread is explicit dead-code and copy-paste detection. The repo already runs `staticcheck` + `unused` through `golangci-lint`, so the baseline adds advisory audits rather than a new hard gate: `dupl` through the existing `golangci-lint` binary for duplicate Go fragments, and the official `golang.org/x/tools/cmd/deadcode` command for call-graph reachability. The first duplicate scan found real cleanup candidates in `cmd/shim`, compute inmem/K8s helpers, and secrets Terraform conformance tests. The first deadcode scan was useful but noisy around generated code and library-style entry points, so it stays audit-only with generated-code filtering.

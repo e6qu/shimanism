@@ -9,8 +9,10 @@
 package harness
 
 import (
+	"context"
 	"crypto/tls"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -38,6 +40,7 @@ import (
 	gcpdnsfront "github.com/e6qu/shimanism/internal/dns/frontends/gcp_clouddns"
 	eventstreamdomain "github.com/e6qu/shimanism/internal/eventstream/domain"
 	gcpmanagedkafkafront "github.com/e6qu/shimanism/internal/eventstream/frontends/gcp_managedkafka"
+	"github.com/e6qu/shimanism/internal/eventstream/kafkaserver"
 	functionsdomain "github.com/e6qu/shimanism/internal/functions/domain"
 	awslambdafront "github.com/e6qu/shimanism/internal/functions/frontends/aws_lambda"
 	azurecafront "github.com/e6qu/shimanism/internal/functions/frontends/azure_containerapps"
@@ -756,6 +759,12 @@ type EventStreamServer struct {
 	Close func()
 }
 
+// EventStreamKafkaServer is a started Kafka TCP data-plane shim instance.
+type EventStreamKafkaServer struct {
+	Address string
+	Close   func()
+}
+
 // StartEventStreamServerGCP starts a shim instance with the GCP
 // Managed Service for Apache Kafka REST frontend.
 func StartEventStreamServerGCP(t *testing.T, backend eventstreamdomain.Streams) *EventStreamServer {
@@ -766,6 +775,57 @@ func StartEventStreamServerGCP(t *testing.T, backend eventstreamdomain.Streams) 
 	ts := httptest.NewServer(&logRoundTrip{t: t, mux: mw(srv)})
 	t.Cleanup(ts.Close)
 	return &EventStreamServer{URL: ts.URL, Close: ts.Close}
+}
+
+// StartEventStreamKafkaServer starts the Kafka TCP data-plane frontend backed
+// by the given event-stream implementation.
+func StartEventStreamKafkaServer(t *testing.T, backend eventstreamdomain.Streams) *EventStreamKafkaServer {
+	t.Helper()
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("bind Kafka data-plane listener: %v", err)
+	}
+	addr := ln.Addr().String()
+	_, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		_ = ln.Close()
+		t.Fatalf("parse Kafka data-plane listener address %q: %v", addr, err)
+	}
+	var portNum int
+	if _, err := fmt.Sscanf(port, "%d", &portNum); err != nil {
+		_ = ln.Close()
+		t.Fatalf("parse Kafka data-plane listener port %q: %v", port, err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	srv := kafkaserver.New(backend, kafkaserver.Config{
+		Host: "127.0.0.1",
+		Port: int32(portNum),
+	})
+	go func() {
+		for {
+			conn, err := ln.Accept()
+			if err != nil {
+				if ctx.Err() != nil || errors.Is(err, net.ErrClosed) {
+					return
+				}
+				t.Logf("[harness] Kafka accept error: %v", err)
+				return
+			}
+			t.Logf("[harness] Kafka connection from %s", conn.RemoteAddr())
+			go func() {
+				if err := srv.ServeConn(ctx, conn); err != nil && ctx.Err() == nil {
+					t.Logf("[harness] Kafka connection error: %v", err)
+				}
+				_ = conn.Close()
+			}()
+		}
+	}()
+	closeFn := func() {
+		cancel()
+		_ = ln.Close()
+	}
+	t.Cleanup(closeFn)
+	return &EventStreamKafkaServer{Address: addr, Close: closeFn}
 }
 
 // logRoundTrip logs each request through the harness. Lightweight —
