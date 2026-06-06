@@ -420,9 +420,10 @@ NAT Gateways · Internet Gateways · Route Tables · VPC Peering · Auto Scaling
 
 > **Premise.** Ordered, partitioned stream ingestion — distinct from the fan-out pub/sub model in Phase 4. The tightest three-cloud intersection is the **Apache Kafka-compatible** surface: AWS MSK (Managed Streaming for Apache Kafka), GCP Managed Apache Kafka, and Azure Event Hubs with Kafka endpoint. All three speak the Kafka wire protocol over the same port. The shim fronts the Kafka protocol directly.
 >
-> **Status: in progress.** Phase 20.A foundation is underway: domain contract,
-> real inmem append-only log backend, and service/intersection docs. No Kafka
-> wire listener or cloud frontend is registered yet.
+> **Status: in progress.** Phase 20.A foundation is merged: domain contract,
+> real inmem append-only log backend, and service/intersection docs. The current
+> slice adds a shared Kafka frame codec on generated `kmsg` protocol bodies; no
+> Kafka dispatcher or cloud frontend is registered yet.
 
 | Operation | AWS MSK | GCP Managed Kafka | Azure Event Hubs (Kafka) |
 |---|---|---|---|

@@ -214,14 +214,34 @@ only.
 | 20.D | Azure Event Hubs frontend/control plane and Kafka endpoint auth mapping | Azure SDK/CLI/Terraform control-plane rows plus Kafka data-plane row |
 | 20.E | Strimzi connected backend and full matrix closeout | K8s peer uses real Kafka; no shim-owned log state outside the backend |
 
-## 8. Open Questions For 20.A
+## 8. Kafka Runtime Dependency Decision
 
-- Which Kafka protocol package is acceptable under the dependency policy and has
-  enough server-side framing support for the first slice?
-- Should the first data-plane test use `franz-go/pkg/kgo`, the Apache Kafka CLI,
-  or both?
+Use `github.com/twmb/franz-go/pkg/kmsg` for generated Kafka request/response
+types.
+
+Decision checks:
+
+- `kmsg` is pure Go and exposes generated request/response bodies with
+  `ReadFrom` / `AppendTo`; the shim still owns TCP framing and dispatch.
+- Version `v1.13.1` was published on 2026-04-06, clearing the 48-hour release-age
+  rule in `docs/dependency-policy.md`.
+- License is BSD-3-Clause, which is allowlisted in
+  `docs/compatible-licenses.md`.
+- The package is a protocol-type dependency, not a fake broker. It does not
+  create successful Kafka behavior by itself.
+
+Do not add `kfake` or any test-only broker abstraction to the shim runtime. Tests
+may use official Kafka clients to drive the shim, but the shim's server path must
+decode real Kafka frames and either perform real backend work or return honest
+Kafka/source-cloud errors.
+
+## 9. Open Questions For 20.B
+
+- Should the first data-plane conformance test use `franz-go/pkg/kgo`, the
+  Apache Kafka CLI, or both?
 - Which Kafka API versions should the shim advertise in `ApiVersions` for the
   initial implementation? Prefer the smallest set that official clients accept.
-- Is consumer-group support required in 20.A, or can 20.A prove produce/fetch and
-  leave groups for 20.B? If deferred, clients that require group coordination
-  must receive honest Kafka errors, not fake group success.
+- Is consumer-group support required in the first data-plane PR, or can the first
+  PR prove produce/fetch and leave groups for the next slice? If deferred,
+  clients that require group coordination must receive honest Kafka errors, not
+  fake group success.

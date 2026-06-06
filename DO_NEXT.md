@@ -12,18 +12,18 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 
 **Open bugs:** BUG-8 · BUG-15 · BUG-41 (Track A only — blocked on real GCP credentials) · BUG-65/66/67 (sockerless registry `/v2/` gaps filed upstream as sockerless#451/#452/#465).
 
-**Current branch:** `phase-20-eventstream-20a` starts Phase 20.A with the event-stream domain, a real inmem append-only partition log backend, and service/intersection docs. PR #146 is merged; `dupl` is strict in normal lint/CI and BUG-64 is closed.
+**Current branch:** `phase-20-kafka-runtime-selection` continues Phase 20.A after PR #147 merged. This slice selects the Kafka protocol runtime dependency and adds a shared TCP frame codec; it must not register a fake Kafka broker, dispatcher, or synthetic success path.
 
 ## Session-start checklist
 
-1. Stay on `phase-20-eventstream-20a` unless the PR has already merged; if it has, sync `main` before starting the next branch.
-2. Continue Phase 20.A from [PLAN.md § Phase 20](PLAN.md#phase-20--event-streaming) and [docs/phase-20-scoping.md](docs/phase-20-scoping.md).
+1. Stay on `phase-20-kafka-runtime-selection` unless the PR has already merged; if it has, sync `main` before starting the next branch.
+2. Continue the Kafka runtime slice from [PLAN.md § Phase 20](PLAN.md#phase-20--event-streaming) and [docs/phase-20-scoping.md](docs/phase-20-scoping.md).
 
 ## Phase 20 — Event Streaming ◐
 
-Phase 20 is planned around ordered, partitioned event streams with a Kafka-compatible data plane. The current PR is a 20.A foundation slice: scoping is done, the domain is defined, Strimzi is the honest K8s peer choice, and the inmem backend is a real append-only partition log. The Kafka wire runtime is deliberately not faked in this slice.
+Phase 20 is planned around ordered, partitioned event streams with a Kafka-compatible data plane. PR #147 merged the first 20.A foundation slice: scoping is done, the domain is defined, Strimzi is the honest K8s peer choice, and the inmem backend is a real append-only partition log. The current follow-up adds the real Kafka frame/runtime boundary without faking a broker.
 
-Current 20.A checklist:
+Merged 20.A foundation checklist:
 
 - [x] Draft `docs/phase-20-scoping.md`: Kafka data-plane boundary, control-plane/resource intersection, out-of-intersection features, and normalization rules.
 - [x] Inspect official specs/source APIs for AWS MSK, GCP Managed Service for Apache Kafka, Azure Event Hubs/ARM, Kafka protocol, and Strimzi.
@@ -31,9 +31,17 @@ Current 20.A checklist:
 - [x] Define `internal/eventstream/domain`.
 - [x] Add `services/eventstream/backends/inmem` as a real append-only partition log, with tests for topic lifecycle, produce/fetch, offsets, retention, and validation.
 - [x] Publish `services/eventstream/INTERSECTION.md` and `docs/services/eventstream.md`.
-- [ ] Run full local verification (`go test`, `make lint`, code-health audits as practical).
-- [ ] Open the Phase 20.A PR.
-- [ ] Monitor the Phase 20.A PR and fix CI until green. Do not merge it.
+- [x] Open and merge the Phase 20.A foundation PR (#147).
+
+Current Kafka runtime checklist:
+
+- [x] Verify `github.com/twmb/franz-go/pkg/kmsg` release age and BSD-3-Clause license against repo policy.
+- [x] Add the direct `kmsg` dependency.
+- [x] Add `internal/eventstream/kafkawire` for Kafka size-prefixed frame reads, request-header decode, generated request-body decode, and response framing.
+- [x] Cover flexible headers, unsupported APIs/versions, malformed frames, and response framing with tests.
+- [x] Run full local verification (`go test`, `make lint`, `make license-check`, code-health audits as practical).
+- [ ] Open the Kafka runtime PR.
+- [ ] Monitor the Kafka runtime PR and fix CI until green. Do not merge it.
 
 ## Phase 18 — Container Registry ✅ COMPLETE
 
