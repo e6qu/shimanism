@@ -4,6 +4,27 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 
 > Reverse chronological. One section per phase. The *why*, the surprises, the root causes — not per-PR detail. For commit-level history, `git log`. For per-bug detail, [BUGS.md](BUGS.md). For pipeline + verifier architecture, [docs/codegen-pipelines.md](docs/codegen-pipelines.md) + [docs/verifiers.md](docs/verifiers.md).
 
+## Phase 20 — Event Streaming: in progress
+
+Phase 20 starts with the Kafka-shaped intersection, not with a second pub/sub
+service. The key early decision is honesty on the data plane: a frontend must
+parse real Kafka wire requests or return real source/Kafka errors; there is no
+test-only TCP server that hands back canned Produce/Fetch success.
+
+The first implementation slice therefore builds only the pieces that can be made
+real now without a new protocol dependency: `internal/eventstream/domain` defines
+topics, partitions, records, offset bounds, and committed consumer offsets, while
+`services/eventstream/backends/inmem` stores an actual append-only partition log.
+Offsets are monotonic, fetches return stored records, retention prunes backend
+state, and committed offsets live in backend state. This is a test/local backend,
+not shim source-of-truth storage.
+
+The same slice publishes the service/intersection docs and corrects the roadmap:
+partition count and retention are portable, but replication factor is not a
+portable user-controlled setting because Azure Event Hubs owns replication inside
+the managed service. The K8s peer remains Strimzi Kafka, not an in-tree
+`shima<service>` object-store adaptation.
+
 ## Code health audit baseline: in progress
 
 After Phase 18 closed, the next maintenance thread is explicit dead-code and copy-paste detection. The repo already runs `staticcheck` + `unused` through `golangci-lint`, so the baseline adds advisory audits rather than a new hard gate: `dupl` through the existing `golangci-lint` binary for duplicate Go fragments, and the official `golang.org/x/tools/cmd/deadcode` command for call-graph reachability. The first duplicate scan found real cleanup candidates in `cmd/shim`, compute inmem/K8s helpers, and secrets Terraform conformance tests. The first deadcode scan was useful but noisy around generated code and library-style entry points, so it stays audit-only with generated-code filtering.

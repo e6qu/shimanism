@@ -12,23 +12,28 @@ Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BU
 
 **Open bugs:** BUG-8 · BUG-15 · BUG-41 (Track A only — blocked on real GCP credentials) · BUG-65/66/67 (sockerless registry `/v2/` gaps filed upstream as sockerless#451/#452/#465).
 
-**Current branch:** `code-health-closeout-and-phase20-scope` closes out duplicate-code detection by making `dupl` strict in lint/CI, deletes confirmed dead helpers from the dead-code audit, records PR #145 as merged, and drafts [docs/phase-20-scoping.md](docs/phase-20-scoping.md).
+**Current branch:** `phase-20-eventstream-20a` starts Phase 20.A with the event-stream domain, a real inmem append-only partition log backend, and service/intersection docs. PR #146 is merged; `dupl` is strict in normal lint/CI and BUG-64 is closed.
 
 ## Session-start checklist
 
-1. `git fetch origin && git checkout main && git pull --ff-only origin main` — sync `main`.
-2. Start Phase 20 (Event Streaming) from [PLAN.md § Phase 20](PLAN.md#phase-20--event-streaming).
+1. Stay on `phase-20-eventstream-20a` unless the PR has already merged; if it has, sync `main` before starting the next branch.
+2. Continue Phase 20.A from [PLAN.md § Phase 20](PLAN.md#phase-20--event-streaming) and [docs/phase-20-scoping.md](docs/phase-20-scoping.md).
 
 ## Phase 20 — Event Streaming ◐
 
-Phase 20 is planned around ordered, partitioned event streams with a Kafka-compatible data plane. The first PR should be 20.A scoping: prove the intersection, define the domain, choose the honest K8s peer shape, and decide how much Kafka wire protocol to implement in the first slice.
+Phase 20 is planned around ordered, partitioned event streams with a Kafka-compatible data plane. The current PR is a 20.A foundation slice: scoping is done, the domain is defined, Strimzi is the honest K8s peer choice, and the inmem backend is a real append-only partition log. The Kafka wire runtime is deliberately not faked in this slice.
 
-Suggested first chunk:
+Current 20.A checklist:
 
-- [ ] Draft `docs/phase-20-scoping.md`: Kafka data-plane boundary, control-plane/resource intersection, out-of-intersection features, and normalization rules.
-- [ ] Inspect official specs/source APIs for AWS MSK, GCP Managed Service for Apache Kafka, and Azure Event Hubs/ARM.
-- [ ] Decide K8s peer: Strimzi/Redpanda/Apache Kafka as connected backend vs an in-tree `shima<service>` peer. Prefer real Kafka-compatible OSS if it can satisfy the intersection honestly.
-- [ ] Define the service domain under `internal/eventstream/domain` only after the scoping doc settles the minimum operation set.
+- [x] Draft `docs/phase-20-scoping.md`: Kafka data-plane boundary, control-plane/resource intersection, out-of-intersection features, and normalization rules.
+- [x] Inspect official specs/source APIs for AWS MSK, GCP Managed Service for Apache Kafka, Azure Event Hubs/ARM, Kafka protocol, and Strimzi.
+- [x] Decide K8s peer: Strimzi Kafka as a connected backend.
+- [x] Define `internal/eventstream/domain`.
+- [x] Add `services/eventstream/backends/inmem` as a real append-only partition log, with tests for topic lifecycle, produce/fetch, offsets, retention, and validation.
+- [x] Publish `services/eventstream/INTERSECTION.md` and `docs/services/eventstream.md`.
+- [ ] Run full local verification (`go test`, `make lint`, code-health audits as practical).
+- [ ] Open the Phase 20.A PR.
+- [ ] Monitor the Phase 20.A PR and fix CI until green. Do not merge it.
 
 ## Phase 18 — Container Registry ✅ COMPLETE
 
@@ -48,8 +53,8 @@ Closed by PRs #132–#141. Registry sockerless tests are wired and fail loud on 
 - [x] Open and merge the remaining duplicate-code cleanup PR (#145).
 - [x] Make duplicate-code detection strict in `make lint` / CI.
 - [x] Triage small dead-code findings and delete confirmed unused helpers.
-- [ ] Open the code-health closeout + Phase 20 scoping PR.
-- [ ] Next code-health candidate: continue hand-written `deadcode` triage one package at a time.
+- [x] Open and merge the code-health closeout + Phase 20 scoping PR (#146).
+- [ ] Next code-health candidate: continue hand-written `deadcode` triage one package at a time after Phase 20.A PR is green.
 
 ## Phase 19 — Key Management ✅ COMPLETE
 

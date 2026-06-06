@@ -105,6 +105,7 @@ See [docs/getting-started.md](docs/getting-started.md) for the five-minute walkt
 | Functions *(container image, control plane)* | Lambda | Cloud Run | Container Apps | Knative | [docs/services/functions.md](docs/services/functions.md) |
 | API gateway | API Gateway HTTP API v2 | API Gateway | API Management | Envoy Gateway | [docs/services/apigateway.md](docs/services/apigateway.md) |
 | Container registry | ECR | Artifact Registry | Container Registry | CNCF Distribution | [docs/services/registry.md](docs/services/registry.md) |
+| Event streaming *(in progress)* | MSK | Managed Service for Apache Kafka | Event Hubs Kafka endpoint | Strimzi Kafka | [docs/services/eventstream.md](docs/services/eventstream.md) |
 
 Managed databases and managed Redis: only the **control plane** is shimmed (provisioning, scaling, snapshots, access bindings). The data plane is wire-protocol Postgres / MySQL / RESP — connect directly to the returned host.
 

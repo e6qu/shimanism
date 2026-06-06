@@ -8,17 +8,17 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 
 | | |
 |---|---|
-| Active branch | `code-health-closeout-and-phase20-scope` — strict duplicate gate, first dead-code deletion, and Phase 20 scoping. |
-| In-flight | Enable `dupl` in normal lint/CI, keep dead-code audit advisory with one confirmed helper deletion, update continuity after PR #145, and publish Phase 20 Event Streaming scoping. |
-| Last merged | PR #145 — remaining duplicate-code cleanup; `make duplication-audit` reached zero findings. |
-| Upstream watch | All KMS sockerless gaps closed: #407 (PR #412), #413 (PR #415), #419 GCP Cloud KMS sim (PR #422), #423 Azure no-version crypto (PR #425). |
+| Active branch | `phase-20-eventstream-20a` — Phase 20.A event-streaming foundation. |
+| In-flight | Define the event-stream domain, add a real inmem append-only partition log backend with tests, and publish service/intersection docs. No frontend or fake Kafka wire listener is registered in this slice. |
+| Last merged | PR #146 — code-health closeout + Phase 20 scoping; `dupl` is strict, first dead-code helpers deleted, BUG-64 fixed, BUG-67 filed upstream. |
+| Upstream watch | Registry sockerless `/v2/` gaps: BUG-65/#451, BUG-66/#452, BUG-67/#465. |
 | Phases 1–19 | 1–19 closed. See [PLAN.md § Closed phases](PLAN.md#closed-phases-pr-index). |
 | Phase 19 | ✅ complete — 19.A (#127) · 19.B (#128) · 19.C (#129) · 19.D (#130 CLI/TF, #131 sockerless). All 4 backends, full SDK/CLI/TF, all sockerless lanes green, zero skips. |
 | Phase 18 | ✅ complete — PRs #132–#141. OCI Distribution data plane + ECR/AR/ACR frontends + connected backends + registry docs. Simulator-only gaps remain tracked as BUG-65/66/67; BUG-64 / sockerless#450 is closed on current sockerless main. |
-| Bugs | **64 filed · 57 fixed · 6 open · 1 false positive.** Open: **BUG-8** + **BUG-15** + **BUG-41** (Track A) + **BUG-65/66/67** (sockerless registry `/v2/`, upstream #451/#452/#465). |
+| Bugs | **65 filed · 58 fixed · 6 open · 1 false positive.** Open: **BUG-8** + **BUG-15** + **BUG-41** (Track A) + **BUG-65/66/67** (sockerless registry `/v2/`, upstream #451/#452/#465). |
 | CI | 20 required checks. Real-cloud lanes wait on Track A. |
 | Renovate | Config + custom manager for vendored-spec SHAs. **User must install the Renovate GitHub App.** |
-| Standing merge auth | **None.** User merges every PR. **One PR open at a time** — ask before opening if one's active. |
+| Standing merge auth | **None.** User merges every PR. PR #146 was a one-time user-authorized exception and has already been merged. **One PR open at a time** — ask before opening if one's active. |
 
 ## Toolchain (locked-in across phases)
 

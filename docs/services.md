@@ -17,6 +17,7 @@ For runnable cross-cloud commands, start with the [complete end-to-end examples]
 | Functions (control plane) | [docs/services/functions.md](services/functions.md) | [services/functions/](../services/functions/) |
 | API gateway | [docs/services/apigateway.md](services/apigateway.md) | [services/apigateway/](../services/apigateway/) |
 | Container registry | [docs/services/registry.md](services/registry.md) | [services/registry/](../services/registry/) |
+| Event streaming (in progress) | [docs/services/eventstream.md](services/eventstream.md) | [services/eventstream/](../services/eventstream/) |
 
 Each per-service doc covers:
 
