@@ -111,12 +111,13 @@ Active branch: `phase-21-l7-loadbalancers`.
 - [ ] Check `gh pr list --state open` and ask user before opening PR.
 - [ ] Open Phase 21.A PR.
 
-### Phase 21.B — GCP HTTP(S) LB extension
+### Phase 21.B — GCP HTTP(S) LB extension ✅ COMPLETE
 
-- [ ] Create branch (or continue on `phase-21-l7-loadbalancers`).
-- [ ] Extend `internal/loadbalancer/frontends/gcp_lb/server.go`: global backendServices + urlMaps + targetHttpsProxies + globalForwardingRules + sslCertificates.
-- [ ] Add GCP SDK conformance for full L7 lifecycle.
-- [ ] Run full verification and open PR.
+- [x] Extend `internal/loadbalancer/frontends/gcp_lb/server.go`: global backendServices + urlMaps + targetHttpsProxies + globalForwardingRules + sslCertificates.
+- [x] Add BlobEntry + PutBlob/GetBlob/ListBlobs/DeleteBlob to domain interface; implement in inmem; ErrNotSupported stubs in AWS + K8s.
+- [x] Add `TestGCPSDK_LB_L7Lifecycle` conformance test (insert/get/list/delete all resources).
+- [x] All tests green, lint clean, codegen-check clean.
+- [ ] Open Phase 21.B PR (on `phase-21-l7-loadbalancers`).
 
 ### Phase 21.C — Azure Application Gateway + K8s Ingress + full CLI/TF matrix
 

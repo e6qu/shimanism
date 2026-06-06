@@ -4,7 +4,7 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 
 > Reverse chronological. One section per phase. The *why*, the surprises, the root causes — not per-PR detail. For commit-level history, `git log`. For per-bug detail, [BUGS.md](BUGS.md). For pipeline + verifier architecture, [docs/codegen-pipelines.md](docs/codegen-pipelines.md) + [docs/verifiers.md](docs/verifiers.md).
 
-## Phase 21 — L7 Load Balancers: 21.A in progress
+## Phase 21 — L7 Load Balancers: 21.B complete
 
 Phase 21 promotes Application Load Balancers into the intersection. Phase 16.D
 had established the load balancer domain and NLB lifecycle; the question for
@@ -33,6 +33,24 @@ pointer-to-enum fields — they were silently skipped, so `in.Type` and
 and emitted `e := FooEnum(v); in.Field = &e` in the template. This fix affects
 all awsQuery services with optional enum fields — it regenerated ELBv2, RDS,
 ElastiCache, and others.
+
+**Phase 21.B** added the GCP HTTP(S) LB L7 surface. The structural challenge here
+is that GCP's decomposed L7 model has no neutral cross-cloud mapping for
+intermediate resources — SslCertificate, UrlMap, and TargetHttpsProxy don't map
+cleanly to domain primitives because GCP creates them in an order that inverts
+the domain's dependency chain (Rules need a Listener, but UrlMaps are created
+before TargetHttpsProxies in GCP's flow). The solution: a `BlobStore` extension
+on the `LoadBalancers` interface (`PutBlob/GetBlob/ListBlobs/DeleteBlob`) for
+storing GCP-specific intermediate resources in the backend. The inmem backend
+trivially implements this with a `map[string]map[string][]byte`; real backends
+(AWS, K8s) return `ErrNotSupported`.
+
+The "lazy assembly" pattern at `globalForwardingRules.insert` does the real work:
+it resolves the reference chain (ForwardingRule → TargetHttpsProxy blob →
+UrlMap blob → BackendService TGs) and creates domain Listener + Rules
+atomically. All earlier GCP resource insertions just store blobs. On GET, blobs
+are returned as-is (honest round-trip). On DELETE, GlobalForwardingRules also
+tears down the assembled Listener and Rules.
 
 ## Phase 20 — Event Streaming: ✅ complete
 
