@@ -420,7 +420,9 @@ NAT Gateways · Internet Gateways · Route Tables · VPC Peering · Auto Scaling
 
 > **Premise.** Ordered, partitioned stream ingestion — distinct from the fan-out pub/sub model in Phase 4. The tightest three-cloud intersection is the **Apache Kafka-compatible** surface: AWS MSK (Managed Streaming for Apache Kafka), GCP Managed Apache Kafka, and Azure Event Hubs with Kafka endpoint. All three speak the Kafka wire protocol over the same port. The shim fronts the Kafka protocol directly.
 >
-> **Status: next.**
+> **Status: in progress.** Phase 20.A foundation is underway: domain contract,
+> real inmem append-only log backend, and service/intersection docs. No Kafka
+> wire listener or cloud frontend is registered yet.
 
 | Operation | AWS MSK | GCP Managed Kafka | Azure Event Hubs (Kafka) |
 |---|---|---|---|
@@ -432,9 +434,16 @@ NAT Gateways · Internet Gateways · Route Tables · VPC Peering · Auto Scaling
 
 **Wire protocol.** Control plane: restJson1 / REST / ARM. **Data plane: Kafka wire protocol (binary TCP, port 9092/9093).** One shim data-plane handler speaks Kafka; all three cloud control-planes configure topics on it. K8s peer: Strimzi Kafka as a connected backend; see [docs/phase-20-scoping.md](docs/phase-20-scoping.md).
 
-**Intersection notes.** Partition count, replication factor, retention are in-intersection. Schema Registry, Kafka Connect, Stream Processing are out.
+**Intersection notes.** Partition count and retention are in-intersection.
+Replication factor is not portable as a user-controlled setting because Azure
+Event Hubs owns replication inside the managed service. Schema Registry, Kafka
+Connect, Stream Processing are out.
 
-**Sub-phases:** 20.A Kafka data-plane handler (shared) + domain; 20.B control-plane frontends; 20.C K8s peer + full conformance. **~5–7 PRs.** (Kafka wire protocol is the new complexity; budget accordingly.)
+**Sub-phases:** 20.A domain + real inmem append-only log + Kafka data-plane
+runtime selection; 20.B first frontend + minimal Kafka data-plane handler; 20.C
+remaining control-plane frontends; 20.D Strimzi connected backend + full
+conformance. **~5–7 PRs.** (Kafka wire protocol is the new complexity; budget
+accordingly.)
 
 ---
 

@@ -22,6 +22,7 @@ The repository [README.md](../README.md) is intentionally light — what the pro
 - **[Codegen](codegen.md)** — spec-driven server generation: where the upstream specs live, how to regenerate, why hand-written code is restricted to `translate.go`.
 - **[Code health audits](code-health.md)** — dead-code and duplicate-code audit tools, current baseline, and cleanup policy.
 - **[Phase 20 Event Streaming scoping](phase-20-scoping.md)** — Kafka-shaped intersection, K8s peer choice, and first implementation plan.
+- **[Event streaming service docs](services/eventstream.md)** — Phase 20 in-progress service contract and implementation status.
 - **[Releasing](releasing.md)** — the release flow, semver semantics, the no-auto-merge rule, who can cut a release.
 
 ## For agents (LLM-driven contributors)

@@ -1,6 +1,6 @@
 # Known Bugs
 
-**64 filed · 57 fixed · 6 open · 1 false positive.** BUG-35 (Container Apps lane) closed by sockerless PR #245 which derived ACA image platforms from the resolved image manifest instead of hardcoding `linux/arm64`; `scripts/run-sockerless-storage.sh` re-defaults `SOCKERLESS_AZURE_CONTAINERAPPS_IMAGE` to `docker.io/library/nginx:alpine`. Track A (BUG-8 + BUG-15) remains blocked on real GCP credentials. BUG-24 reverse-direction through-shim coverage **now complete across every service family** — PR #46 landed cache/secrets/queue reverse cells; this PR finishes the set with storage/pubsub/rdbms/functions/apigateway reverse cells.
+**65 filed · 58 fixed · 6 open · 1 false positive.** BUG-35 (Container Apps lane) closed by sockerless PR #245 which derived ACA image platforms from the resolved image manifest instead of hardcoding `linux/arm64`; `scripts/run-sockerless-storage.sh` re-defaults `SOCKERLESS_AZURE_CONTAINERAPPS_IMAGE` to `docker.io/library/nginx:alpine`. Track A (BUG-8 + BUG-15) remains blocked on real GCP credentials. BUG-24 reverse-direction through-shim coverage **now complete across every service family** — PR #46 landed cache/secrets/queue reverse cells; this PR finishes the set with storage/pubsub/rdbms/functions/apigateway reverse cells.
 
 Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLAN.md](PLAN.md) · narrative [WHAT_WE_DID.md](WHAT_WE_DID.md) · rules [AGENTS.md](AGENTS.md).
 

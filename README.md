@@ -3,9 +3,9 @@
 # shimanism
 
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
-[![Go](https://img.shields.io/badge/Go-65.3k_lines-00ADD8?logo=go&logoColor=white)](#code-architecture-and-how-the-build-works)
+[![Go](https://img.shields.io/badge/Go-65.8k_lines-00ADD8?logo=go&logoColor=white)](#code-architecture-and-how-the-build-works)
 [![Generated](https://img.shields.io/badge/Generated-76.5k_lines-blue)](docs/codegen.md)
-[![Tests](https://img.shields.io/badge/Tests-40.3k_lines-brightgreen)](docs/testing.md)
+[![Tests](https://img.shields.io/badge/Tests-40.5k_lines-brightgreen)](docs/testing.md)
 [![Modules](https://img.shields.io/badge/Go_Modules-2-informational)](#code-architecture-and-how-the-build-works)
 
 <!-- per-major-component (numbers auto-updated by scripts/update-readme-badges.sh) -->
@@ -17,7 +17,7 @@
 ![cache](https://img.shields.io/badge/cache-7.6k-00ADD8)
 ![functions](https://img.shields.io/badge/functions-5.5k-00ADD8)
 ![apigateway](https://img.shields.io/badge/apigateway-2.7k-00ADD8)
-![internal](https://img.shields.io/badge/internal-33.5k-5BC0DE)
+![internal](https://img.shields.io/badge/internal-33.6k-5BC0DE)
 ![cmd](https://img.shields.io/badge/cmd-3.5k-5BC0DE)
 ![peers](https://img.shields.io/badge/peers-109-A0D8EF)
 
@@ -105,6 +105,7 @@ See [docs/getting-started.md](docs/getting-started.md) for the five-minute walkt
 | Functions *(container image, control plane)* | Lambda | Cloud Run | Container Apps | Knative | [docs/services/functions.md](docs/services/functions.md) |
 | API gateway | API Gateway HTTP API v2 | API Gateway | API Management | Envoy Gateway | [docs/services/apigateway.md](docs/services/apigateway.md) |
 | Container registry | ECR | Artifact Registry | Container Registry | CNCF Distribution | [docs/services/registry.md](docs/services/registry.md) |
+| Event streaming *(in progress)* | MSK | Managed Service for Apache Kafka | Event Hubs Kafka endpoint | Strimzi Kafka | [docs/services/eventstream.md](docs/services/eventstream.md) |
 
 Managed databases and managed Redis: only the **control plane** is shimmed (provisioning, scaling, snapshots, access bindings). The data plane is wire-protocol Postgres / MySQL / RESP — connect directly to the returned host.
 
