@@ -177,6 +177,7 @@ func {{ .GoName }}Handler(b {{ .GoName }}Backend) http.Handler {
 {{ else if eq .GoType "*int64" }}		if v := r.Form.Get("{{ .GoName }}"); v != "" { if n, err := strconv.ParseInt(v, 10, 64); err == nil { in.{{ .GoName }} = &n } }
 {{ else if eq .GoType "bool" }}		if v := r.Form.Get("{{ .GoName }}"); v != "" { if x, err := strconv.ParseBool(v); err == nil { in.{{ .GoName }} = x } }
 {{ else if eq .GoType "*bool" }}		if v := r.Form.Get("{{ .GoName }}"); v != "" { if x, err := strconv.ParseBool(v); err == nil { in.{{ .GoName }} = &x } }
+{{ else if .IsPointerEnum }}		if v := r.Form.Get("{{ .GoName }}"); v != "" { e := {{ trimPrefix .GoType "*" }}(v); in.{{ .GoName }} = &e }
 {{ end }}{{ end }}
 {{- end }}
 {{- if .OutputType }}

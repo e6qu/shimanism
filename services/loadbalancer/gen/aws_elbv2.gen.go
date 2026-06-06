@@ -246,6 +246,14 @@ const (
 	TrustStoreAssociationStatusEnumREMOVED TrustStoreAssociationStatusEnum = "removed"
 )
 
+// TransformTypeEnum is a generated Smithy enum.
+type TransformTypeEnum string
+
+const (
+	TransformTypeEnumHOST_HEADER_REWRITE TransformTypeEnum = "host-header-rewrite"
+	TransformTypeEnumURL_REWRITE         TransformTypeEnum = "url-rewrite"
+)
+
 // SecurityGroups is a generated Smithy list. The Member field is
 // XML-tagged with the element name from the spec's @xmlName trait
 // (defaulting to the target shape's short name when absent), so
@@ -484,6 +492,86 @@ type Listeners struct {
 // TopicsList.
 type ListenerArns struct {
 	Member []string `xml:"member"`
+}
+
+// ListOfString is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent), so
+// SDK clients see the per-list element name they expect — e.g.
+// `<DBInstance>` for RDS DBInstanceList, `<member>` for SNS
+// TopicsList.
+type ListOfString struct {
+	Member []string `xml:"member"`
+}
+
+// QueryStringKeyValuePairList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent), so
+// SDK clients see the per-list element name they expect — e.g.
+// `<DBInstance>` for RDS DBInstanceList, `<member>` for SNS
+// TopicsList.
+type QueryStringKeyValuePairList struct {
+	Member []QueryStringKeyValuePair `xml:"member"`
+}
+
+// RuleConditionList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent), so
+// SDK clients see the per-list element name they expect — e.g.
+// `<DBInstance>` for RDS DBInstanceList, `<member>` for SNS
+// TopicsList.
+type RuleConditionList struct {
+	Member []RuleCondition `xml:"member"`
+}
+
+// RewriteConfigList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent), so
+// SDK clients see the per-list element name they expect — e.g.
+// `<DBInstance>` for RDS DBInstanceList, `<member>` for SNS
+// TopicsList.
+type RewriteConfigList struct {
+	Member []RewriteConfig `xml:"member"`
+}
+
+// RuleTransformList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent), so
+// SDK clients see the per-list element name they expect — e.g.
+// `<DBInstance>` for RDS DBInstanceList, `<member>` for SNS
+// TopicsList.
+type RuleTransformList struct {
+	Member []RuleTransform `xml:"member"`
+}
+
+// Rules is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent), so
+// SDK clients see the per-list element name they expect — e.g.
+// `<DBInstance>` for RDS DBInstanceList, `<member>` for SNS
+// TopicsList.
+type Rules struct {
+	Member []Rule `xml:"member"`
+}
+
+// RuleArns is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent), so
+// SDK clients see the per-list element name they expect — e.g.
+// `<DBInstance>` for RDS DBInstanceList, `<member>` for SNS
+// TopicsList.
+type RuleArns struct {
+	Member []string `xml:"member"`
+}
+
+// RulePriorityList is a generated Smithy list. The Member field is
+// XML-tagged with the element name from the spec's @xmlName trait
+// (defaulting to the target shape's short name when absent), so
+// SDK clients see the per-list element name they expect — e.g.
+// `<DBInstance>` for RDS DBInstanceList, `<member>` for SNS
+// TopicsList.
+type RulePriorityList struct {
+	Member []RulePriorityPair `xml:"member"`
 }
 
 // ResourceArns is a generated Smithy list. The Member field is
@@ -871,6 +959,25 @@ type TargetGroupNotFoundException struct {
 	Message *string `xml:"Message,omitempty"`
 }
 
+// ModifyTargetGroupInput is a generated Smithy structure.
+type ModifyTargetGroupInput struct {
+	HealthCheckEnabled         *bool         `xml:"HealthCheckEnabled,omitempty"`
+	HealthCheckIntervalSeconds *int32        `xml:"HealthCheckIntervalSeconds,omitempty"`
+	HealthCheckPath            *string       `xml:"HealthCheckPath,omitempty"`
+	HealthCheckPort            *string       `xml:"HealthCheckPort,omitempty"`
+	HealthCheckProtocol        *ProtocolEnum `xml:"HealthCheckProtocol,omitempty"`
+	HealthCheckTimeoutSeconds  *int32        `xml:"HealthCheckTimeoutSeconds,omitempty"`
+	HealthyThresholdCount      *int32        `xml:"HealthyThresholdCount,omitempty"`
+	Matcher                    *Matcher      `xml:"Matcher,omitempty"`
+	TargetGroupArn             string        `xml:"TargetGroupArn,omitempty"`
+	UnhealthyThresholdCount    *int32        `xml:"UnhealthyThresholdCount,omitempty"`
+}
+
+// ModifyTargetGroupOutput is a generated Smithy structure.
+type ModifyTargetGroupOutput struct {
+	TargetGroups TargetGroups `xml:"TargetGroups,omitempty"`
+}
+
 // TargetDescription is a generated Smithy structure.
 type TargetDescription struct {
 	AvailabilityZone *string `xml:"AvailabilityZone,omitempty"`
@@ -1194,6 +1301,192 @@ type DescribeListenersOutput struct {
 	NextMarker *string   `xml:"NextMarker,omitempty"`
 }
 
+// ModifyListenerInput is a generated Smithy structure.
+type ModifyListenerInput struct {
+	AlpnPolicy           AlpnPolicyName                  `xml:"AlpnPolicy,omitempty"`
+	Certificates         CertificateList                 `xml:"Certificates,omitempty"`
+	DefaultActions       Actions                         `xml:"DefaultActions,omitempty"`
+	ListenerArn          string                          `xml:"ListenerArn,omitempty"`
+	MutualAuthentication *MutualAuthenticationAttributes `xml:"MutualAuthentication,omitempty"`
+	Port                 *int32                          `xml:"Port,omitempty"`
+	Protocol             *ProtocolEnum                   `xml:"Protocol,omitempty"`
+	SslPolicy            *string                         `xml:"SslPolicy,omitempty"`
+}
+
+// ModifyListenerOutput is a generated Smithy structure.
+type ModifyListenerOutput struct {
+	Listeners Listeners `xml:"Listeners,omitempty"`
+}
+
+// HostHeaderConditionConfig is a generated Smithy structure.
+type HostHeaderConditionConfig struct {
+	RegexValues ListOfString `xml:"RegexValues,omitempty"`
+	Values      ListOfString `xml:"Values,omitempty"`
+}
+
+// HttpHeaderConditionConfig is a generated Smithy structure.
+type HttpHeaderConditionConfig struct {
+	HttpHeaderName *string      `xml:"HttpHeaderName,omitempty"`
+	RegexValues    ListOfString `xml:"RegexValues,omitempty"`
+	Values         ListOfString `xml:"Values,omitempty"`
+}
+
+// HttpRequestMethodConditionConfig is a generated Smithy structure.
+type HttpRequestMethodConditionConfig struct {
+	Values ListOfString `xml:"Values,omitempty"`
+}
+
+// PathPatternConditionConfig is a generated Smithy structure.
+type PathPatternConditionConfig struct {
+	RegexValues ListOfString `xml:"RegexValues,omitempty"`
+	Values      ListOfString `xml:"Values,omitempty"`
+}
+
+// QueryStringKeyValuePair is a generated Smithy structure.
+type QueryStringKeyValuePair struct {
+	Key   *string `xml:"Key,omitempty"`
+	Value *string `xml:"Value,omitempty"`
+}
+
+// QueryStringConditionConfig is a generated Smithy structure.
+type QueryStringConditionConfig struct {
+	Values QueryStringKeyValuePairList `xml:"Values,omitempty"`
+}
+
+// SourceIpConditionConfig is a generated Smithy structure.
+type SourceIpConditionConfig struct {
+	Values ListOfString `xml:"Values,omitempty"`
+}
+
+// RuleCondition is a generated Smithy structure.
+type RuleCondition struct {
+	Field                   *string                           `xml:"Field,omitempty"`
+	HostHeaderConfig        *HostHeaderConditionConfig        `xml:"HostHeaderConfig,omitempty"`
+	HttpHeaderConfig        *HttpHeaderConditionConfig        `xml:"HttpHeaderConfig,omitempty"`
+	HttpRequestMethodConfig *HttpRequestMethodConditionConfig `xml:"HttpRequestMethodConfig,omitempty"`
+	PathPatternConfig       *PathPatternConditionConfig       `xml:"PathPatternConfig,omitempty"`
+	QueryStringConfig       *QueryStringConditionConfig       `xml:"QueryStringConfig,omitempty"`
+	RegexValues             ListOfString                      `xml:"RegexValues,omitempty"`
+	SourceIpConfig          *SourceIpConditionConfig          `xml:"SourceIpConfig,omitempty"`
+	Values                  ListOfString                      `xml:"Values,omitempty"`
+}
+
+// RewriteConfig is a generated Smithy structure.
+type RewriteConfig struct {
+	Regex   string `xml:"Regex,omitempty"`
+	Replace string `xml:"Replace,omitempty"`
+}
+
+// HostHeaderRewriteConfig is a generated Smithy structure.
+type HostHeaderRewriteConfig struct {
+	Rewrites RewriteConfigList `xml:"Rewrites,omitempty"`
+}
+
+// UrlRewriteConfig is a generated Smithy structure.
+type UrlRewriteConfig struct {
+	Rewrites RewriteConfigList `xml:"Rewrites,omitempty"`
+}
+
+// RuleTransform is a generated Smithy structure.
+type RuleTransform struct {
+	HostHeaderRewriteConfig *HostHeaderRewriteConfig `xml:"HostHeaderRewriteConfig,omitempty"`
+	Type                    TransformTypeEnum        `xml:"Type,omitempty"`
+	UrlRewriteConfig        *UrlRewriteConfig        `xml:"UrlRewriteConfig,omitempty"`
+}
+
+// CreateRuleInput is a generated Smithy structure.
+type CreateRuleInput struct {
+	Actions     Actions           `xml:"Actions,omitempty"`
+	Conditions  RuleConditionList `xml:"Conditions,omitempty"`
+	ListenerArn string            `xml:"ListenerArn,omitempty"`
+	Priority    int32             `xml:"Priority,omitempty"`
+	Tags        TagList           `xml:"Tags,omitempty"`
+	Transforms  RuleTransformList `xml:"Transforms,omitempty"`
+}
+
+// Rule is a generated Smithy structure.
+type Rule struct {
+	Actions    Actions           `xml:"Actions,omitempty"`
+	Conditions RuleConditionList `xml:"Conditions,omitempty"`
+	IsDefault  *bool             `xml:"IsDefault,omitempty"`
+	Priority   *string           `xml:"Priority,omitempty"`
+	RuleArn    *string           `xml:"RuleArn,omitempty"`
+	Transforms RuleTransformList `xml:"Transforms,omitempty"`
+}
+
+// CreateRuleOutput is a generated Smithy structure.
+type CreateRuleOutput struct {
+	Rules Rules `xml:"Rules,omitempty"`
+}
+
+// PriorityInUseException is a generated Smithy structure. It is an error response (HTTP 400).
+type PriorityInUseException struct {
+	Message *string `xml:"Message,omitempty"`
+}
+
+// TooManyRulesException is a generated Smithy structure. It is an error response (HTTP 400).
+type TooManyRulesException struct {
+	Message *string `xml:"Message,omitempty"`
+}
+
+// DeleteRuleInput is a generated Smithy structure.
+type DeleteRuleInput struct {
+	RuleArn string `xml:"RuleArn,omitempty"`
+}
+
+// DeleteRuleOutput is a generated Smithy structure.
+type DeleteRuleOutput struct {
+}
+
+// RuleNotFoundException is a generated Smithy structure. It is an error response (HTTP 400).
+type RuleNotFoundException struct {
+	Message *string `xml:"Message,omitempty"`
+}
+
+// DescribeRulesInput is a generated Smithy structure.
+type DescribeRulesInput struct {
+	ListenerArn *string  `xml:"ListenerArn,omitempty"`
+	Marker      *string  `xml:"Marker,omitempty"`
+	PageSize    *int32   `xml:"PageSize,omitempty"`
+	RuleArns    RuleArns `xml:"RuleArns,omitempty"`
+}
+
+// DescribeRulesOutput is a generated Smithy structure.
+type DescribeRulesOutput struct {
+	NextMarker *string `xml:"NextMarker,omitempty"`
+	Rules      Rules   `xml:"Rules,omitempty"`
+}
+
+// ModifyRuleInput is a generated Smithy structure.
+type ModifyRuleInput struct {
+	Actions         Actions           `xml:"Actions,omitempty"`
+	Conditions      RuleConditionList `xml:"Conditions,omitempty"`
+	ResetTransforms *bool             `xml:"ResetTransforms,omitempty"`
+	RuleArn         string            `xml:"RuleArn,omitempty"`
+	Transforms      RuleTransformList `xml:"Transforms,omitempty"`
+}
+
+// ModifyRuleOutput is a generated Smithy structure.
+type ModifyRuleOutput struct {
+	Rules Rules `xml:"Rules,omitempty"`
+}
+
+// RulePriorityPair is a generated Smithy structure.
+type RulePriorityPair struct {
+	Priority *int32  `xml:"Priority,omitempty"`
+	RuleArn  *string `xml:"RuleArn,omitempty"`
+}
+
+// SetRulePrioritiesInput is a generated Smithy structure.
+type SetRulePrioritiesInput struct {
+	RulePriorities RulePriorityList `xml:"RulePriorities,omitempty"`
+}
+
+// SetRulePrioritiesOutput is a generated Smithy structure.
+type SetRulePrioritiesOutput struct {
+	Rules Rules `xml:"Rules,omitempty"`
+}
+
 // AddTagsInput is a generated Smithy structure.
 type AddTagsInput struct {
 	ResourceArns ResourceArns `xml:"ResourceArns,omitempty"`
@@ -1202,11 +1495,6 @@ type AddTagsInput struct {
 
 // AddTagsOutput is a generated Smithy structure.
 type AddTagsOutput struct {
-}
-
-// RuleNotFoundException is a generated Smithy structure. It is an error response (HTTP 400).
-type RuleNotFoundException struct {
-	Message *string `xml:"Message,omitempty"`
 }
 
 // RemoveTagsInput is a generated Smithy structure.
@@ -1244,12 +1532,19 @@ type ElasticLoadBalancingv2Backend interface {
 	CreateTargetGroupBackend
 	DeleteTargetGroupBackend
 	DescribeTargetGroupsBackend
+	ModifyTargetGroupBackend
 	RegisterTargetsBackend
 	DeregisterTargetsBackend
 	DescribeTargetHealthBackend
 	CreateListenerBackend
 	DeleteListenerBackend
 	DescribeListenersBackend
+	ModifyListenerBackend
+	CreateRuleBackend
+	DeleteRuleBackend
+	DescribeRulesBackend
+	ModifyRuleBackend
+	SetRulePrioritiesBackend
 	AddTagsBackend
 	RemoveTagsBackend
 	DescribeTagsBackend
@@ -1267,12 +1562,19 @@ func RegisterElasticLoadBalancingv2Routes(b ElasticLoadBalancingv2Backend) *awsq
 	rt.Register("CreateTargetGroup", CreateTargetGroupHandler(b))
 	rt.Register("DeleteTargetGroup", DeleteTargetGroupHandler(b))
 	rt.Register("DescribeTargetGroups", DescribeTargetGroupsHandler(b))
+	rt.Register("ModifyTargetGroup", ModifyTargetGroupHandler(b))
 	rt.Register("RegisterTargets", RegisterTargetsHandler(b))
 	rt.Register("DeregisterTargets", DeregisterTargetsHandler(b))
 	rt.Register("DescribeTargetHealth", DescribeTargetHealthHandler(b))
 	rt.Register("CreateListener", CreateListenerHandler(b))
 	rt.Register("DeleteListener", DeleteListenerHandler(b))
 	rt.Register("DescribeListeners", DescribeListenersHandler(b))
+	rt.Register("ModifyListener", ModifyListenerHandler(b))
+	rt.Register("CreateRule", CreateRuleHandler(b))
+	rt.Register("DeleteRule", DeleteRuleHandler(b))
+	rt.Register("DescribeRules", DescribeRulesHandler(b))
+	rt.Register("ModifyRule", ModifyRuleHandler(b))
+	rt.Register("SetRulePriorities", SetRulePrioritiesHandler(b))
 	rt.Register("AddTags", AddTagsHandler(b))
 	rt.Register("RemoveTags", RemoveTagsHandler(b))
 	rt.Register("DescribeTags", DescribeTagsHandler(b))
@@ -1303,7 +1605,19 @@ func CreateLoadBalancerHandler(b CreateLoadBalancerBackend) http.Handler {
 			s := v
 			in.CustomerOwnedIpv4Pool = &s
 		}
+		if v := r.Form.Get("EnablePrefixForIpv6SourceNat"); v != "" {
+			e := EnablePrefixForIpv6SourceNatEnum(v)
+			in.EnablePrefixForIpv6SourceNat = &e
+		}
+		if v := r.Form.Get("IpAddressType"); v != "" {
+			e := IpAddressType(v)
+			in.IpAddressType = &e
+		}
 		in.Name = r.Form.Get("Name")
+		if v := r.Form.Get("Scheme"); v != "" {
+			e := LoadBalancerSchemeEnum(v)
+			in.Scheme = &e
+		}
 		// list<string> via `SecurityGroups.member.N`. The generated
 		// list type is a struct with Member []string for XML.
 		for i := 1; ; i++ {
@@ -1321,6 +1635,10 @@ func CreateLoadBalancerHandler(b CreateLoadBalancerBackend) http.Handler {
 				break
 			}
 			in.Subnets.Member = append(in.Subnets.Member, v)
+		}
+		if v := r.Form.Get("Type"); v != "" {
+			e := LoadBalancerTypeEnum(v)
+			in.Type = &e
 		}
 
 		out, err := b.CreateLoadBalancer(ctx, in)
@@ -1460,6 +1778,10 @@ func CreateTargetGroupHandler(b CreateTargetGroupBackend) http.Handler {
 			s := v
 			in.HealthCheckPort = &s
 		}
+		if v := r.Form.Get("HealthCheckProtocol"); v != "" {
+			e := ProtocolEnum(v)
+			in.HealthCheckProtocol = &e
+		}
 		if v := r.Form.Get("HealthCheckTimeoutSeconds"); v != "" {
 			if n, err := strconv.Atoi(v); err == nil {
 				x := int32(n)
@@ -1472,12 +1794,20 @@ func CreateTargetGroupHandler(b CreateTargetGroupBackend) http.Handler {
 				in.HealthyThresholdCount = &x
 			}
 		}
+		if v := r.Form.Get("IpAddressType"); v != "" {
+			e := TargetGroupIpAddressTypeEnum(v)
+			in.IpAddressType = &e
+		}
 		in.Name = r.Form.Get("Name")
 		if v := r.Form.Get("Port"); v != "" {
 			if n, err := strconv.Atoi(v); err == nil {
 				x := int32(n)
 				in.Port = &x
 			}
+		}
+		if v := r.Form.Get("Protocol"); v != "" {
+			e := ProtocolEnum(v)
+			in.Protocol = &e
 		}
 		if v := r.Form.Get("ProtocolVersion"); v != "" {
 			s := v
@@ -1488,6 +1818,10 @@ func CreateTargetGroupHandler(b CreateTargetGroupBackend) http.Handler {
 				x := int32(n)
 				in.TargetControlPort = &x
 			}
+		}
+		if v := r.Form.Get("TargetType"); v != "" {
+			e := TargetTypeEnum(v)
+			in.TargetType = &e
 		}
 		if v := r.Form.Get("UnhealthyThresholdCount"); v != "" {
 			if n, err := strconv.Atoi(v); err == nil {
@@ -1599,6 +1933,78 @@ func DescribeTargetGroupsHandler(b DescribeTargetGroupsBackend) http.Handler {
 			return
 		}
 		awsquery.WriteResult(w, "DescribeTargetGroups", out)
+	})
+}
+
+// ModifyTargetGroupBackend serves the ModifyTargetGroup operation.
+type ModifyTargetGroupBackend interface {
+	ModifyTargetGroup(ctx context.Context, in *ModifyTargetGroupInput) (*ModifyTargetGroupOutput, error)
+}
+
+// ModifyTargetGroupHandler decodes a ModifyTargetGroup request, dispatches
+// to the backend, and encodes the response per awsQuery semantics.
+// Form-encoded request bodies are decoded field-by-field for
+// scalars, map<string,string>, and list<string> shapes. Complex
+// collections (map<string,struct> like SNS MessageAttributes) are
+// available to the backend via awsquery.FormFromContext(ctx).
+func ModifyTargetGroupHandler(b ModifyTargetGroupBackend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := awsquery.WithForm(r.Context(), r.Form)
+		in := &ModifyTargetGroupInput{}
+		_ = in
+		// Decode top-level scalar + map<string,string> + list<string>
+		// form fields. AWS awsQuery serialises these as flat
+		// name=value pairs with `.entry.N.{key,value}` (maps) and
+		// `.member.N` (lists) conventions.
+		if v := r.Form.Get("HealthCheckEnabled"); v != "" {
+			if x, err := strconv.ParseBool(v); err == nil {
+				in.HealthCheckEnabled = &x
+			}
+		}
+		if v := r.Form.Get("HealthCheckIntervalSeconds"); v != "" {
+			if n, err := strconv.Atoi(v); err == nil {
+				x := int32(n)
+				in.HealthCheckIntervalSeconds = &x
+			}
+		}
+		if v := r.Form.Get("HealthCheckPath"); v != "" {
+			s := v
+			in.HealthCheckPath = &s
+		}
+		if v := r.Form.Get("HealthCheckPort"); v != "" {
+			s := v
+			in.HealthCheckPort = &s
+		}
+		if v := r.Form.Get("HealthCheckProtocol"); v != "" {
+			e := ProtocolEnum(v)
+			in.HealthCheckProtocol = &e
+		}
+		if v := r.Form.Get("HealthCheckTimeoutSeconds"); v != "" {
+			if n, err := strconv.Atoi(v); err == nil {
+				x := int32(n)
+				in.HealthCheckTimeoutSeconds = &x
+			}
+		}
+		if v := r.Form.Get("HealthyThresholdCount"); v != "" {
+			if n, err := strconv.Atoi(v); err == nil {
+				x := int32(n)
+				in.HealthyThresholdCount = &x
+			}
+		}
+		in.TargetGroupArn = r.Form.Get("TargetGroupArn")
+		if v := r.Form.Get("UnhealthyThresholdCount"); v != "" {
+			if n, err := strconv.Atoi(v); err == nil {
+				x := int32(n)
+				in.UnhealthyThresholdCount = &x
+			}
+		}
+
+		out, err := b.ModifyTargetGroup(ctx, in)
+		if err != nil {
+			awsquery.WriteBackendError(w, err)
+			return
+		}
+		awsquery.WriteResult(w, "ModifyTargetGroup", out)
 	})
 }
 
@@ -1731,6 +2137,10 @@ func CreateListenerHandler(b CreateListenerBackend) http.Handler {
 				in.Port = &x
 			}
 		}
+		if v := r.Form.Get("Protocol"); v != "" {
+			e := ProtocolEnum(v)
+			in.Protocol = &e
+		}
 		if v := r.Form.Get("SslPolicy"); v != "" {
 			s := v
 			in.SslPolicy = &s
@@ -1826,6 +2236,246 @@ func DescribeListenersHandler(b DescribeListenersBackend) http.Handler {
 			return
 		}
 		awsquery.WriteResult(w, "DescribeListeners", out)
+	})
+}
+
+// ModifyListenerBackend serves the ModifyListener operation.
+type ModifyListenerBackend interface {
+	ModifyListener(ctx context.Context, in *ModifyListenerInput) (*ModifyListenerOutput, error)
+}
+
+// ModifyListenerHandler decodes a ModifyListener request, dispatches
+// to the backend, and encodes the response per awsQuery semantics.
+// Form-encoded request bodies are decoded field-by-field for
+// scalars, map<string,string>, and list<string> shapes. Complex
+// collections (map<string,struct> like SNS MessageAttributes) are
+// available to the backend via awsquery.FormFromContext(ctx).
+func ModifyListenerHandler(b ModifyListenerBackend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := awsquery.WithForm(r.Context(), r.Form)
+		in := &ModifyListenerInput{}
+		_ = in
+		// Decode top-level scalar + map<string,string> + list<string>
+		// form fields. AWS awsQuery serialises these as flat
+		// name=value pairs with `.entry.N.{key,value}` (maps) and
+		// `.member.N` (lists) conventions.
+		// list<string> via `AlpnPolicy.member.N`. The generated
+		// list type is a struct with Member []string for XML.
+		for i := 1; ; i++ {
+			v := r.Form.Get("AlpnPolicy.member." + strconv.Itoa(i))
+			if v == "" {
+				break
+			}
+			in.AlpnPolicy.Member = append(in.AlpnPolicy.Member, v)
+		}
+		in.ListenerArn = r.Form.Get("ListenerArn")
+		if v := r.Form.Get("Port"); v != "" {
+			if n, err := strconv.Atoi(v); err == nil {
+				x := int32(n)
+				in.Port = &x
+			}
+		}
+		if v := r.Form.Get("Protocol"); v != "" {
+			e := ProtocolEnum(v)
+			in.Protocol = &e
+		}
+		if v := r.Form.Get("SslPolicy"); v != "" {
+			s := v
+			in.SslPolicy = &s
+		}
+
+		out, err := b.ModifyListener(ctx, in)
+		if err != nil {
+			awsquery.WriteBackendError(w, err)
+			return
+		}
+		awsquery.WriteResult(w, "ModifyListener", out)
+	})
+}
+
+// CreateRuleBackend serves the CreateRule operation.
+type CreateRuleBackend interface {
+	CreateRule(ctx context.Context, in *CreateRuleInput) (*CreateRuleOutput, error)
+}
+
+// CreateRuleHandler decodes a CreateRule request, dispatches
+// to the backend, and encodes the response per awsQuery semantics.
+// Form-encoded request bodies are decoded field-by-field for
+// scalars, map<string,string>, and list<string> shapes. Complex
+// collections (map<string,struct> like SNS MessageAttributes) are
+// available to the backend via awsquery.FormFromContext(ctx).
+func CreateRuleHandler(b CreateRuleBackend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := awsquery.WithForm(r.Context(), r.Form)
+		in := &CreateRuleInput{}
+		_ = in
+		// Decode top-level scalar + map<string,string> + list<string>
+		// form fields. AWS awsQuery serialises these as flat
+		// name=value pairs with `.entry.N.{key,value}` (maps) and
+		// `.member.N` (lists) conventions.
+		in.ListenerArn = r.Form.Get("ListenerArn")
+		if v := r.Form.Get("Priority"); v != "" {
+			if n, err := strconv.Atoi(v); err == nil {
+				in.Priority = int32(n)
+			}
+		}
+
+		out, err := b.CreateRule(ctx, in)
+		if err != nil {
+			awsquery.WriteBackendError(w, err)
+			return
+		}
+		awsquery.WriteResult(w, "CreateRule", out)
+	})
+}
+
+// DeleteRuleBackend serves the DeleteRule operation.
+type DeleteRuleBackend interface {
+	DeleteRule(ctx context.Context, in *DeleteRuleInput) (*DeleteRuleOutput, error)
+}
+
+// DeleteRuleHandler decodes a DeleteRule request, dispatches
+// to the backend, and encodes the response per awsQuery semantics.
+// Form-encoded request bodies are decoded field-by-field for
+// scalars, map<string,string>, and list<string> shapes. Complex
+// collections (map<string,struct> like SNS MessageAttributes) are
+// available to the backend via awsquery.FormFromContext(ctx).
+func DeleteRuleHandler(b DeleteRuleBackend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := awsquery.WithForm(r.Context(), r.Form)
+		in := &DeleteRuleInput{}
+		_ = in
+		// Decode top-level scalar + map<string,string> + list<string>
+		// form fields. AWS awsQuery serialises these as flat
+		// name=value pairs with `.entry.N.{key,value}` (maps) and
+		// `.member.N` (lists) conventions.
+		in.RuleArn = r.Form.Get("RuleArn")
+
+		out, err := b.DeleteRule(ctx, in)
+		if err != nil {
+			awsquery.WriteBackendError(w, err)
+			return
+		}
+		awsquery.WriteResult(w, "DeleteRule", out)
+	})
+}
+
+// DescribeRulesBackend serves the DescribeRules operation.
+type DescribeRulesBackend interface {
+	DescribeRules(ctx context.Context, in *DescribeRulesInput) (*DescribeRulesOutput, error)
+}
+
+// DescribeRulesHandler decodes a DescribeRules request, dispatches
+// to the backend, and encodes the response per awsQuery semantics.
+// Form-encoded request bodies are decoded field-by-field for
+// scalars, map<string,string>, and list<string> shapes. Complex
+// collections (map<string,struct> like SNS MessageAttributes) are
+// available to the backend via awsquery.FormFromContext(ctx).
+func DescribeRulesHandler(b DescribeRulesBackend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := awsquery.WithForm(r.Context(), r.Form)
+		in := &DescribeRulesInput{}
+		_ = in
+		// Decode top-level scalar + map<string,string> + list<string>
+		// form fields. AWS awsQuery serialises these as flat
+		// name=value pairs with `.entry.N.{key,value}` (maps) and
+		// `.member.N` (lists) conventions.
+		if v := r.Form.Get("ListenerArn"); v != "" {
+			s := v
+			in.ListenerArn = &s
+		}
+		if v := r.Form.Get("Marker"); v != "" {
+			s := v
+			in.Marker = &s
+		}
+		if v := r.Form.Get("PageSize"); v != "" {
+			if n, err := strconv.Atoi(v); err == nil {
+				x := int32(n)
+				in.PageSize = &x
+			}
+		}
+		// list<string> via `RuleArns.member.N`. The generated
+		// list type is a struct with Member []string for XML.
+		for i := 1; ; i++ {
+			v := r.Form.Get("RuleArns.member." + strconv.Itoa(i))
+			if v == "" {
+				break
+			}
+			in.RuleArns.Member = append(in.RuleArns.Member, v)
+		}
+
+		out, err := b.DescribeRules(ctx, in)
+		if err != nil {
+			awsquery.WriteBackendError(w, err)
+			return
+		}
+		awsquery.WriteResult(w, "DescribeRules", out)
+	})
+}
+
+// ModifyRuleBackend serves the ModifyRule operation.
+type ModifyRuleBackend interface {
+	ModifyRule(ctx context.Context, in *ModifyRuleInput) (*ModifyRuleOutput, error)
+}
+
+// ModifyRuleHandler decodes a ModifyRule request, dispatches
+// to the backend, and encodes the response per awsQuery semantics.
+// Form-encoded request bodies are decoded field-by-field for
+// scalars, map<string,string>, and list<string> shapes. Complex
+// collections (map<string,struct> like SNS MessageAttributes) are
+// available to the backend via awsquery.FormFromContext(ctx).
+func ModifyRuleHandler(b ModifyRuleBackend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := awsquery.WithForm(r.Context(), r.Form)
+		in := &ModifyRuleInput{}
+		_ = in
+		// Decode top-level scalar + map<string,string> + list<string>
+		// form fields. AWS awsQuery serialises these as flat
+		// name=value pairs with `.entry.N.{key,value}` (maps) and
+		// `.member.N` (lists) conventions.
+		if v := r.Form.Get("ResetTransforms"); v != "" {
+			if x, err := strconv.ParseBool(v); err == nil {
+				in.ResetTransforms = &x
+			}
+		}
+		in.RuleArn = r.Form.Get("RuleArn")
+
+		out, err := b.ModifyRule(ctx, in)
+		if err != nil {
+			awsquery.WriteBackendError(w, err)
+			return
+		}
+		awsquery.WriteResult(w, "ModifyRule", out)
+	})
+}
+
+// SetRulePrioritiesBackend serves the SetRulePriorities operation.
+type SetRulePrioritiesBackend interface {
+	SetRulePriorities(ctx context.Context, in *SetRulePrioritiesInput) (*SetRulePrioritiesOutput, error)
+}
+
+// SetRulePrioritiesHandler decodes a SetRulePriorities request, dispatches
+// to the backend, and encodes the response per awsQuery semantics.
+// Form-encoded request bodies are decoded field-by-field for
+// scalars, map<string,string>, and list<string> shapes. Complex
+// collections (map<string,struct> like SNS MessageAttributes) are
+// available to the backend via awsquery.FormFromContext(ctx).
+func SetRulePrioritiesHandler(b SetRulePrioritiesBackend) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := awsquery.WithForm(r.Context(), r.Form)
+		in := &SetRulePrioritiesInput{}
+		_ = in
+		// Decode top-level scalar + map<string,string> + list<string>
+		// form fields. AWS awsQuery serialises these as flat
+		// name=value pairs with `.entry.N.{key,value}` (maps) and
+		// `.member.N` (lists) conventions.
+
+		out, err := b.SetRulePriorities(ctx, in)
+		if err != nil {
+			awsquery.WriteBackendError(w, err)
+			return
+		}
+		awsquery.WriteResult(w, "SetRulePriorities", out)
 	})
 }
 

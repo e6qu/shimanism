@@ -353,6 +353,11 @@ type fieldView struct {
 	// present, otherwise the Go field name. Unlike XMLTag, it has no
 	// struct-tag suffix (no ",omitempty").
 	FormKey string
+	// IsPointerEnum is true when the field's GoType is a pointer to a
+	// string-backed or int-backed Smithy enum (i.e., *SomethingEnum).
+	// The awsQuery template uses this to emit form-decode code for
+	// optional enum fields: `e := FooEnum(v); in.Field = &e`.
+	IsPointerEnum bool
 }
 
 type unionView struct {
@@ -728,6 +733,15 @@ func (g *gen) fieldView(name string, m smithy.Member) (fieldView, error) {
 	if fv.FormKey == "" {
 		fv.FormKey = fv.GoName
 	}
+	// Mark pointer-to-enum fields so the awsQuery template can emit
+	// correct form-decode code (string → cast to enum type → pointer).
+	if strings.HasPrefix(fv.GoType, "*") {
+		if targetSh, err := g.model.LookupShape(m.Target); err == nil {
+			if targetSh.Type == "enum" || targetSh.Type == "intEnum" {
+				fv.IsPointerEnum = true
+			}
+		}
+	}
 	return fv, nil
 }
 
@@ -1044,5 +1058,7 @@ func sortedKeys[V any](m map[string]V) []string {
 }
 
 var funcs = template.FuncMap{
-	"join": strings.Join,
+	"join":       strings.Join,
+	"hasPrefix":  strings.HasPrefix,
+	"trimPrefix": strings.TrimPrefix,
 }

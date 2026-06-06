@@ -8,14 +8,14 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 
 | | |
 |---|---|
-| Active branch | `phase-20-aws-msk-frontend` — Phase 20.E in progress. |
-| In-flight | Phase 20.E: BUG-76 + BUG-77 fixed; Strimzi K8s backend added; AWS CLI + GCP CLI + AWS TF + GCP TF conformance tests added; GCP SDK cluster lifecycle test added. Full local verification green (`make test`, `make lint`, `make license-check`). PR not yet opened. |
-| Last merged | Phase 20.D Azure Event Hubs ARM frontend — PR on `phase-20-azure-eventhubs-frontend` (open, awaiting merge). |
+| Active branch | `phase-21-l7-loadbalancers` — Phase 21.A in progress. |
+| In-flight | Phase 21.A: L7 load balancer scoping (N35), domain extension (Rule/HealthCheck/CertificateIDs), inmem backend extension (Rule CRUD + Modify ops), codegen fix (BUG-78: pointer-to-enum fields now decoded from form), AWS ELBv2 adapter extended (ALB + HTTPS listeners + HTTP TGs + routing rules), AWS SDK conformance test `TestAWSSDK_ELBv2_ALB_RuleLifecycle` green. All tests/lint/licenses green. PR not yet opened. |
+| Last merged | Phase 20.E Strimzi backend + full CLI/TF conformance matrix — PR #155. |
 | Upstream watch | Registry sockerless: BUG-67/#465 remains open. BUG-65/#451 and BUG-66/#452/#469 are closed on current sockerless main. |
 | Phases 1–19 | 1–19 closed. See [PLAN.md § Closed phases](PLAN.md#closed-phases-pr-index). |
 | Phase 19 | ✅ complete — 19.A (#127) · 19.B (#128) · 19.C (#129) · 19.D (#130 CLI/TF, #131 sockerless). All 4 backends, full SDK/CLI/TF, all sockerless lanes green, zero skips. |
 | Phase 18 | ✅ complete — PRs #132–#141. OCI Distribution data plane + ECR/AR/ACR frontends + connected backends + registry docs. Simulator-only gap BUG-67 remains; BUG-64/#450, BUG-65/#451, and BUG-66/#452/#469 are closed on current sockerless main. |
-| Bugs | **77 filed · 68 fixed · 8 open · 1 false positive.** Open: **BUG-8** + **BUG-15** + **BUG-41** (Track A) + **BUG-67** (sockerless AWS ECR) + **BUG-68/69** (local sockerless-runner/KMS-lane findings). BUG-76 + BUG-77 fixed in Phase 20.E. |
+| Bugs | **78 filed · 69 fixed · 8 open · 1 false positive.** Open: **BUG-8** + **BUG-15** + **BUG-41** (Track A) + **BUG-67** (sockerless AWS ECR) + **BUG-68/69** (local sockerless-runner/KMS-lane findings). BUG-76 + BUG-77 fixed in Phase 20.E. BUG-78 filed and fixed in Phase 21.A. |
 | CI | 20 required checks. Real-cloud lanes wait on Track A. |
 | Renovate | Config + custom manager for vendored-spec SHAs. **User must install the Renovate GitHub App.** |
 | Standing merge auth | **None.** User merges every PR. PR #146 was a one-time user-authorized exception and has already been merged. **One PR open at a time** — ask before opening if one's active. |

@@ -1,6 +1,6 @@
 # Known Bugs
 
-**77 filed · 68 fixed · 8 open · 1 false positive.** BUG-65 and BUG-66 are closed after sockerless PR #475 added the ACR OAuth2 token service and the registry GCP/Azure through-shim push/pull lanes passed against rebuilt sockerless main. Track A (BUG-8 + BUG-15) remains blocked on real GCP credentials. Registry's remaining simulator skip is BUG-67. BUG-76 and BUG-77 filed and fixed in Phase 20.E.
+**78 filed · 69 fixed · 8 open · 1 false positive.** BUG-65 and BUG-66 are closed after sockerless PR #475 added the ACR OAuth2 token service and the registry GCP/Azure through-shim push/pull lanes passed against rebuilt sockerless main. Track A (BUG-8 + BUG-15) remains blocked on real GCP credentials. Registry's remaining simulator skip is BUG-67. BUG-76 and BUG-77 filed and fixed in Phase 20.E. BUG-78 filed and fixed in Phase 21.A.
 
 Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLAN.md](PLAN.md) · narrative [WHAT_WE_DID.md](WHAT_WE_DID.md) · rules [AGENTS.md](AGENTS.md).
 
@@ -25,6 +25,7 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 | BUG-69 | P2 | kms/sockerless-lane | `hashicorp/aws` Terraform | Fresh full sockerless validation surfaced `TestSockerless_AWSKMS_Through_Shim_TerraformTaggedKey` exiting with Terraform detailed-exitcode 2 while the test only printed stderr, hiding the plan diff needed to classify shim vs simulator vs provider behavior. | **20.B** |
 | BUG-76 | P2 | eventstream/aws-msk | AWS MSK `DeleteCluster` | ✅ Fixed in Phase 20.E: `DeleteCluster` and `DescribeClusterV2` added to `codegen.json`, regenerated, and implemented in the MSK adapter. | **20.E** |
 | BUG-77 | P2 | eventstream/gcp-managedkafka | GCP Managed Kafka cluster CRUD | ✅ Fixed in Phase 20.E: cluster create/get/list/delete with LRO `done=true` added to `gcp_managedkafka/server.go`. | **20.E** |
+| BUG-78 | P2 | codegen/awsquery | awsQuery `*ProtocolEnum` / `*LoadBalancerTypeEnum` form decode | ✅ Fixed in Phase 21.A: `template_awsquery.tmpl` had no catch-all for optional enum pointer fields; the generated handlers left `in.Type`, `in.Protocol`, and `in.HealthCheckProtocol` always nil. Added `IsPointerEnum` flag to `fieldView`, set it in `emit.go` for shapes with `type=enum/intEnum`, and emitted `e := FooEnum(v); in.Field = &e` in the template. | **21.A** |
 
 ## Upstream-tracked (sockerless validation lane)
 
