@@ -72,7 +72,7 @@ func TestSockerless_GCPAR_ThroughShim_ImagePushPull(t *testing.T) {
 		remote.WithAuth(&authn.Bearer{Token: arBearerJWT()}),
 		remote.WithTransport(http.DefaultTransport),
 	}
-	assertPushPullOrSkipKnownSockerlessGap(t, ref, "BUG-65", "405 Method Not Allowed", opts...)
+	assertPushPull(t, ref, opts...)
 }
 
 func TestSockerless_AzureACR_ThroughShim_ImagePushPull(t *testing.T) {
@@ -114,7 +114,7 @@ func TestSockerless_AzureACR_ThroughShim_ImagePushPull(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse ref: %v", err)
 	}
-	assertPushPullOrSkipKnownSockerlessGap(t, ref, "BUG-66", "acr 404 Not Found",
+	assertPushPull(t, ref,
 		remote.WithAuth(&authn.Bearer{Token: token}),
 		remote.WithTransport(http.DefaultTransport),
 	)
@@ -178,6 +178,13 @@ func TestSockerless_AWSECR_ThroughShim_ImagePushPull(t *testing.T) {
 		remote.WithAuth(&authn.Basic{Username: user, Password: pass}),
 		remote.WithTransport(http.DefaultTransport),
 	)
+}
+
+func assertPushPull(t *testing.T, ref name.Reference, opts ...remote.Option) {
+	t.Helper()
+	pushPull(t, ref, func(err error) {
+		t.Fatalf("push through registry shim: %v", err)
+	}, opts...)
 }
 
 type sockerlessACRCredential struct {

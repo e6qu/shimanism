@@ -36,12 +36,14 @@ The shim does not maintain a name mapping from GCP full resource names to Docker
 
 ## Simulator Coverage
 
-Sockerless registry lanes are present and fail loud on simulator gaps. AWS ECR
-now reaches the `/v2/` data plane and attempts full through-shim push/pull, but
-the simulator still rejects the normal missing-tag manifest probe.
+Sockerless registry lanes are present and fail loud on simulator gaps. GCP
+Artifact Registry and Azure ACR through-shim push/pull now pass against current
+sockerless main after #451/#456 and #469/#475. AWS ECR reaches the `/v2/` data
+plane and attempts full through-shim push/pull, but the simulator still rejects
+the normal missing-tag manifest probe.
 
-- BUG-65: GCP Artifact Registry simulator creates upload sessions but returns 405 on OCI chunk `PATCH`.
-- BUG-66: Azure ACR simulator returns 404 for OCI upload start.
 - BUG-67: AWS ECR simulator returns 400 for OCI manifest `HEAD` on a missing tag.
 
-None of these are worked around in the shim. When the simulators add the missing behavior, the same tests should move from BUG skips to full push/pull assertions.
+This is not worked around in the shim. When the simulator adds the missing
+behavior, the same test should move from the BUG skip to a full push/pull
+assertion.
