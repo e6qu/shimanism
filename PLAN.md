@@ -422,8 +422,9 @@ NAT Gateways · Internet Gateways · Route Tables · VPC Peering · Auto Scaling
 >
 > **Status: in progress.** Phase 20.A foundation is merged: domain contract,
 > real inmem append-only log backend, and service/intersection docs. The Kafka
-> runtime and first dispatcher are merged; the current slice adds the first
-> cloud-shaped control-plane frontend with GCP Managed Kafka topic lifecycle.
+> runtime, first dispatcher, and GCP Managed Kafka topic lifecycle frontend are
+> merged; the current slice closes the first GCP/Kafka surface with real
+> `franz-go/pkg/kgo` produce/fetch conformance.
 
 | Operation | AWS MSK | GCP Managed Kafka | Azure Event Hubs (Kafka) |
 |---|---|---|---|

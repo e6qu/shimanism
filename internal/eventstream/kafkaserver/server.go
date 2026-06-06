@@ -77,6 +77,9 @@ func New(streams domain.Streams, cfg Config) *Server {
 	if cfg.DefaultPartitions <= 0 {
 		cfg.DefaultPartitions = defaultPartitions
 	}
+	if cfg.MaxFrameSize <= 0 {
+		cfg.MaxFrameSize = kafkawire.DefaultMaxFrameSize
+	}
 	return &Server{streams: streams, cfg: cfg}
 }
 

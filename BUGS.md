@@ -1,6 +1,6 @@
 # Known Bugs
 
-**67 filed · 60 fixed · 6 open · 1 false positive.** BUG-65 and BUG-66 are closed after sockerless PR #475 added the ACR OAuth2 token service and the registry GCP/Azure through-shim push/pull lanes passed against rebuilt sockerless main. Track A (BUG-8 + BUG-15) remains blocked on real GCP credentials. Registry's remaining simulator skip is BUG-67.
+**70 filed · 63 fixed · 6 open · 1 false positive.** BUG-65 and BUG-66 are closed after sockerless PR #475 added the ACR OAuth2 token service and the registry GCP/Azure through-shim push/pull lanes passed against rebuilt sockerless main. Track A (BUG-8 + BUG-15) remains blocked on real GCP credentials. Registry's remaining simulator skip is BUG-67.
 
 Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLAN.md](PLAN.md) · narrative [WHAT_WE_DID.md](WHAT_WE_DID.md) · rules [AGENTS.md](AGENTS.md).
 
@@ -171,6 +171,9 @@ When a new bug fits one of these, tag it with the rule.
 
 | ID | Sev | Area | Closed in | One-liner |
 |---|---|---|---|---|
+| 72 | P3 | harness/eventstream | 20.B kgo conformance | The new Kafka TCP harness left two setup-failure `ln.Close()` calls unchecked, which `errcheck` rejected in `make lint`. Fixed by explicitly discarding the close error in those cleanup paths. |
+| 71 | P2 | eventstream/kafka-wire | 20.B kgo conformance | `kafkawire.AppendResponse` emitted a flexible v1 response header for `ApiVersions` v3+, but Kafka requires the non-flexible v0 response header for ApiVersions even when the response body is flexible; `franz-go/pkg/kgo` decoded the shim response as zero API keys. Fixed by suppressing response-header tags for ApiVersions while preserving the flexible response body. |
+| 70 | P2 | eventstream/kafka-data-plane | 20.B kgo conformance | `kafkaserver.New` left `MaxFrameSize` at zero when callers passed a partial config, so live TCP serving rejected every non-empty Kafka frame. Fixed by defaulting to `kafkawire.DefaultMaxFrameSize`. |
 | 66 | P2 | registry/azure-acr-sockerless | sockerless #452/#469 + local closeout | Azure ACR through-shim push/pull was skipped on simulator upload/auth gaps. Sockerless #452/#456 fixed raw OCI upload routing; #469/#475 added the ACR OAuth2 exchange/token service. Removed the BUG skip; Azure ACR push/pull now passes against rebuilt sockerless `3d457dd`. |
 | 65 | P2 | registry/gcp-ar-sockerless | sockerless #451 + local closeout | GCP Artifact Registry chunked OCI upload was skipped on simulator `PATCH` 405. Sockerless #451/#456 fixed the data-plane upload path; removed the BUG skip; GCP AR push/pull now passes against rebuilt sockerless `3d457dd`. |
 | 63 | P2 | registry/sockerless-runner | 18.D closeout | Registry conformance was absent from `scripts/run-sockerless-storage.sh`, so Phase 18 sockerless lanes would never execute in CI. Fixed by adding `./services/registry/conformance/...` to the runner. |

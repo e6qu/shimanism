@@ -109,7 +109,7 @@ func AppendResponse(dst []byte, correlationID int32, resp kmsg.Response) []byte 
 	lenAt := len(dst)
 	dst = append(dst, 0, 0, 0, 0)
 	dst = binary.BigEndian.AppendUint32(dst, uint32(correlationID))
-	if resp.IsFlexible() {
+	if resp.IsFlexible() && resp.Key() != 18 {
 		dst = append(dst, 0) // response header tagged fields
 	}
 	dst = resp.AppendTo(dst)

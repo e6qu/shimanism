@@ -6,15 +6,15 @@ replacement for Phase 4 pub/sub fan-out.
 
 Phase 20 is in progress. The current implementation has the neutral domain
 contract, the real inmem append-only log backend, the shared Kafka TCP frame
-codec, and the first Kafka request dispatcher for real metadata, topic
-lifecycle, produce/fetch, and offsets.
+codec, the first Kafka request dispatcher for real metadata, topic lifecycle,
+produce/fetch, and offsets, and the first cloud-shaped control-plane frontend.
 
 ## Frontends
 
 | Frontend | Wire protocol | Status |
 |---|---|---|
 | AWS MSK | MSK restJson1 control plane + Kafka data plane | Planned. |
-| GCP Managed Kafka | Discovery REST control plane + Kafka data plane | In progress: topic lifecycle frontend over `domain.Streams`. |
+| GCP Managed Kafka | Discovery REST control plane + Kafka data plane | Topic lifecycle frontend implemented over `domain.Streams`; current slice adds real Kafka client produce/fetch conformance against the same backend. |
 | Azure Event Hubs | ARM control plane + Event Hubs Kafka endpoint | Planned. |
 
 ## Backends
@@ -35,9 +35,11 @@ lifecycle, produce/fetch, and offsets.
 ## Conformance
 
 Conformance is active for the first slices: Kafka handler tests drive real Kafka
-frames through the dispatcher, and the GCP Managed Kafka topic-control plane is
-driven by the official REST SDK. Later slices must add CLI/Terraform and the
-remaining cloud frontends/backends.
+frames through the dispatcher, the GCP Managed Kafka topic-control plane is
+driven by the official REST SDK, and the current GCP/Kafka closeout drives the
+TCP data plane with `franz-go/pkg/kgo` after creating a topic through the REST
+SDK. Later slices must add CLI/Terraform and the remaining cloud
+frontends/backends.
 
 ## Known Gaps
 
