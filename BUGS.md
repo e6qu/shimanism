@@ -1,6 +1,6 @@
 # Known Bugs
 
-**78 filed · 69 fixed · 8 open · 1 false positive.** BUG-65 and BUG-66 are closed after sockerless PR #475 added the ACR OAuth2 token service and the registry GCP/Azure through-shim push/pull lanes passed against rebuilt sockerless main. Track A (BUG-8 + BUG-15) remains blocked on real GCP credentials. Registry's remaining simulator skip is BUG-67. BUG-76 and BUG-77 filed and fixed in Phase 20.E. BUG-78 filed and fixed in Phase 21.A.
+**80 filed · 71 fixed · 8 open · 1 false positive.** BUG-65 and BUG-66 are closed after sockerless PR #475 added the ACR OAuth2 token service and the registry GCP/Azure through-shim push/pull lanes passed against rebuilt sockerless main. Track A (BUG-8 + BUG-15) remains blocked on real GCP credentials. Registry's remaining simulator skip is BUG-67. BUG-76 and BUG-77 filed and fixed in Phase 20.E. BUG-78 filed and fixed in Phase 21.A. BUG-79 and BUG-80 filed and fixed in Phase 21.C.
 
 Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLAN.md](PLAN.md) · narrative [WHAT_WE_DID.md](WHAT_WE_DID.md) · rules [AGENTS.md](AGENTS.md).
 
@@ -26,6 +26,8 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 | BUG-76 | P2 | eventstream/aws-msk | AWS MSK `DeleteCluster` | ✅ Fixed in Phase 20.E: `DeleteCluster` and `DescribeClusterV2` added to `codegen.json`, regenerated, and implemented in the MSK adapter. | **20.E** |
 | BUG-77 | P2 | eventstream/gcp-managedkafka | GCP Managed Kafka cluster CRUD | ✅ Fixed in Phase 20.E: cluster create/get/list/delete with LRO `done=true` added to `gcp_managedkafka/server.go`. | **20.E** |
 | BUG-78 | P2 | codegen/awsquery | awsQuery `*ProtocolEnum` / `*LoadBalancerTypeEnum` form decode | ✅ Fixed in Phase 21.A: `template_awsquery.tmpl` had no catch-all for optional enum pointer fields; the generated handlers left `in.Type`, `in.Protocol`, and `in.HealthCheckProtocol` always nil. Added `IsPointerEnum` flag to `fieldView`, set it in `emit.go` for shapes with `type=enum/intEnum`, and emitted `e := FooEnum(v); in.Field = &e` in the template. | **21.A** |
+| BUG-79 | P3 | loadbalancer/aws-elbv2 | `ModifyLoadBalancerAttributes` / `ModifyTargetGroupAttributes` not in codegen spec | ✅ Fixed in Phase 21.C: added pre-router wrapper in `aws_elbv2/adapter.go` that intercepts attribute-management actions (Modify + Describe variants) and returns stateless empty-attribute responses. The shim is stateless and doesn't persist per-LB attributes; these ops return "accepted with no resulting attributes". Terraform's `-refresh=false` plan step avoids drift detection. | **21.C** |
+| BUG-80 | P3 | loadbalancer/aws-elbv2 | `DescribeTags` returns empty list causing Terraform provider panic | ✅ Fixed in Phase 21.C: `DescribeTags` now returns one `TagDescription{ResourceArn}` per requested ARN (with empty tag list) instead of an empty response. The provider crashed with index-out-of-range when the response was completely empty. | **21.C** |
 
 ## Upstream-tracked (sockerless validation lane)
 

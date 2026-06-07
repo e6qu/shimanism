@@ -8,14 +8,14 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 
 | | |
 |---|---|
-| Active branch | `phase-21-l7-loadbalancers` — Phase 21.B complete; 21.C next. |
-| In-flight | Phase 21.B: GCP HTTP(S) LB global resources (BackendServices, SslCertificates, UrlMaps, TargetHttpsProxies, GlobalForwardingRules) + lazy assembly of Listener+Rules at ForwardingRule creation. BlobEntry/blob-store added to domain + all backends. `TestGCPSDK_LB_L7Lifecycle` green. PR not yet opened. |
-| Last merged | Phase 21.A L7 ALB frontend (rules/HTTPS/health checks) — PR #156. |
+| Active branch | `phase-21-c-azure-appgateway-k8s` — Phase 21.C complete; PR not yet opened. |
+| In-flight | Phase 21.C: Azure Application Gateway compound ARM resource + K8s Ingress L7 support + full CLI/TF conformance matrix. All three 3×3 driver-type cells implemented. `TestAzureSDK_AppGW_L7Lifecycle`, `TestK8sPeer_AWSShaped_ALBRuleLifecycle`, AWS CLI test, AWS TF test, GCP CLI test, GCP TF test all green. |
+| Last merged | Phase 21.B GCP HTTP(S) LB global resources — PR #157. |
 | Upstream watch | Registry sockerless: BUG-67/#465 remains open. BUG-65/#451 and BUG-66/#452/#469 are closed on current sockerless main. |
 | Phases 1–19 | 1–19 closed. See [PLAN.md § Closed phases](PLAN.md#closed-phases-pr-index). |
 | Phase 19 | ✅ complete — 19.A (#127) · 19.B (#128) · 19.C (#129) · 19.D (#130 CLI/TF, #131 sockerless). All 4 backends, full SDK/CLI/TF, all sockerless lanes green, zero skips. |
 | Phase 18 | ✅ complete — PRs #132–#141. OCI Distribution data plane + ECR/AR/ACR frontends + connected backends + registry docs. Simulator-only gap BUG-67 remains; BUG-64/#450, BUG-65/#451, and BUG-66/#452/#469 are closed on current sockerless main. |
-| Bugs | **78 filed · 69 fixed · 8 open · 1 false positive.** Open: **BUG-8** + **BUG-15** + **BUG-41** (Track A) + **BUG-67** (sockerless AWS ECR) + **BUG-68/69** (local sockerless-runner/KMS-lane findings). BUG-76 + BUG-77 fixed in Phase 20.E. BUG-78 filed and fixed in Phase 21.A. |
+| Bugs | **80 filed · 71 fixed · 8 open · 1 false positive.** Open: **BUG-8** + **BUG-15** + **BUG-41** (Track A) + **BUG-67** (sockerless AWS ECR) + **BUG-68/69** (local sockerless-runner/KMS-lane findings). BUG-76+77 fixed in Phase 20.E. BUG-78 fixed in Phase 21.A. BUG-79+80 filed and fixed in Phase 21.C. |
 | CI | 20 required checks. Real-cloud lanes wait on Track A. |
 | Renovate | Config + custom manager for vendored-spec SHAs. **User must install the Renovate GitHub App.** |
 | Standing merge auth | **None.** User merges every PR. PR #146 was a one-time user-authorized exception and has already been merged. **One PR open at a time** — ask before opening if one's active. |

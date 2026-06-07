@@ -109,6 +109,114 @@ func TestK8sPeer_AWSShaped_TargetGroupLifecycle(t *testing.T) {
 	}
 }
 
+// TestK8sPeer_AWSShaped_ALBRuleLifecycle exercises the K8s Ingress-backed
+// application load balancer path via the AWS ELBv2 frontend.
+func TestK8sPeer_AWSShaped_ALBRuleLifecycle(t *testing.T) {
+	k8s := k8slb.New(fake.NewSimpleClientset(), "default")
+	srv := harness.StartLoadBalancerServerAWS(t, k8s)
+	cli := newELBv2Client(t, srv.URL)
+	ctx := context.Background()
+
+	// CreateLoadBalancer (application type)
+	create, err := cli.CreateLoadBalancer(ctx, &elbv2sdk.CreateLoadBalancerInput{
+		Name: awsapi.String("k8s-alb"),
+		Type: elbv2types.LoadBalancerTypeEnumApplication,
+	})
+	if err != nil {
+		t.Fatalf("CreateLoadBalancer (application, K8s): %v", err)
+	}
+	lbARN := awsapi.ToString(create.LoadBalancers[0].LoadBalancerArn)
+
+	// CreateTargetGroup (HTTP)
+	tg, err := cli.CreateTargetGroup(ctx, &elbv2sdk.CreateTargetGroupInput{
+		Name:     awsapi.String("k8s-alb-tg"),
+		Protocol: elbv2types.ProtocolEnumHttp,
+		Port:     awsapi.Int32(80),
+	})
+	if err != nil {
+		t.Fatalf("CreateTargetGroup (HTTP, K8s): %v", err)
+	}
+	tgARN := awsapi.ToString(tg.TargetGroups[0].TargetGroupArn)
+
+	// CreateListener (HTTPS → TG)
+	lsn, err := cli.CreateListener(ctx, &elbv2sdk.CreateListenerInput{
+		LoadBalancerArn: awsapi.String(lbARN),
+		Protocol:        elbv2types.ProtocolEnumHttps,
+		Port:            awsapi.Int32(443),
+		DefaultActions: []elbv2types.Action{
+			{Type: elbv2types.ActionTypeEnumForward, TargetGroupArn: awsapi.String(tgARN)},
+		},
+	})
+	if err != nil {
+		t.Fatalf("CreateListener (HTTPS, K8s): %v", err)
+	}
+	lsnARN := awsapi.ToString(lsn.Listeners[0].ListenerArn)
+
+	// CreateRule
+	rule, err := cli.CreateRule(ctx, &elbv2sdk.CreateRuleInput{
+		ListenerArn: awsapi.String(lsnARN),
+		Priority:    awsapi.Int32(10),
+		Conditions: []elbv2types.RuleCondition{
+			{
+				Field:  awsapi.String("path-pattern"),
+				Values: []string{"/api/*"},
+			},
+		},
+		Actions: []elbv2types.Action{
+			{Type: elbv2types.ActionTypeEnumForward, TargetGroupArn: awsapi.String(tgARN)},
+		},
+	})
+	if err != nil {
+		t.Fatalf("CreateRule (K8s): %v", err)
+	}
+	ruleARN := awsapi.ToString(rule.Rules[0].RuleArn)
+	if ruleARN == "" {
+		t.Fatalf("empty rule ARN from K8s peer")
+	}
+
+	// DescribeRules — rule should appear.
+	descRules, err := cli.DescribeRules(ctx, &elbv2sdk.DescribeRulesInput{
+		ListenerArn: awsapi.String(lsnARN),
+	})
+	if err != nil {
+		t.Fatalf("DescribeRules (K8s): %v", err)
+	}
+	found := false
+	for _, r := range descRules.Rules {
+		if awsapi.ToString(r.RuleArn) == ruleARN {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("DescribeRules: rule ARN %q not found", ruleARN)
+	}
+
+	// DeleteRule
+	if _, err := cli.DeleteRule(ctx, &elbv2sdk.DeleteRuleInput{
+		RuleArn: awsapi.String(ruleARN),
+	}); err != nil {
+		t.Fatalf("DeleteRule (K8s): %v", err)
+	}
+
+	// Cleanup
+	if _, err := cli.DeleteListener(ctx, &elbv2sdk.DeleteListenerInput{
+		ListenerArn: awsapi.String(lsnARN),
+	}); err != nil {
+		t.Fatalf("DeleteListener (K8s): %v", err)
+	}
+	if _, err := cli.DeleteTargetGroup(ctx, &elbv2sdk.DeleteTargetGroupInput{
+		TargetGroupArn: awsapi.String(tgARN),
+	}); err != nil {
+		t.Fatalf("DeleteTargetGroup (K8s): %v", err)
+	}
+	if _, err := cli.DeleteLoadBalancer(ctx, &elbv2sdk.DeleteLoadBalancerInput{
+		LoadBalancerArn: awsapi.String(lbARN),
+	}); err != nil {
+		t.Fatalf("DeleteLoadBalancer (K8s): %v", err)
+	}
+}
+
 // TestK8sPeer_GCPShaped_LBLifecycle drives the GCP Compute LB frontend
 // against the K8s peer.
 func TestK8sPeer_GCPShaped_LBLifecycle(t *testing.T) {

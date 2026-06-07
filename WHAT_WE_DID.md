@@ -4,7 +4,7 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 
 > Reverse chronological. One section per phase. The *why*, the surprises, the root causes — not per-PR detail. For commit-level history, `git log`. For per-bug detail, [BUGS.md](BUGS.md). For pipeline + verifier architecture, [docs/codegen-pipelines.md](docs/codegen-pipelines.md) + [docs/verifiers.md](docs/verifiers.md).
 
-## Phase 21 — L7 Load Balancers: 21.B complete
+## Phase 21 — L7 Load Balancers: 21.A + 21.B + 21.C complete
 
 Phase 21 promotes Application Load Balancers into the intersection. Phase 16.D
 had established the load balancer domain and NLB lifecycle; the question for
@@ -51,6 +51,37 @@ UrlMap blob → BackendService TGs) and creates domain Listener + Rules
 atomically. All earlier GCP resource insertions just store blobs. On GET, blobs
 are returned as-is (honest round-trip). On DELETE, GlobalForwardingRules also
 tears down the assembled Listener and Rules.
+
+**Phase 21.C** closed the remaining two frontends (Azure Application Gateway +
+K8s Ingress) and completed the full 3×3 driver-type matrix (SDK/CLI/TF for
+AWS/GCP/Azure).
+
+*Azure Application Gateway* uses the same BlobStore pattern as GCP phase 21.B.
+The PUT stores the compound ARM body as a blob (`kind=azure-appgw`) while
+simultaneously creating: one `TargetGroup(HTTP)` per `BackendAddressPool`, one
+`Listener(HTTPS)` per `HTTPListener` with `protocol=Https` (port and cert IDs
+extracted from `FrontendPorts` and `SSLCertificates`), and one `Rule` per
+`PathRule` in each `URLPathMap` (listener association resolved through
+`RequestRoutingRules`). GET returns the enriched blob with `provisioningState=Succeeded`.
+DELETE cascades through Rules → Listeners → TargetGroups → LB → blob.
+
+*K8s Ingress* replaces the `ErrNotSupported` stubs for application-type LBs.
+`CreateLoadBalancer(type=application)` creates a K8s `networking.k8s.io/v1
+Ingress` (rather than a Service). `GetLoadBalancer`/`ListLoadBalancers`/`DeleteLoadBalancer`
+now probe both Service and Ingress. Listener metadata (port, protocol, cert IDs)
+is stored in the Ingress annotation `shimanism.io/listeners` as JSON.
+Rules are stored in `shimanism.io/rules` annotation AND mirrored into
+`spec.rules[0].http.paths` — rule IDs are deterministic:
+`{ingressName}:{base64url(path)}` so no ID→path lookup table is needed.
+
+*Terraform / ELBv2 gaps* (BUG-79, BUG-80): The AWS Terraform provider calls
+`ModifyLoadBalancerAttributes`, `ModifyTargetGroupAttributes`,
+`DescribeLoadBalancerAttributes`, `DescribeTargetGroupAttributes`, and
+`DescribeTags` after every create. These weren't in the codegen spec. Added a
+pre-router wrapper in `aws_elbv2/adapter.go` that intercepts attribute-management
+actions and returns stateless empty-attribute responses. Fixed `DescribeTags` to
+return one `TagDescription` per requested ARN — the provider panicked with
+index-out-of-range when the list was empty.
 
 ## Phase 20 — Event Streaming: ✅ complete
 

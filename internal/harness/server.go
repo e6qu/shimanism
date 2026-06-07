@@ -1105,6 +1105,30 @@ func StartLoadBalancerServerGCP(t *testing.T, backend lbdomain.LoadBalancers) *L
 	return &LoadBalancerServer{URL: ts.URL, Close: ts.Close}
 }
 
+// LoadBalancerServerTLS is the HTTPS variant of LoadBalancerServer,
+// carrying the self-signed cert as PEM so Terraform child processes
+// can inject it into a combined CA bundle via SSL_CERT_FILE.
+// Required for the hashicorp/google provider whose RemoveBasePathVersion
+// regex only matches https:// endpoints.
+type LoadBalancerServerTLS struct {
+	URL     string
+	CertPEM []byte
+	Close   func()
+}
+
+// StartLoadBalancerServerGCPTLS is the HTTPS variant of StartLoadBalancerServerGCP.
+// Returns the auto-generated self-signed cert as PEM so callers can
+// inject it into a combined CA bundle for child processes (Terraform).
+func StartLoadBalancerServerGCPTLS(t *testing.T, backend lbdomain.LoadBalancers) *LoadBalancerServerTLS {
+	t.Helper()
+	srv := gcplbfront.Handler(backend)
+	ts := httptest.NewTLSServer(&logRoundTrip{t: t, mux: srv})
+	t.Cleanup(ts.Close)
+	cert := ts.Certificate()
+	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw})
+	return &LoadBalancerServerTLS{URL: ts.URL, CertPEM: certPEM, Close: ts.Close}
+}
+
 // StartLoadBalancerServerAzure starts a shim instance with the Azure
 // Network load balancer ARM frontend. Uses TLS so the Azure SDK sends
 // Bearer tokens.
