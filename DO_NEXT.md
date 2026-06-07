@@ -2,21 +2,31 @@
 
 Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BUGS.md) · narrative [WHAT_WE_DID.md](WHAT_WE_DID.md) · philosophy [PHILOSOPHY.md](PHILOSOPHY.md) · rules [AGENTS.md](AGENTS.md).
 
-> **Cold-start entry point.** Phases 1–21 complete. No active branch. Decide next phase.
+> **Cold-start entry point.** Phases 1–20 complete. Phase 21 nearly complete (21.D PR open, awaiting merge). Active branch: `phase-21-d-azure-handlerwithconfig`.
 
 ## Where we are
 
-**Phase 21 (L7 Load Balancers) is complete** — PRs #156 (21.A AWS ELBv2 ALB) / #157 (21.B GCP HTTP(S) LB) / #158 (21.C Azure App Gateway + K8s Ingress + full CLI/TF matrix), all merged. Full intersection N35: HTTPS termination, host/path routing, HTTP TGs with health checks, opaque cert pass-through. BUG-78/79/80 fixed.
+**Phase 21.D in progress** — adds `HandlerWithConfig` / `NewWithConfig` / `passthroughOr404` / `serveMetadata` to the `azure_lb` frontend (follows the `azure_compute` / `azure_dns` pattern) so the Azure CLI and Terraform tests can funnel Entra token acquisition through the sockerless stub. Also adds `harness.StartLoadBalancerServerAzureWithConfig` + extends `assembleAppGWEntities` to handle HTTP listeners. PR not yet opened.
 
-**Phase 20 (Event Streaming) is complete** — PRs #147–#155, all merged. Kafka data plane + GCP Managed Kafka + AWS MSK + Azure Event Hubs + Strimzi K8s backend + full SDK/CLI/TF conformance.
+**Phase 20 (Event Streaming) is complete** — PRs #147–#155, all merged.
 
 **Open bugs:** BUG-8 · BUG-15 · BUG-41 (Track A only — blocked on real GCP credentials) · BUG-67 (sockerless AWS ECR manifest `HEAD`, filed upstream as sockerless#465) · BUG-68/69 (local sockerless-runner/KMS-lane findings).
 
 ## Session-start checklist
 
-1. Review [PLAN.md](PLAN.md) for the next planned phase.
-2. Create a branch for that phase from `main`.
-3. Work the phase, open one PR, do not merge.
+1. Check `gh pr list --state open` for the Phase 21.D PR.
+2. If merged: sync main, mark Phase 21 ✅ complete, decide next phase.
+3. If not yet open: push branch `phase-21-d-azure-handlerwithconfig`, open PR.
+
+## Phase 21.D — azure_lb HandlerWithConfig + Azure CLI/TF tests ◐
+
+- [x] Add `Config` struct + `NewWithConfig` + `HandlerWithConfig` + `wrapWithBearerLB` + `passthroughOr404` + `serveMetadata` to `internal/loadbalancer/frontends/azure_lb/server.go`.
+- [x] Extend `assembleAppGWEntities` to create domain `Listener(HTTP)` for HTTP listeners (previously HTTPS-only).
+- [x] Add `harness.StartLoadBalancerServerAzureWithConfig` returning `*LoadBalancerServerTLS`.
+- [x] Replace `azure_appgateway_cli_test.go` stub with real `TestAzureCLI_LB_AppGatewayList` (follows `TestAzureCLI_Compute_VMList` pattern; skips without sockerless).
+- [x] Replace `azure_appgateway_terraform_test.go` stub with real `TestTerraform_AzureAppGateway_Lifecycle` (resource group + VNet/Subnet passthrough + azurerm_application_gateway to shim; skips without sockerless).
+- [x] All tests green. Lint clean. License check OK.
+- [ ] Open PR and await CI + user merge.
 
 ## Phase 20 — Event Streaming ◐
 

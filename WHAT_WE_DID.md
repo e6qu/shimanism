@@ -4,7 +4,7 @@ Status [STATUS.md](STATUS.md) · resume [DO_NEXT.md](DO_NEXT.md) · roadmap [PLA
 
 > Reverse chronological. One section per phase. The *why*, the surprises, the root causes — not per-PR detail. For commit-level history, `git log`. For per-bug detail, [BUGS.md](BUGS.md). For pipeline + verifier architecture, [docs/codegen-pipelines.md](docs/codegen-pipelines.md) + [docs/verifiers.md](docs/verifiers.md).
 
-## Phase 21 — L7 Load Balancers: 21.A + 21.B + 21.C complete
+## Phase 21 — L7 Load Balancers: ✅ complete (21.A + 21.B + 21.C + 21.D)
 
 Phase 21 promotes Application Load Balancers into the intersection. Phase 16.D
 had established the load balancer domain and NLB lifecycle; the question for
@@ -82,6 +82,24 @@ pre-router wrapper in `aws_elbv2/adapter.go` that intercepts attribute-managemen
 actions and returns stateless empty-attribute responses. Fixed `DescribeTags` to
 return one `TagDescription` per requested ARN — the provider panicked with
 index-out-of-range when the list was empty.
+
+**Phase 21.D** closed the Azure CLI and Terraform rows, which Phase 21.C had
+left as skip-stubs because `azure_lb` had no `HandlerWithConfig`. The fix
+followed the established `azure_compute` / `azure_dns` pattern: a `Config` struct
+with `Passthrough`, `MetadataLoginURL`, and `BearerOptions`; `NewWithConfig` +
+`HandlerWithConfig` + `wrapWithBearerLB`; `passthroughOr404` for resource types
+not handled by the shim (VNet, Subnet, etc. forwarded to sockerless); and
+`serveMetadata` for the public `/metadata/endpoints` discovery endpoint the
+azurerm provider fetches before acquiring tokens. Two additional changes: (1)
+`assembleAppGWEntities` was extended to also create domain `Listener(HTTP)`
+entities for `protocol=Http` HTTP listeners (previously only HTTPS listeners were
+assembled); (2) `harness.StartLoadBalancerServerAzureWithConfig` was added to
+expose a `*LoadBalancerServerTLS` (with `CertPEM`) for child-process CA-bundle
+injection. The Azure CLI test follows the `TestAzureCLI_Compute_VMList` pattern
+(`az cloud register` → `az login --service-principal` → `az network
+application-gateway list`). The Azure TF test (`TestTerraform_AzureAppGateway_Lifecycle`)
+creates resource group + VNet/Subnet (passthrough to sockerless) and an
+`azurerm_application_gateway` (to shim) with HTTP listener, then plan and destroy.
 
 ## Phase 20 — Event Streaming: ✅ complete
 
