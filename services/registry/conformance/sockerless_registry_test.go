@@ -143,7 +143,7 @@ func TestSockerless_AWSECR_ThroughShim_ImagePushPull(t *testing.T) {
 	ecrClient := ecr.NewFromConfig(cfg, func(o *ecr.Options) {
 		o.BaseEndpoint = awsapi.String(endpoint)
 	})
-	backend, err := awsbackend.New(ecrClient, awsbackend.Config{HTTPClient: client})
+	backend, err := awsbackend.New(ecrClient, awsbackend.Config{HTTPClient: client, RegistryBaseURL: endpoint})
 	if err != nil {
 		t.Fatalf("aws backend: %v", err)
 	}
@@ -174,7 +174,7 @@ func TestSockerless_AWSECR_ThroughShim_ImagePushPull(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse ref: %v", err)
 	}
-	assertPushPullOrSkipKnownSockerlessGap(t, ref, "BUG-67", "/manifests/v1: unexpected status code 400 Bad Request",
+	assertPushPull(t, ref,
 		remote.WithAuth(&authn.Basic{Username: user, Password: pass}),
 		remote.WithTransport(http.DefaultTransport),
 	)
@@ -230,16 +230,6 @@ func (s sockerlessACRCredential) GetToken(ctx context.Context, _ policy.TokenReq
 		Token:     out.AccessToken,
 		ExpiresOn: time.Now().Add(time.Duration(out.ExpiresIn) * time.Second),
 	}, nil
-}
-
-func assertPushPullOrSkipKnownSockerlessGap(t *testing.T, ref name.Reference, bugID, failureNeedle string, opts ...remote.Option) {
-	t.Helper()
-	pushPull(t, ref, func(err error) {
-		if strings.Contains(err.Error(), failureNeedle) {
-			t.Skipf("%s: sockerless registry simulator gap: %v", bugID, err)
-		}
-		t.Fatalf("push through registry shim: %v", err)
-	}, opts...)
 }
 
 func pushPull(t *testing.T, ref name.Reference, onPushError func(error), opts ...remote.Option) {

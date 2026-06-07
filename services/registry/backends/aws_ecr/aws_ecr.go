@@ -25,6 +25,13 @@ type Config struct {
 	// RegistryID scopes control-plane calls when set. When empty, ECR uses
 	// the caller's default registry.
 	RegistryID string
+	// RegistryBaseURL overrides the proxyEndpoint returned by
+	// GetAuthorizationToken for the OCI data-plane base URL. Real ECR
+	// returns a reachable proxyEndpoint; simulators (e.g. sockerless) return
+	// the canonical AWS URL shape which is unreachable in test environments.
+	// Set this to the simulator's own base URL (e.g. "https://localhost:14599")
+	// when running against a local simulator.
+	RegistryBaseURL string
 	// HTTPClient is used for the ECR Docker Registry /v2/ data plane.
 	HTTPClient *http.Client
 }
@@ -250,8 +257,12 @@ func (b *Backend) data(ctx context.Context) (*distribution.Backend, error) {
 	if err != nil {
 		return nil, err
 	}
+	baseURL := awsapi.ToString(auth.ProxyEndpoint)
+	if b.cfg.RegistryBaseURL != "" {
+		baseURL = b.cfg.RegistryBaseURL
+	}
 	return distribution.NewWithOptions(distribution.Options{
-		BaseURL:  awsapi.ToString(auth.ProxyEndpoint),
+		BaseURL:  baseURL,
 		Client:   b.cfg.HTTPClient,
 		Username: user,
 		Password: pass,
