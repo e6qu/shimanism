@@ -1140,6 +1140,20 @@ func StartLoadBalancerServerAzure(t *testing.T, backend lbdomain.LoadBalancers) 
 	return &LoadBalancerServer{URL: ts.URL, Close: ts.Close}
 }
 
+// StartLoadBalancerServerAzureWithConfig starts a TLS shim instance with a
+// fully-configured azure_lb frontend (passthrough + MetadataLoginURL +
+// BearerOptions). Returns the server URL and its self-signed cert PEM so
+// callers can build a combined CA bundle for child processes (az CLI / Terraform).
+func StartLoadBalancerServerAzureWithConfig(t *testing.T, backend lbdomain.LoadBalancers, cfg azurelbfront.Config) *LoadBalancerServerTLS {
+	t.Helper()
+	srv := azurelbfront.HandlerWithConfig(backend, cfg)
+	ts := httptest.NewTLSServer(&logRoundTrip{t: t, mux: srv})
+	t.Cleanup(ts.Close)
+	cert := ts.Certificate()
+	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw})
+	return &LoadBalancerServerTLS{URL: ts.URL, CertPEM: certPEM, Close: ts.Close}
+}
+
 type statusWriter struct {
 	http.ResponseWriter
 	status int

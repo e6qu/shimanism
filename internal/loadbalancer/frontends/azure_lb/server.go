@@ -23,30 +23,142 @@ import (
 	"github.com/e6qu/shimanism/internal/loadbalancer/domain"
 )
 
+// Config controls optional features of the azure_lb frontend.
+type Config struct {
+	// Passthrough, when non-nil, receives ARM requests for paths not handled
+	// by this frontend (resource groups, subscriptions, Entra token endpoint,
+	// VNet/Subnet, etc.).
+	Passthrough http.Handler
+	// MetadataLoginURL, when set, enables the public /metadata/endpoints
+	// discovery endpoint (no bearer auth required). Set to the sockerless ARM
+	// base URL in sockerless-passthrough test mode.
+	MetadataLoginURL string
+	// BearerOptions controls the Azure bearer verifier. Defaults to the
+	// shared test HMAC key when no signing material is supplied.
+	BearerOptions azurebearer.Options
+}
+
 // Server is an Azure-LB-shaped HTTP frontend.
 type Server struct {
-	lb domain.LoadBalancers
+	lb               domain.LoadBalancers
+	passthrough      http.Handler
+	metadataLoginURL string
 }
 
 // New returns a frontend bound to the given backend.
-func New(lb domain.LoadBalancers) *Server { return &Server{lb: lb} }
+func New(lb domain.LoadBalancers) *Server { return NewWithConfig(lb, Config{}) }
+
+// NewWithConfig is the general constructor; honours every Config field.
+func NewWithConfig(lb domain.LoadBalancers, c Config) *Server {
+	return &Server{
+		lb:               lb,
+		passthrough:      c.Passthrough,
+		metadataLoginURL: c.MetadataLoginURL,
+	}
+}
 
 // Handler wraps Server with the Azure bearer verifier middleware.
-func Handler(lb domain.LoadBalancers) http.Handler {
-	verifier := azurebearer.New(azurebearer.Options{
-		Audience: "https://management.azure.com/",
-		TestKey:  []byte("test-key-do-not-use-in-prod"),
+func Handler(lb domain.LoadBalancers) http.Handler { return HandlerWithConfig(lb, Config{}) }
+
+// HandlerWithConfig is the verifier-wrapped form of NewWithConfig.
+// The /metadata/endpoints discovery endpoint is served without bearer auth
+// (public discovery, same as azure_compute + azure_dns).
+func HandlerWithConfig(lb domain.LoadBalancers, c Config) http.Handler {
+	server := NewWithConfig(lb, c)
+	if c.MetadataLoginURL == "" {
+		return wrapWithBearerLB(server, c.BearerOptions)
+	}
+	bearerWrapped := wrapWithBearerLB(server, c.BearerOptions)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == "/metadata/endpoints" {
+			server.ServeHTTP(w, r)
+			return
+		}
+		bearerWrapped.ServeHTTP(w, r)
 	})
-	mw := azurebearer.Middleware(verifier, azurebearer.WithChallenge("https://management.azure.com/"))
-	return mw(New(lb))
+}
+
+func wrapWithBearerLB(h http.Handler, opts azurebearer.Options) http.Handler {
+	if opts.JWKS == nil && opts.JWKSURL == "" && len(opts.TestKey) == 0 {
+		opts.TestKey = []byte("test-key-do-not-use-in-prod")
+	}
+	if opts.Audience == "" {
+		opts.Audience = "https://management.azure.com/"
+	}
+	verifier := azurebearer.New(opts)
+	return azurebearer.Middleware(verifier, azurebearer.WithChallenge("https://management.azure.com/"))(h)
+}
+
+// passthroughOr404 forwards to the configured upstream when present;
+// otherwise emits an Azure-shaped 404 envelope.
+func (srv *Server) passthroughOr404(w http.ResponseWriter, r *http.Request) {
+	if srv.passthrough != nil {
+		srv.passthrough.ServeHTTP(w, r)
+		return
+	}
+	writeAzureError(w, http.StatusNotFound, "NotFound", "path not matched: "+r.URL.Path)
+}
+
+// serveMetadata returns the Azure cloud-environment JSON document that the
+// azurerm provider fetches via metadata_host. Mirrors the shape from
+// azure_compute.serveMetadata and azure_dns.serveMetadata.
+func (srv *Server) serveMetadata(w http.ResponseWriter, r *http.Request) {
+	scheme := "https"
+	if r.TLS == nil {
+		scheme = "http"
+	}
+	if fp := r.Header.Get("X-Forwarded-Proto"); fp != "" {
+		scheme = strings.ToLower(fp)
+	}
+	shimBase := fmt.Sprintf("%s://%s", scheme, r.Host)
+	env := map[string]any{
+		"name": "AzureCloud",
+		"authentication": map[string]any{
+			"loginEndpoint": srv.metadataLoginURL,
+			"audiences": []string{
+				srv.metadataLoginURL + "/",
+				"https://management.core.windows.net/",
+				"https://management.azure.com/",
+			},
+			"tenant":           "common",
+			"identityProvider": "AAD",
+		},
+		"resourceManager":          shimBase,
+		"microsoftGraphResourceId": srv.metadataLoginURL + "/",
+		"graph":                    srv.metadataLoginURL,
+		"portal":                   srv.metadataLoginURL,
+		"gallery":                  srv.metadataLoginURL,
+		"batch":                    srv.metadataLoginURL,
+		"suffixes": map[string]any{
+			"keyVaultDns":       "vault.localhost",
+			"storage":           "storage.localhost",
+			"acrLoginServer":    "localhost",
+			"sqlServerHostname": "localhost",
+		},
+	}
+	apiVersion := r.URL.Query().Get("api-version")
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	if apiVersion == "2022-09-01" {
+		_ = json.NewEncoder(w).Encode(env)
+		return
+	}
+	_ = json.NewEncoder(w).Encode([]any{env})
 }
 
 // ServeHTTP routes ARM paths for Microsoft.Network/loadBalancers.
 func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path
+
+	// Public metadata discovery endpoint — answer without bearer auth.
+	if r.Method == http.MethodGet && path == "/metadata/endpoints" && srv.metadataLoginURL != "" {
+		srv.serveMetadata(w, r)
+		return
+	}
+
 	idx := strings.Index(strings.ToLower(path), "/providers/microsoft.network/")
 	if idx < 0 {
-		writeAzureError(w, http.StatusNotFound, "NotFound", "path not matched: "+path)
+		srv.passthroughOr404(w, r)
 		return
 	}
 	tail := path[idx+len("/providers/microsoft.network/"):]
@@ -68,7 +180,7 @@ func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case "applicationgateways":
 		srv.routeAppGateways(w, r, resourceName)
 	default:
-		writeAzureError(w, http.StatusNotFound, "NotFound", "resource type not supported: "+resourceType)
+		srv.passthroughOr404(w, r)
 	}
 }
 
@@ -392,33 +504,38 @@ func (srv *Server) assembleAppGWEntities(r *http.Request, lbID string, p *armnet
 		}
 	}
 
-	// Create one Listener per HTTPS HTTPListener.
+	// Create one Listener per HTTPListener (HTTP or HTTPS).
 	lsnMap := make(map[string]string) // ARM listener name → domain listener ID
+	defaultTGID := ""
+	for _, v := range tgMap {
+		defaultTGID = v
+		break
+	}
 	for _, hl := range p.HTTPListeners {
 		if hl.Name == nil || hl.Properties == nil {
 			continue
 		}
-		if hl.Properties.Protocol == nil || !strings.EqualFold(string(*hl.Properties.Protocol), "https") {
-			continue
+		isHTTPS := hl.Properties.Protocol != nil && strings.EqualFold(string(*hl.Properties.Protocol), "https")
+		proto := domain.ProtocolHTTP
+		if isHTTPS {
+			proto = domain.ProtocolHTTPS
 		}
-		port := 443
+		port := 80
+		if isHTTPS {
+			port = 443
+		}
 		if hl.Properties.FrontendPort != nil && hl.Properties.FrontendPort.ID != nil {
 			if p, ok := portMap[azureLastPathSeg(*hl.Properties.FrontendPort.ID)]; ok {
 				port = p
 			}
 		}
 		var certIDs []string
-		if hl.Properties.SSLCertificate != nil && hl.Properties.SSLCertificate.ID != nil {
+		if isHTTPS && hl.Properties.SSLCertificate != nil && hl.Properties.SSLCertificate.ID != nil {
 			certIDs = []string{*hl.Properties.SSLCertificate.ID}
-		}
-		defaultTGID := ""
-		for _, v := range tgMap {
-			defaultTGID = v
-			break
 		}
 		lsn, err := srv.lb.CreateListener(ctx, domain.CreateListenerOptions{
 			LoadBalancerID: lbID,
-			Protocol:       domain.ProtocolHTTPS,
+			Protocol:       proto,
 			Port:           port,
 			TargetGroupID:  defaultTGID,
 			CertificateIDs: certIDs,

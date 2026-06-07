@@ -8,9 +8,9 @@ Roadmap [PLAN.md](PLAN.md) · resume [DO_NEXT.md](DO_NEXT.md) · bugs [BUGS.md](
 
 | | |
 |---|---|
-| Active branch | `phase-21-c-azure-appgateway-k8s` — Phase 21.C complete; PR not yet opened. |
-| In-flight | Phase 21.C: Azure Application Gateway compound ARM resource + K8s Ingress L7 support + full CLI/TF conformance matrix. All three 3×3 driver-type cells implemented. `TestAzureSDK_AppGW_L7Lifecycle`, `TestK8sPeer_AWSShaped_ALBRuleLifecycle`, AWS CLI test, AWS TF test, GCP CLI test, GCP TF test all green. |
-| Last merged | Phase 21.B GCP HTTP(S) LB global resources — PR #157. |
+| Active branch | `phase-21-d-azure-handlerwithconfig` — Phase 21.D: azure_lb HandlerWithConfig + Azure CLI/TF tests. PR not yet opened. |
+| In-flight | Phase 21.D: `HandlerWithConfig`/`NewWithConfig`/`passthroughOr404`/`serveMetadata` for azure_lb; `StartLoadBalancerServerAzureWithConfig` in harness; real Azure CLI + TF conformance test bodies (skip without sockerless). |
+| Last merged | Phase 21.C Azure App Gateway + K8s Ingress + full CLI/TF conformance matrix — PR #158. |
 | Upstream watch | Registry sockerless: BUG-67/#465 remains open. BUG-65/#451 and BUG-66/#452/#469 are closed on current sockerless main. |
 | Phases 1–19 | 1–19 closed. See [PLAN.md § Closed phases](PLAN.md#closed-phases-pr-index). |
 | Phase 19 | ✅ complete — 19.A (#127) · 19.B (#128) · 19.C (#129) · 19.D (#130 CLI/TF, #131 sockerless). All 4 backends, full SDK/CLI/TF, all sockerless lanes green, zero skips. |

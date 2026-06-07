@@ -2,23 +2,31 @@
 
 Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BUGS.md) · narrative [WHAT_WE_DID.md](WHAT_WE_DID.md) · philosophy [PHILOSOPHY.md](PHILOSOPHY.md) · rules [AGENTS.md](AGENTS.md).
 
-> **Cold-start entry point.** Phases 1–20 complete. Active work is Phase 21 (L7 Load Balancers).
+> **Cold-start entry point.** Phases 1–20 complete. Phase 21 nearly complete (21.D PR open, awaiting merge). Active branch: `phase-21-d-azure-handlerwithconfig`.
 
 ## Where we are
 
-**Phase 19 (Key Management) is complete** — PRs #127 (19.A) / #128 (19.B) / #129 (19.C) / #130 (19.D CLI/TF) / #131 (19.D sockerless), all merged. KMS across AWS/GCP/Azure + K8s: domain + inmem (real AES-256-GCM) + all three frontends + real backends + full SDK/CLI/TF conformance + all sockerless lanes green with **zero skips**. All four KMS sockerless gaps closed upstream (#407/#413/#419/#423).
+**Phase 21.D in progress** — adds `HandlerWithConfig` / `NewWithConfig` / `passthroughOr404` / `serveMetadata` to the `azure_lb` frontend (follows the `azure_compute` / `azure_dns` pattern) so the Azure CLI and Terraform tests can funnel Entra token acquisition through the sockerless stub. Also adds `harness.StartLoadBalancerServerAzureWithConfig` + extends `assembleAppGWEntities` to handle HTTP listeners. PR not yet opened.
 
-**Phase 18 — Container Registry is complete.** OCI Distribution `/v2/` data plane (shared hand-written router) + ECR/AR/ACR control planes + connected backends. See [docs/phase-18-scoping.md](docs/phase-18-scoping.md), [services/registry/INTERSECTION.md](services/registry/INTERSECTION.md), and [services/registry/APPLY_INTERSECTION.md](services/registry/APPLY_INTERSECTION.md). 18.A–18.D landed across PRs #132–#141: GCP AR, AWS ECR, and Azure ACR frontends all have SDK/CLI/Terraform control-plane coverage plus go-containerregistry OCI data-plane coverage; connected backends now include CNCF Distribution, AWS ECR, GCP Artifact Registry, Azure ACR, and inmem.
+**Phase 20 (Event Streaming) is complete** — PRs #147–#155, all merged.
 
 **Open bugs:** BUG-8 · BUG-15 · BUG-41 (Track A only — blocked on real GCP credentials) · BUG-67 (sockerless AWS ECR manifest `HEAD`, filed upstream as sockerless#465) · BUG-68/69 (local sockerless-runner/KMS-lane findings).
 
-**PR #153 merged.** Phase 20.C complete: AWS MSK restJson1 control-plane frontend, cluster-scoped `domain.Streams`, BUG-73/74/75 fixed, AWS SDK + kgo produce/fetch conformance all green. Next: Phase 20.D Azure Event Hubs frontend on a new branch.
-
 ## Session-start checklist
 
-1. Create branch `phase-20-azure-eventhubs-frontend` from `main`.
-2. Work Phase 20.D from [docs/phase-20-scoping.md](docs/phase-20-scoping.md): Azure Event Hubs ARM spec + codegen, Azure frontend over `domain.Streams`, Azure SDK + CLI + Terraform conformance, real Kafka client via Event Hubs Kafka endpoint.
-3. Open one PR and monitor CI until green. Do not merge.
+1. Check `gh pr list --state open` for the Phase 21.D PR.
+2. If merged: sync main, mark Phase 21 ✅ complete, decide next phase.
+3. If not yet open: push branch `phase-21-d-azure-handlerwithconfig`, open PR.
+
+## Phase 21.D — azure_lb HandlerWithConfig + Azure CLI/TF tests ◐
+
+- [x] Add `Config` struct + `NewWithConfig` + `HandlerWithConfig` + `wrapWithBearerLB` + `passthroughOr404` + `serveMetadata` to `internal/loadbalancer/frontends/azure_lb/server.go`.
+- [x] Extend `assembleAppGWEntities` to create domain `Listener(HTTP)` for HTTP listeners (previously HTTPS-only).
+- [x] Add `harness.StartLoadBalancerServerAzureWithConfig` returning `*LoadBalancerServerTLS`.
+- [x] Replace `azure_appgateway_cli_test.go` stub with real `TestAzureCLI_LB_AppGatewayList` (follows `TestAzureCLI_Compute_VMList` pattern; skips without sockerless).
+- [x] Replace `azure_appgateway_terraform_test.go` stub with real `TestTerraform_AzureAppGateway_Lifecycle` (resource group + VNet/Subnet passthrough + azurerm_application_gateway to shim; skips without sockerless).
+- [x] All tests green. Lint clean. License check OK.
+- [ ] Open PR and await CI + user merge.
 
 ## Phase 20 — Event Streaming ◐
 
