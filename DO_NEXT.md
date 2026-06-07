@@ -2,23 +2,21 @@
 
 Status [STATUS.md](STATUS.md) · roadmap [PLAN.md](PLAN.md) · bugs [BUGS.md](BUGS.md) · narrative [WHAT_WE_DID.md](WHAT_WE_DID.md) · philosophy [PHILOSOPHY.md](PHILOSOPHY.md) · rules [AGENTS.md](AGENTS.md).
 
-> **Cold-start entry point.** Phases 1–20 complete. Active work is Phase 21 (L7 Load Balancers).
+> **Cold-start entry point.** Phases 1–21 complete. No active branch. Decide next phase.
 
 ## Where we are
 
-**Phase 19 (Key Management) is complete** — PRs #127 (19.A) / #128 (19.B) / #129 (19.C) / #130 (19.D CLI/TF) / #131 (19.D sockerless), all merged. KMS across AWS/GCP/Azure + K8s: domain + inmem (real AES-256-GCM) + all three frontends + real backends + full SDK/CLI/TF conformance + all sockerless lanes green with **zero skips**. All four KMS sockerless gaps closed upstream (#407/#413/#419/#423).
+**Phase 21 (L7 Load Balancers) is complete** — PRs #156 (21.A AWS ELBv2 ALB) / #157 (21.B GCP HTTP(S) LB) / #158 (21.C Azure App Gateway + K8s Ingress + full CLI/TF matrix), all merged. Full intersection N35: HTTPS termination, host/path routing, HTTP TGs with health checks, opaque cert pass-through. BUG-78/79/80 fixed.
 
-**Phase 18 — Container Registry is complete.** OCI Distribution `/v2/` data plane (shared hand-written router) + ECR/AR/ACR control planes + connected backends. See [docs/phase-18-scoping.md](docs/phase-18-scoping.md), [services/registry/INTERSECTION.md](services/registry/INTERSECTION.md), and [services/registry/APPLY_INTERSECTION.md](services/registry/APPLY_INTERSECTION.md). 18.A–18.D landed across PRs #132–#141: GCP AR, AWS ECR, and Azure ACR frontends all have SDK/CLI/Terraform control-plane coverage plus go-containerregistry OCI data-plane coverage; connected backends now include CNCF Distribution, AWS ECR, GCP Artifact Registry, Azure ACR, and inmem.
+**Phase 20 (Event Streaming) is complete** — PRs #147–#155, all merged. Kafka data plane + GCP Managed Kafka + AWS MSK + Azure Event Hubs + Strimzi K8s backend + full SDK/CLI/TF conformance.
 
 **Open bugs:** BUG-8 · BUG-15 · BUG-41 (Track A only — blocked on real GCP credentials) · BUG-67 (sockerless AWS ECR manifest `HEAD`, filed upstream as sockerless#465) · BUG-68/69 (local sockerless-runner/KMS-lane findings).
 
-**PR #153 merged.** Phase 20.C complete: AWS MSK restJson1 control-plane frontend, cluster-scoped `domain.Streams`, BUG-73/74/75 fixed, AWS SDK + kgo produce/fetch conformance all green. Next: Phase 20.D Azure Event Hubs frontend on a new branch.
-
 ## Session-start checklist
 
-1. Create branch `phase-20-azure-eventhubs-frontend` from `main`.
-2. Work Phase 20.D from [docs/phase-20-scoping.md](docs/phase-20-scoping.md): Azure Event Hubs ARM spec + codegen, Azure frontend over `domain.Streams`, Azure SDK + CLI + Terraform conformance, real Kafka client via Event Hubs Kafka endpoint.
-3. Open one PR and monitor CI until green. Do not merge.
+1. Review [PLAN.md](PLAN.md) for the next planned phase.
+2. Create a branch for that phase from `main`.
+3. Work the phase, open one PR, do not merge.
 
 ## Phase 20 — Event Streaming ◐
 
