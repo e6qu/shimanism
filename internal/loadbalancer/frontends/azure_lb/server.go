@@ -13,6 +13,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 
@@ -64,6 +65,8 @@ func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		srv.routeLBs(w, r, resourceName)
+	case "applicationgateways":
+		srv.routeAppGateways(w, r, resourceName)
 	default:
 		writeAzureError(w, http.StatusNotFound, "NotFound", "resource type not supported: "+resourceType)
 	}
@@ -296,6 +299,294 @@ func azureLastPathSeg(url string) string {
 		}
 	}
 	return url
+}
+
+// ─── Application Gateway (compound ARM resource) ─────────────────────
+
+const blobKindAzureAppGW = "azure-appgw"
+
+func (srv *Server) routeAppGateways(w http.ResponseWriter, r *http.Request, name string) {
+	if name == "" {
+		if r.Method == http.MethodGet {
+			srv.listAppGateways(w, r)
+		} else {
+			writeAzureError(w, http.StatusMethodNotAllowed, "MethodNotAllowed", r.Method)
+		}
+		return
+	}
+	switch r.Method {
+	case http.MethodPut:
+		srv.createOrUpdateAppGateway(w, r, name)
+	case http.MethodGet:
+		srv.getAppGateway(w, r, name)
+	case http.MethodDelete:
+		srv.deleteAppGateway(w, r, name)
+	default:
+		writeAzureError(w, http.StatusMethodNotAllowed, "MethodNotAllowed", r.Method)
+	}
+}
+
+func (srv *Server) createOrUpdateAppGateway(w http.ResponseWriter, r *http.Request, name string) {
+	raw, err := io.ReadAll(r.Body)
+	if err != nil {
+		writeAzureError(w, http.StatusBadRequest, "InvalidRequestContent", err.Error())
+		return
+	}
+	var req armnetwork.ApplicationGateway
+	if err := json.Unmarshal(raw, &req); err != nil {
+		writeAzureError(w, http.StatusBadRequest, "InvalidRequestContent", err.Error())
+		return
+	}
+
+	// Idempotent: if blob already exists, return current state.
+	if _, err := srv.lb.GetBlob(r.Context(), blobKindAzureAppGW, name); err == nil {
+		writeJSON(w, http.StatusOK, appGWResponseBody(name, req.Location))
+		return
+	}
+
+	// Store raw blob for GET round-trips.
+	if err := srv.lb.PutBlob(r.Context(), blobKindAzureAppGW, name, raw); err != nil {
+		writeComputeErr(w, err)
+		return
+	}
+
+	lb, err := srv.lb.CreateLoadBalancer(r.Context(), name, domain.CreateLoadBalancerOptions{
+		Type: domain.LoadBalancerTypeApplication,
+	})
+	if err != nil {
+		_ = srv.lb.DeleteBlob(r.Context(), blobKindAzureAppGW, name)
+		writeComputeErr(w, err)
+		return
+	}
+
+	if req.Properties != nil {
+		srv.assembleAppGWEntities(r, lb.ID, req.Properties)
+	}
+	writeJSON(w, http.StatusCreated, appGWResponseBody(name, req.Location))
+}
+
+// assembleAppGWEntities parses the compound ApplicationGateway properties
+// and creates the corresponding domain entities (TGs, Listeners, Rules).
+func (srv *Server) assembleAppGWEntities(r *http.Request, lbID string, p *armnetwork.ApplicationGatewayPropertiesFormat) {
+	ctx := r.Context()
+
+	// Build frontend-port name → port number.
+	portMap := make(map[string]int)
+	for _, fp := range p.FrontendPorts {
+		if fp.Name != nil && fp.Properties != nil && fp.Properties.Port != nil {
+			portMap[*fp.Name] = int(*fp.Properties.Port)
+		}
+	}
+
+	// Create one TargetGroup per BackendAddressPool.
+	tgMap := make(map[string]string) // pool name → domain TG ID
+	for _, pool := range p.BackendAddressPools {
+		if pool.Name == nil {
+			continue
+		}
+		tg, err := srv.lb.CreateTargetGroup(ctx, *pool.Name, domain.CreateTargetGroupOptions{
+			Protocol: domain.ProtocolHTTP,
+		})
+		if err == nil {
+			tgMap[*pool.Name] = tg.ID
+		}
+	}
+
+	// Create one Listener per HTTPS HTTPListener.
+	lsnMap := make(map[string]string) // ARM listener name → domain listener ID
+	for _, hl := range p.HTTPListeners {
+		if hl.Name == nil || hl.Properties == nil {
+			continue
+		}
+		if hl.Properties.Protocol == nil || !strings.EqualFold(string(*hl.Properties.Protocol), "https") {
+			continue
+		}
+		port := 443
+		if hl.Properties.FrontendPort != nil && hl.Properties.FrontendPort.ID != nil {
+			if p, ok := portMap[azureLastPathSeg(*hl.Properties.FrontendPort.ID)]; ok {
+				port = p
+			}
+		}
+		var certIDs []string
+		if hl.Properties.SSLCertificate != nil && hl.Properties.SSLCertificate.ID != nil {
+			certIDs = []string{*hl.Properties.SSLCertificate.ID}
+		}
+		defaultTGID := ""
+		for _, v := range tgMap {
+			defaultTGID = v
+			break
+		}
+		lsn, err := srv.lb.CreateListener(ctx, domain.CreateListenerOptions{
+			LoadBalancerID: lbID,
+			Protocol:       domain.ProtocolHTTPS,
+			Port:           port,
+			TargetGroupID:  defaultTGID,
+			CertificateIDs: certIDs,
+		})
+		if err == nil {
+			lsnMap[*hl.Name] = lsn.ID
+		}
+	}
+
+	// Build URLPathMap name → domain listener ID via RequestRoutingRules.
+	umToLsn := make(map[string]string)
+	for _, rr := range p.RequestRoutingRules {
+		if rr.Properties == nil {
+			continue
+		}
+		lsnName := ""
+		if rr.Properties.HTTPListener != nil && rr.Properties.HTTPListener.ID != nil {
+			lsnName = azureLastPathSeg(*rr.Properties.HTTPListener.ID)
+		}
+		umName := ""
+		if rr.Properties.URLPathMap != nil && rr.Properties.URLPathMap.ID != nil {
+			umName = azureLastPathSeg(*rr.Properties.URLPathMap.ID)
+		}
+		if lsnName != "" && umName != "" {
+			if lsnID, ok := lsnMap[lsnName]; ok {
+				umToLsn[umName] = lsnID
+			}
+		}
+	}
+
+	// Create Rules from URLPathMap path rules.
+	for _, um := range p.URLPathMaps {
+		if um.Name == nil || um.Properties == nil {
+			continue
+		}
+		lsnID, ok := umToLsn[*um.Name]
+		if !ok {
+			continue
+		}
+		for i, pr := range um.Properties.PathRules {
+			if pr.Properties == nil || len(pr.Properties.Paths) == 0 {
+				continue
+			}
+			path := ""
+			if pr.Properties.Paths[0] != nil {
+				path = *pr.Properties.Paths[0]
+			}
+			tgID := ""
+			if pr.Properties.BackendAddressPool != nil && pr.Properties.BackendAddressPool.ID != nil {
+				tgID = tgMap[azureLastPathSeg(*pr.Properties.BackendAddressPool.ID)]
+			}
+			_, _ = srv.lb.CreateRule(ctx, domain.CreateRuleOptions{
+				ListenerID: lsnID,
+				Priority:   (i + 1) * 10,
+				Conditions: []domain.RuleCondition{{
+					Type:   domain.RuleConditionPathPattern,
+					Values: []string{path},
+				}},
+				Action: domain.RuleAction{TargetGroupID: tgID},
+			})
+		}
+	}
+}
+
+func (srv *Server) getAppGateway(w http.ResponseWriter, r *http.Request, name string) {
+	blob, err := srv.lb.GetBlob(r.Context(), blobKindAzureAppGW, name)
+	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			writeAzureError(w, http.StatusNotFound, "ResourceNotFound", "ApplicationGateway '"+name+"' not found")
+			return
+		}
+		writeComputeErr(w, err)
+		return
+	}
+	// Enrich stored blob with server-assigned fields the SDK expects.
+	var body map[string]any
+	if err := json.Unmarshal(blob, &body); err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(blob)
+		return
+	}
+	id := fmt.Sprintf("/subscriptions/shim/resourceGroups/shim/providers/Microsoft.Network/applicationGateways/%s", name)
+	body["id"] = id
+	body["name"] = name
+	body["type"] = "Microsoft.Network/applicationGateways"
+	if props, ok := body["properties"].(map[string]any); ok {
+		props["provisioningState"] = "Succeeded"
+	} else {
+		body["properties"] = map[string]any{"provisioningState": "Succeeded"}
+	}
+	writeJSON(w, http.StatusOK, body)
+}
+
+func (srv *Server) listAppGateways(w http.ResponseWriter, r *http.Request) {
+	blobs, err := srv.lb.ListBlobs(r.Context(), blobKindAzureAppGW)
+	if err != nil {
+		if errors.Is(err, domain.ErrNotSupported) {
+			writeJSON(w, http.StatusOK, map[string]any{"value": []any{}})
+			return
+		}
+		writeComputeErr(w, err)
+		return
+	}
+	type listResult struct {
+		Value []json.RawMessage `json:"value"`
+	}
+	result := listResult{Value: []json.RawMessage{}}
+	for _, b := range blobs {
+		result.Value = append(result.Value, json.RawMessage(b.Data))
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+func (srv *Server) deleteAppGateway(w http.ResponseWriter, r *http.Request, name string) {
+	blob, err := srv.lb.GetBlob(r.Context(), blobKindAzureAppGW, name)
+	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			writeAzureError(w, http.StatusNotFound, "ResourceNotFound", "ApplicationGateway '"+name+"' not found")
+			return
+		}
+		writeComputeErr(w, err)
+		return
+	}
+	var stored armnetwork.ApplicationGateway
+	_ = json.Unmarshal(blob, &stored)
+	ctx := r.Context()
+
+	// Cascade: rules → listeners → target groups → LB → blob.
+	lsns, _ := srv.lb.ListListeners(ctx, domain.ListListenersOptions{LoadBalancerID: name})
+	for _, lsn := range lsns.Listeners {
+		rules, _ := srv.lb.ListRules(ctx, domain.ListRulesOptions{ListenerID: lsn.ID})
+		for _, rule := range rules.Rules {
+			_ = srv.lb.DeleteRule(ctx, rule.ID)
+		}
+		_ = srv.lb.DeleteListener(ctx, lsn.ID)
+	}
+	if stored.Properties != nil {
+		for _, pool := range stored.Properties.BackendAddressPools {
+			if pool.Name == nil {
+				continue
+			}
+			if tg := srv.findTGByName(r, *pool.Name); tg != nil {
+				_ = srv.lb.DeleteTargetGroup(ctx, tg.ID)
+			}
+		}
+	}
+	if lb := srv.findLBByName(r, name); lb != nil {
+		_ = srv.lb.DeleteLoadBalancer(ctx, lb.ID)
+	}
+	_ = srv.lb.DeleteBlob(ctx, blobKindAzureAppGW, name)
+	w.WriteHeader(http.StatusOK)
+}
+
+func appGWResponseBody(name string, location *string) map[string]any {
+	id := fmt.Sprintf("/subscriptions/shim/resourceGroups/shim/providers/Microsoft.Network/applicationGateways/%s", name)
+	body := map[string]any{
+		"id":   id,
+		"name": name,
+		"type": "Microsoft.Network/applicationGateways",
+		"properties": map[string]any{
+			"provisioningState": "Succeeded",
+		},
+	}
+	if location != nil {
+		body["location"] = *location
+	}
+	return body
 }
 
 // ─── Error helpers ────────────────────────────────────────────────────

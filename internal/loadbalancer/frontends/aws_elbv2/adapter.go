@@ -40,11 +40,24 @@ type Adapter struct {
 // router into the adapter.
 func New(lb domain.LoadBalancers) http.Handler {
 	router := gen.RegisterElasticLoadBalancingv2Routes(&Adapter{lb: lb})
+	// Wrap the router to intercept attribute-management operations that
+	// are called by Terraform after every create but aren't in the codegen
+	// spec (they are stateless no-ops: the shim has no per-LB attribute store).
+	wrapped := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		action := r.FormValue("Action")
+		switch action {
+		case "ModifyLoadBalancerAttributes", "ModifyTargetGroupAttributes",
+			"DescribeLoadBalancerAttributes", "DescribeTargetGroupAttributes":
+			awsquery.WriteResult(w, action, struct{}{})
+		default:
+			router.ServeHTTP(w, r)
+		}
+	})
 	verifier := sigv4verifier.New(sigv4verifier.StaticStore{
 		AccessKey: "AKIAIOSFODNN7EXAMPLE",
 		Secret:    "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
 	}, sigv4verifier.Options{Service: "elasticloadbalancing", Region: arnRegion})
-	return sigv4verifier.Middleware(verifier, awsquery.EmitVerifierError)(router)
+	return sigv4verifier.Middleware(verifier, awsquery.EmitVerifierError)(wrapped)
 }
 
 // ─── ARN helpers ──────────────────────────────────────────────────────
@@ -735,6 +748,11 @@ func (a *Adapter) RemoveTags(_ context.Context, _ *gen.RemoveTagsInput) (*gen.Re
 	return &gen.RemoveTagsOutput{}, nil
 }
 
-func (a *Adapter) DescribeTags(_ context.Context, _ *gen.DescribeTagsInput) (*gen.DescribeTagsOutput, error) {
-	return &gen.DescribeTagsOutput{}, nil
+func (a *Adapter) DescribeTags(_ context.Context, in *gen.DescribeTagsInput) (*gen.DescribeTagsOutput, error) {
+	out := &gen.DescribeTagsOutput{}
+	for _, arn := range in.ResourceArns.Member {
+		arn := arn
+		out.TagDescriptions.Member = append(out.TagDescriptions.Member, gen.TagDescription{ResourceArn: &arn})
+	}
+	return out, nil
 }

@@ -7,6 +7,7 @@ package conformance_test
 import (
 	"context"
 	"crypto/tls"
+	"fmt"
 	"net/http"
 	"testing"
 	"time"
@@ -124,5 +125,130 @@ func TestAzureSDK_LB_LoadBalancerLifecycle(t *testing.T) {
 	}
 	if _, err := delPoller.PollUntilDone(ctx, nil); err != nil {
 		t.Fatalf("delete PollUntilDone: %v", err)
+	}
+}
+
+// TestAzureSDK_AppGW_L7Lifecycle exercises the compound Application Gateway
+// ARM resource: create (with backend pool, HTTPS listener, path rules),
+// get, and delete.
+func TestAzureSDK_AppGW_L7Lifecycle(t *testing.T) {
+	srv := harness.StartLoadBalancerServerAzure(t, inmem.New())
+	ctx := context.Background()
+	opts := newAzureLBClientOptions(srv.URL)
+	cred := azureLBCredential{}
+
+	gwClient, err := armnetwork.NewApplicationGatewaysClient(azureLBSubscription, cred, opts)
+	if err != nil {
+		t.Fatalf("new ApplicationGateways client: %v", err)
+	}
+
+	sub := azureLBSubscription
+	rg := azureLBResourceGroup
+	gwName := "my-appgw"
+
+	// Self-link helpers (the server resolves only the last path segment).
+	selfLink := func(typ, name string) string {
+		return fmt.Sprintf("/subscriptions/%s/resourceGroups/%s/providers/Microsoft.Network/applicationGateways/%s/%s/%s",
+			sub, rg, gwName, typ, name)
+	}
+
+	poller, err := gwClient.BeginCreateOrUpdate(ctx, rg, gwName,
+		armnetwork.ApplicationGateway{
+			Location: to.Ptr("eastus"),
+			Properties: &armnetwork.ApplicationGatewayPropertiesFormat{
+				BackendAddressPools: []*armnetwork.ApplicationGatewayBackendAddressPool{
+					{Name: to.Ptr("be-pool")},
+				},
+				FrontendPorts: []*armnetwork.ApplicationGatewayFrontendPort{
+					{
+						Name: to.Ptr("port443"),
+						Properties: &armnetwork.ApplicationGatewayFrontendPortPropertiesFormat{
+							Port: to.Ptr[int32](443),
+						},
+					},
+				},
+				SSLCertificates: []*armnetwork.ApplicationGatewaySSLCertificate{
+					{Name: to.Ptr("my-cert")},
+				},
+				HTTPListeners: []*armnetwork.ApplicationGatewayHTTPListener{
+					{
+						Name: to.Ptr("listener1"),
+						Properties: &armnetwork.ApplicationGatewayHTTPListenerPropertiesFormat{
+							Protocol:     to.Ptr(armnetwork.ApplicationGatewayProtocol("Https")),
+							FrontendPort: &armnetwork.SubResource{ID: to.Ptr(selfLink("frontendPorts", "port443"))},
+							SSLCertificate: &armnetwork.SubResource{
+								ID: to.Ptr(selfLink("sslCertificates", "my-cert")),
+							},
+						},
+					},
+				},
+				URLPathMaps: []*armnetwork.ApplicationGatewayURLPathMap{
+					{
+						Name: to.Ptr("url-map1"),
+						Properties: &armnetwork.ApplicationGatewayURLPathMapPropertiesFormat{
+							DefaultBackendAddressPool: &armnetwork.SubResource{
+								ID: to.Ptr(selfLink("backendAddressPools", "be-pool")),
+							},
+							PathRules: []*armnetwork.ApplicationGatewayPathRule{
+								{
+									Name: to.Ptr("rule1"),
+									Properties: &armnetwork.ApplicationGatewayPathRulePropertiesFormat{
+										Paths: []*string{to.Ptr("/api/*")},
+										BackendAddressPool: &armnetwork.SubResource{
+											ID: to.Ptr(selfLink("backendAddressPools", "be-pool")),
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+				RequestRoutingRules: []*armnetwork.ApplicationGatewayRequestRoutingRule{
+					{
+						Name: to.Ptr("rr1"),
+						Properties: &armnetwork.ApplicationGatewayRequestRoutingRulePropertiesFormat{
+							HTTPListener: &armnetwork.SubResource{
+								ID: to.Ptr(selfLink("httpListeners", "listener1")),
+							},
+							URLPathMap: &armnetwork.SubResource{
+								ID: to.Ptr(selfLink("urlPathMaps", "url-map1")),
+							},
+						},
+					},
+				},
+			},
+		}, nil)
+	if err != nil {
+		t.Fatalf("BeginCreateOrUpdate: %v", err)
+	}
+	created, err := poller.PollUntilDone(ctx, nil)
+	if err != nil {
+		t.Fatalf("PollUntilDone: %v", err)
+	}
+	if created.Name == nil || *created.Name != gwName {
+		t.Errorf("created.Name = %v, want %q", created.Name, gwName)
+	}
+
+	// Get.
+	got, err := gwClient.Get(ctx, rg, gwName, nil)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if got.Name == nil || *got.Name != gwName {
+		t.Errorf("Get name = %v, want %q", got.Name, gwName)
+	}
+
+	// Delete.
+	delPoller, err := gwClient.BeginDelete(ctx, rg, gwName, nil)
+	if err != nil {
+		t.Fatalf("BeginDelete: %v", err)
+	}
+	if _, err := delPoller.PollUntilDone(ctx, nil); err != nil {
+		t.Fatalf("delete PollUntilDone: %v", err)
+	}
+
+	// Confirm gone.
+	if _, err := gwClient.Get(ctx, rg, gwName, nil); err == nil {
+		t.Errorf("Get after delete succeeded; expected 404")
 	}
 }
